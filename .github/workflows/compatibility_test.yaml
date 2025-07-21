@@ -1,0 +1,289 @@
+name: Compatibility Test - PostgreSQL
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/README.*'
+      - '**/LICENSE.*'
+      - 'docs/**'
+      - 'ISSUE_TEMPLATE/**'
+
+jobs:
+  build-win-psqlodbc:
+    name: Windows - Build psqlODBC
+    runs-on: windows-latest
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Download psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}} 
+        run: |
+          mkdir psqlodbc
+          cd psqlodbc
+          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
+          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build-macos-psqlodbc:
+    name: MacOS - Build psqlODBC
+    runs-on: macos-latest
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Checkout psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        uses: actions/checkout@v4
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        run: |
+          brew install autoconf automake unixodbc libtool postgresql
+      - name: Build psqlodbc
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+
+  build-linux-psqlodbc:
+    name: Linux Ubuntu - Build psqlODBC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Checkout psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        uses: actions/checkout@v4
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}} 
+        run: |
+          sudo apt update
+          sudo apt-get install autoconf automake libtool postgresql libpq-dev
+      - name: Download & Build unixODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}} 
+        run: |
+          curl -L https://www.unixodbc.org/unixODBC-2.3.12.tar.gz -o unixODBC.tar
+          tar xf unixODBC.tar
+          cd unixODBC-2.3.12
+          ./configure && make
+          sudo make install
+      - name: Build psqlodbc
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+
+  test-win-compat:
+    name: Windows - Compatibility Test
+    needs: [build-win-psqlodbc]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout aws-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Build aws-odbc-wrapper
+        run: |
+          cmake -S driver -B build
+          cmake --build build --config Release
+      # TODO - Replace this step once installers are made
+      - name: Manual Install Wrapper Driver
+        run: |
+          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" /v "aws-odbc-wrapper" /t REG_SZ /d "Installed" /f
+          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\aws-odbc-wrapper" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/poc-shell-driver.dll" /f
+      - name: Retrieve psqlODBC Cache
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Install psqlODBC Driver
+        shell: pwsh
+        working-directory: psqlodbc
+        run: |
+          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          username: postgres
+          password: password
+          database: test_db
+          port: 5432
+          postgres-version: 17
+          ssl: true
+      - name: Build Compatibility Tests
+        run: |
+          cmake -S test/compatibility -B build_test
+          cmake --build build_test --config Release
+      # TODO - Replace once setup routines are done (ConfigDSN, ConfigDriver, etc)
+      - name: Manual Setup DSN
+        run: |
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/poc-shell-driver.dll" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-odbc-wrapper" /t REG_SZ /d "aws-odbc-wrapper" /f
+      # - name: Configure Test DSN
+      #   run: |
+      #       Add-OdbcDsn -Name wrapper-dsn `
+      #       -DriverName "aws-odbc-wrapper" `
+      #       -DsnType User `
+      #       -SetPropertyValue `
+      #        @( `
+      #        "SERVER=localhost", `
+      #        "PORT=5432")
+      - name: Configure Base DSN
+        run: |
+            Add-OdbcDsn -Name pg-dsn `
+            -DriverName "PostgreSQL ANSI(x64)" `
+            -DsnType User `
+            -SetPropertyValue `
+             @( `
+             "SERVER=localhost", `
+             "PORT=5432") `
+      - name: Run Compatibility Tests
+        run: |
+          ./build_test/Release/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-dsn
+          TEST_DATABASE: test_db
+          TEST_USERNAME: postgres
+          TEST_PASSWORD: password
+          TEST_BASE_DRIVER: C:\Program Files\psqlODBC\1700\bin\podbc30a.dll
+          TEST_BASE_DSN: pg-dsn
+
+  test-macos-compat:
+    name: MacOS - Compatibility Test
+    needs: [build-macos-psqlodbc]
+    runs-on: macos-latest
+    steps:
+      - name: Checkout aws-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc postgresql
+      - name: Build aws-odbc-wrapper
+        run: |
+          cmake -S driver -B build
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          username: postgres
+          password: password
+          database: test_db
+          port: 5432
+          postgres-version: 17
+          ssl: true
+      - name: Build Compatibility Tests for PostgreSQL
+        run: |
+          cmake -S test/compatibility -B test-compatibility \
+            -DTEST_SERVER="localhost" \
+            -DTEST_PORT="5432" \
+            -DTEST_DATABASE="test_db" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/libpoc-shell-driver.dylib" \
+            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+          cmake --build test-compatibility
+      - name: Run Compatibility Tests
+        run: |
+          ./test-compatibility/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-dsn
+          TEST_DATABASE: test_db
+          TEST_USERNAME: postgres
+          TEST_PASSWORD: password
+          TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
+          TEST_BASE_DSN: pg-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+
+  test-linux-compat:
+    name: Linux Ubuntu - Compatibility Test
+    needs: [build-linux-psqlodbc]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout aws-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get install cmake unixodbc unixodbc-dev odbcinst
+      - name: Build aws-odbc-wrapper
+        run: |
+          cmake -S driver -B build
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v7
+        with:
+          username: postgres
+          password: password
+          database: test_db
+          port: 5432
+          postgres-version: 17
+          ssl: true
+      - name: Build Compatibility Tests for PostgreSQL
+        run: |
+          cmake -S test/compatibility -B test-compatibility \
+            -DTEST_SERVER="localhost" \
+            -DTEST_PORT="5432" \
+            -DTEST_DATABASE="test_db" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/libpoc-shell-driver.so" \
+            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+          cmake --build test-compatibility
+      - name: Run Compatibility Tests
+        run: |
+          ./test-compatibility/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-dsn
+          TEST_DATABASE: test_db
+          TEST_USERNAME: postgres
+          TEST_PASSWORD: password
+          TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
+          TEST_BASE_DSN: pg-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"

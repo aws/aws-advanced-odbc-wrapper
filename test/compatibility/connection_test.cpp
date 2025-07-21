@@ -50,9 +50,8 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriver_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
-    std::string conn_str = ConnectionStringBuilder::ConnectionStringBuilder(
-        test_dsn, test_server, test_port)
-        .withDatabase(test_db)
+    ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
+    std::string conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDriver(test_base_driver)

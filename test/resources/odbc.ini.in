@@ -1,0 +1,12 @@
+[ODBC Data Sources]
+data_source_name = @TEST_DSN@
+
+[@TEST_DSN@]
+Driver          = @TEST_DRIVER_PATH@
+DATABASE        = @TEST_DATABASE@
+SERVER          = @TEST_SERVER@
+
+[@BASE_PG_DSN@]
+Driver          = @BASE_PG_DRIVER_PATH@
+DATABASE        = @TEST_DATABASE@
+SERVER          = @TEST_SERVER@

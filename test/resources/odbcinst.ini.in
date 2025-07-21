@@ -1,0 +1,11 @@
+[ODBC Drivers]
+@TEST_DRIVER_NAME@ = Installed
+@BASE_PG_DRIVER_NAME@ = Installed
+
+[@TEST_DRIVER_NAME@]
+Driver = @TEST_DRIVER_PATH@
+Threading = @THREADING@
+
+[@BASE_PG_DRIVER_NAME@]
+Driver = @BASE_PG_DRIVER_PATH@
+Threading = @THREADING@

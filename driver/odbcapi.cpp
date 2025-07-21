@@ -10,6 +10,8 @@
 
 #include "driver.h"
 
+#include <cstring>
+
 // RDS Functions
 SQLRETURN RDS_AllocEnv_Impl(
     SQLHENV *      EnvironmentHandlePointer)

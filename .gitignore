@@ -36,3 +36,7 @@
 
 # Build Folders
 build*
+
+# Test Files
+odbc.ini
+odbcinst.ini

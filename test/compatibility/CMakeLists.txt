@@ -65,3 +65,34 @@ target_include_directories(
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
+
+# ODBC Unix DSN ---------------------------------------------------------------------------------------------
+SET(ODBC_PATH ${CMAKE_SOURCE_DIR}/../resources/)
+
+SET(MY_VARIABLE "option_value" CACHE STRING "Some user-specified option")
+
+# Common Settings
+SET(THREADING "0")
+SET(TEST_SERVER ${TEST_SERVER},${TEST_PORT})
+SET(TEST_DATABASE ${TEST_DATABASE})
+
+# Test Driver
+SET(TEST_DSN "wrapper-dsn")
+SET(TEST_DRIVER_NAME "aws-odbc-wrapper")
+SET(TEST_DRIVER_PATH ${TEST_DRIVER_PATH})
+
+# Base PG Driver
+SET(BASE_PG_DSN "pg-dsn")
+SET(BASE_PG_DRIVER_NAME "community-pg")
+SET(BASE_PG_DRIVER_PATH ${BASE_PG_DRIVER_PATH})
+
+CONFIGURE_FILE(
+    ${ODBC_PATH}/odbcinst.ini.in
+    ${ODBC_PATH}/odbcinst.ini
+    @ONLY
+)
+CONFIGURE_FILE(
+    ${ODBC_PATH}/odbc.ini.in
+    ${ODBC_PATH}/odbc.ini
+    @ONLY
+)
