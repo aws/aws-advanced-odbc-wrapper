@@ -1,0 +1,31 @@
+#ifndef CONNECTION_STRING_KEYS_H
+#define CONNECTION_STRING_KEYS_H
+
+#include "rds_strings.h"
+
+/* Generic */
+#define BOOL_FALSE TEXT("0")
+#define BOOL_TRUE TEXT("1")
+
+#define KEY_BASE_DRIVER TEXT("BASE_DRIVER")
+#define KEY_DRIVER TEXT("DRIVER")
+#define KEY_DSN TEXT("DSN")
+
+/* Auth */
+#define KEY_AUTH_TYPE TEXT("RDS_AUTH_TYPE")
+#define KEY_DB_USERNAME TEXT("UID")
+#define KEY_DB_PASSWORD TEXT("PWD")
+
+/* Types */
+#define VALUE_AUTH_DB TEXT("DATABASE")
+#define VALUE_AUTH_IAM TEXT("RDS_IAM")
+#define VALUE_AUTH_SECRETS TEXT("SECRETS_MANAGER")
+#define VALUE_AUTH_ADFS TEXT("ADFS")
+#define VALUE_AUTH_OKTA TEXT("OKTA")
+
+/* IAM */
+/* Secrets Manager */
+/* ADFS */
+/* OKTA */
+
+#endif // CONNECTION_STRING_KEYS_H
