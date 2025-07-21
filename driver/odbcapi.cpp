@@ -735,16 +735,7 @@ SQLRETURN SQL_API SQLDriverConnect(
     }
 
     // TODO - Read DSN & Load Information
-
-    // TODO - Will need to modify this function to only put if absent
-    //   Ideally we would still want this at the lowest level, as the base plugin
-    //   But since we will have other plugins such as IAM replacing the PWD,
-    //   we don't want the DSN to replace that generated token
-    //
-    //   For now, we will simply remove the Driver & DSN from the connection string
-    dbc->conn_attr = ConnectionStringHelper::ParseConnectionString(AS_RDS_STR(InConnectionString));
-    dbc->conn_attr.erase(KEY_DRIVER);  // Temporary solution, see above
-    dbc->conn_attr.erase(KEY_DSN);     // Temporary solution, see above
+    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR(InConnectionString), dbc->conn_attr);
     if (dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
         // TODO - Need to ensure the paths (slashes) are correct per OS
         RDS_STR driver_name = dbc->conn_attr.at(KEY_BASE_DRIVER);

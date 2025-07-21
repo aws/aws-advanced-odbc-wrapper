@@ -72,6 +72,71 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriver_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_ENV, henv));
 }
 
+TEST_F(ConnectionTest, SQLDriverConnect_BaseDSN_Success) {
+    GTEST_SKIP() << "Needs DSN parser to get Driver from Base DSN";
+
+    SQLRETURN ret = 0;
+    SQLHENV henv = SQL_NULL_HANDLE;
+    SQLHDBC hdbc = SQL_NULL_HANDLE;
+
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &henv));
+    EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
+
+    ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
+    std::string conn_str = builder.withDatabase(test_db)
+        .withUID(test_uid)
+        .withPWD(test_pwd)
+        .withBaseDSN(test_base_dsn)
+        .getString();
+
+    EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
+        nullptr,
+        AS_SQLTCHAR(conn_str.c_str()),
+        SQL_NTS,
+        nullptr,
+        0,
+        nullptr,
+        SQL_DRIVER_NOPROMPT)
+    );
+
+    EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(hdbc));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_DBC, hdbc));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_ENV, henv));
+}
+
+TEST_F(ConnectionTest, SQLDriverConnect_BaseDriverAndDSN_Success) {
+    SQLRETURN ret = 0;
+    SQLHENV henv = SQL_NULL_HANDLE;
+    SQLHDBC hdbc = SQL_NULL_HANDLE;
+
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &henv));
+    EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
+
+    ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
+    std::string conn_str = builder.withDatabase(test_db)
+        .withUID(test_uid)
+        .withPWD(test_pwd)
+        .withBaseDriver(test_base_driver)
+        .withBaseDSN(test_base_dsn)
+        .getString();
+
+    EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
+        nullptr,
+        AS_SQLTCHAR(conn_str.c_str()),
+        SQL_NTS,
+        nullptr,
+        0,
+        nullptr,
+        SQL_DRIVER_NOPROMPT)
+    );
+
+    EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(hdbc));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_DBC, hdbc));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_ENV, henv));
+}
+
 TEST_F(ConnectionTest, SQLConnect_BaseDriver_Success) {
     GTEST_SKIP() << "SQLConnect is not implemented yet. Needs DSN parser";
 

@@ -1,16 +1,12 @@
 #include "connection_string_helper.h"
 
-// TODO - Will need to modify this function to only put if absent
-//   Ideally we would still want this at the lowest level, as the base plugin
-//   But since we will have other plugins such as IAM replacing the PWD,
-//   we don't want the DSN to replace that generated token
-std::map<RDS_STR, RDS_STR> ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str)
+#include "connection_string_keys.h"
+
+void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map)
 {
     RDS_REGEX pattern(TEXT("([^;=]+)=([^;]+)"));
     RDS_MATCH match;
     RDS_STR conn_str_itr = conn_str;
-
-    std::map<RDS_STR, RDS_STR> conn_map;
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
         RDS_STR key = match[1].str();
@@ -18,12 +14,28 @@ std::map<RDS_STR, RDS_STR> ConnectionStringHelper::ParseConnectionString(const R
             return TO_UPPER(c);
         });
         RDS_STR val = match[2].str();
-        conn_map[key] = val;
 
+        // Insert if absent
+        conn_map.try_emplace(key, val);
         conn_str_itr = match.suffix().str();
     }
 
-    return conn_map;
+    // Remove original connection's DSN & Driver
+    // We don't want the underlying connection
+    //  to look back to the wrapper
+    conn_map.erase(KEY_DRIVER);
+    conn_map.erase(KEY_DSN);
+
+    // Set the DSN use the Base
+    auto map_end_itr = conn_map.end();
+    if (conn_map.find(KEY_BASE_DSN) != map_end_itr) {
+        conn_map.insert_or_assign(KEY_DSN, conn_map.at(KEY_BASE_DSN));
+    }
+    // Set to use Base Driver if Base DSN is empty
+    //  Base DSN should already contain the underlying driver
+    else if (conn_map.find(KEY_BASE_DRIVER) != map_end_itr) {
+        conn_map.insert_or_assign(KEY_DRIVER, conn_map.at(KEY_BASE_DRIVER));
+    }
 }
 
 RDS_STR ConnectionStringHelper::BuildConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)

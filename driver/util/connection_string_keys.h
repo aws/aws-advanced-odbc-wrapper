@@ -9,6 +9,7 @@
 
 #define KEY_BASE_DRIVER TEXT("BASE_DRIVER")
 #define KEY_DRIVER TEXT("DRIVER")
+#define KEY_BASE_DSN TEXT("BASE_DSN")
 #define KEY_DSN TEXT("DSN")
 
 /* Auth */

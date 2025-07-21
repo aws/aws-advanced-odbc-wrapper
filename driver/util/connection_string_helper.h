@@ -6,7 +6,7 @@
 #include "rds_strings.h"
 
 namespace ConnectionStringHelper {
-    std::map<RDS_STR, RDS_STR> ParseConnectionString(const RDS_STR &conn_str);
+    void ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map);
     RDS_STR BuildConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map);
 }
 
