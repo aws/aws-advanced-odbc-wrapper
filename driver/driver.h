@@ -57,6 +57,11 @@ struct ERR_INFO {
         error_num = num;
     }
 
+    ~ERR_INFO() {
+        if (error_msg) delete error_msg;
+        if (sqlstate) delete sqlstate;
+    }
+
     void set_error_message(const char *msg, const char *state) {
         if (error_msg) delete error_msg;
         if (sqlstate) delete sqlstate;
@@ -74,22 +79,9 @@ struct ENV {
     // Error Info, to be used if no underlying ENV
     ERR_INFO*                   err;
 
-    // TODO - Alternative, store wrapped ENV & Module Handle here
-    //    Module Handle stored in ENV allows it to be shared and
-    //    reduce the amount of times it needs to be tracked / "loaded"
-    //    Downside, for Statement to get access, it must go through
-    //    Stmt -> Dbc -> Env -> Module Handle
-    //    ^ Can also store pointer in each structure to refer to this module
-    //    Can still have multiple DBCs per ENV
-    //    but need to enforce that the underlying driver is the same
-    RDS_STR                     wrapped_driver_path;
-    // TODO - Wrap the driver handle & function map into a class to be passed around
-    MODULE_HANDLE               wrapped_driver_handle;
     SQLHENV                     wrapped_env;
-    // TODO - Thread safety? Multiple can read, but when adding,
-    //    will having multiple threads put to the same key
-    //    with the same value cause any negative effects?
-    std::map<RDS_STR, MODULE_HANDLE> wrapped_func;
+
+    std::shared_ptr<RdsLibLoader> driver_lib_loader;
 }; // ENV
 
 struct DBC {

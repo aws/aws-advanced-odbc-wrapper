@@ -2,6 +2,7 @@
 
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
+#include "../util/rds_lib_loader.h"
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
@@ -29,24 +30,33 @@ SQLRETURN BasePlugin::Connect(
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
     ENV* env = dbc->env;
-    RDS_SQLAllocHandle alloc_proc = (RDS_SQLAllocHandle) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLAllocHandle");
-    RDS_SQLDriverConnect drv_conn_proc = (RDS_SQLDriverConnect) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLDriverConnect");
-    RDS_SQLSetConnectAttr set_connect_attr_proc = (RDS_SQLSetConnectAttr) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLSetConnectAttr");
 
     // TODO - Should a new connect use a new underlying DBC?
     // Create Wrapped DBC if not already allocated
+    RdsLibResult res;
     if (!dbc->wrapped_dbc) {
-        (*alloc_proc)(SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc);
+        res = env->driver_lib_loader->CallFunction<RDS_SQLAllocHandle>(AS_RDS_STR("SQLAllocHandle"),
+            SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
+        );
     }
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
     RDS_STR conn_in = ConnectionStringHelper::BuildConnectionString(dbc->conn_attr);
-    ret = (*drv_conn_proc)(dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    res = env->driver_lib_loader->CallFunction<RDS_SQLDriverConnect>(AS_RDS_STR("SQLDriverConnect"),
+        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+    );
+
+    if (res.fn_load_success) {
+        ret = res.fn_result;
+    }
 
     // Apply Tracked Connection Attributes
     for (auto const& [key, val] : dbc->attr_map) {
-        has_conn_attr_errors |= (*set_connect_attr_proc)(dbc->wrapped_dbc, key, val.first, val.second);
+        res = env->driver_lib_loader->CallFunction<RDS_SQLSetConnectAttr>(AS_RDS_STR("SQLSetConnectAttr"),
+            dbc->wrapped_dbc, key, val.first, val.second
+        );
+        has_conn_attr_errors != res.fn_result;
     }
 
     // TODO - Error Handling for ConnAttr, IsConnected

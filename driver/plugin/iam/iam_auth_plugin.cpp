@@ -42,6 +42,7 @@ SQLRETURN IamAuthPlugin::Connect(
 
     // TODO - Proper error handling for missing parameters
     if (server.empty() || region.empty() || port.empty() || username.empty()) {
+        if (dbc->err) delete dbc->err;
         dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", 12345, "12345");
         return SQL_ERROR;
     }

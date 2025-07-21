@@ -36,6 +36,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.cpp
