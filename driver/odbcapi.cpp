@@ -1,8 +1,9 @@
+#include "util/auth_provider.h"
+
 #include "odbcapi.h"
 
 #include "plugin/iam/iam_auth_plugin.h"
 
-#include "util/auth_provider.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/odbc_dsn_helper.h"
@@ -307,7 +308,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         // Load Base DSN info, should contain driver to use
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_BASE_DSN), dbc->conn_attr);
     }
-    
+
     // If driver is not loaded from Base DSN, try input base driver
     if (dbc->conn_attr.find(KEY_DRIVER) == dbc->conn_attr.end()
             && dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
@@ -358,7 +359,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
         // Auth Plugins
         if (dbc->conn_attr.find(KEY_AUTH_TYPE) != dbc->conn_attr.end()) {
-            AuthType type = AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
+            AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
             switch (type) {
                     case AuthType::IAM:
                         next_plugin = new IamAuthPlugin(dbc, plugin_head);
@@ -710,7 +711,7 @@ SQLRETURN SQL_API SQLConnect(
 
     size_t load_len = -1;
     if (ServerName) {
-        // Load input DSN followed by Base DSN retrieved from input DSN      
+        // Load input DSN followed by Base DSN retrieved from input DSN
         load_len = NameLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(ServerName)) : NameLength1;
         OdbcDsnHelper::LoadAll(AS_RDS_STR_MAX(ServerName, load_len), dbc->conn_attr);
         ret = RDS_InitializeConnection(dbc);
@@ -1249,7 +1250,7 @@ SQLRETURN SQL_API SQLGetDiagField(
                 desc = (DESC*) Handle;
                 dbc = (DBC*) desc->dbc;
                 env = (ENV*) dbc->env;
-                
+
                 std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
                 if (env->wrapped_driver_handle && desc->wrapped_desc) {
@@ -1334,7 +1335,7 @@ SQLRETURN SQL_API SQLGetDiagRec(
                 stmt = (STMT*) Handle;
                 dbc = (DBC*) stmt->dbc;
                 env = (ENV*) dbc->env;
-                
+
                 std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
                 if (env->wrapped_driver_handle && stmt->wrapped_stmt) {
@@ -1352,7 +1353,7 @@ SQLRETURN SQL_API SQLGetDiagRec(
                 desc = (DESC*) Handle;
                 dbc = (DBC*) desc->dbc;
                 env = (ENV*) dbc->env;
-                
+
                 std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
                 if (env->wrapped_driver_handle && desc->wrapped_desc) {
@@ -1401,7 +1402,7 @@ SQLRETURN SQL_API SQLGetDiagRec(
         }
         if (TextLengthPtr) {
             *((SQLSMALLINT *) TextLengthPtr) = (SQLSMALLINT) NO_DATA_NATIVE_ERR;
-        }          
+        }
         ret = SQL_NO_DATA_FOUND;
     }
 

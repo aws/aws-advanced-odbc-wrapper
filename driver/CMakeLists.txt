@@ -14,6 +14,7 @@ set(INC
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
@@ -31,6 +32,8 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
 
     # Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
 

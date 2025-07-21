@@ -3,22 +3,16 @@
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
 
-BasePlugin::BasePlugin() :
-    plugin_name("Base")
-{
-}
-
-BasePlugin::BasePlugin(DBC *dbc) :
-    dbc(dbc),
-    plugin_name("Base")
-{
-}
+BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
 BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
     dbc(dbc),
     next_plugin(next_plugin),
-    plugin_name("Base")
+    plugin_name("BasePlugin")
 {
+    if (!dbc) {
+        throw std::runtime_error("DBC cannot be null.");
+    }
 }
 
 BasePlugin::~BasePlugin()

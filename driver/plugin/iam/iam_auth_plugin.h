@@ -1,6 +1,8 @@
 #ifndef IAM_AUTH_PLUGIN_H_
 #define IAM_AUTH_PLUGIN_H_
 
+#include "../../util/auth_provider.h"
+
 #include "../base_plugin.h"
 
 class IamAuthPlugin : public BasePlugin {
@@ -16,6 +18,9 @@ public:
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion) override;
+
+private:
+    std::shared_ptr<AuthProvider> auth_provider;
 };
 
 #endif // IAM_AUTH_PLUGIN_H_

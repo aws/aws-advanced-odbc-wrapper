@@ -7,7 +7,7 @@ struct DBC;
 
 class BasePlugin {
 public:
-    BasePlugin();
+    BasePlugin() = default;
     BasePlugin(DBC* dbc);
     BasePlugin(DBC* dbc, BasePlugin* next_plugin);
     virtual ~BasePlugin();
