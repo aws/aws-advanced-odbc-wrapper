@@ -73,8 +73,6 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriver_Success) {
 }
 
 TEST_F(ConnectionTest, SQLDriverConnect_BaseDSN_Success) {
-    GTEST_SKIP() << "Needs DSN parser to get Driver from Base DSN";
-
     SQLRETURN ret = 0;
     SQLHENV henv = SQL_NULL_HANDLE;
     SQLHDBC hdbc = SQL_NULL_HANDLE;
@@ -138,8 +136,6 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriverAndDSN_Success) {
 }
 
 TEST_F(ConnectionTest, SQLConnect_BaseDriver_Success) {
-    GTEST_SKIP() << "SQLConnect is not implemented yet. Needs DSN parser";
-
     SQLRETURN ret = 0;
     SQLHENV henv = SQL_NULL_HANDLE;
     SQLHDBC hdbc = SQL_NULL_HANDLE;

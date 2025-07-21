@@ -12,6 +12,7 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
+#include <odbcinst.h>
 
 #include <list>
 #include <map>

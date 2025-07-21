@@ -146,8 +146,9 @@ jobs:
       # TODO - Replace once setup routines are done (ConfigDSN, ConfigDriver, etc)
       - name: Manual Setup DSN
         run: |
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/poc-shell-driver.dll" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-odbc-wrapper" /t REG_SZ /d "aws-odbc-wrapper" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/poc-shell-driver.dll" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
       # - name: Configure Test DSN
       #   run: |
       #       Add-OdbcDsn -Name wrapper-dsn `
@@ -156,7 +157,8 @@ jobs:
       #       -SetPropertyValue `
       #        @( `
       #        "SERVER=localhost", `
-      #        "PORT=5432")
+      #        "PORT=5432", `
+      #        "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
       - name: Configure Base DSN
         run: |
             Add-OdbcDsn -Name pg-dsn `

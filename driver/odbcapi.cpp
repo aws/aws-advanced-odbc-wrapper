@@ -5,12 +5,15 @@
 #include "util/auth_provider.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
+#include "util/odbc_dsn_helper.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
 #include "driver.h"
 
 #include <cstring>
+
+#include <iostream>
 
 // RDS Functions
 SQLRETURN RDS_AllocEnv_Impl(
@@ -274,6 +277,102 @@ SQLRETURN RDS_SQLSetConnectAttr_Impl(
         RDS_SQLSetConnectAttr set_connect_attr_proc = (RDS_SQLSetConnectAttr) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLSetConnectAttr");
         SQLRETURN ret = (*set_connect_attr_proc)(dbc->wrapped_dbc, Attribute, ValuePtr, StringLength);
         return ret;
+    }
+
+    return SQL_SUCCESS;
+}
+
+SQLRETURN RDS_InitializeConnection(DBC* dbc)
+{
+    ENV* env = dbc->env;
+
+    bool has_env_attr_errors = false;
+
+    // Remove input DSN & Driver
+    // We don't want the underlying connection
+    //  to look back to the wrapper
+    // Also allows the Base DSN parse driver into map
+    dbc->conn_attr.erase(KEY_DSN);
+    dbc->conn_attr.erase(KEY_DRIVER);
+
+    // Set the DSN use the Base
+    if (dbc->conn_attr.find(KEY_BASE_DSN) != dbc->conn_attr.end()) {
+        dbc->conn_attr.insert_or_assign(KEY_DSN, dbc->conn_attr.at(KEY_BASE_DSN));
+        // Load Base DSN info, should contain driver to use
+        OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_BASE_DSN), dbc->conn_attr);
+    }
+    
+    // If driver is not loaded from Base DSN, try input base driver
+    if (dbc->conn_attr.find(KEY_DRIVER) == dbc->conn_attr.end()
+            && dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
+        dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
+    }
+
+    if (dbc->conn_attr.find(KEY_DRIVER) != dbc->conn_attr.end()) {
+        // TODO - Need to ensure the paths (slashes) are correct per OS
+        RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
+
+        // Load Module to Env if empty
+        // TODO - Put into function, need to lock Env
+        if (env->wrapped_driver_path.empty()) {
+            env->wrapped_driver_path = driver_path;
+            env->wrapped_driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path.c_str());
+        } else if (driver_path != env->wrapped_driver_path) {
+            // TODO - Set Error, can only use 1 underlying driver per Environment
+            return SQL_ERROR;
+        }
+    } else {
+        // TODO - No underlying driver in ConnStr
+        //   set error and return?
+        // OR
+        //   check if ENV has an underlying driver already
+        NOT_IMPLEMENTED;
+    }
+
+    // TODO - Needs to be taken out and stored into cached function map in ENV
+    RDS_SQLAllocHandle alloc_proc = (RDS_SQLAllocHandle) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLAllocHandle");
+    RDS_SQLSetEnvAttr set_env_proc = (RDS_SQLSetEnvAttr) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLSetEnvAttr");
+
+    // Initialize Wrapped ENV
+    // Create Wrapped HENV for Wrapped HDBC if not already allocated
+    if (!env->wrapped_env) {
+        (*alloc_proc)(SQL_HANDLE_ENV, nullptr, &env->wrapped_env);
+        // Apply Tracked Environment Attributes
+        for (auto const& [key, val] : env->attr_map) {
+            has_env_attr_errors |= (*set_env_proc)(env->wrapped_env, key, val.first, val.second);
+        }
+    }
+
+    // Initialize Plugins
+    if (!dbc->plugin_head) {
+        BasePlugin* plugin_head = new BasePlugin(dbc);
+        BasePlugin* next_plugin;
+
+        // TODO - Grabbing which plugins to initialize will come from a KEY=<Plugin_A, ..., Plugin_Z>;
+
+        // Auth Plugins
+        if (dbc->conn_attr.find(KEY_AUTH_TYPE) != dbc->conn_attr.end()) {
+            AuthType type = AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
+            switch (type) {
+                    case AuthType::IAM:
+                        next_plugin = new IamAuthPlugin(dbc, plugin_head);
+                        plugin_head = next_plugin;
+                        break;
+                    case AuthType::SECRETS_MANAGER:
+                        break;
+                    case AuthType::ADFS:
+                        break;
+                    case AuthType::OKTA:
+                        break;
+                    case AuthType::DATABASE:
+                    case AuthType::INVALID:
+                    default:
+                        break;
+            }
+        }
+
+        // Finalize and track in DBC
+        dbc->plugin_head = plugin_head;
     }
 
     return SQL_SUCCESS;
@@ -596,15 +695,41 @@ SQLRETURN SQL_API SQLConnect(
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
 
     SQLRETURN ret = SQL_ERROR;
-    // Error if handle is already connected
+
+    // Connection is already established
     if (CONN_NOT_CONNECTED != dbc->conn_status) {
         // TODO - Error info
         return SQL_ERROR;
     }
 
-    // TODO - Read DSN & Load Information
+    size_t load_len = -1;
+    if (ServerName) {
+        // Load input DSN followed by Base DSN retrieved from input DSN      
+        load_len = NameLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(ServerName)) : NameLength1;
+        OdbcDsnHelper::LoadAll(AS_RDS_STR_MAX(ServerName, load_len), dbc->conn_attr);
+        ret = RDS_InitializeConnection(dbc);
+    } else {
+        // Error, no DSN
+        // TODO - Load default DSN?
+        ret = SQL_ERROR;
+    }
 
-    return SQL_ERROR;
+    // Replace with input parameters
+    if (UserName) {
+        load_len = NameLength2 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(UserName)) : NameLength2;
+        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, AS_RDS_STR_MAX(UserName, load_len));
+    }
+    if (Authentication) {
+        load_len = NameLength3 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(Authentication)) : NameLength3;
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, AS_RDS_STR_MAX(Authentication, load_len));
+    }
+
+    // Connect if initialization successful
+    if (SQL_SUCCEEDED(ret)) {
+        ret = dbc->plugin_head->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    }
+
+    return ret;
 }
 
 SQLRETURN SQL_API SQLCopyDesc(
@@ -726,7 +851,6 @@ SQLRETURN SQL_API SQLDriverConnect(
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
 
     SQLRETURN ret = SQL_ERROR;
-    bool has_env_attr_errors = false;
 
     // Connection is already established
     if (CONN_NOT_CONNECTED != dbc->conn_status) {
@@ -734,76 +858,22 @@ SQLRETURN SQL_API SQLDriverConnect(
         return SQL_ERROR;
     }
 
-    // TODO - Read DSN & Load Information
-    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR(InConnectionString), dbc->conn_attr);
-    if (dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
-        // TODO - Need to ensure the paths (slashes) are correct per OS
-        RDS_STR driver_name = dbc->conn_attr.at(KEY_BASE_DRIVER);
+    // Parse connection string, load input DSN followed by Base DSN
+    size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(InConnectionString)) : StringLength1;
+    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(InConnectionString, load_len), dbc->conn_attr);
 
-        // Load Module to Env if empty
-        // TODO - Put into function, need to lock Env
-        if (env->wrapped_driver_path.empty()) {
-            env->wrapped_driver_path = driver_name;
-            env->wrapped_driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_name.c_str());
-        } else if (driver_name != env->wrapped_driver_path) {
-            // TODO - Set Error, can only use 1 underlying driver per Environment
-            return SQL_ERROR;
-        }
-    } else {
-        // TODO - No underlying driver in ConnStr
-        //   set error and return?
-        // OR
-        //   check if ENV has an underlying driver already
-        NOT_IMPLEMENTED;
+    // Load DSN information into map
+    if (dbc->conn_attr.find(KEY_DSN) != dbc->conn_attr.end()) {
+        OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_DSN), dbc->conn_attr);
     }
 
-    // TODO - Needs to be taken out and stored into cached function map in ENV
-    RDS_SQLAllocHandle alloc_proc = (RDS_SQLAllocHandle) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLAllocHandle");
-    RDS_SQLSetEnvAttr set_env_proc = (RDS_SQLSetEnvAttr) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLSetEnvAttr");
+    ret = RDS_InitializeConnection(dbc);
 
-    // Initialize Wrapped ENV
-    // Create Wrapped HENV for Wrapped HDBC if not already allocated
-    if (!env->wrapped_env) {
-        (*alloc_proc)(SQL_HANDLE_ENV, nullptr, &env->wrapped_env);
-        // Apply Tracked Environment Attributes
-        for (auto const& [key, val] : env->attr_map) {
-            has_env_attr_errors |= (*set_env_proc)(env->wrapped_env, key, val.first, val.second);
-        }
+    // Connect if initialization successful
+    if (SQL_SUCCEEDED(ret)) {
+        ret = dbc->plugin_head->Connect(WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
     }
 
-    // Initialize Plugins
-    if (!dbc->plugin_head) {
-        BasePlugin* plugin_head = new BasePlugin(dbc);
-        BasePlugin* next_plugin;
-
-        // TODO - Grabbing which plugins to initialize will come from a KEY=<Plugin_A, ..., Plugin_Z>;
-
-        // Auth Plugins
-        if (dbc->conn_attr.find(KEY_AUTH_TYPE) != dbc->conn_attr.end()) {
-            AuthType type = AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
-            switch (type) {
-                    case AuthType::IAM:
-                        next_plugin = new IamAuthPlugin(dbc, plugin_head);
-                        plugin_head = next_plugin;
-                        break;
-                    case AuthType::SECRETS_MANAGER:
-                        break;
-                    case AuthType::ADFS:
-                        break;
-                    case AuthType::OKTA:
-                        break;
-                    case AuthType::DATABASE:
-                    case AuthType::INVALID:
-                    default:
-                        break;
-            }
-        }
-
-        // Finalize and track in DBC
-        dbc->plugin_head = plugin_head;
-    }
-
-    ret = dbc->plugin_head->Connect(WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
     return ret;
 }
 

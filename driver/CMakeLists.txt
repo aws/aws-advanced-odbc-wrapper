@@ -3,6 +3,9 @@ project("poc-shell-driver")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Configuration ----------------------------------------------------------------------------------------------
+set(WITH_IODBC OFF CACHE BOOL "Build with iODBC" FORCE)
+
 # Sources ----------------------------------------------------------------------------------------------------
 set(INC
     # Plugins
@@ -13,6 +16,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
 
@@ -28,6 +32,7 @@ set(SRC
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.cpp
@@ -53,13 +58,37 @@ set(EXP
 
 # -- ODBC --
 if(APPLE)
-    # Use UnixODBC instead of iODBC
+    set(ODBC_ROOT /opt/homebrew/opt/unixodbc/)
     set(ODBC_INCLUDE_DIR /opt/homebrew/opt/unixodbc/include)
-    message("Using UnixODBC for Apple")
 endif()
 
 find_package(ODBC REQUIRED)
 list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
+
+# ODBC Inst
+if(WIN32)
+    list(APPEND EXTERNAL_LIBRARIES odbccp32 legacy_stdio_definitions)
+else(WIN32)
+    # TODO - Test Unix / iODBC
+    if(WITH_IODBC)
+        find_library(ODBC_INST_LIB
+            NAME
+                iodbcinst
+            HINTS
+                ODBC_ROOT
+            REQUIRED
+        )
+    else() # unixODBC
+        find_library(ODBC_INST_LIB
+            NAME
+                odbcinst
+            HINTS
+                ODBC_ROOT
+            REQUIRED
+        )
+    endif()
+    list(APPEND EXTERNAL_LIBRARIES ${ODBC_INST_LIB})
+endif()
 
 # Build Library ----------------------------------------------------------------------------------------------
 if(WIN32)
@@ -80,4 +109,5 @@ add_library(${PROJECT_NAME} SHARED
 )
 
 # Link External Dependencies ---------------------------------------------------------------------------------
+message("Linking External Libraries: ${EXTERNAL_LIBRARIES}")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
