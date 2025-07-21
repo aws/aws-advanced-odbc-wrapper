@@ -36,7 +36,9 @@
 
 # Build Folders
 build*
+aws_sdk*
 
 # Test Files
 odbc.ini
 odbcinst.ini
+*.log

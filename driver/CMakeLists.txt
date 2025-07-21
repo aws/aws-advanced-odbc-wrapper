@@ -45,19 +45,21 @@ set(EXP
 
 # Fetch External Libraries  ----------------------------------------------------------------------------------
 # -- AWS SDK --
-# Paths to search when attempting to find the AWS SDK
-# set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
-# list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
-# string(REPLACE ";" "/aws-cpp-sdk-all;" SYSTEM_MODULE_PATH "${CMAKE_SYSTEM_PREFIX_PATH}/aws-cpp-sdk-all")
-# list(APPEND CMAKE_PREFIX_PATH ${SYSTEM_MODULE_PATH})
+if(UNIX)
+    message("Unix - Adding ZLIB explicitly for AWS SDK")
+    find_package(ZLIB REQUIRED)
+endif()
 
-# find_package(AWSSDK REQUIRED COMPONENTS core sts)
-# # include_directories(${AWSSDK_INCLUDE_DIRS})
-# target_link_libraries(${LIBRARY_NAME} ${AWSSDK_LINK_LIBRARIES})
-# list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
+# Path to built AWS SDK
+set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
+list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
+
+find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
+list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
 
 # -- ODBC --
 if(APPLE)
+    message("Apple to use unixODBC")
     set(ODBC_ROOT /opt/homebrew/opt/unixodbc/)
     set(ODBC_INCLUDE_DIR /opt/homebrew/opt/unixodbc/include)
 endif()
@@ -109,5 +111,5 @@ add_library(${PROJECT_NAME} SHARED
 )
 
 # Link External Dependencies ---------------------------------------------------------------------------------
-message("Linking External Libraries: ${EXTERNAL_LIBRARIES}")
+message("Linking External Libraries: [${EXTERNAL_LIBRARIES}]")
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})

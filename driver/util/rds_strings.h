@@ -50,6 +50,7 @@
 #define AS_RDS_CHAR(str) (reinterpret_cast<RDS_CHAR *>(str))
 #define AS_RDS_STR(str) RDS_STR((RDS_CHAR *) str)
 #define AS_RDS_STR_MAX(str, len) RDS_STR((RDS_CHAR *) str, len)
-#define RDS_STR_UPPER(str) std::transform(key.begin(), key.end(), key.begin(), [](RDS_CHAR c) {return TO_UPPER(c);});
+#define AS_NARROW_STR(str) std::string(str.begin(), str.end())
+#define RDS_STR_UPPER(str) std::transform(str.begin(), str.end(), str.begin(), [](RDS_CHAR c) {return TO_UPPER(c);});
 
 #endif // RDS_STRINGS_H_

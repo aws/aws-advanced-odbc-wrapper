@@ -110,6 +110,16 @@ jobs:
     steps:
       - name: Checkout aws-odbc-wrapper
         uses: actions/checkout@v4
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 Release
       - name: Build aws-odbc-wrapper
         run: |
           cmake -S driver -B build
@@ -191,7 +201,17 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql
+          brew install unixodbc postgresql curl openssl zlib 
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh Release
       - name: Build aws-odbc-wrapper
         run: |
           cmake -S driver -B build
@@ -245,7 +265,17 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Build Dependencies
         run: |
-          sudo apt-get install cmake unixodbc unixodbc-dev odbcinst
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh Release
       - name: Build aws-odbc-wrapper
         run: |
           cmake -S driver -B build

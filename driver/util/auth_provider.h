@@ -7,7 +7,7 @@
 #include "rds_strings.h"
 
 typedef enum {
-    DATABASE,
+    PASSWORD,
     IAM,
     SECRETS_MANAGER,
     ADFS,
@@ -16,7 +16,7 @@ typedef enum {
 } AuthType;
 
 static std::map<RDS_STR, AuthType> const auth_table = {
-    {VALUE_AUTH_DB, AuthType::DATABASE},
+    {VALUE_AUTH_PASSWORD, AuthType::PASSWORD},
     {VALUE_AUTH_IAM, AuthType::IAM},
     {VALUE_AUTH_SECRETS, AuthType::SECRETS_MANAGER},
     {VALUE_AUTH_ADFS, AuthType::ADFS},

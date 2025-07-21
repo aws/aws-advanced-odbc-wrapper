@@ -31,10 +31,10 @@
 /* Struct Declarations */
 typedef enum
 {
-     CONN_NOT_CONNECTED,
-     CONN_CONNECTED,
-     CONN_DOWN,
-     CONN_EXECUTING
+    CONN_NOT_CONNECTED,
+    CONN_CONNECTED,
+    CONN_DOWN,
+    CONN_EXECUTING
 } CONN_STATUS;
 
 struct ERR_INFO;
@@ -50,16 +50,29 @@ struct ERR_INFO {
     char*               error_msg;
     signed char         error_num;
     char*               sqlstate;
+
+    ERR_INFO(const char *msg, signed char num, const char *state) {
+        if (msg) error_msg = strdup(msg);
+        if (state) sqlstate = strdup(state);
+        error_num = num;
+    }
+
+    void set_error_message(const char *msg, const char *state) {
+        if (error_msg) delete error_msg;
+        if (sqlstate) delete sqlstate;
+        if (msg) error_msg = strdup(msg);
+        if (state) error_msg = strdup(state);
+    }
 }; // ERR_INFO
 
 struct ENV {
-    std::recursive_mutex      lock;
-    std::list<DBC*>           dbc_list;
+    std::recursive_mutex        lock;
+    std::list<DBC*>             dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
 
     // Error Info, to be used if no underlying ENV
-    ERR_INFO* err;
+    ERR_INFO*                   err;
 
     // TODO - Alternative, store wrapped ENV & Module Handle here
     //    Module Handle stored in ENV allows it to be shared and
@@ -69,10 +82,10 @@ struct ENV {
     //    ^ Can also store pointer in each structure to refer to this module
     //    Can still have multiple DBCs per ENV
     //    but need to enforce that the underlying driver is the same
-    RDS_STR                   wrapped_driver_path;
+    RDS_STR                     wrapped_driver_path;
     // TODO - Wrap the driver handle & function map into a class to be passed around
-    MODULE_HANDLE             wrapped_driver_handle;
-    SQLHENV                   wrapped_env;
+    MODULE_HANDLE               wrapped_driver_handle;
+    SQLHENV                     wrapped_env;
     // TODO - Thread safety? Multiple can read, but when adding,
     //    will having multiple threads put to the same key
     //    with the same value cause any negative effects?
@@ -80,43 +93,43 @@ struct ENV {
 }; // ENV
 
 struct DBC {
-    std::recursive_mutex      lock;
-    ENV*                      env;
-    std::list<STMT*>          stmt_list;
-    std::list<DESC*>          desc_list;
-    SQLHDBC                   wrapped_dbc;
-    CONN_STATUS               conn_status;
+    std::recursive_mutex        lock;
+    ENV*                        env;
+    std::list<STMT*>            stmt_list;
+    std::list<DESC*>            desc_list;
+    SQLHDBC                     wrapped_dbc;
+    CONN_STATUS                 conn_status;
 
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
-    std::map<RDS_STR, RDS_STR> conn_attr; // Key, Value
-    BasePlugin*         plugin_head;
+    std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
+    BasePlugin*                 plugin_head;
 
     // Error Info, to be used if no underlying DBC
-    ERR_INFO* err;
+    ERR_INFO*                   err;
 }; // DBC
 
 struct STMT {
     // TODO - Do we need lock?
-    std::recursive_mutex lock;
-    DBC*                dbc;
-    SQLHSTMT            wrapped_stmt;
+    std::recursive_mutex        lock;
+    DBC*                        dbc;
+    SQLHSTMT                    wrapped_stmt;
 
     // Error Info, to be used if no underlying STMT
-    ERR_INFO* err;
+    ERR_INFO*                   err;
 }; // STMT
 
 struct DESC {
     // TODO - Do we need lock?
-    std::recursive_mutex lock;
+    std::recursive_mutex        lock;
     // TODO - What to put here
-    DBC*                dbc;
-    SQLHDESC            wrapped_desc;
+    DBC*                        dbc;
+    SQLHDESC                    wrapped_desc;
 
     // Error Info, to be used if no underlying DESC
-    ERR_INFO* err;
+    ERR_INFO*                   err;
 }; // DESC
 
 /* Function Declarations */

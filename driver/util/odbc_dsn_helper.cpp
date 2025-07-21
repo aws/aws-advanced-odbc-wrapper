@@ -1,5 +1,7 @@
 #include "odbc_dsn_helper.h"
 
+#include <odbcinst.h>
+
 #include "../driver.h"
 
 void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)

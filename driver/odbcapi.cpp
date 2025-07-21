@@ -151,8 +151,8 @@ SQLRETURN RDS_FreeConnect_Impl(
         (*free_handle_proc)(SQL_HANDLE_DBC, dbc->wrapped_dbc);
     }
 
-    // Clean up RDS related
-    // TODO - e.g. clean up monitoring threads, etc
+    if (dbc->plugin_head) delete dbc->plugin_head;
+    if (dbc->err) delete dbc->err;
 
     delete dbc;
     return SQL_SUCCESS;
@@ -174,6 +174,8 @@ SQLRETURN RDS_FreeDesc_Impl(
         RDS_SQLFreeHandle free_handle_proc = (RDS_SQLFreeHandle) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLFreeHandle");
         (*free_handle_proc)(SQL_HANDLE_DESC, desc->wrapped_desc);
     }
+
+    if (desc->err) delete desc->err;
 
     delete desc;
     return SQL_SUCCESS;
@@ -198,6 +200,8 @@ SQLRETURN RDS_FreeEnv_Impl(
         RDS_FREE_MODULE(env->wrapped_driver_handle);
     }
 
+    if (env->err) delete env->err;
+
     delete env;
     return SQL_SUCCESS;
 }
@@ -218,6 +222,8 @@ SQLRETURN RDS_FreeStmt_Impl(
         RDS_SQLFreeHandle free_handle_proc = (RDS_SQLFreeHandle) RDS_GET_FUNC(env->wrapped_driver_handle, "SQLFreeHandle");
         (*free_handle_proc)(SQL_HANDLE_STMT, stmt->wrapped_stmt);
     }
+
+    if (stmt->err) delete stmt->err;
 
     delete stmt;
     return SQL_SUCCESS;
@@ -364,7 +370,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                         break;
                     case AuthType::OKTA:
                         break;
-                    case AuthType::DATABASE:
+                    case AuthType::PASSWORD:
                     case AuthType::INVALID:
                     default:
                         break;
@@ -378,7 +384,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
     return SQL_SUCCESS;
 }
 
-// Windows GUI Related
+// GUI Related
 // TODO - Impl ConfigDriver
 // Later process
 BOOL ConfigDriver(SQLHWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg,
@@ -830,10 +836,6 @@ SQLRETURN SQL_API SQLDisconnect(
     return ret;
 }
 
-/*
-    TODO - Not fully implemented
-    - Needs Connection String Parsing, underlying connection is hardcoded right now
-*/
 SQLRETURN SQL_API SQLDriverConnect(
     SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
@@ -1289,7 +1291,7 @@ SQLRETURN SQL_API SQLGetDiagRec(
     SQLRETURN ret = SQL_ERROR;
     SQLULEN len = 0, value = 0;
     const char *char_value = nullptr;
-    ERR_INFO* err = nullptr;
+    ERR_INFO *err = nullptr;
     bool has_underlying_driver_alloc = false;
 
     switch (HandleType) {

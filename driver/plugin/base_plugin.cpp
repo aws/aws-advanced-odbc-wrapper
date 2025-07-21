@@ -1,4 +1,5 @@
 #include "base_plugin.h"
+
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
 
@@ -54,7 +55,7 @@ SQLRETURN BasePlugin::Connect(
         has_conn_attr_errors |= (*set_connect_attr_proc)(dbc->wrapped_dbc, key, val.first, val.second);
     }
 
-    // TODO - Error Handling for EnvAttr, ConnAttr, IsConnected
+    // TODO - Error Handling for ConnAttr, IsConnected
     // Successful Connection, but bad environment and/or connection attribute setting
     if (SQL_SUCCEEDED(ret) && has_conn_attr_errors) {
         // TODO - Set Error
