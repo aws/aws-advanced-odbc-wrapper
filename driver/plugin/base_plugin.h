@@ -1,7 +1,7 @@
 #ifndef BASE_PLUGIN_H_
 #define BASE_PLUGIN_H_
 
-#include "driver.h"
+#include "../driver.h"
 
 struct DBC;
 

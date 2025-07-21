@@ -18,11 +18,9 @@
 #include <mutex>
 #include <set>
 
-#include "base_plugin.h"
-#include "rds_lib_loader.h"
-#include "rds_strings.h"
-
-class BasePlugin;
+#include "plugin/base_plugin.h"
+#include "util/rds_lib_loader.h"
+#include "util/rds_strings.h"
 
 /* Const Lengths */
 #define NO_DATA_SQL_STATE     TEXT("00000")
@@ -43,6 +41,8 @@ struct ENV;
 struct DBC;
 struct STMT;
 struct DESC;
+
+class BasePlugin;
 
 /* Structures */
 struct ERR_INFO {

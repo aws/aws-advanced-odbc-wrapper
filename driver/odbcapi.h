@@ -13,7 +13,7 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
-#include "rds_lib_loader.h"
+#include "util/rds_lib_loader.h"
 
 /* Function Pointer Headers */
 typedef SQLRETURN (*RDS_SQLAllocConnect)(

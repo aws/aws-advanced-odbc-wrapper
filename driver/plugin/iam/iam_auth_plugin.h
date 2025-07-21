@@ -1,7 +1,7 @@
 #ifndef IAM_AUTH_PLUGIN_H_
 #define IAM_AUTH_PLUGIN_H_
 
-#include "base_plugin.h"
+#include "../base_plugin.h"
 
 class IamAuthPlugin : public BasePlugin {
 public:

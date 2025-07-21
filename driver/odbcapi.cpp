@@ -1,11 +1,14 @@
-#include "../include/auth_provider.h"
-#include "../include/connection_string_helper.h"
-#include "../include/connection_string_keys.h"
-#include "../include/driver.h"
-#include "../include/iam_auth_plugin.h"
-#include "../include/odbcapi.h"
-#include "../include/rds_lib_loader.h"
-#include "../include/rds_strings.h"
+#include "odbcapi.h"
+
+#include "plugin/iam/iam_auth_plugin.h"
+
+#include "util/auth_provider.h"
+#include "util/connection_string_helper.h"
+#include "util/connection_string_keys.h"
+#include "util/rds_lib_loader.h"
+#include "util/rds_strings.h"
+
+#include "driver.h"
 
 // RDS Functions
 SQLRETURN RDS_AllocEnv_Impl(

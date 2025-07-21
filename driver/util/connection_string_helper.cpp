@@ -1,4 +1,4 @@
-#include "../include/connection_string_helper.h"
+#include "connection_string_helper.h"
 
 // TODO - Will need to modify this function to only put if absent
 //   Ideally we would still want this at the lowest level, as the base plugin

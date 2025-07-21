@@ -1,6 +1,6 @@
-#include "../include/base_plugin.h"
-#include "../include/odbcapi.h"
-#include "../include/connection_string_helper.h"
+#include "base_plugin.h"
+#include "../odbcapi.h"
+#include "../util/connection_string_helper.h"
 
 BasePlugin::BasePlugin() :
     plugin_name("Base")

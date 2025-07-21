@@ -1,6 +1,6 @@
-#include "../include/iam_auth_plugin.h"
+#include "iam_auth_plugin.h"
 
-#include "../include/connection_string_keys.h"
+#include "../../util/connection_string_keys.h"
 
 IamAuthPlugin::IamAuthPlugin() : BasePlugin()
 {
