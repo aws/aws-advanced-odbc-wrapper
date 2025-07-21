@@ -14,7 +14,7 @@ public:
 
     SQLRETURN Connect(
         SQLHWND        WindowHandle,
-        SQLCHAR *      OutConnectionString,
+        SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion) override;

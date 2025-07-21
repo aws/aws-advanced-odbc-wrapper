@@ -12,7 +12,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc
 
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.find(KEY_REGION) != dbc->conn_attr.end() ?
-        AS_NARROW_STR(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
     auth_provider = std::make_shared<AuthProvider>(region);
 }
 
@@ -24,21 +24,21 @@ IamAuthPlugin::~IamAuthPlugin()
 
 SQLRETURN IamAuthPlugin::Connect(
     SQLHWND        WindowHandle,
-    SQLCHAR *      OutConnectionString,
+    SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
     auto map_end_itr = dbc->conn_attr.end();
     std::string server = dbc->conn_attr.find(KEY_SERVER) != map_end_itr ?
-        AS_NARROW_STR(dbc->conn_attr.at(KEY_SERVER)) : "";
+        ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.find(KEY_REGION) != map_end_itr ?
-        AS_NARROW_STR(dbc->conn_attr.at(KEY_REGION)) : "";
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
     std::string port = dbc->conn_attr.find(KEY_PORT) != map_end_itr ?
-        AS_NARROW_STR(dbc->conn_attr.at(KEY_PORT)) : "";
+        ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.find(KEY_DB_USERNAME) != map_end_itr ?
-        AS_NARROW_STR(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
+        ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
 
     // TODO - Proper error handling for missing parameters
     if (server.empty() || region.empty() || port.empty() || username.empty()) {
@@ -51,14 +51,15 @@ SQLRETURN IamAuthPlugin::Connect(
     std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true);
 
     SQLRETURN ret = SQL_ERROR;
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, AS_RDS_STR(token.first.c_str()));
+
+    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
     ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         token = auth_provider->GetToken(server, region, port, username, false);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, AS_RDS_STR(token.first.c_str()));
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 

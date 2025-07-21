@@ -69,8 +69,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
 SET(ODBC_PATH ${CMAKE_SOURCE_DIR}/../resources/)
 
-SET(MY_VARIABLE "option_value" CACHE STRING "Some user-specified option")
-
 # Common Settings
 SET(THREADING "0")
 SET(TEST_SERVER ${TEST_SERVER},${TEST_PORT})

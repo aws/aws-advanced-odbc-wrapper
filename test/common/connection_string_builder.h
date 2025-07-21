@@ -5,6 +5,12 @@
 
 #define AS_SQLTCHAR(str) (const_cast<SQLTCHAR*>(reinterpret_cast<const SQLTCHAR*>(str)))
 
+#ifdef UNICODE
+    #define RDS_STR std::wstring
+#else
+    #define RDS_STR std::string
+#endif
+
 class ConnectionStringBuilder {
 public:
     ConnectionStringBuilder(const std::string& dsn, const std::string& server, int port) {
@@ -38,10 +44,21 @@ public:
         return *this;
     }
 
-    std::string getString() const { return conn_in; }
+    RDS_STR getRdsString() const {
+        RDS_STR converted;
+        #ifdef UNICODE
+            wchar_t* buf = new wchar_t[strlen(conn_in) * 2 + 2];
+            swprintf(buf, L"%S", conn_in);
+            converted = buf;
+            delete[] buf;
+        #else
+            converted = conn_in;
+        #endif
+        return converted;
+    }
 
 private:
-    char conn_in[4096] = "\0";
+    char conn_in[4096] = {0};
     int length = 0;
 };
 

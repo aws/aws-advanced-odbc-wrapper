@@ -14,7 +14,7 @@ public:
 
     virtual SQLRETURN Connect(
         SQLHWND        WindowHandle,
-        SQLCHAR *      OutConnectionString,
+        SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion);

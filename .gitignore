@@ -37,6 +37,7 @@
 # Build Folders
 build*
 aws_sdk/*
+*.def
 
 # Test Files
 odbc.ini

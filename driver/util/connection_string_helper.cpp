@@ -22,6 +22,9 @@ void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std:
 
 RDS_STR ConnectionStringHelper::BuildConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)
 {
+    // TODO - Need to build the bare-minimum string
+    //  i.e. not passing our RDS related keys and values along to underlying
+    //  This is due to some drivers having a maximum connection string length
     RDS_STR_STREAM conn_stream;
     for (const auto& e : conn_map) {
         if (conn_stream.tellp() > 0) {

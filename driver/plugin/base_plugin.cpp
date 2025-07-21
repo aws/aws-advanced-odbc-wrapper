@@ -22,7 +22,7 @@ BasePlugin::~BasePlugin()
 
 SQLRETURN BasePlugin::Connect(
     SQLHWND        WindowHandle,
-    SQLCHAR *      OutConnectionString,
+    SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
@@ -35,7 +35,7 @@ SQLRETURN BasePlugin::Connect(
     // Create Wrapped DBC if not already allocated
     RdsLibResult res;
     if (!dbc->wrapped_dbc) {
-        res = env->driver_lib_loader->CallFunction<RDS_SQLAllocHandle>(AS_RDS_STR("SQLAllocHandle"),
+        res = env->driver_lib_loader->CallFunction<RDS_FP_SQLAllocHandle>(RDS_STR_SQLAllocHandle,
             SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
         );
     }
@@ -43,7 +43,7 @@ SQLRETURN BasePlugin::Connect(
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
     RDS_STR conn_in = ConnectionStringHelper::BuildConnectionString(dbc->conn_attr);
-    res = env->driver_lib_loader->CallFunction<RDS_SQLDriverConnect>(AS_RDS_STR("SQLDriverConnect"),
+    res = env->driver_lib_loader->CallFunction<RDS_FP_SQLDriverConnect>(RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
@@ -53,7 +53,7 @@ SQLRETURN BasePlugin::Connect(
 
     // Apply Tracked Connection Attributes
     for (auto const& [key, val] : dbc->attr_map) {
-        res = env->driver_lib_loader->CallFunction<RDS_SQLSetConnectAttr>(AS_RDS_STR("SQLSetConnectAttr"),
+        res = env->driver_lib_loader->CallFunction<RDS_FP_SQLSetConnectAttr>(RDS_STR_SQLSetConnectAttr,
             dbc->wrapped_dbc, key, val.first, val.second
         );
         has_conn_attr_errors != res.fn_result;

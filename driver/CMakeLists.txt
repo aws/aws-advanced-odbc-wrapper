@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
-project("poc-shell-driver")
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+project("aws-odbc-wrapper")
 
 # Configuration ----------------------------------------------------------------------------------------------
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(WITH_IODBC OFF CACHE BOOL "Build with iODBC" FORCE)
 
 # Sources ----------------------------------------------------------------------------------------------------
@@ -24,9 +25,13 @@ set(INC
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.h
 )
 
 set(SRC
+    # GUI
+    ${CMAKE_CURRENT_SOURCE_DIR}/gui/setup.cpp
+
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
@@ -39,13 +44,56 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
 
     # Core
-    ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_common.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.cpp
 )
 
-set(EXP
-    # Definition for exported functions
-    ${CMAKE_CURRENT_SOURCE_DIR}/poc_shell_driver.def
+# Configure Build Defines ------------------------------------------------------------------------------------
+if(UNICODE)
+    SET(COMPILE_FILE_NAME ${PROJECT_NAME}-w)
+    message("Building for Unicode as: ${COMPILE_FILE_NAME}")
+    add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
+        UNICODE
+        _UNICODE
+    )
+else()
+    SET(COMPILE_FILE_NAME ${PROJECT_NAME}-a)
+    message("Building for Ansi as: ${COMPILE_FILE_NAME}")
+    add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
+        SQL_NOUNICODEMAP
+    )
+endif()
+
+add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
+    ODBCVER=0x0380
 )
+
+if(WIN32)
+    add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
+        WIN32_LEAN_AND_MEAN # Exclude rarely-used stuff from Windows headers
+    )
+endif()
+
+# Configure Export Defines ----------------------------------------------------------------------------------
+if(UNICODE)
+    list(APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_unicode.cpp)
+    set(CHAR_ENCODING "W")
+else(UNICODE)
+    list(APPEND SRC ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_ansi.cpp)
+    set(CHAR_ENCODING "")
+endif(UNICODE)
+
+if(WIN32)
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/driver.def.cmake
+        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+        @ONLY
+    )
+    set(EXP
+        # Definition for exported functions
+        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+    )
+endif()
 
 # Fetch External Libraries  ----------------------------------------------------------------------------------
 # -- AWS SDK --
@@ -75,7 +123,7 @@ list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
 if(WIN32)
     list(APPEND EXTERNAL_LIBRARIES odbccp32 legacy_stdio_definitions)
 else(WIN32)
-    # TODO - Test Unix / iODBC
+    # TODO - Test iODBC
     if(WITH_IODBC)
         find_library(ODBC_INST_LIB
             NAME
@@ -97,18 +145,7 @@ else(WIN32)
 endif()
 
 # Build Library ----------------------------------------------------------------------------------------------
-if(WIN32)
-    add_compile_definitions(${PROJECT_NAME} PRIVATE
-        WIN32_LEAN_AND_MEAN # Exclude rarely-used stuff from Windows headers
-    )
-endif()
-
-add_compile_definitions(${PROJECT_NAME} PRIVATE
-    SQL_NOUNICODEMAP # For Testing
-    ODBCVER=0x0380
-)
-
-add_library(${PROJECT_NAME} SHARED
+add_library(${COMPILE_FILE_NAME} SHARED
     ${INC}
     ${SRC}
     ${EXP}
@@ -116,4 +153,4 @@ add_library(${PROJECT_NAME} SHARED
 
 # Link External Dependencies ---------------------------------------------------------------------------------
 message("Linking External Libraries: [${EXTERNAL_LIBRARIES}]")
-target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
+target_link_libraries(${COMPILE_FILE_NAME} PRIVATE ${EXTERNAL_LIBRARIES})

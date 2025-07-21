@@ -39,13 +39,14 @@ public:
     template<typename RDS_Func, typename... Args>
     RdsLibResult CallFunction(RDS_STR func_name, Args... args);
 
+    FUNC_HANDLE GetFunction(RDS_STR function_name);
+
     RDS_STR GetDriverPath();
 
 protected:
 private:
     RDS_STR driver_path;
 
-    FUNC_HANDLE GetFunction(RDS_STR function_name);
     std::shared_mutex cache_lock;
     MODULE_HANDLE driver_handle;
     std::unordered_map<RDS_STR, FUNC_HANDLE> function_cache;

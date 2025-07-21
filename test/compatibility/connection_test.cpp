@@ -51,11 +51,11 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriver_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    std::string conn_str = builder.withDatabase(test_db)
+    RDS_STR conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDriver(test_base_driver)
-        .getString();
+        .getRdsString();
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
@@ -82,11 +82,11 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDSN_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    std::string conn_str = builder.withDatabase(test_db)
+    RDS_STR conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDSN(test_base_dsn)
-        .getString();
+        .getRdsString();
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
@@ -113,12 +113,12 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriverAndDSN_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    std::string conn_str = builder.withDatabase(test_db)
+    RDS_STR conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDriver(test_base_driver)
         .withBaseDSN(test_base_dsn)
-        .getString();
+        .getRdsString();
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,

@@ -27,6 +27,7 @@
 #define NO_DATA_SQL_STATE     TEXT("00000")
 #define NO_DATA_NATIVE_ERR    0
 #define MAX_SQL_STATE_LEN     5
+#define ODBC_VER_SiZE         16
 
 /* Struct Declarations */
 typedef enum
@@ -125,46 +126,46 @@ struct DESC {
 }; // DESC
 
 /* Function Declarations */
-SQLRETURN RDS_AllocEnv_Impl(
+SQLRETURN RDS_AllocEnv(
      SQLHENV *      EnvironmentHandlePointer);
 
-SQLRETURN RDS_AllocDbc_Impl(
+SQLRETURN RDS_AllocDbc(
      SQLHENV         EnvironmentHandle,
      SQLHDBC *       ConnectionHandlePointer);
 
-SQLRETURN RDS_AllocStmt_Impl(
+SQLRETURN RDS_AllocStmt(
      SQLHDBC        ConnectionHandle,
      SQLHSTMT *     StatementHandlePointer);
 
-SQLRETURN RDS_AllocDesc_Impl(
+SQLRETURN RDS_AllocDesc(
      SQLHDBC        ConnectionHandle,
      SQLHANDLE *    DescriptorHandlePointer);
 
-SQLRETURN RDS_SQLEndTran_Impl(
+SQLRETURN RDS_SQLEndTran(
      SQLSMALLINT    HandleType,
      SQLHANDLE      Handle,
      SQLSMALLINT    CompletionType);
 
-SQLRETURN RDS_FreeConnect_Impl(
+SQLRETURN RDS_FreeConnect(
      SQLHDBC        ConnectionHandle);
 
-SQLRETURN RDS_FreeDesc_Impl(
+SQLRETURN RDS_FreeDesc(
      SQLHDESC       DescriptorHandle);
 
-SQLRETURN RDS_FreeEnv_Impl(
+SQLRETURN RDS_FreeEnv(
      SQLHENV        EnvironmentHandle);
 
-SQLRETURN RDS_FreeStmt_Impl(
+SQLRETURN RDS_FreeStmt(
      SQLHSTMT       StatementHandle);
 
-SQLRETURN RDS_GetConnectAttr_Impl(
+SQLRETURN RDS_GetConnectAttr(
      SQLHDBC        ConnectionHandle,
      SQLINTEGER     Attribute,
      SQLPOINTER     ValuePtr,
      SQLINTEGER     BufferLength,
      SQLINTEGER *   StringLengthPtr);
 
-SQLRETURN RDS_SQLSetConnectAttr_Impl(
+SQLRETURN RDS_SQLSetConnectAttr(
      SQLHDBC        ConnectionHandle,
      SQLINTEGER     Attribute,
      SQLPOINTER     ValuePtr,

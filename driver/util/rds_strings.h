@@ -35,6 +35,8 @@
     #define RDS_STR_LEN(str) wcslen(str)
     typedef std::wregex RDS_REGEX;
     typedef std::wsmatch RDS_MATCH;
+    #define RDS_sprintf(buffer, max_length, format, ...) swprintf(buffer, max_length, format, __VA_ARGS__)
+    #define RDS_CHAR_FORMAT TEXT("%ws")
 #else
     #include <cstring>
     typedef std::string RDS_STR;
@@ -44,13 +46,37 @@
     #define RDS_STR_LEN(str) strlen(str)
     typedef std::regex RDS_REGEX;
     typedef std::smatch RDS_MATCH;
+    #define RDS_sprintf(buffer, max_length, format, ...) snprintf(buffer, max_length, format, __VA_ARGS__)
+    #define RDS_CHAR_FORMAT TEXT("%s")
 #endif
 
 #define EMPTY_RDS_STR TEXT("")
 #define AS_RDS_CHAR(str) (reinterpret_cast<RDS_CHAR *>(str))
 #define AS_RDS_STR(str) RDS_STR((RDS_CHAR *) str)
 #define AS_RDS_STR_MAX(str, len) RDS_STR((RDS_CHAR *) str, len)
-#define AS_NARROW_STR(str) std::string(str.begin(), str.end())
 #define RDS_STR_UPPER(str) std::transform(str.begin(), str.end(), str.begin(), [](RDS_CHAR c) {return TO_UPPER(c);});
+
+inline RDS_STR ToRdsStr(const std::string &str)
+{
+    RDS_STR converted;
+#ifdef UNICODE
+    wchar_t* buf = new wchar_t[str.size() * 2 + 2];
+    swprintf(buf, L"%S", str.c_str());
+    converted = buf;
+    delete[] buf;
+#else
+    converted = str;
+#endif
+    return converted;
+}
+
+inline std::string ToStr(const RDS_STR &str)
+{
+#ifdef UNICODE
+    return std::string(str.begin(), str.end());
+#else
+    return str;
+#endif
+}
 
 #endif // RDS_STRINGS_H_
