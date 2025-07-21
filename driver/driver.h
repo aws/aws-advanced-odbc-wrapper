@@ -59,6 +59,7 @@ struct STMT;
 struct DESC;
 
 class BasePlugin;
+class FileSink;
 
 /* Structures */
 struct ERR_INFO {
@@ -113,6 +114,7 @@ struct DBC {
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head;
+    FileSink*                   file_sink;
 
     // Error Info, to be used if no underlying DBC
     ERR_INFO*                   err;

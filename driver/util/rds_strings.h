@@ -84,10 +84,15 @@ inline RDS_STR ToRdsStr(const std::string &str)
     return converted;
 }
 
+// TODO - Fix lossy conversion
 inline std::string ToStr(const RDS_STR &str)
 {
 #ifdef UNICODE
-    return std::string(str.begin(), str.end());
+    std::string ret(str.length(), 0);
+    std::transform(str.begin(), str.end(), ret.begin(), [] (wchar_t c) {
+        return (char)c;
+    });
+    return ret;
 #else
     return str;
 #endif

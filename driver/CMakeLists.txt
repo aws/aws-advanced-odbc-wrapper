@@ -21,6 +21,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(WITH_IODBC OFF CACHE BOOL "Build with iODBC" FORCE)
 
+# External Tools ---------------------------------------------------------------------------------------------
+include(FetchContent)
+
 # Sources ----------------------------------------------------------------------------------------------------
 set(INC
     # Plugins
@@ -32,6 +35,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
@@ -54,6 +58,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
 
@@ -157,6 +162,18 @@ else(WIN32)
     endif()
     list(APPEND EXTERNAL_LIBRARIES ${ODBC_INST_LIB})
 endif()
+
+# -- NG-LOG --
+FetchContent_Declare(
+    ng-log
+    GIT_REPOSITORY https://github.com/ng-log/ng-log.git
+    GIT_TAG        v0.8.1
+)
+set(BUILD_TESTING OFF)
+set(BUILD_EXAMPLES OFF)
+set(BUILD_SHARED_LIBS OFF)
+FetchContent_MakeAvailable(ng-log)
+list(APPEND EXTERNAL_LIBRARIES ng-log::ng-log)
 
 # Build Library ----------------------------------------------------------------------------------------------
 add_library(${COMPILE_FILE_NAME} SHARED

@@ -16,6 +16,8 @@
 
 #include <odbcinst.h>
 
+#include "logger_wrapper.h"
+
 #include "../driver.h"
 
 void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)
@@ -28,7 +30,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     if (size < 1) {
         // No entries in DSN
         // TODO - Error handling?
-        printf("NO ENTRIES: %s\n", dsn_key.c_str());
+        LOG(WARNING) << "No DSN entry found for: " << ToStr(dsn_key);
         return;
     }
 
@@ -54,6 +56,7 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     size = SQLGetPrivateProfileString(dsn_key.c_str(), entry_key.c_str(), EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
     if (size < 0) {
         // No entries
+        LOG(WARNING) << "No value found for DSN entry key: " << ToStr(dsn_key) << ", " << ToStr(entry_key);
         return RDS_STR();
     }
     return RDS_STR(buffer);

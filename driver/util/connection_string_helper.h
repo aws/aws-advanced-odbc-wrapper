@@ -16,12 +16,21 @@
 #define CONNECTION_STRING_HELPER_H_
 
 #include <map>
+#include <unordered_set>
 
+#include "connection_string_keys.h"
 #include "rds_strings.h"
+
+static std::unordered_set<RDS_STR> const sensitive_key_set = {
+    KEY_DB_PASSWORD,
+    KEY_IDP_PASSWORD
+};
 
 namespace ConnectionStringHelper {
     void ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map);
-    RDS_STR BuildConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map);
+    RDS_STR BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
+    RDS_STR BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
+    bool IsSensitiveData(const RDS_STR &sensitive_key);
 }
 
 #endif // CONNECTION_STRING_HELPER_H_

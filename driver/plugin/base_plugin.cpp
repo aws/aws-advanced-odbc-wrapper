@@ -16,6 +16,7 @@
 
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
+#include "../util/logger_wrapper.h"
 #include "../util/rds_lib_loader.h"
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
@@ -56,7 +57,7 @@ SQLRETURN BasePlugin::Connect(
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
-    RDS_STR conn_in = ConnectionStringHelper::BuildConnectionString(dbc->conn_attr);
+    RDS_STR conn_in = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
     res = env->driver_lib_loader->CallFunction<RDS_FP_SQLDriverConnect>(RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
@@ -70,6 +71,9 @@ SQLRETURN BasePlugin::Connect(
         res = env->driver_lib_loader->CallFunction<RDS_FP_SQLSetConnectAttr>(RDS_STR_SQLSetConnectAttr,
             dbc->wrapped_dbc, key, val.first, val.second
         );
+        if (!res.fn_result) {
+            LOG_TO_SINK(dbc->file_sink, WARNING) << "Error setting connection attribute";
+        }
         has_conn_attr_errors != res.fn_result;
     }
 
