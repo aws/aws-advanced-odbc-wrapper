@@ -209,7 +209,6 @@ SQLRETURN RDS_FreeConnect(
     RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
 
     if (dbc->plugin_head) delete dbc->plugin_head;
-    if (dbc->file_sink) delete dbc->file_sink;
     if (dbc->err) delete dbc->err;
 
     delete dbc;
@@ -1400,16 +1399,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_BASE_DSN), dbc->conn_attr);
     }
 
-    RDS_STR log_directory = logger_config::DEFAULT_LOG_LOCATION;
-    size_t log_threshold = logger_config::DEFAULT_LOG_THRESHOLD;
-    if (dbc->conn_attr.find(KEY_LOG_DIRECTORY) != dbc->conn_attr.end()) {
-        log_directory = dbc->conn_attr.at(KEY_LOG_DIRECTORY);
-        if (dbc->conn_attr.find(KEY_LOG_THRESHOLD) != dbc->conn_attr.end()) {
-            log_threshold = std::stoi(dbc->conn_attr.at(KEY_LOG_THRESHOLD));
-        }
-        dbc->file_sink = new FileSink(ToStr(log_directory), log_threshold);
-    }
-
     // If driver is not loaded from Base DSN, try input base driver
     if (dbc->conn_attr.find(KEY_DRIVER) == dbc->conn_attr.end()
             && dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
@@ -1425,7 +1414,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
             // TODO - Set Error, can only use 1 underlying driver per Environment
-            LOG_TO_SINK(dbc->file_sink, ERROR) << "Attempted to load different drivers to the same environment";
+            LOG(ERROR) << "Attempted to load different drivers to the same environment";
             return SQL_ERROR;
         }
     } else {
@@ -1433,7 +1422,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         //   set error and return?
         // OR
         //   check if ENV has an underlying driver already
-        LOG_TO_SINK(dbc->file_sink, ERROR) << "No driver loaded or found in Connection String / DSN";
+        LOG(ERROR) << "No driver loaded or found in Connection String / DSN";
         NOT_IMPLEMENTED;
     }
 

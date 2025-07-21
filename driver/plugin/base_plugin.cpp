@@ -72,7 +72,7 @@ SQLRETURN BasePlugin::Connect(
             dbc->wrapped_dbc, key, val.first, val.second
         );
         if (!res.fn_result) {
-            LOG_TO_SINK(dbc->file_sink, WARNING) << "Error setting connection attribute";
+            LOG(WARNING) << "Error setting connection attribute";
         }
         has_conn_attr_errors != res.fn_result;
     }

@@ -30,10 +30,6 @@
 #define KEY_BASE_DSN TEXT("BASE_DSN")
 #define KEY_DSN TEXT("DSN")
 
-/* Logger Settings */
-#define KEY_LOG_DIRECTORY TEXT("LOG_DIRECTORY")
-#define KEY_LOG_THRESHOLD TEXT("LOG_THRESHOLD")
-
 /* Auth */
 #define KEY_AUTH_TYPE TEXT("RDS_AUTH_TYPE")
 #define KEY_DB_USERNAME TEXT("UID")

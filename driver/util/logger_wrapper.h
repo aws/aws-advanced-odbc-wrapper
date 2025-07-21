@@ -17,7 +17,6 @@
 
 #ifdef XCODE_BUILD
 // Setting this to a value greater than 3 strips out all of the
-// Google logging functionality
 #define NGLOG_STRIP_LOG 4
 #endif /* XCODE_BUILD */
 
@@ -25,15 +24,11 @@
 
 #include <atomic>
 #include <filesystem>
-#include <fstream>
-#include <iostream>
-#include <sstream>
 
 #include "rds_strings.h"
 
 namespace logger_config {
     const std::string PROGRAM_NAME = "aws-odbc-wrapper";
-    const std::string LOG_SUFFIX = ".log";
 #ifdef UNICODE
     const RDS_STR DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).wstring();
 #else
@@ -41,18 +36,6 @@ namespace logger_config {
 #endif
     const int DEFAULT_LOG_THRESHOLD = 4;
 }  // namespace logger_config
-
-struct FileSink : nglog::LogSink {
-    FileSink(const std::string log_file_path, int log_threshold);
-    ~FileSink();
-
-    virtual void send(nglog::LogSeverity severity, const char* /*full_filename*/,
-        const char* base_filename, int line,
-        const nglog::LogMessageTime& log_time, const char* message,
-        std::size_t message_len) override;
-    std::ofstream log_file;
-    int threshold = 0;
-};
 
 class LoggerWrapper {
 public:

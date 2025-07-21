@@ -16,50 +16,7 @@
 
 #include <ng-log/logging.h>
 
-#ifdef WIN32
-    #include <windows.h>
-#else
-    #include <iconv.h>
-#endif
-
 #include "rds_strings.h"
-
-FileSink::FileSink(const std::string log_file_path, int log_threshold)
-{
-    std::filesystem::path log_dir(log_file_path);
-    if (log_dir.is_relative()) {
-        log_dir = std::filesystem::current_path().append(log_file_path);
-    }
-
-    if (!std::filesystem::exists(log_dir)) {
-        std::filesystem::create_directories(log_dir);
-    }
-    log_dir.append(logger_config::PROGRAM_NAME + logger_config::LOG_SUFFIX);
-    log_file.open(log_dir, std::ofstream::out | std::ofstream::app);
-    threshold = log_threshold;
-}
-
-FileSink::~FileSink()
-{
-    if (log_file.is_open()) {
-        log_file.flush();
-        log_file.close();
-    }
-}
-
-void FileSink::send(nglog::LogSeverity severity, const char* /*full_filename*/,
-    const char* base_filename, int line,
-    const nglog::LogMessageTime& log_time, const char* message,
-    std::size_t message_len)
-{
-    if (severity <= threshold && log_file.is_open()) {
-        log_file << nglog::GetLogSeverityName(severity) << ' ' << log_time.when() << ' ' << base_filename << ':' << line << ' ';
-        std::copy_n(message, message_len, std::ostreambuf_iterator<char>{log_file});
-        log_file << '\n';
-
-        log_file.flush();
-    }
-}
 
 void LoggerWrapper::Initialize()
 {
@@ -82,7 +39,8 @@ void LoggerWrapper::Initialize(RDS_STR log_location, int threshold)
         // Set to 4 to disable console output
         threshold = threshold >= 0 ? threshold : logger_config::DEFAULT_LOG_THRESHOLD;
         FLAGS_stderrthreshold = threshold;
-        FLAGS_timestamp_in_logfile_name = false;
+        // Also adds PID to file, needed for multi-process safety
+        FLAGS_timestamp_in_logfile_name = true;
         if (log_location.empty()) {
             log_location = logger_config::DEFAULT_LOG_LOCATION;
         }
