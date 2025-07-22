@@ -50,7 +50,7 @@ SQLRETURN BasePlugin::Connect(
     // Create Wrapped DBC if not already allocated
     RdsLibResult res;
     if (!dbc->wrapped_dbc) {
-        res = env->driver_lib_loader->CallFunction<RDS_FP_SQLAllocHandle>(RDS_STR_SQLAllocHandle,
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
             SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
         );
     }
@@ -58,7 +58,7 @@ SQLRETURN BasePlugin::Connect(
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
     RDS_STR conn_in = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
-    res = env->driver_lib_loader->CallFunction<RDS_FP_SQLDriverConnect>(RDS_STR_SQLDriverConnect,
+    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
@@ -68,7 +68,7 @@ SQLRETURN BasePlugin::Connect(
 
     // Apply Tracked Connection Attributes
     for (auto const& [key, val] : dbc->attr_map) {
-        res = env->driver_lib_loader->CallFunction<RDS_FP_SQLSetConnectAttr>(RDS_STR_SQLSetConnectAttr,
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
             dbc->wrapped_dbc, key, val.first, val.second
         );
         if (!res.fn_result) {

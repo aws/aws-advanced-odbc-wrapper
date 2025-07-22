@@ -57,7 +57,8 @@ jobs:
       - name: Install Dependencies
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
-          brew install autoconf automake unixodbc libtool postgresql
+          brew update && brew upgrade && brew cleanup
+          brew install gcc autoconf automake unixodbc libtool postgresql
       - name: Build psqlodbc
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         working-directory: psqlodbc
@@ -201,7 +202,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install unixodbc postgresql curl openssl zlib
+          brew install cmake unixodbc postgresql curl openssl zlib
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
         uses: actions/cache@v4
