@@ -89,6 +89,7 @@ SQLRETURN SQL_API SQLBindCol(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
         stmt->wrapped_stmt, ColumnNumber, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
@@ -114,6 +115,7 @@ SQLRETURN SQL_API SQLBindParameter(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter,
         stmt->wrapped_stmt, ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
@@ -131,6 +133,7 @@ SQLRETURN SQL_API SQLBulkOperations(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBulkOperations, RDS_STR_SQLBulkOperations,
         stmt->wrapped_stmt, Operation
@@ -154,13 +157,11 @@ SQLRETURN SQL_API SQLCancel(
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
-// TODO Maybe - Impl SQLCancelHandle
-// PostgreSQL does NOT implement this
-// MySQL only supports SQL_HANDLE_STMT, which calls [SQLCancel]
 SQLRETURN SQL_API SQLCancelHandle(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle)
 {
+    DESC *desc;
     STMT *stmt;
     DBC *dbc;
     ENV *env;
@@ -183,11 +184,35 @@ SQLRETURN SQL_API SQLCancelHandle(
             }
             break;
         case SQL_HANDLE_ENV:
+        {
+            NULL_CHECK_HANDLE(Handle);
+            env = (ENV*) Handle;
+            std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+            CLEAR_ENV_ERROR(env);
+            env->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            NOT_IMPLEMENTED;
+        }
         case SQL_HANDLE_DBC:
+        {
+            NULL_CHECK_ENV_ACCESS_DBC(Handle);
+            dbc = (DBC*) Handle;
+            std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+            CLEAR_DBC_ERROR(dbc);
+            dbc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            NOT_IMPLEMENTED;
+        }
         case SQL_HANDLE_DESC:
+        {
+            NULL_CHECK_ENV_ACCESS_DESC(Handle);
+            desc = (DESC*) Handle;
+            std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+            CLEAR_DESC_ERROR(desc);
+            desc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            NOT_IMPLEMENTED;
+        }
         default:
             // TODO - Set Error
-            ret = SQL_ERROR;
+            ret = SQL_INVALID_HANDLE;
             break;
     }
 
@@ -203,6 +228,7 @@ SQLRETURN SQL_API SQLCloseCursor(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
         stmt->wrapped_stmt
@@ -217,6 +243,29 @@ SQLRETURN SQL_API SQLCompleteAsync(
     SQLHANDLE     Handle,
     RETCODE *     AsyncRetCodePtr)
 {
+    switch (HandleType) {
+        case SQL_HANDLE_DBC:
+        {
+            NULL_CHECK_ENV_ACCESS_DBC(Handle);
+            DBC *dbc = (DBC*) Handle;
+            std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+            CLEAR_DBC_ERROR(dbc);
+            dbc->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            break;
+        }
+
+        case SQL_HANDLE_STMT:
+        {
+            NULL_CHECK_ENV_ACCESS_STMT(Handle);
+            STMT *stmt = (STMT*) Handle;
+            std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+            CLEAR_DBC_ERROR(stmt);
+            stmt->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            break;
+        }
+        default:
+            return SQL_INVALID_HANDLE;
+    }
     NOT_IMPLEMENTED;
 }
 
@@ -262,6 +311,7 @@ SQLRETURN SQL_API SQLDescribeParam(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeParam, RDS_STR_SQLDescribeParam,
         stmt->wrapped_stmt, ParameterNumber, DataTypePtr, ParameterSizePtr, DecimalDigitsPtr, NullablePtr
@@ -277,6 +327,7 @@ SQLRETURN SQL_API SQLDisconnect(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    CLEAR_DBC_ERROR(dbc);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
@@ -301,6 +352,7 @@ SQLRETURN SQL_API SQLExecute(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
         stmt->wrapped_stmt
@@ -321,6 +373,7 @@ SQLRETURN SQL_API SQLExtendedFetch(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExtendedFetch, RDS_STR_SQLExtendedFetch,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset, RowCountPtr, RowStatusArray
@@ -337,6 +390,7 @@ SQLRETURN SQL_API SQLFetch(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         stmt->wrapped_stmt
@@ -355,6 +409,7 @@ SQLRETURN SQL_API SQLFetchScroll(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetchScroll, RDS_STR_SQLFetchScroll,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset
@@ -420,6 +475,7 @@ SQLRETURN SQL_API SQLGetData(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
         stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
@@ -467,9 +523,10 @@ SQLRETURN SQL_API SQLGetFunctions(
     SQLUSMALLINT * SupportedPtr)
 {
     DBC *dbc = (DBC*) ConnectionHandle;
-    SQLRETURN ret = SQL_SUCCESS;
+    SQLRETURN ret = SQL_ERROR;
 
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    CLEAR_DBC_ERROR(dbc);
 
     // Query underlying driver if connection is established
     if (dbc && dbc->wrapped_dbc) {
@@ -478,11 +535,14 @@ SQLRETURN SQL_API SQLGetFunctions(
             dbc->wrapped_dbc, FunctionId, SupportedPtr
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+    } else {
+        // TODO - THIS IS HARDCODED
+        // Will need to keep track of a map of the current implemented functions
+        // as ODBC adds/removes functions in the future
+        *SupportedPtr = SQL_TRUE;
+        ret = SQL_SUCCESS;
     }
 
-    // TODO - THIS IS HARDCODED
-    // Will need to keep track of a map of the current implemented functions
-    // as ODBC adds/removes functions in the future
     return ret;
 }
 
@@ -513,6 +573,7 @@ SQLRETURN SQL_API SQLMoreResults(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLMoreResults, RDS_STR_SQLMoreResults,
         stmt->wrapped_stmt
@@ -530,6 +591,7 @@ SQLRETURN SQL_API SQLNumParams(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumParams, RDS_STR_SQLNumParams,
         stmt->wrapped_stmt, ParameterCountPtr
@@ -547,6 +609,7 @@ SQLRETURN SQL_API SQLNumResultCols(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumResultCols, RDS_STR_SQLNumResultCols,
         stmt->wrapped_stmt, ColumnCountPtr
@@ -564,6 +627,7 @@ SQLRETURN SQL_API SQLParamData(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamData, RDS_STR_SQLParamData,
         stmt->wrapped_stmt, ValuePtrPtr
@@ -600,6 +664,7 @@ SQLRETURN SQL_API SQLPutData(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData,
         stmt->wrapped_stmt, DataPtr, StrLen_or_Ind
@@ -617,6 +682,7 @@ SQLRETURN SQL_API SQLRowCount(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLRowCount, RDS_STR_SQLRowCount,
         stmt->wrapped_stmt, RowCountPtr
@@ -694,6 +760,7 @@ SQLRETURN SQL_API SQLSetParam(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetParam, RDS_STR_SQLSetParam,
         stmt->wrapped_stmt, ParameterNumber, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, StrLen_or_IndPtr
@@ -713,6 +780,7 @@ SQLRETURN SQL_API SQLSetPos(
     ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    CLEAR_STMT_ERROR(stmt);
 
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetPos, RDS_STR_SQLSetPos,
         stmt->wrapped_stmt, RowNumber, Operation, LockType
