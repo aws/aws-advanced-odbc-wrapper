@@ -322,6 +322,7 @@ SQLRETURN SQL_API SQLDescribeParam(
 SQLRETURN SQL_API SQLDisconnect(
     SQLHDBC        ConnectionHandle)
 {
+    SQLRETURN ret = SQL_ERROR;
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC *dbc = (DBC*) ConnectionHandle;
     ENV *env = (ENV*) dbc->env;
@@ -332,7 +333,11 @@ SQLRETURN SQL_API SQLDisconnect(
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
-    return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->conn_status = CONN_NOT_CONNECTED;
+    }
+    return ret;
 }
 
 SQLRETURN SQL_API SQLEndTran(

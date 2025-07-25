@@ -22,7 +22,6 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "IAM";
-    AwsSdkHelper::Init();
 
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.find(KEY_REGION) != dbc->conn_attr.end() ?
@@ -32,8 +31,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc
 
 IamAuthPlugin::~IamAuthPlugin()
 {
-    AwsSdkHelper::Shutdown();
-    auth_provider.reset();
+    if (auth_provider) auth_provider.reset();
 }
 
 SQLRETURN IamAuthPlugin::Connect(

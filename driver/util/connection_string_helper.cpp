@@ -36,19 +36,18 @@ void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std:
 
 RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive)
 {
-    // TODO - Need to build the bare-minimum string
-    //  i.e. not passing our RDS related keys and values along to underlying
-    //  This is due to some drivers having a maximum connection string length
     RDS_STR_STREAM conn_stream;
     for (const auto& e : conn_map) {
-        if (conn_stream.tellp() > 0) {
-            conn_stream << TEXT(";");
-        }
+        if (!IsAwsOdbcKey(e.first)) {
+            if (conn_stream.tellp() > 0) {
+                conn_stream << TEXT(";");
+            }
 
-        if (redact_sensitive && IsSensitiveData(e.first)) {
-            conn_stream << e.first << TEXT("=") << "[REDACTED]";
-        } else {
-            conn_stream << e.first << TEXT("=") << e.second;
+            if (redact_sensitive && IsSensitiveData(e.first)) {
+                conn_stream << e.first << TEXT("=") << "[REDACTED]";
+            } else {
+                conn_stream << e.first << TEXT("=") << e.second;
+            }
         }
     }
     return conn_stream.str();
@@ -71,6 +70,12 @@ RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR
     return conn_stream.str();
 }
 
-bool ConnectionStringHelper::IsSensitiveData(const RDS_STR &sensitive_key) {
-    return sensitive_key_set.find(sensitive_key) == sensitive_key_set.end();
+bool ConnectionStringHelper::IsAwsOdbcKey(const RDS_STR &aws_odbc_key)
+{
+    return aws_odbc_key_set.find(aws_odbc_key) != aws_odbc_key_set.end();
+}
+
+bool ConnectionStringHelper::IsSensitiveData(const RDS_STR &sensitive_key)
+{
+    return sensitive_key_set.find(sensitive_key) != sensitive_key_set.end();
 }

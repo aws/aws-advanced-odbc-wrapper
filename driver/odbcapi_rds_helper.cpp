@@ -16,6 +16,7 @@
 
 #include "odbcapi_rds_helper.h"
 
+#include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
@@ -523,6 +524,9 @@ SQLRETURN RDS_SQLConnect(
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         ret = dbc->plugin_head->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+        if (SQL_SUCCEEDED(ret)) {
+            dbc->conn_status = CONN_CONNECTED;
+        }
     }
 
     return ret;
@@ -594,6 +598,7 @@ SQLRETURN RDS_SQLDriverConnect(
     // Connection is already established
     if (CONN_NOT_CONNECTED != dbc->conn_status) {
         // TODO - Error info
+        LOG(ERROR) << "Connection handle is already has an existing connection";
         return SQL_ERROR;
     }
 
@@ -1602,14 +1607,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     bool has_env_attr_errors = false;
 
-    // Remove input DSN & Driver
+    // Remove input Driver
     // We don't want the underlying connection
     //  to look back to the wrapper
     // Also allows the Base DSN parse driver into map
-    dbc->conn_attr.erase(KEY_DSN);
     dbc->conn_attr.erase(KEY_DRIVER);
 
-    // Set the DSN use the Base
+    // Set the DSN use the Base if one is found
     if (dbc->conn_attr.find(KEY_BASE_DSN) != dbc->conn_attr.end()) {
         dbc->conn_attr.insert_or_assign(KEY_DSN, dbc->conn_attr.at(KEY_BASE_DSN));
         // Load Base DSN info, should contain driver to use
@@ -1630,7 +1634,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         if (!env->driver_lib_loader) {
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            // TODO - Set Error, can only use 1 underlying driver per Environment
             LOG(ERROR) << "Attempted to load different drivers to the same environment";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.", ERR_DIFF_ENV_UNDERLYING_DRIVER);
@@ -1682,6 +1685,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                         plugin_head = next_plugin;
                         break;
                     case AuthType::ADFS:
+                        next_plugin = new AdfsAuthPlugin(dbc, plugin_head);
+                        plugin_head = next_plugin;
                         break;
                     case AuthType::OKTA:
                         break;

@@ -66,6 +66,7 @@ public:
         const std::string &username,
         bool use_cache = true,
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
+    void UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region = "");
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);

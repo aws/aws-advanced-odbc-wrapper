@@ -14,39 +14,24 @@
 
 #include "auth_provider.h"
 
-AuthProvider::AuthProvider(const std::string &region)
-{
+#include "logger_wrapper.h"
+
+AuthProvider::AuthProvider(const std::string &region) {
     AwsSdkHelper::Init();
-
-    Aws::RDS::RDSClientConfiguration client_config;
-    if (!region.empty()) {
-        client_config.region = region;
-    }
-
-    rds_client = std::make_shared<Aws::RDS::RDSClient>(
-        Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(),
-        client_config
-    );
+    UpdateAwsCredential(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
 }
 
 AuthProvider::AuthProvider(
     const std::string &region,
     Aws::Auth::AWSCredentials credentials)
 {
-    Aws::RDS::RDSClientConfiguration client_config;
-    if (!region.empty()) {
-        client_config.region = region;
-    }
-
-    rds_client = std::make_shared<Aws::RDS::RDSClient>(
-        credentials,
-        client_config
-    );
+    AwsSdkHelper::Init();
+    UpdateAwsCredential(credentials, region);
 }
 
 AuthProvider::~AuthProvider()
 {
-    this->rds_client.reset();
+    if (rds_client) rds_client.reset();
     AwsSdkHelper::Shutdown();
 }
 
@@ -80,6 +65,18 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     return std::pair<std::string, bool>(token_info.token, false);
 }
 
+void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region) {
+    if (rds_client) rds_client.reset();
+
+    Aws::RDS::RDSClientConfiguration client_config;
+    if (!region.empty()) client_config.region = region;
+
+    rds_client = std::make_shared<Aws::RDS::RDSClient>(
+        credentials,
+        client_config
+    );
+}
+
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR& auth_type) {
     auto itr = auth_table.find(auth_type);
     if (itr != auth_table.end()) {
@@ -90,10 +87,10 @@ AuthType AuthProvider::AuthTypeFromString(const RDS_STR& auth_type) {
 }
 
 std::string AuthProvider::BuildCacheKey(
-        const std::string &server,
-        const std::string &region,
-        const std::string &port,
-        const std::string &username)
+    const std::string &server,
+    const std::string &region,
+    const std::string &port,
+    const std::string &username)
 {
     std::stringstream key_builder;
     key_builder << server << "-" << region << "-" << port << "-" << username;
