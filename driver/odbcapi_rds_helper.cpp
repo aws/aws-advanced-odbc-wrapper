@@ -856,7 +856,7 @@ SQLRETURN RDS_SQLGetDiagField(
                         HandleType, dbc->wrapped_dbc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-                } else if (env->err) {
+                } else if (dbc->err) {
                     err = new ERR_INFO(*dbc->err);
                 }
             }
@@ -875,7 +875,7 @@ SQLRETURN RDS_SQLGetDiagField(
                         HandleType, stmt->wrapped_stmt, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
-                } else if (env->err) {
+                } else if (stmt->err) {
                     err = new ERR_INFO(*stmt->err);
                 }
             }
@@ -894,7 +894,7 @@ SQLRETURN RDS_SQLGetDiagField(
                         HandleType, desc->wrapped_desc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
-                } else if (env->err) {
+                } else if (desc->err) {
                     err = new ERR_INFO(*desc->err);
                 }
             }
@@ -909,6 +909,7 @@ SQLRETURN RDS_SQLGetDiagField(
             ret = SQL_NO_DATA_FOUND;
         } else {
             const RDS_CHAR *char_value = nullptr;
+            ret = SQL_SUCCESS;
             switch (DiagIdentifier) {
                 // Header Fields
                 case SQL_DIAG_CURSOR_ROW_COUNT:
@@ -926,14 +927,10 @@ SQLRETURN RDS_SQLGetDiagField(
                     // No support for multi-error / list
                     //  at most 1 for our Wrapper Layer
                     *(SQLINTEGER *) DiagInfoPtr = 1;
-                    ret = SQL_SUCCESS;
                     break;
                 }
                 case SQL_DIAG_RETURNCODE:
-                    if (err) {
-                        *(SQLRETURN *) DiagInfoPtr = err->ret_code;
-                        ret = SQL_SUCCESS;
-                    }
+                    *(SQLRETURN *) DiagInfoPtr = err->ret_code;
                     break;
 
                 // Record Fields
@@ -942,12 +939,11 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        if (err && err->sqlstate && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
+                        if (err->sqlstate && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
                             char_value = TEXT("ODBC 3.0");
                         else {
                             char_value = TEXT("ISO 9075");
                         }
-                        ret = SQL_SUCCESS;
                     }
                     break;
                 }
@@ -957,12 +953,14 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     } else {
                         *(SQLLEN *) DiagInfoPtr = SQL_ROW_NUMBER_UNKNOWN;
-                        ret = SQL_SUCCESS;
                     }
                     break;
                 }
                 case SQL_DIAG_CONNECTION_NAME:
                 {
+                    if (RecNumber <= 0) {
+                        ret = SQL_ERROR;
+                    }
                     if (dbc && dbc->conn_attr.find(KEY_DSN) != dbc->conn_attr.end()) {
                         char_value = dbc->conn_attr.at(KEY_DSN).c_str();
                     }
@@ -973,19 +971,14 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (err) {
+                    if (err->error_msg) {
                         char_value = AS_RDS_CHAR(err->error_msg);
-                    } else {
-                        ret = SQL_SUCCESS;
                     }
                     break;
                 }
                 case SQL_DIAG_NATIVE:
                 {
-                    if (err) {
-                        *(SQLINTEGER *) DiagInfoPtr = err->native_err;
-                    }
-                    ret = SQL_SUCCESS;
+                    *(SQLINTEGER *) DiagInfoPtr = err->native_err;
                     break;
                 }
                 case SQL_DIAG_ROW_NUMBER:
@@ -994,7 +987,6 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     } else {
                         *(SQLLEN *) DiagInfoPtr = SQL_ROW_NUMBER_UNKNOWN;
-                        ret = SQL_SUCCESS;
                     }
                     break;
                 }
@@ -1019,12 +1011,10 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (err) {
-                        if (err->is_odbc3_subclass) {
-                            char_value = TEXT("ODBC 3.0");
-                        } else {
-                            char_value = TEXT("ISO 9075");
-                        }
+                    if (err->is_odbc3_subclass) {
+                        char_value = TEXT("ODBC 3.0");
+                    } else {
+                        char_value = TEXT("ISO 9075");
                     }
                     break;
                 }
