@@ -33,6 +33,8 @@
 #include <mutex>
 #include <set>
 
+#include "error.h"
+
 #include "plugin/base_plugin.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
@@ -40,7 +42,7 @@
 /* Const Lengths */
 #define NO_DATA_SQL_STATE     TEXT("00000")
 #define NO_DATA_NATIVE_ERR    0
-#define MAX_SQL_STATE_LEN     5
+#define MAX_SQL_STATE_LEN     6
 #define ODBC_VER_SiZE         16
 
 /* Struct Declarations */
@@ -61,37 +63,11 @@ struct DESC;
 class BasePlugin;
 
 /* Structures */
-struct ERR_INFO {
-    char*               error_msg;
-    signed char         error_num;
-    char*               sqlstate;
-
-    ERR_INFO(const char *msg, signed char num, const char *state) {
-        if (msg) error_msg = strdup(msg);
-        if (state) sqlstate = strdup(state);
-        error_num = num;
-    }
-
-    ~ERR_INFO() {
-        if (error_msg) delete error_msg;
-        if (sqlstate) delete sqlstate;
-    }
-
-    void set_error_message(const char *msg, const char *state) {
-        if (error_msg) delete error_msg;
-        if (sqlstate) delete sqlstate;
-        if (msg) error_msg = strdup(msg);
-        if (state) error_msg = strdup(state);
-    }
-}; // ERR_INFO
-
 struct ENV {
     std::recursive_mutex        lock;
     std::list<DBC*>             dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
-
-    // Error Info, to be used if no underlying ENV
     ERR_INFO*                   err;
 
     SQLHENV                     wrapped_env;
@@ -113,8 +89,6 @@ struct DBC {
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head;
-
-    // Error Info, to be used if no underlying DBC
     ERR_INFO*                   err;
 }; // DBC
 
@@ -123,8 +97,6 @@ struct STMT {
     std::recursive_mutex        lock;
     DBC*                        dbc;
     SQLHSTMT                    wrapped_stmt;
-
-    // Error Info, to be used if no underlying STMT
     ERR_INFO*                   err;
 }; // STMT
 
@@ -134,8 +106,6 @@ struct DESC {
     // TODO - What to put here
     DBC*                        dbc;
     SQLHDESC                    wrapped_desc;
-
-    // Error Info, to be used if no underlying DESC
     ERR_INFO*                   err;
 }; // DESC
 
@@ -205,5 +175,34 @@ SQLRETURN RDS_SQLSetConnectAttr(
          || ((DESC*) h)->dbc == NULL \
          || ((DBC*) ((DESC*) h)->dbc)->env == NULL) \
          return SQL_INVALID_HANDLE
+
+#define CLEAR_ENV_ERROR(env)                 \
+     do {                                    \
+          if (env && ((ENV*)env)->err) {     \
+               delete ((ENV*)env)->err;      \
+               ((ENV*)env)->err = nullptr;   \
+          }                                  \
+     } while (0)
+#define CLEAR_DBC_ERROR(dbc)                 \
+     do {                                    \
+          if (dbc && ((DBC*)dbc)->err) {     \
+               delete ((DBC*)dbc)->err;      \
+               ((DBC*)dbc)->err = nullptr;   \
+          }                                  \
+     } while (0)
+#define CLEAR_STMT_ERROR(stmt)               \
+     do {                                    \
+          if (stmt && ((STMT*)stmt)->err) {  \
+               delete ((STMT*)stmt)->err;    \
+               ((STMT*)stmt)->err = nullptr; \
+          }                                  \
+     } while (0)
+#define CLEAR_DESC_ERROR(desc)               \
+     do {                                    \
+          if (desc && ((DESC*)desc)->err) {  \
+               delete ((DESC*)desc)->err;    \
+               ((DESC*)desc)->err = nullptr; \
+          }                                  \
+     } while (0)
 
 #endif // DRIVER_H

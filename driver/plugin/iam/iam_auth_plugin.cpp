@@ -54,10 +54,9 @@ SQLRETURN IamAuthPlugin::Connect(
     std::string username = dbc->conn_attr.find(KEY_DB_USERNAME) != map_end_itr ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
 
-    // TODO - Proper error handling for missing parameters
     if (server.empty() || region.empty() || port.empty() || username.empty()) {
         if (dbc->err) delete dbc->err;
-        dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", 12345, "12345");
+        dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 

@@ -42,6 +42,7 @@ set(INC
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/error.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.h
 )

@@ -43,6 +43,7 @@
 struct RdsLibResult {
     bool fn_load_success;
     SQLRETURN fn_result;
+    RDS_STR fn_name;
 }; // RdsLibResult
 
 class RdsLibLoader {
@@ -91,7 +92,7 @@ inline RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
         fn_ret = (*rds_func)(args...);
     }
 
-    return RdsLibResult{fn_load_success, fn_ret};
+    return RdsLibResult{fn_load_success, fn_ret, func_name};
 }
 
 #define NULL_CHECK_CALL_LIB_FUNC(lib_loader, fn_type, fn_name, ...) lib_loader ? \
