@@ -29,8 +29,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(d
 {
     this->plugin_name = "ADFS";
 
-    auto map_end_itr = dbc->conn_attr.end();
-    std::string region = dbc->conn_attr.find(KEY_REGION) != map_end_itr ?
+    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
     saml_util = std::make_shared<AdfsSamlUtil>(dbc->conn_attr);
     std::string saml_assertion = saml_util->GetSamlAssertion();
@@ -50,15 +49,14 @@ SQLRETURN AdfsAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    auto map_end_itr = dbc->conn_attr.end();
-    std::string server = dbc->conn_attr.find(KEY_SERVER) != map_end_itr ?
+    std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
-    std::string region = dbc->conn_attr.find(KEY_REGION) != map_end_itr ?
+    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
-    std::string port = dbc->conn_attr.find(KEY_PORT) != map_end_itr ?
+    std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
-    std::string username = dbc->conn_attr.find(KEY_DB_USERNAME) != map_end_itr ?
+    std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
 
     // TODO - Proper error handling for missing parameters
@@ -93,7 +91,7 @@ const std::string AdfsSamlUtil::SAML_RESPONSE_PATTERN = "name=\"SAMLResponse\"\\
 const std::string AdfsSamlUtil::URL_PATTERN = "^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']";
 
 AdfsSamlUtil::AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes) : SamlUtil(connection_attributes) {
-    std::string relaying_party_id = connection_attributes.find(KEY_RELAY_PARTY_ID) != connection_attributes.end() ?
+    std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
         ToStr(connection_attributes.at(KEY_RELAY_PARTY_ID)) : "";
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
 }
@@ -248,7 +246,7 @@ std::vector<std::string> AdfsSamlUtil::GetInputTagsFromBody(const std::string &b
         source = matches.suffix().str();
     }
 
-	DLOG(INFO) << "Input tags vector size: " << retval.size();
+    DLOG(INFO) << "Input tags vector size: " << retval.size();
     return retval;
 }
 

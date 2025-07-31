@@ -500,7 +500,7 @@ SQLRETURN SQL_API SQLGetEnvAttr(
 
     std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
-    if (env->attr_map.find(Attribute) != env->attr_map.end()) {
+    if (env->attr_map.contains(Attribute)) {
         std::pair<SQLPOINTER, SQLINTEGER> value_pair = env->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
             *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLUSMALLINT>(reinterpret_cast<uintptr_t>(value_pair.first));

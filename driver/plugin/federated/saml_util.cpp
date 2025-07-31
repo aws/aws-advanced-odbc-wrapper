@@ -27,13 +27,12 @@ SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
     ParseIdpConfig(connection_attributes);
 
     Aws::Client::ClientConfiguration http_client_config;
-    auto map_end_itr = connection_attributes.end();
-    if (connection_attributes.find(KEY_HTTP_SOCKET_TIMEOUT) != map_end_itr) {
+    if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
         std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
         int socket_timeout = std::atoi(socket_timeout_str.c_str());
         http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
     }
-    if (connection_attributes.find(KEY_HTTP_CONNECT_TIMEOUT) != map_end_itr) {
+    if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
         std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
         int connect_timeout = std::atoi(connect_timeout_str.c_str());
         http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
@@ -43,7 +42,7 @@ SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
     http_client = Aws::Http::CreateHttpClient(http_client_config);
 
     Aws::STS::STSClientConfiguration sts_client_config;
-    if (connection_attributes.find(KEY_REGION) != map_end_itr) {
+    if (connection_attributes.contains(KEY_REGION)) {
         sts_client_config.region = ToStr(connection_attributes.at(KEY_REGION));
     }
     sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
@@ -80,17 +79,16 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
 
 void SamlUtil::ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes)
 {
-    auto map_end_itr = connection_attributes.end();
-    idp_endpoint = connection_attributes.find(KEY_IDP_ENDPOINT) != map_end_itr ?
+    idp_endpoint = connection_attributes.contains(KEY_IDP_ENDPOINT) ?
         ToStr(connection_attributes.at(KEY_IDP_ENDPOINT)) : "";
-    idp_port = connection_attributes.find(KEY_IDP_PORT) != map_end_itr ?
+    idp_port = connection_attributes.contains(KEY_IDP_PORT) ?
         ToStr(connection_attributes.at(KEY_IDP_PORT)) : "";
-    idp_username = connection_attributes.find(KEY_IDP_USERNAME) != map_end_itr ?
+    idp_username = connection_attributes.contains(KEY_IDP_USERNAME) ?
         ToStr(connection_attributes.at(KEY_IDP_USERNAME)) : "";
-    idp_password = connection_attributes.find(KEY_IDP_PASSWORD) != map_end_itr ?
+    idp_password = connection_attributes.contains(KEY_IDP_PASSWORD) ?
         ToStr(connection_attributes.at(KEY_IDP_PASSWORD)) : "";
-    idp_role_arn = connection_attributes.find(KEY_IDP_ROLE_ARN) != map_end_itr ?
+    idp_role_arn = connection_attributes.contains(KEY_IDP_ROLE_ARN) ?
         ToStr(connection_attributes.at(KEY_IDP_ROLE_ARN)) : "";
-    idp_saml_arn = connection_attributes.find(KEY_IDP_SAML_ARN) != map_end_itr ?
+    idp_saml_arn = connection_attributes.contains(KEY_IDP_SAML_ARN) ?
         ToStr(connection_attributes.at(KEY_IDP_SAML_ARN)) : "";
 }

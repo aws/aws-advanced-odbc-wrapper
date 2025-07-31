@@ -49,7 +49,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
 
     if (use_cache) {
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
-        if (token_cache.find(cache_key) != token_cache.end()) {
+        if (token_cache.contains(cache_key)) {
             token_info = token_cache.at(cache_key);
             if (curr_time < token_info.expiration_point) {
                 return std::pair<std::string, bool>(token_info.token, true);
@@ -57,7 +57,8 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         }
     }
 
-    token_info.token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::atoi(port.c_str()), username.c_str());
+    std::string aws_token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::atoi(port.c_str()), username.c_str());
+    token_info.token = aws_token;
     {
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
@@ -78,9 +79,8 @@ void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, co
 }
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR& auth_type) {
-    auto itr = auth_table.find(auth_type);
-    if (itr != auth_table.end()) {
-        return itr->second;
+    if (auth_table.contains(auth_type)) {
+        return auth_table.at(auth_type);
     } else {
         return AuthType::INVALID;
     }

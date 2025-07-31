@@ -72,10 +72,10 @@ RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR
 
 bool ConnectionStringHelper::IsAwsOdbcKey(const RDS_STR &aws_odbc_key)
 {
-    return aws_odbc_key_set.find(aws_odbc_key) != aws_odbc_key_set.end();
+    return aws_odbc_key_set.contains(aws_odbc_key);
 }
 
 bool ConnectionStringHelper::IsSensitiveData(const RDS_STR &sensitive_key)
 {
-    return sensitive_key_set.find(sensitive_key) != sensitive_key_set.end();
+    return sensitive_key_set.contains(sensitive_key);
 }

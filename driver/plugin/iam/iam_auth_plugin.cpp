@@ -24,7 +24,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc
     this->plugin_name = "IAM";
 
     // TODO - Helper to parse from URL
-    std::string region = dbc->conn_attr.find(KEY_REGION) != dbc->conn_attr.end() ?
+    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
     auth_provider = std::make_shared<AuthProvider>(region);
 }
@@ -41,15 +41,14 @@ SQLRETURN IamAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    auto map_end_itr = dbc->conn_attr.end();
-    std::string server = dbc->conn_attr.find(KEY_SERVER) != map_end_itr ?
+    std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
-    std::string region = dbc->conn_attr.find(KEY_REGION) != map_end_itr ?
+    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
-    std::string port = dbc->conn_attr.find(KEY_PORT) != map_end_itr ?
+    std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
-    std::string username = dbc->conn_attr.find(KEY_DB_USERNAME) != map_end_itr ?
+    std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
 
     if (server.empty() || region.empty() || port.empty() || username.empty()) {
