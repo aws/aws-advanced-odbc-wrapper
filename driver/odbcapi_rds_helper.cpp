@@ -17,6 +17,7 @@
 #include "odbcapi_rds_helper.h"
 
 #include "plugin/iam/iam_auth_plugin.h"
+#include "plugin/secrets_manager/secrets_manager_plugin.h"
 
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
@@ -1677,6 +1678,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                         plugin_head = next_plugin;
                         break;
                     case AuthType::SECRETS_MANAGER:
+                        next_plugin = new SecretsManagerPlugin(dbc, plugin_head);
+                        plugin_head = next_plugin;
                         break;
                     case AuthType::ADFS:
                         break;
