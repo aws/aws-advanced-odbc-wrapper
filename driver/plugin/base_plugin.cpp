@@ -80,9 +80,11 @@ SQLRETURN BasePlugin::Connect(
 
     // TODO - Error Handling for ConnAttr, IsConnected
     // Successful Connection, but bad environment and/or connection attribute setting
-    if (SQL_SUCCEEDED(ret) && has_conn_attr_errors) {
-        // TODO - Set Error
-        ret = SQL_SUCCESS_WITH_INFO;
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->conn_status = CONN_CONNECTED;
+        if (has_conn_attr_errors) {
+            ret = SQL_SUCCESS_WITH_INFO;
+        }
     }
     return ret;
 }

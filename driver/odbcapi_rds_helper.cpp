@@ -524,9 +524,6 @@ SQLRETURN RDS_SQLConnect(
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         ret = dbc->plugin_head->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
-        if (SQL_SUCCEEDED(ret)) {
-            dbc->conn_status = CONN_CONNECTED;
-        }
     }
 
     return ret;
