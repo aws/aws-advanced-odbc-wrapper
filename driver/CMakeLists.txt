@@ -29,6 +29,7 @@ set(INC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.h
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
@@ -54,6 +55,7 @@ set(SRC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.cpp
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp

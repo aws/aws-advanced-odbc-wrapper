@@ -13,22 +13,31 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
-project("compatibility-test")
+project("unit-test")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.h
 )
 
 set(TEST_SUITE
-    ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
 )
 
 set(TEST_RUNNER
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_runner.cpp
 )
+
+# Configure Build Defines ------------------------------------------------------------------------------------
+if(UNICODE)
+    SET(WRAPPER_NAME aws-odbc-wrapper-w)
+else()
+    SET(WRAPPER_NAME aws-odbc-wrapper-a)
+endif()
 
 # Fetch External Libraries ----------------------------------------------------------------------------------
 include(FetchContent)
@@ -40,6 +49,28 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 list(APPEND EXTERNAL_LIBRARIES gtest_main)
+list(APPEND EXTERNAL_LIBRARIES gmock_main)
+
+# -- AWS SDK --
+if(UNIX)
+    message("Unix - Adding ZLIB explicitly for AWS SDK")
+    find_package(ZLIB REQUIRED)
+endif()
+
+# Path to built AWS SDK
+set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
+list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
+
+find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
+list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
+
+# -- ODBC WRAPPER --
+FetchContent_Declare(
+  ${WRAPPER_NAME}
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/../../driver
+)
+FetchContent_MakeAvailable(${WRAPPER_NAME})
+list(APPEND EXTERNAL_LIBRARIES ${WRAPPER_NAME})
 
 # -- ODBC --
 if(APPLE)
@@ -87,32 +118,3 @@ target_include_directories(
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
-
-# ODBC Unix DSN ---------------------------------------------------------------------------------------------
-SET(ODBC_PATH ${CMAKE_SOURCE_DIR}/../resources/)
-
-# Common Settings
-SET(THREADING "0")
-SET(TEST_SERVER ${TEST_SERVER},${TEST_PORT})
-SET(TEST_DATABASE ${TEST_DATABASE})
-
-# Test Driver
-SET(TEST_DSN "wrapper-dsn")
-SET(TEST_DRIVER_NAME "aws-odbc-wrapper")
-SET(TEST_DRIVER_PATH ${TEST_DRIVER_PATH})
-
-# Base PG Driver
-SET(BASE_PG_DSN "pg-dsn")
-SET(BASE_PG_DRIVER_NAME "community-pg")
-SET(BASE_PG_DRIVER_PATH ${BASE_PG_DRIVER_PATH})
-
-CONFIGURE_FILE(
-    ${ODBC_PATH}/odbcinst.ini.in
-    ${ODBC_PATH}/odbcinst.ini
-    @ONLY
-)
-CONFIGURE_FILE(
-    ${ODBC_PATH}/odbc.ini.in
-    ${ODBC_PATH}/odbc.ini
-    @ONLY
-)
