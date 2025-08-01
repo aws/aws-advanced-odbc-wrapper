@@ -29,12 +29,12 @@ SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
     Aws::Client::ClientConfiguration http_client_config;
     if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
         std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
-        int socket_timeout = std::atoi(socket_timeout_str.c_str());
+        int socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 10);
         http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
     }
     if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
         std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
-        int connect_timeout = std::atoi(connect_timeout_str.c_str());
+        int connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 10);
         http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
     }
     http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;

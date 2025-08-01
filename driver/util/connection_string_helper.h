@@ -35,6 +35,8 @@ static std::unordered_set<RDS_STR> const aws_odbc_key_set = {
     KEY_REGION,
     KEY_TOKEN_EXPIRATION,
     KEY_SECRET_ID,
+    KEY_SECRET_REGION,
+    KEY_SECRET_ENDPOINT,
     KEY_IDP_ENDPOINT,
     KEY_IDP_PORT,
     KEY_IDP_USERNAME,

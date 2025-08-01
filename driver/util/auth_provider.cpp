@@ -57,7 +57,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         }
     }
 
-    std::string aws_token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::atoi(port.c_str()), username.c_str());
+    std::string aws_token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::strtol(port.c_str(), nullptr, 10), username.c_str());
     token_info.token = DecodeUrlString(aws_token);
     {
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);

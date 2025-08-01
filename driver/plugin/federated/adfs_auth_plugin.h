@@ -35,10 +35,10 @@ private:
 
     std::string sign_in_url;
 
-    static const std::string FORM_ACTION_PATTERN;
-    static const std::string INPUT_TAG_PATTERN;
-    static const std::string SAML_RESPONSE_PATTERN;
-    static const std::string URL_PATTERN;
+    static inline const std::regex FORM_ACTION_PATTERN = std::regex("<form.*?action=\"([^\"]+)\"");
+    static inline const std::regex INPUT_TAG_PATTERN = std::regex("<input id=(.*)");
+    static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("name=\"SAMLResponse\"\\s+value=\"([^\"]+)\"");
+    static inline const std::regex URL_PATTERN = std::regex("^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']");
 };
 
 class AdfsAuthPlugin : public BasePlugin {

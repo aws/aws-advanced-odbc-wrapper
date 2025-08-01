@@ -85,11 +85,6 @@ SQLRETURN AdfsAuthPlugin::Connect(
     return ret;
 }
 
-const std::string AdfsSamlUtil::FORM_ACTION_PATTERN = "<form.*?action=\"([^\"]+)\"";
-const std::string AdfsSamlUtil::INPUT_TAG_PATTERN = "<input id=(.*)";
-const std::string AdfsSamlUtil::SAML_RESPONSE_PATTERN = "name=\"SAMLResponse\"\\s+value=\"([^\"]+)\"";
-const std::string AdfsSamlUtil::URL_PATTERN = "^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']";
-
 AdfsSamlUtil::AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes) : SamlUtil(connection_attributes) {
     std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
         ToStr(connection_attributes.at(KEY_RELAY_PARTY_ID)) : "";
