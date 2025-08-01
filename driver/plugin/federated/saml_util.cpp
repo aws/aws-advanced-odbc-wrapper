@@ -37,7 +37,6 @@ SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
         int connect_timeout = std::atoi(connect_timeout_str.c_str());
         http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
     }
-    http_client_config.verifySSL = true;
     http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
     http_client = Aws::Http::CreateHttpClient(http_client_config);
 

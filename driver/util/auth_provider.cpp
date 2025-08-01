@@ -58,7 +58,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     }
 
     std::string aws_token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::atoi(port.c_str()), username.c_str());
-    token_info.token = aws_token;
+    token_info.token = DecodeUrlString(aws_token);
     {
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
@@ -76,6 +76,28 @@ void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, co
         credentials,
         client_config
     );
+}
+
+std::string AuthProvider::DecodeUrlString(const std::string &url_str) {
+    std::string result;
+    result.reserve(url_str.size());
+
+    for (size_t i = 0; i < url_str.size(); i++) {
+        if (url_str[i] == '%' && i + 2 < url_str.size()) {
+            std::string hex_str = url_str.substr(i + 1, 2);
+            try {
+                int value = std::stoi(hex_str, nullptr, 16);
+                result += static_cast<char>(value);
+                i += 2;
+            } catch (...) {
+                result += url_str[i];
+            }
+        } else {
+            result += url_str[i];
+        }
+    }
+
+    return result;
 }
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR& auth_type) {
