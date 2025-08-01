@@ -18,8 +18,8 @@
 #include "rds_strings.h"
 
 /* Generic */
-#define BOOL_FALSE TEXT("0")
-#define BOOL_TRUE TEXT("1")
+#define VALUE_BOOL_FALSE TEXT("0")
+#define VALUE_BOOL_TRUE TEXT("1")
 
 #define KEY_DATABASE TEXT("DATABASE")
 #define KEY_SERVER TEXT("SERVER")
@@ -45,6 +45,7 @@
 /* Common Auth Settings */
 #define KEY_REGION TEXT("REGION")
 #define KEY_TOKEN_EXPIRATION TEXT("TOKEN_EXPIRATION")
+#define KEY_EXTRA_URL_ENCODE TEXT("EXTRA_URL_ENCODE")
 
 /* IAM */
 /* Secrets Manager */

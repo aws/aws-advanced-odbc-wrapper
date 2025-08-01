@@ -58,11 +58,14 @@ SQLRETURN AdfsAuthPlugin::Connect(
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
+    std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
+        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+    bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
+        dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     // TODO - Proper error handling for missing parameters
 
-    // TODO - Custom expiration time
-    std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true);
+    std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
 
@@ -77,7 +80,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
         //  and retry without cache
-        token = auth_provider->GetToken(server, region, port, username, false);
+        token = auth_provider->GetToken(server, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }

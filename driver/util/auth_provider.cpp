@@ -41,6 +41,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     const std::string &port,
     const std::string &username,
     bool use_cache,
+    bool extra_url_encode,
     std::chrono::milliseconds time_to_expire_ms)
 {
     std::string cache_key = BuildCacheKey(server, region, port, username);
@@ -58,7 +59,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     }
 
     std::string aws_token = rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::strtol(port.c_str(), nullptr, 10), username.c_str());
-    token_info.token = DecodeUrlString(aws_token);
+    token_info.token = extra_url_encode ? ExtraUrlEncodeString(aws_token) : aws_token;
     {
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
@@ -78,25 +79,9 @@ void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, co
     );
 }
 
-std::string AuthProvider::DecodeUrlString(const std::string &url_str) {
+std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
     std::string result;
-    result.reserve(url_str.size());
-
-    for (size_t i = 0; i < url_str.size(); i++) {
-        if (url_str[i] == '%' && i + 2 < url_str.size()) {
-            std::string hex_str = url_str.substr(i + 1, 2);
-            try {
-                int value = std::stoi(hex_str, nullptr, 16);
-                result += static_cast<char>(value);
-                i += 2;
-            } catch (...) {
-                result += url_str[i];
-            }
-        } else {
-            result += url_str[i];
-        }
-    }
-
+    result = std::regex_replace(url_str, std::regex("%"), "%25");
     return result;
 }
 
