@@ -64,7 +64,6 @@ SQLRETURN AdfsAuthPlugin::Connect(
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     // TODO - Proper error handling for missing parameters
-
     std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;

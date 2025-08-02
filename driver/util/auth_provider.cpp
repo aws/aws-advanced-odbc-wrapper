@@ -64,6 +64,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
     }
+    DLOG(INFO) << "Returning Token: " << token_info.token;
     return std::pair<std::string, bool>(token_info.token, false);
 }
 
@@ -80,8 +81,10 @@ void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, co
 }
 
 std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
+    DLOG(INFO) << "Additional URL Encode: " << url_str;
     std::string result;
     result = std::regex_replace(url_str, std::regex("%"), "%25");
+    DLOG(INFO) << "URL Encoded: " << result;
     return result;
 }
 

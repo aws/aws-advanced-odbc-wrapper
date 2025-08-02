@@ -65,7 +65,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
         sts_client->AssumeRoleWithSAML(sts_req);
 
     if (!outcome.IsSuccess()) {
-        LOG(ERROR) << "STS failed to assume role with assertion";
+        LOG(ERROR) << "STS failed to assume role with assertion: " << outcome.GetError().GetMessage();
         return Aws::Auth::AWSCredentials();
     }
 
