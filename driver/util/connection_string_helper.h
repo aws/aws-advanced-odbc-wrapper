@@ -32,6 +32,7 @@ static std::unordered_set<RDS_STR> const aws_odbc_key_set = {
     // Pass DSN to avoid loading a default DSN
     KEY_DRIVER,
     KEY_AUTH_TYPE,
+    KEY_EXTRA_URL_ENCODE,
     KEY_REGION,
     KEY_TOKEN_EXPIRATION,
     KEY_SECRET_ID,
