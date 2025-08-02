@@ -59,7 +59,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
     std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
     bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
