@@ -113,13 +113,13 @@ endif(UNICODE)
 
 if(WIN32)
     configure_file(
-        ${CMAKE_SOURCE_DIR}/driver.def.cmake
-        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver.def.cmake
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
         @ONLY
     )
     set(EXP
         # Definition for exported functions
-        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
     )
 endif()
 
@@ -131,7 +131,7 @@ if(UNIX)
 endif()
 
 # Path to built AWS SDK
-set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
+set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../aws_sdk/install")
 list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
 
 find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)

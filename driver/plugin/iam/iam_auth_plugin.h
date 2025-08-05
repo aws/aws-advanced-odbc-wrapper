@@ -23,6 +23,7 @@ class IamAuthPlugin : public BasePlugin {
 public:
     IamAuthPlugin(DBC* dbc);
     IamAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
+    IamAuthPlugin(DBC* dbc, BasePlugin* next_plugin, std::shared_ptr<AuthProvider> auth_provider);
     ~IamAuthPlugin() override;
 
     SQLRETURN Connect(

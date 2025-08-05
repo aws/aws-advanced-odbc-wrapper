@@ -15,11 +15,6 @@
 #ifndef AUTH_PROVIDER_H_
 #define AUTH_PROVIDER_H_
 
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentials.h>
-#include <aws/core/auth/AWSCredentialsProviderChain.h>
-#include <aws/rds/RDSClient.h>
-
 #include <chrono>
 #include <map>
 #include <memory>
@@ -29,6 +24,16 @@
 #include "aws_sdk_helper.h"
 #include "connection_string_keys.h"
 #include "rds_strings.h"
+
+// Forward Declarations
+namespace Aws {
+    namespace Auth {
+        class AWSCredentials;
+    }
+    namespace RDS {
+        class RDSClient;
+    }
+}
 
 typedef enum {
     DATABASE,
@@ -57,6 +62,7 @@ public:
     AuthProvider() = default;
     AuthProvider(const std::string &region);
     AuthProvider(const std::string &region, Aws::Auth::AWSCredentials credentials);
+    AuthProvider(std::shared_ptr<Aws::RDS::RDSClient> rds_client);
     ~AuthProvider();
 
     virtual std::pair<std::string, bool> GetToken(
@@ -67,7 +73,7 @@ public:
         bool use_cache = true,
         bool extra_url_encode = false,
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
-    void UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region = "");
+    virtual void UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region = "");
     std::string ExtraUrlEncodeString(const std::string &url_str);
 
     static inline const std::chrono::milliseconds

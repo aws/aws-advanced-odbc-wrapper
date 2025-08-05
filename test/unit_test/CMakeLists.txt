@@ -25,6 +25,10 @@ set(TEST_UTILITIES
 
 set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_auth_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_saml_util_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
 )
 
@@ -58,7 +62,7 @@ if(UNIX)
 endif()
 
 # Path to built AWS SDK
-set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
+set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../aws_sdk/install")
 list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
 
 find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
@@ -66,8 +70,8 @@ list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
 
 # -- ODBC WRAPPER --
 FetchContent_Declare(
-  ${WRAPPER_NAME}
-  SOURCE_DIR ${CMAKE_SOURCE_DIR}/../../driver
+    ${WRAPPER_NAME}
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../driver
 )
 FetchContent_MakeAvailable(${WRAPPER_NAME})
 list(APPEND EXTERNAL_LIBRARIES ${WRAPPER_NAME})

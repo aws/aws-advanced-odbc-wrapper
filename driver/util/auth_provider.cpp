@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentials.h>
+#include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/rds/RDSClient.h>
+
 #include "auth_provider.h"
 
 #include "logger_wrapper.h"
@@ -27,6 +32,12 @@ AuthProvider::AuthProvider(
 {
     AwsSdkHelper::Init();
     UpdateAwsCredential(credentials, region);
+}
+
+AuthProvider::AuthProvider(std::shared_ptr<Aws::RDS::RDSClient> rds_client)
+{
+    AwsSdkHelper::Init();
+    this->rds_client = rds_client;
 }
 
 AuthProvider::~AuthProvider()

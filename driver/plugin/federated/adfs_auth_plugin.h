@@ -24,6 +24,7 @@
 class AdfsSamlUtil : public SamlUtil {
 public:
     AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes);
+    AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, std::shared_ptr<Aws::Http::HttpClient> http_client, std::shared_ptr<Aws::STS::STSClient> sts_client);
     std::string GetSamlAssertion();
 
 private:
@@ -45,6 +46,7 @@ class AdfsAuthPlugin : public BasePlugin {
 public:
     AdfsAuthPlugin(DBC* dbc);
     AdfsAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
+    AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider);
     ~AdfsAuthPlugin() override;
 
     SQLRETURN Connect(
@@ -56,7 +58,7 @@ public:
 
 private:
     std::shared_ptr<AuthProvider> auth_provider;
-    std::shared_ptr<AdfsSamlUtil> saml_util;
+    std::shared_ptr<SamlUtil> saml_util;
 };
 
 #endif // ADFS_AUTH_PLUGIN_H_

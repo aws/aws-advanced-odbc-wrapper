@@ -22,29 +22,43 @@
 #include "../../util/rds_strings.h"
 
 SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
+    : SamlUtil(connection_attributes, nullptr, nullptr) {}
+
+SamlUtil::SamlUtil(
+    std::map<RDS_STR, RDS_STR> connection_attributes,
+    std::shared_ptr<Aws::Http::HttpClient> http_client,
+    std::shared_ptr<Aws::STS::STSClient> sts_client)
 {
     AwsSdkHelper::Init();
     ParseIdpConfig(connection_attributes);
 
-    Aws::Client::ClientConfiguration http_client_config;
-    if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
-        std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
-        int socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 10);
-        http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
+    if (http_client) {
+        this->http_client = http_client;
+    } else {
+        Aws::Client::ClientConfiguration http_client_config;
+        if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
+            std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
+            int socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 10);
+            http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
+        }
+        if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
+            std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
+            int connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 10);
+            http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
+        }
+        http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
+        this->http_client = Aws::Http::CreateHttpClient(http_client_config);
     }
-    if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
-        std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
-        int connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 10);
-        http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
-    }
-    http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
-    http_client = Aws::Http::CreateHttpClient(http_client_config);
 
-    Aws::STS::STSClientConfiguration sts_client_config;
-    if (connection_attributes.contains(KEY_REGION)) {
-        sts_client_config.region = ToStr(connection_attributes.at(KEY_REGION));
+    if (sts_client) {
+        this->sts_client = sts_client;
+    } else {
+        Aws::STS::STSClientConfiguration sts_client_config;
+        if (connection_attributes.contains(KEY_REGION)) {
+            sts_client_config.region = ToStr(connection_attributes.at(KEY_REGION));
+        }
+        this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
     }
-    sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
 }
 
 SamlUtil::~SamlUtil()

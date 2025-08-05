@@ -89,7 +89,7 @@ target_include_directories(
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
-SET(ODBC_PATH ${CMAKE_SOURCE_DIR}/../resources/)
+SET(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
 
 # Common Settings
 SET(THREADING "0")

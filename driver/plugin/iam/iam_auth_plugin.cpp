@@ -19,15 +19,22 @@
 
 IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc, next_plugin)
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr) {}
+
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<AuthProvider> auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "IAM";
 
-    // TODO - Helper to parse from URL
-    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
-    auth_provider = std::make_shared<AuthProvider>(region);
+    if (auth_provider) {
+        this->auth_provider = auth_provider;
+    } else {
+        // TODO - Helper to parse from URL
+        std::string region = dbc->conn_attr.contains(KEY_REGION) ?
+            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        auth_provider = std::make_shared<AuthProvider>(region);
+    }
 }
+
 
 IamAuthPlugin::~IamAuthPlugin()
 {
