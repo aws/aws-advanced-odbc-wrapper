@@ -16,6 +16,7 @@
 
 #include "odbcapi_rds_helper.h"
 
+#include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
@@ -318,7 +319,7 @@ SQLRETURN RDS_GetConnectAttr(
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
     }
     // Otherwise get from the DBC's attribute map
-    else if (dbc->attr_map.find(Attribute) != dbc->attr_map.end()) {
+    else if (dbc->attr_map.contains(Attribute)) {
         std::pair<SQLPOINTER, SQLINTEGER> value_pair = dbc->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
             *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLSMALLINT>(reinterpret_cast<intptr_t>(value_pair.first));
@@ -594,6 +595,7 @@ SQLRETURN RDS_SQLDriverConnect(
     // Connection is already established
     if (CONN_NOT_CONNECTED != dbc->conn_status) {
         // TODO - Error info
+        LOG(ERROR) << "Connection handle is already has an existing connection";
         return SQL_ERROR;
     }
 
@@ -602,7 +604,7 @@ SQLRETURN RDS_SQLDriverConnect(
     ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(InConnectionString, load_len), dbc->conn_attr);
 
     // Load DSN information into map
-    if (dbc->conn_attr.find(KEY_DSN) != dbc->conn_attr.end()) {
+    if (dbc->conn_attr.contains(KEY_DSN)) {
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_DSN), dbc->conn_attr);
     }
 
@@ -962,7 +964,7 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (dbc && dbc->conn_attr.find(KEY_DSN) != dbc->conn_attr.end()) {
+                    if (dbc && dbc->conn_attr.contains(KEY_DSN)) {
                         char_value = dbc->conn_attr.at(KEY_DSN).c_str();
                     }
                     break;
@@ -993,7 +995,7 @@ SQLRETURN RDS_SQLGetDiagField(
                 }
                 case SQL_DIAG_SERVER_NAME:
                 {
-                    if (dbc && dbc->conn_attr.find(KEY_SERVER) != dbc->conn_attr.end()) {
+                    if (dbc && dbc->conn_attr.contains(KEY_SERVER)) {
                         char_value = dbc->conn_attr.at(KEY_SERVER).c_str();
                     }
                     break;
@@ -1602,27 +1604,25 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     bool has_env_attr_errors = false;
 
-    // Remove input DSN & Driver
+    // Remove input Driver
     // We don't want the underlying connection
     //  to look back to the wrapper
     // Also allows the Base DSN parse driver into map
-    dbc->conn_attr.erase(KEY_DSN);
     dbc->conn_attr.erase(KEY_DRIVER);
 
-    // Set the DSN use the Base
-    if (dbc->conn_attr.find(KEY_BASE_DSN) != dbc->conn_attr.end()) {
+    // Set the DSN use the Base if one is found
+    if (dbc->conn_attr.contains(KEY_BASE_DSN)) {
         dbc->conn_attr.insert_or_assign(KEY_DSN, dbc->conn_attr.at(KEY_BASE_DSN));
         // Load Base DSN info, should contain driver to use
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_BASE_DSN), dbc->conn_attr);
     }
 
     // If driver is not loaded from Base DSN, try input base driver
-    if (dbc->conn_attr.find(KEY_DRIVER) == dbc->conn_attr.end()
-            && dbc->conn_attr.find(KEY_BASE_DRIVER) != dbc->conn_attr.end()) {
+    if (!dbc->conn_attr.contains(KEY_DRIVER) && dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
         dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
     }
 
-    if (dbc->conn_attr.find(KEY_DRIVER) != dbc->conn_attr.end()) {
+    if (dbc->conn_attr.contains(KEY_DRIVER)) {
         // TODO - Need to ensure the paths (slashes) are correct per OS
         RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
 
@@ -1630,7 +1630,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         if (!env->driver_lib_loader) {
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            // TODO - Set Error, can only use 1 underlying driver per Environment
             LOG(ERROR) << "Attempted to load different drivers to the same environment";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.", ERR_DIFF_ENV_UNDERLYING_DRIVER);
@@ -1670,7 +1669,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         // TODO - Grabbing which plugins to initialize will come from a KEY=<Plugin_A, ..., Plugin_Z>;
 
         // Auth Plugins
-        if (dbc->conn_attr.find(KEY_AUTH_TYPE) != dbc->conn_attr.end()) {
+        if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
             AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
             switch (type) {
                     case AuthType::IAM:
@@ -1682,6 +1681,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                         plugin_head = next_plugin;
                         break;
                     case AuthType::ADFS:
+                        next_plugin = new AdfsAuthPlugin(dbc, plugin_head);
+                        plugin_head = next_plugin;
                         break;
                     case AuthType::OKTA:
                         break;

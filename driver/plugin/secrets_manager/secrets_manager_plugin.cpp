@@ -29,14 +29,13 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
     this->plugin_name = "SECRETS_MANAGER";
     AwsSdkHelper::Init();
 
-    auto map_end_itr = dbc->conn_attr.end();
-    std::string secret_id = dbc->conn_attr.find(KEY_SECRET_ID) != map_end_itr ?
+    std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
-    std::string region = dbc->conn_attr.find(KEY_SECRET_REGION) != map_end_itr ?
+    std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_REGION)) : "";
-    std::string expiration_ms_str = dbc->conn_attr.find(KEY_TOKEN_EXPIRATION) != map_end_itr ?
+    std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)) : "";
-    std::string endpoint = dbc->conn_attr.find(KEY_SECRET_ENDPOINT) != map_end_itr ?
+    std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ENDPOINT)) : "";
 
     std::smatch matches;
@@ -88,7 +87,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
 
     {
         std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
-        if (secrets_cache.find(secret_key) != secrets_cache.end()) {
+        if (secrets_cache.contains(secret_key)) {
             std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
             Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {

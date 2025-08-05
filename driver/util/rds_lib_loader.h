@@ -74,7 +74,7 @@ inline RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
     // Try retrieving from cache
     {
         std::shared_lock lock(cache_lock);
-        if (function_cache.find(func_name) != function_cache.end()) {
+        if (function_cache.contains(func_name)) {
             driver_function = function_cache.at(func_name);
         }
     }

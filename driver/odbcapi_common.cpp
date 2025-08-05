@@ -322,6 +322,7 @@ SQLRETURN SQL_API SQLDescribeParam(
 SQLRETURN SQL_API SQLDisconnect(
     SQLHDBC        ConnectionHandle)
 {
+    SQLRETURN ret = SQL_ERROR;
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC *dbc = (DBC*) ConnectionHandle;
     ENV *env = (ENV*) dbc->env;
@@ -332,7 +333,11 @@ SQLRETURN SQL_API SQLDisconnect(
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
-    return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->conn_status = CONN_NOT_CONNECTED;
+    }
+    return ret;
 }
 
 SQLRETURN SQL_API SQLEndTran(
@@ -495,7 +500,7 @@ SQLRETURN SQL_API SQLGetEnvAttr(
 
     std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
-    if (env->attr_map.find(Attribute) != env->attr_map.end()) {
+    if (env->attr_map.contains(Attribute)) {
         std::pair<SQLPOINTER, SQLINTEGER> value_pair = env->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
             *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLUSMALLINT>(reinterpret_cast<uintptr_t>(value_pair.first));

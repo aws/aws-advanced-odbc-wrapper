@@ -57,7 +57,8 @@ SQLRETURN BasePlugin::Connect(
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
-    RDS_STR conn_in = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
+    RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
+    DLOG(INFO) << "Built minimum connection string for underlying driver: " << conn_in;
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
@@ -79,9 +80,11 @@ SQLRETURN BasePlugin::Connect(
 
     // TODO - Error Handling for ConnAttr, IsConnected
     // Successful Connection, but bad environment and/or connection attribute setting
-    if (SQL_SUCCEEDED(ret) && has_conn_attr_errors) {
-        // TODO - Set Error
-        ret = SQL_SUCCESS_WITH_INFO;
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->conn_status = CONN_CONNECTED;
+        if (has_conn_attr_errors) {
+            ret = SQL_SUCCESS_WITH_INFO;
+        }
     }
     return ret;
 }

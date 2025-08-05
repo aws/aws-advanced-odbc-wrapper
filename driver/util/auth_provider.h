@@ -65,7 +65,10 @@ public:
         const std::string &port,
         const std::string &username,
         bool use_cache = true,
+        bool extra_url_encode = false,
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
+    void UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region = "");
+    std::string ExtraUrlEncodeString(const std::string &url_str);
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);

@@ -26,10 +26,35 @@ static std::unordered_set<RDS_STR> const sensitive_key_set = {
     KEY_IDP_PASSWORD
 };
 
+static std::unordered_set<RDS_STR> const aws_odbc_key_set = {
+    KEY_BASE_DRIVER,
+    KEY_BASE_DSN,
+    // Pass DSN to avoid loading a default DSN
+    KEY_DRIVER,
+    KEY_AUTH_TYPE,
+    KEY_EXTRA_URL_ENCODE,
+    KEY_REGION,
+    KEY_TOKEN_EXPIRATION,
+    KEY_SECRET_ID,
+    KEY_SECRET_REGION,
+    KEY_SECRET_ENDPOINT,
+    KEY_IDP_ENDPOINT,
+    KEY_IDP_PORT,
+    KEY_IDP_USERNAME,
+    KEY_IDP_PASSWORD,
+    KEY_IDP_ROLE_ARN,
+    KEY_IDP_SAML_ARN,
+    KEY_HTTP_SOCKET_TIMEOUT,
+    KEY_HTTP_CONNECT_TIMEOUT,
+    KEY_RELAY_PARTY_ID,
+    KEY_APP_ID,
+};
+
 namespace ConnectionStringHelper {
     void ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map);
     RDS_STR BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
     RDS_STR BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
+    bool IsAwsOdbcKey(const RDS_STR &aws_odbc_key);
     bool IsSensitiveData(const RDS_STR &sensitive_key);
 }
 

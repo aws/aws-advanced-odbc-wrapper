@@ -21,7 +21,6 @@
 
 class IamAuthPlugin : public BasePlugin {
 public:
-    IamAuthPlugin();
     IamAuthPlugin(DBC* dbc);
     IamAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
     ~IamAuthPlugin() override;
