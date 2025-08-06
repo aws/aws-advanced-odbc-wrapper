@@ -31,10 +31,9 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<
         // TODO - Helper to parse from URL
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
             ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
-        auth_provider = std::make_shared<AuthProvider>(region);
+        this->auth_provider = std::make_shared<AuthProvider>(region);
     }
 }
-
 
 IamAuthPlugin::~IamAuthPlugin()
 {

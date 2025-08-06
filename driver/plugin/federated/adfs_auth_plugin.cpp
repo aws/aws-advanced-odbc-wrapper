@@ -42,8 +42,8 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_pt
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
             ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
-        std::string saml_assertion = saml_util->GetSamlAssertion();
-        this->auth_provider = std::make_shared<AuthProvider>(region, saml_util->GetAwsCredentials(saml_assertion));
+        std::string saml_assertion = this->saml_util->GetSamlAssertion();
+        this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
 }
 
