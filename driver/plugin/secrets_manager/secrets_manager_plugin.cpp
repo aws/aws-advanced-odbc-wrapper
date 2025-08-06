@@ -94,6 +94,8 @@ SQLRETURN SecretsManagerPlugin::Connect(
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(cached_secret.password));
                 ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+            } else {
+                secrets_cache.erase(secret_key);
             }
         }
     }
