@@ -18,6 +18,7 @@
 #include "mock_objects.h"
 
 #include "../../driver/plugin/iam/iam_auth_plugin.h"
+#include "../../driver/util/aws_sdk_helper.h"
 #include "../../driver/util/connection_string_keys.h"
 #include "../../driver/driver.h"
 
@@ -35,11 +36,14 @@ protected:
     DBC* dbc;
 
     // Runs once per suite
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() {
+    }
+    static void TearDownTestSuite() {
+    }
 
     // Runs per test
     void SetUp() override {
+        AwsSdkHelper::Init();
         mock_auth_provider = std::make_shared<MOCK_AUTH_PROVIDER>();
         mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         dbc = new DBC();
@@ -52,6 +56,7 @@ protected:
         if (mock_base_plugin) mock_base_plugin.reset();
         if (dbc) delete dbc;
         if (mock_auth_provider) mock_auth_provider.reset();
+        AwsSdkHelper::Shutdown();
     }
 };
 

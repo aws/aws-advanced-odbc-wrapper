@@ -20,6 +20,7 @@
 #include "mock_objects.h"
 
 #include "../../driver/plugin/federated/adfs_auth_plugin.h"
+#include "../../driver/util/aws_sdk_helper.h"
 #include "../../driver/util/connection_string_keys.h"
 #include "../../driver/driver.h"
 
@@ -49,11 +50,14 @@ protected:
     std::map<RDS_STR, RDS_STR> conn_attr;
 
     // Runs once per suite
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() {
+    }
+    static void TearDownTestSuite() {
+    }
 
     // Runs per test
     void SetUp() override {
+        AwsSdkHelper::Init();
         conn_attr.insert_or_assign(KEY_IDP_ENDPOINT, idp_endpoint);
         conn_attr.insert_or_assign(KEY_IDP_PORT, idp_port);
         conn_attr.insert_or_assign(KEY_IDP_USERNAME, idp_username);
@@ -65,7 +69,11 @@ protected:
         mock_http_client = std::make_shared<MOCK_HTTP_CLIENT>();
         mock_sts_client = std::make_shared<MOCK_STS_CLIENT>();
     }
-    void TearDown() override {}
+    void TearDown() override {
+        if (mock_sts_client) mock_sts_client.reset();
+        if (mock_http_client) mock_http_client.reset();
+        AwsSdkHelper::Shutdown();
+    }
 };
 
 TEST_F(AdfsSamlUtilTest, GetSamlAssertion_Success) {
