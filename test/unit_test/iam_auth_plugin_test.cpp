@@ -36,10 +36,8 @@ protected:
     DBC* dbc;
 
     // Runs once per suite
-    static void SetUpTestSuite() {
-    }
-    static void TearDownTestSuite() {
-    }
+    static void SetUpTestSuite() {}
+    static void TearDownTestSuite() {}
 
     // Runs per test
     void SetUp() override {
