@@ -13,7 +13,7 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
-project("aws-odbc-wrapper")
+project("aws-advanced-odbc-wrapper")
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 20)
@@ -194,3 +194,13 @@ add_library(${COMPILE_FILE_NAME} SHARED
 # Link External Dependencies ---------------------------------------------------------------------------------
 message("Linking External Libraries: [${EXTERNAL_LIBRARIES}]")
 target_link_libraries(${COMPILE_FILE_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
+
+# Static library to run unit tests against -------------------------------------------------------------------
+if(UNIT_TEST)
+    add_library(${COMPILE_FILE_NAME}-static STATIC
+        ${INC}
+        ${SRC}
+        ${EXP}
+    )
+    target_link_libraries(${COMPILE_FILE_NAME}-static PRIVATE ${EXTERNAL_LIBRARIES})
+endif()

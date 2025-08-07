@@ -33,10 +33,13 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
         ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
     std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_REGION)) : "";
-    std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)) : "";
     std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ENDPOINT)) : "";
+
+    std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
+        ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)) : "";
+    expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
+        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : DEFAULT_EXPIRATION_MS;
 
     std::smatch matches;
     if (std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && matches.length() > 0) {
@@ -52,11 +55,6 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
     }
 
     secret_key = secret_id + "-" + region;
-
-    errno = 0;
-    char* end_ptr = NULL;
-    int expiration_ms_int = std::strtol(expiration_ms_str.c_str(), &end_ptr, 10);
-    expiration_ms = errno != 0 || *end_ptr ? DEFAULT_EXPIRATION_MS : std::chrono::milliseconds(expiration_ms_int);
 
     if (client) {
         secrets_manager_client = client;

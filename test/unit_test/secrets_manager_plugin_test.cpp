@@ -58,12 +58,15 @@ protected:
     std::shared_ptr<MOCK_SECRETS_MANAGER_CLIENT> mock_sm_client;
     DBC* dbc;
 
-    static void SetUpTestSuite() {}
+    static void SetUpTestSuite() {
+        AwsSdkHelper::Init();
+    }
 
-    static void TearDownTestSuite() {}
+    static void TearDownTestSuite() {
+        AwsSdkHelper::Shutdown();
+    }
 
     void SetUp() override {
-        AwsSdkHelper::Init();
         mock_sm_client = std::make_shared<MOCK_SECRETS_MANAGER_CLIENT>();
         mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         EXPECT_CALL(
@@ -74,7 +77,6 @@ protected:
     }
 
     void TearDown() override {
-        AwsSdkHelper::Shutdown();
         if (mock_base_plugin) mock_base_plugin.reset();
         if (mock_sm_client) mock_sm_client.reset();
         if (dbc) delete dbc;

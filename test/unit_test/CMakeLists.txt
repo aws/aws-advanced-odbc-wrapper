@@ -24,7 +24,6 @@ set(TEST_UTILITIES
 )
 
 set(TEST_SUITE
-    ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adfs_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adfs_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
@@ -38,9 +37,9 @@ set(TEST_RUNNER
 
 # Configure Build Defines ------------------------------------------------------------------------------------
 if(UNICODE)
-    SET(WRAPPER_NAME aws-odbc-wrapper-w)
+    SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-w")
 else()
-    SET(WRAPPER_NAME aws-odbc-wrapper-a)
+    SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-a")
 endif()
 
 # Fetch External Libraries ----------------------------------------------------------------------------------
@@ -67,14 +66,6 @@ list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
 
 find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
 list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
-
-# -- ODBC WRAPPER --
-FetchContent_Declare(
-    ${WRAPPER_NAME}
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../driver
-)
-FetchContent_MakeAvailable(${WRAPPER_NAME})
-list(APPEND EXTERNAL_LIBRARIES ${WRAPPER_NAME})
 
 # -- ODBC --
 if(APPLE)
@@ -105,20 +96,24 @@ endif()
 
 enable_testing()
 add_executable(
-  ${PROJECT_NAME}
+    ${PROJECT_NAME}
 
-  ${TEST_UTILITIES}
-  ${TEST_SUITE}
-  ${TEST_RUNNER}
+    ${TEST_UTILITIES}
+    ${TEST_SUITE}
+    ${TEST_RUNNER}
 )
 include(GoogleTest)
 
 # Link ------------------------------------------------------------------------------------------------------
 target_include_directories(
-  ${PROJECT_NAME}
-  PRIVATE
+    ${PROJECT_NAME}
+    PRIVATE
 
-  ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${WRAPPER_NAME}-static
+    ${EXTERNAL_LIBRARIES}
+)

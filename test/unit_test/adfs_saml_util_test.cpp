@@ -50,12 +50,15 @@ protected:
     std::map<RDS_STR, RDS_STR> conn_attr;
 
     // Runs once per suite
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() {
+        AwsSdkHelper::Init();
+    }
+    static void TearDownTestSuite() {
+        AwsSdkHelper::Shutdown();
+    }
 
     // Runs per test
     void SetUp() override {
-        AwsSdkHelper::Init();
         conn_attr.insert_or_assign(KEY_IDP_ENDPOINT, idp_endpoint);
         conn_attr.insert_or_assign(KEY_IDP_PORT, idp_port);
         conn_attr.insert_or_assign(KEY_IDP_USERNAME, idp_username);
@@ -70,7 +73,6 @@ protected:
     void TearDown() override {
         if (mock_sts_client) mock_sts_client.reset();
         if (mock_http_client) mock_http_client.reset();
-        AwsSdkHelper::Shutdown();
     }
 };
 

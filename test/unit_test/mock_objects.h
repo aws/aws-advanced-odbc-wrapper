@@ -27,10 +27,11 @@
 #include "../../driver/plugin/base_plugin.h"
 #include "../../driver/plugin/federated/saml_util.h"
 #include "../../driver/util/auth_provider.h"
+#include "../../driver/util/aws_sdk_helper.h"
 
 class MOCK_SAML_UTIL : public SamlUtil {
 public:
-    MOCK_SAML_UTIL() : SamlUtil() {};
+    MOCK_SAML_UTIL() : SamlUtil() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD(Aws::Auth::AWSCredentials, GetAwsCredentials, (const std::string &assertion), ());
     MOCK_METHOD(std::string, GetSamlAssertion, (), ());
@@ -38,7 +39,7 @@ public:
 
 class MOCK_AUTH_PROVIDER : public AuthProvider {
 public:
-    MOCK_AUTH_PROVIDER() : AuthProvider() {};
+    MOCK_AUTH_PROVIDER() : AuthProvider() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD((std::pair<std::string, bool>), GetToken, (const std::string &server, const std::string &region,
         const std::string &port, const std::string &username, bool use_cache, bool extra_url_encode,
@@ -61,19 +62,6 @@ public:
 
     MOCK_METHOD(Aws::SecretsManager::Model::GetSecretValueOutcome, GetSecretValue,
         (const Aws::SecretsManager::Model::GetSecretValueRequest&), (const));
-};
-
-class MockBasePlugin : public BasePlugin {
-public:
-    MockBasePlugin();
-    ~MockBasePlugin() override;
-
-    SQLRETURN Connect(
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
 };
 
 class MOCK_BASE_PLUGIN : public BasePlugin {

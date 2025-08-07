@@ -36,12 +36,15 @@ protected:
     DBC* dbc;
 
     // Runs once per suite
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() {
+        AwsSdkHelper::Init();
+    }
+    static void TearDownTestSuite() {
+        AwsSdkHelper::Shutdown();
+    }
 
     // Runs per test
     void SetUp() override {
-        AwsSdkHelper::Init();
         mock_auth_provider = std::make_shared<MOCK_AUTH_PROVIDER>();
         mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         dbc = new DBC();
@@ -54,7 +57,6 @@ protected:
         if (mock_base_plugin) mock_base_plugin.reset();
         if (dbc) delete dbc;
         if (mock_auth_provider) mock_auth_provider.reset();
-        AwsSdkHelper::Shutdown();
     }
 };
 
@@ -83,7 +85,7 @@ TEST_F(IamAuthPluginTest, Connect_Success) {
     IamAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_auth_provider);
     SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_EQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
 }
 
 TEST_F(IamAuthPluginTest, Connect_Success_CacheExpire) {
@@ -105,7 +107,7 @@ TEST_F(IamAuthPluginTest, Connect_Success_CacheExpire) {
     IamAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_auth_provider);
     SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_EQ(valid_token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_STREQ(valid_token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
 }
 
 TEST_F(IamAuthPluginTest, Connect_Fail_CacheMiss) {
