@@ -53,10 +53,10 @@ SamlUtil::SamlUtil(
     if (sts_client) {
         this->sts_client = sts_client;
     } else {
+        std::string region = connection_attributes.contains(KEY_REGION) ?
+            ToStr(connection_attributes.at(KEY_REGION)) : Aws::Region::US_EAST_1;
         Aws::STS::STSClientConfiguration sts_client_config;
-        if (connection_attributes.contains(KEY_REGION)) {
-            sts_client_config.region = ToStr(connection_attributes.at(KEY_REGION));
-        }
+        sts_client_config.region = region;
         this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
     }
 }

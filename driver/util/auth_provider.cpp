@@ -63,10 +63,11 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         if (token_cache.contains(cache_key)) {
             token_info = token_cache.at(cache_key);
-            if (curr_time >= token_info.expiration_point) {
+            if (curr_time < token_info.expiration_point) {
+                return std::pair<std::string, bool>(token_info.token, true);
+            } else {
                 token_cache.erase(cache_key);
             }
-            return std::pair<std::string, bool>(token_info.token, true);
         }
     }
 

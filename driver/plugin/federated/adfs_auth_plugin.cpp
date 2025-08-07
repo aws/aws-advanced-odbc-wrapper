@@ -41,7 +41,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_pt
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
         std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
@@ -64,7 +64,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
