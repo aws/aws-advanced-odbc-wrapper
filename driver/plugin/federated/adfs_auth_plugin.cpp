@@ -150,7 +150,6 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     std::string sign_in_content = GetFormActionBody(url, sign_in_parameters);
 
     if (std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
-        DLOG(INFO) << "SAML Response: " << matches.str(1);
         return matches.str(1);
     }
     LOG(WARNING) << "Failed SAML Asesertion";

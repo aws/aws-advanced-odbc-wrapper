@@ -34,7 +34,7 @@ void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std:
     }
 }
 
-RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive)
+RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)
 {
     RDS_STR_STREAM conn_stream;
     for (const auto& e : conn_map) {
@@ -43,17 +43,14 @@ RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_
                 conn_stream << TEXT(";");
             }
 
-            if (redact_sensitive && IsSensitiveData(e.first)) {
-                conn_stream << e.first << TEXT("=") << "[REDACTED]";
-            } else {
-                conn_stream << e.first << TEXT("=") << e.second;
-            }
+            conn_stream << e.first << TEXT("=") << e.second;
         }
     }
+
     return conn_stream.str();
 }
 
-RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive)
+RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)
 {
     RDS_STR_STREAM conn_stream;
     for (const auto& e : conn_map) {
@@ -61,13 +58,19 @@ RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR
             conn_stream << TEXT(";");
         }
 
-        if (redact_sensitive && IsSensitiveData(e.first)) {
-            conn_stream << e.first << TEXT("=") << "[REDACTED]";
-        } else {
-            conn_stream << e.first << TEXT("=") << e.second;
-        }
+        conn_stream << e.first << TEXT("=") << e.second;
     }
     return conn_stream.str();
+}
+
+RDS_STR ConnectionStringHelper::MaskSensitiveInformation(const RDS_STR &conn_str)
+{
+    RDS_STR result(conn_str);
+    for (RDS_STR key : sensitive_key_set) {
+        RDS_REGEX pattern(TEXT("(") + key + TEXT("=)([^;]+)"));
+        result = std::regex_replace(result, pattern, TEXT("$1[REDACTED]"));
+    }
+    return result;
 }
 
 bool ConnectionStringHelper::IsAwsOdbcKey(const RDS_STR &aws_odbc_key)

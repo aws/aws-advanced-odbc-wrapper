@@ -77,7 +77,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
     }
-    DLOG(INFO) << "Returning Token: " << token_info.token;
+    DLOG(INFO) << "Returning Token Length: " << token_info.token.length();
     return std::pair<std::string, bool>(token_info.token, false);
 }
 

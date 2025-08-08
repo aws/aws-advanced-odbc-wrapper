@@ -31,7 +31,7 @@ body:
       label: Current Behavior
       description: |
         What actually happened?
-        Please include full errors, uncaught exceptions, stack traces, and relevant logs.
+        Please include full errors, uncaught exceptions, stack traces, and relevant logs. Remember to review and remove sensitive information from logs if uploading.
     validations:
       required: true
   - type: textarea
