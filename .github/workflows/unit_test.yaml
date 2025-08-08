@@ -1,0 +1,99 @@
+name: Unit Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/README.*'
+      - '**/LICENSE.*'
+      - 'docs/**'
+      - 'ISSUE_TEMPLATE/**'
+
+jobs:
+  test-win-unit:
+    name: Windows - Unit Test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 Release
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake --build build --config Release
+      - name: Run Unit Tests
+        run: |
+          ./build/test/unit_test/Release/unit-test.exe
+
+  test-macos-unit:
+    name: MacOS - Unit Test
+    runs-on: macos-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc postgresql curl openssl zlib
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh Release
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake --build build
+      - name: Run Unit Tests
+        run: |
+          ./build/test/unit_test/unit-test
+
+  test-linux-unit:
+    name: Linux Ubuntu - Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh Release
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake --build build
+      - name: Run Unit Tests
+        run: |
+          ./build/test/unit_test/unit-test

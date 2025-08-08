@@ -109,7 +109,7 @@ jobs:
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
     steps:
-      - name: Checkout aws-odbc-wrapper
+      - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
@@ -121,15 +121,15 @@ jobs:
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_win.ps1 Release
-      - name: Build aws-odbc-wrapper
+      - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S driver -B build -DUNICODE=OFF
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
           cmake --build build --config Release
       # TODO - Replace this step once installers are made
       - name: Manual Install Wrapper Driver
         run: |
-          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" /v "aws-odbc-wrapper" /t REG_SZ /d "Installed" /f
-          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\aws-odbc-wrapper" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/aws-odbc-wrapper-a.dll" /f
+          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "Installed" /f
+          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\aws-advanced-odbc-wrapper" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/Release/aws-advanced-odbc-wrapper-a.dll" /f
       - name: Retrieve psqlODBC Cache
         uses: actions/cache@v4
         with:
@@ -157,13 +157,13 @@ jobs:
       # TODO - Replace once setup routines are done (ConfigDSN, ConfigDriver, etc)
       - name: Manual Setup DSN
         run: |
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-odbc-wrapper" /t REG_SZ /d "aws-odbc-wrapper" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/Release/aws-odbc-wrapper-a.dll" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/Release/aws-advanced-odbc-wrapper-a.dll" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
       # - name: Configure Test DSN
       #   run: |
       #       Add-OdbcDsn -Name wrapper-dsn `
-      #       -DriverName "aws-odbc-wrapper" `
+      #       -DriverName "aws-advanced-odbc-wrapper" `
       #       -DsnType User `
       #       -SetPropertyValue `
       #        @( `
@@ -197,7 +197,7 @@ jobs:
     needs: [build-macos-psqlodbc]
     runs-on: macos-latest
     steps:
-      - name: Checkout aws-odbc-wrapper
+      - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
         run: |
@@ -213,9 +213,9 @@ jobs:
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_unix.sh Release
-      - name: Build aws-odbc-wrapper
+      - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S driver -B build -DUNICODE=OFF
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -239,7 +239,7 @@ jobs:
             -DTEST_SERVER="localhost" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="test_db" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/aws-odbc-wrapper-a.dylib" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build test-compatibility
       - name: Run Compatibility Tests
@@ -262,7 +262,7 @@ jobs:
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout aws-odbc-wrapper
+      - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
         run: |
@@ -278,9 +278,9 @@ jobs:
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_unix.sh Release
-      - name: Build aws-odbc-wrapper
+      - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S driver -B build -DUNICODE=OFF
+          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -304,7 +304,7 @@ jobs:
             -DTEST_SERVER="localhost" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="test_db" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/aws-odbc-wrapper-a.so" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build test-compatibility
       - name: Run Compatibility Tests

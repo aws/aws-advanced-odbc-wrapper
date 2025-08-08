@@ -13,7 +13,7 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
-project("aws-odbc-wrapper")
+project("aws-advanced-odbc-wrapper")
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(CMAKE_CXX_STANDARD 20)
@@ -113,13 +113,13 @@ endif(UNICODE)
 
 if(WIN32)
     configure_file(
-        ${CMAKE_SOURCE_DIR}/driver.def.cmake
-        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver.def.cmake
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
         @ONLY
     )
     set(EXP
         # Definition for exported functions
-        ${CMAKE_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
+        ${CMAKE_CURRENT_SOURCE_DIR}/driver${CONNECTOR_DRIVER_TYPE_SHORT}.def
     )
 endif()
 
@@ -131,7 +131,7 @@ if(UNIX)
 endif()
 
 # Path to built AWS SDK
-set(AWS_SDK_DIR "${CMAKE_SOURCE_DIR}/../aws_sdk/install")
+set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../aws_sdk/install")
 list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
 
 find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
@@ -194,3 +194,13 @@ add_library(${COMPILE_FILE_NAME} SHARED
 # Link External Dependencies ---------------------------------------------------------------------------------
 message("Linking External Libraries: [${EXTERNAL_LIBRARIES}]")
 target_link_libraries(${COMPILE_FILE_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
+
+# Static library to run unit tests against -------------------------------------------------------------------
+if(UNIT_TEST)
+    add_library(${COMPILE_FILE_NAME}-static STATIC
+        ${INC}
+        ${SRC}
+        ${EXP}
+    )
+    target_link_libraries(${COMPILE_FILE_NAME}-static PRIVATE ${EXTERNAL_LIBRARIES})
+endif()

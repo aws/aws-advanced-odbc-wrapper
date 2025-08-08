@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentials.h>
+#include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/rds/RDSClient.h>
+
 #include "auth_provider.h"
 
 #include "logger_wrapper.h"
@@ -27,6 +32,12 @@ AuthProvider::AuthProvider(
 {
     AwsSdkHelper::Init();
     UpdateAwsCredential(credentials, region);
+}
+
+AuthProvider::AuthProvider(std::shared_ptr<Aws::RDS::RDSClient> rds_client)
+{
+    AwsSdkHelper::Init();
+    this->rds_client = rds_client;
 }
 
 AuthProvider::~AuthProvider()
@@ -54,6 +65,8 @@ std::pair<std::string, bool> AuthProvider::GetToken(
             token_info = token_cache.at(cache_key);
             if (curr_time < token_info.expiration_point) {
                 return std::pair<std::string, bool>(token_info.token, true);
+            } else {
+                token_cache.erase(cache_key);
             }
         }
     }
@@ -89,8 +102,10 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
 }
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR& auth_type) {
-    if (auth_table.contains(auth_type)) {
-        return auth_table.at(auth_type);
+    RDS_STR local_str = auth_type;
+    RDS_STR_UPPER(local_str);
+    if (auth_table.contains(local_str)) {
+        return auth_table.at(local_str);
     } else {
         return AuthType::INVALID;
     }

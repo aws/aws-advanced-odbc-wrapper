@@ -25,15 +25,26 @@
 
 AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc) : AdfsAuthPlugin(dbc, nullptr) {}
 
-AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : BasePlugin(dbc, next_plugin)
+AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : AdfsAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
+
+AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "ADFS";
 
-    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
-    saml_util = std::make_shared<AdfsSamlUtil>(dbc->conn_attr);
-    std::string saml_assertion = saml_util->GetSamlAssertion();
-    auth_provider = std::make_shared<AuthProvider>(region, saml_util->GetAwsCredentials(saml_assertion));
+    if (saml_util) {
+        this->saml_util = saml_util;
+    } else {
+        this->saml_util = std::make_shared<AdfsSamlUtil>(dbc->conn_attr);
+    }
+
+    if (auth_provider) {
+        this->auth_provider = auth_provider;
+    } else {
+        std::string region = dbc->conn_attr.contains(KEY_REGION) ?
+            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        std::string saml_assertion = this->saml_util->GetSamlAssertion();
+        this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
+    }
 }
 
 AdfsAuthPlugin::~AdfsAuthPlugin()
@@ -53,7 +64,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
@@ -87,7 +98,15 @@ SQLRETURN AdfsAuthPlugin::Connect(
     return ret;
 }
 
-AdfsSamlUtil::AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes) : SamlUtil(connection_attributes) {
+AdfsSamlUtil::AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
+    : AdfsSamlUtil(connection_attributes, nullptr, nullptr) {}
+
+AdfsSamlUtil::AdfsSamlUtil(
+    std::map<RDS_STR, RDS_STR> connection_attributes,
+    std::shared_ptr<Aws::Http::HttpClient> http_client,
+    std::shared_ptr<Aws::STS::STSClient> sts_client)
+    : SamlUtil(connection_attributes, http_client, sts_client)
+{
     std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
         ToStr(connection_attributes.at(KEY_RELAY_PARTY_ID)) : "";
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
