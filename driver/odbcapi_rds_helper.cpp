@@ -17,6 +17,7 @@
 #include "odbcapi_rds_helper.h"
 
 #include "plugin/federated/adfs_auth_plugin.h"
+#include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
@@ -1666,8 +1667,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         BasePlugin* plugin_head = new BasePlugin(dbc);
         BasePlugin* next_plugin;
 
-        // TODO - Grabbing which plugins to initialize will come from a KEY=<Plugin_A, ..., Plugin_Z>;
-
         // Auth Plugins
         if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
             AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
@@ -1685,6 +1684,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                         plugin_head = next_plugin;
                         break;
                     case AuthType::OKTA:
+                        next_plugin = new OktaAuthPlugin(dbc, plugin_head);
+                        plugin_head = next_plugin;
                         break;
                     case AuthType::DATABASE:
                     case AuthType::INVALID:
