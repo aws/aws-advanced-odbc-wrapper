@@ -95,7 +95,7 @@ void SamlUtil::ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes)
     idp_endpoint = connection_attributes.contains(KEY_IDP_ENDPOINT) ?
         ToStr(connection_attributes.at(KEY_IDP_ENDPOINT)) : "";
     idp_port = connection_attributes.contains(KEY_IDP_PORT) ?
-        ToStr(connection_attributes.at(KEY_IDP_PORT)) : "";
+        ToStr(connection_attributes.at(KEY_IDP_PORT)) : "443";
     idp_username = connection_attributes.contains(KEY_IDP_USERNAME) ?
         ToStr(connection_attributes.at(KEY_IDP_USERNAME)) : "";
     idp_password = connection_attributes.contains(KEY_IDP_PASSWORD) ?

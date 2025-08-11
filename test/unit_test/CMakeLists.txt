@@ -29,6 +29,8 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
 )
 
