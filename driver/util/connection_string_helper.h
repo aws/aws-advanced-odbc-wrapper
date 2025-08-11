@@ -52,8 +52,9 @@ static std::unordered_set<RDS_STR> const aws_odbc_key_set = {
 
 namespace ConnectionStringHelper {
     void ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map);
-    RDS_STR BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
-    RDS_STR BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map, bool redact_sensitive = false);
+    RDS_STR BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map);
+    RDS_STR BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map);
+    RDS_STR MaskSensitiveInformation(const RDS_STR &conn_str);
     bool IsAwsOdbcKey(const RDS_STR &aws_odbc_key);
     bool IsSensitiveData(const RDS_STR &sensitive_key);
 }
