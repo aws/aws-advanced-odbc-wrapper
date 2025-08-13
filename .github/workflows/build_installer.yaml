@@ -1,0 +1,47 @@
+name: Build installer
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  WIX_VERSION: 5.0.2
+  BUILD_CONFIG: Release
+
+jobs:
+  build-windows:
+    name: Windows - Build Installers
+    runs-on: windows-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+      - name: Setup Dotnet for WiX
+        uses: actions/setup-dotnet@v4
+      - name: Install WiX
+        shell: cmd
+        run: |
+          dotnet tool install --global wix --version ${{env.WIX_VERSION}}
+          wix extension add --global WixToolset.UI.wixext/${{env.WIX_VERSION}}
+      - name: Run build installer script
+        shell: pwsh
+        run: |
+          ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
+      - name: Upload Windows installer as artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: ${{ github.workspace }}/installer/*.msi
+          if-no-files-found: error

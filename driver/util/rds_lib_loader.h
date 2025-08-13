@@ -15,6 +15,13 @@
 #ifndef RDS_LIB_LOADER_H
 #define RDS_LIB_LOADER_H
 
+#include <shared_mutex>
+#include <unordered_map>
+
+#include "rds_strings.h"
+
+#include "../odbcapi.h"
+
 #ifdef _WIN32
     #include <windows.h>
     #define MODULE_HANDLE HINSTANCE
@@ -28,17 +35,14 @@
     #define MODULE_HANDLE void*
     #define FUNC_HANDLE void*
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, RTLD_LAZY | RTLD_LOCAL)
+#ifdef UNICODE
+    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(AS_CONST_CHAR(module_name), load_flag)
+#else
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
+#endif
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
 #endif
-
-#include <shared_mutex>
-#include <unordered_map>
-
-#include "rds_strings.h"
-
-#include "../odbcapi.h"
 
 struct RdsLibResult {
     bool fn_load_success;
@@ -53,9 +57,7 @@ public:
 
     template<typename RDS_Func, typename... Args>
     RdsLibResult CallFunction(RDS_STR func_name, Args... args);
-
     FUNC_HANDLE GetFunction(RDS_STR function_name);
-
     RDS_STR GetDriverPath();
 
 protected:
