@@ -17,6 +17,10 @@ on:
       - 'docs/**'
       - 'ISSUE_TEMPLATE/**'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   test-win-unit:
     name: Windows - Unit Test
@@ -38,6 +42,12 @@ jobs:
         run: |
           cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
           cmake --build build --config Release
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-win-unit
       - name: Run Unit Tests
         run: |
           ./build/test/unit_test/Release/unit-test.exe
@@ -66,6 +76,12 @@ jobs:
         run: |
           cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
           cmake --build build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-linux-unit
       - name: Run Unit Tests
         run: |
           ./build/test/unit_test/unit-test
@@ -94,6 +110,12 @@ jobs:
         run: |
           cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
           cmake --build build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-macos-unit
       - name: Run Unit Tests
         run: |
           ./build/test/unit_test/unit-test
