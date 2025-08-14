@@ -77,7 +77,7 @@ TEST_F(AuthProviderTest, GetToken_CacheHit) {
     EXPECT_FALSE(token_info.second);
     std::pair<std::string, bool> token_info_cached = auth_provider.GetToken(server, region, port, username);
     EXPECT_TRUE(token_info_cached.second);
-    EXPECT_STREQ(token_info_cached.first.c_str(), token_info.first.c_str());
+    EXPECT_EQ(token_info_cached.first, token_info.first);
 }
 
 TEST_F(AuthProviderTest, GetToken_Expired) {
@@ -91,5 +91,5 @@ TEST_F(AuthProviderTest, GetToken_Expired) {
     std::pair<std::string, bool> token_info_second = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info_second.second);
 
-    EXPECT_STRNE(token_info_first.first.c_str(), token_info_second.first.c_str());
+    EXPECT_NE(token_info_first.first, token_info_second.first);
 }
