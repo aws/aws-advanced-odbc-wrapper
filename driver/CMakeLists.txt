@@ -22,6 +22,13 @@ set(CMAKE_SHARED_LIBRARY_PREFIX "")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(INC
+    # Host Selectors
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/highest_weight_host_selector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/host_selector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/random_host_selector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/round_robin_host_selector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/round_robin_property.h
+
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
@@ -40,10 +47,12 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
     ${CMAKE_CURRENT_SOURCE_DIR}/error.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_info.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.h
 )
@@ -51,6 +60,11 @@ set(INC
 set(SRC
     # GUI
     ${CMAKE_CURRENT_SOURCE_DIR}/gui/setup.cpp
+
+    # Host Selectors
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/highest_weight_host_selector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/random_host_selector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/round_robin_host_selector.cpp
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
@@ -68,8 +82,10 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
 
     # Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.cpp
 )

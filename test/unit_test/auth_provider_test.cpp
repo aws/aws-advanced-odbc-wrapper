@@ -61,57 +61,35 @@ TEST_F(AuthProviderTest, BuildCacheKey_Test) {
     EXPECT_EQ(expected, built_cache_key);
 }
 
-TEST_F(AuthProviderTest, GetToken_Hit) {
-    GTEST_SKIP() << "RDSClient::GenerateConnectAuthToken cannot be mocked, not virtual. Will need to refactor into a wrapped RDSClient";
-    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user",
-        mock_token = "host.com:1234/?Action=Connect&DBUser=my-user";
-    EXPECT_CALL(*mock_rds_client,
-        GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
-        .Times(testing::Exactly(1))
-        .WillRepeatedly(testing::Return(mock_token));
+TEST_F(AuthProviderTest, GetToken_CacheMiss) {
+    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
     AuthProvider auth_provider(mock_rds_client);
     std::pair<std::string, bool> token_info = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info.second);
-    EXPECT_EQ(mock_token, token_info.first);
-    token_info = auth_provider.GetToken(server, region, port, username);
-    EXPECT_TRUE(token_info.second);
-    EXPECT_EQ(mock_token, token_info.first);
 }
 
-TEST_F(AuthProviderTest, GetToken_Miss) {
-    GTEST_SKIP() << "RDSClient::GenerateConnectAuthToken cannot be mocked, not virtual. Will need to refactor into a wrapped RDSClient";
-    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user",
-        mock_token = "host.com:1234/?Action=Connect&DBUser=my-user";
-    EXPECT_CALL(*mock_rds_client,
-        GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
-        .Times(testing::Exactly(1))
-        .WillRepeatedly(testing::Return(mock_token));
+TEST_F(AuthProviderTest, GetToken_CacheHit) {
+    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
     AuthProvider auth_provider(mock_rds_client);
     std::pair<std::string, bool> token_info = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info.second);
-    EXPECT_EQ(mock_token, token_info.first);
+    std::pair<std::string, bool> token_info_cached = auth_provider.GetToken(server, region, port, username);
+    EXPECT_TRUE(token_info_cached.second);
+    EXPECT_EQ(token_info_cached.first, token_info.first);
 }
 
 TEST_F(AuthProviderTest, GetToken_Expired) {
-    GTEST_SKIP() << "RDSClient::GenerateConnectAuthToken cannot be mocked, not virtual. Will need to refactor into a wrapped RDSClient";
-    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user",
-        mock_token_first = "host.com:1234/?Action=Connect&DBUser=my-user&X-Amz-Date=123",
-        mock_token_second = "host.com:1234/?Action=Connect&DBUser=my-user&X-Amz-Date=456";
-    EXPECT_CALL(*mock_rds_client,
-        GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
-        .Times(testing::Exactly(2))
-        .WillOnce(testing::Return(mock_token_first))
-        .WillOnce(testing::Return(mock_token_second));
+    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
     AuthProvider auth_provider(mock_rds_client);
-    std::pair<std::string, bool> token_info_first = auth_provider.GetToken(server, region, port, username, true, false, std::chrono::milliseconds(-1));
+    std::pair<std::string, bool> token_info_first = auth_provider.GetToken(server, region, port, username, true, false, std::chrono::milliseconds(-99999));
     EXPECT_FALSE(token_info_first.second);
-    EXPECT_EQ(mock_token_first, token_info_first.first);
+    // 1.5s to allow next presigned URL to have a different timestamp
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     std::pair<std::string, bool> token_info_second = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info_second.second);
-    EXPECT_EQ(mock_token_second, token_info_second.first);
 
     EXPECT_NE(token_info_first.first, token_info_second.first);
 }
