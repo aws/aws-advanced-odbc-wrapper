@@ -18,6 +18,7 @@
 #include "../../util/auth_provider.h"
 
 #include "../base_plugin.h"
+#include "../../driver.h"
 
 class IamAuthPlugin : public BasePlugin {
 public:
@@ -27,6 +28,7 @@ public:
     ~IamAuthPlugin() override;
 
     SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
         SQLHWND        WindowHandle,
         SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,

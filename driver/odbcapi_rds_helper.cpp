@@ -16,6 +16,7 @@
 
 #include "odbcapi_rds_helper.h"
 
+#include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
@@ -84,8 +85,8 @@ SQLRETURN RDS_AllocEnv(
 }
 
 SQLRETURN RDS_AllocDbc(
-    SQLHENV         EnvironmentHandle,
-    SQLHDBC *       ConnectionHandlePointer)
+    SQLHENV        EnvironmentHandle,
+    SQLHDBC *      ConnectionHandlePointer)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
     DBC *dbc;
@@ -524,7 +525,7 @@ SQLRETURN RDS_SQLConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+        ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     }
 
     return ret;
@@ -613,7 +614,7 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
+        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
     }
 
     return ret;
@@ -679,15 +680,16 @@ SQLRETURN RDS_SQLExecDirect(
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-        stmt->wrapped_stmt, StatementText, TextLength
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (dbc->plugin_head) {
+        return dbc->plugin_head->Execute(StatementHandle, StatementText, TextLength);
+    }
+
+    stmt->err = new ERR_INFO("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
+    return SQL_ERROR;
 }
 
 SQLRETURN RDS_SQLForeignKeys(
@@ -1666,6 +1668,15 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
     if (!dbc->plugin_head) {
         BasePlugin* plugin_head = new BasePlugin(dbc);
         BasePlugin* next_plugin;
+
+        // Limitless
+        if (dbc->conn_attr.contains(KEY_LIMITLESS_ENABLED));
+
+        // Failover
+        if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)) {
+            next_plugin = new FailoverPlugin(dbc, plugin_head);
+            plugin_head = next_plugin;
+        }
 
         // Auth Plugins
         if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {

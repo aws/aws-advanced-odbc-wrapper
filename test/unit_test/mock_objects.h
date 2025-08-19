@@ -69,7 +69,7 @@ public:
     MOCK_BASE_PLUGIN() : BasePlugin() {}
 
     MOCK_METHOD(SQLRETURN, Connect,
-        (SQLHWND WindowHandle, SQLTCHAR *OutConnectionString, SQLSMALLINT BufferLength,
+        (SQLHDBC ConnectionHandle, SQLHWND WindowHandle, SQLTCHAR *OutConnectionString, SQLSMALLINT BufferLength,
         SQLSMALLINT *StringLengthPtr, SQLUSMALLINT DriverCompletion), ());
 };
 

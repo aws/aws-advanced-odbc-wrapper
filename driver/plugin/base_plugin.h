@@ -18,6 +18,7 @@
 #include "../driver.h"
 
 struct DBC;
+struct STMT;
 
 class BasePlugin {
 public:
@@ -27,15 +28,20 @@ public:
     virtual ~BasePlugin();
 
     virtual SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
         SQLHWND        WindowHandle,
         SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion);
 
+    virtual SQLRETURN Execute(
+        SQLHSTMT       StatementHandle,
+        SQLTCHAR *     StatementText = 0,
+        SQLINTEGER     TextLength = -1);
+
 protected:
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
-    DBC* dbc;
     BasePlugin* next_plugin;
     std::string plugin_name;
 

@@ -75,6 +75,7 @@ SecretsManagerPlugin::~SecretsManagerPlugin()
 }
 
 SQLRETURN SecretsManagerPlugin::Connect(
+    SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
@@ -82,6 +83,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     SQLRETURN ret = SQL_ERROR;
+    DBC* dbc = (DBC*) ConnectionHandle;
 
     {
         std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
@@ -91,7 +93,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(cached_secret.password));
-                ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 secrets_cache.erase(secret_key);
             }
@@ -118,7 +120,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(secret.username));
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(secret.password));
-        return next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     } else {
         if (dbc->err) delete dbc->err;
         dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);

@@ -74,12 +74,12 @@ TEST_F(OktaAuthPluginTest, Connect_Success) {
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
         *mock_base_plugin,
-        Connect(testing::_, testing::_, testing::_, testing::_, testing::_))
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_SUCCESS));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
-    SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
 }
@@ -109,13 +109,13 @@ TEST_F(OktaAuthPluginTest, Connect_Success_CacheExpire) {
         .WillOnce(testing::Return());
     EXPECT_CALL(
         *mock_base_plugin,
-        Connect(testing::_, testing::_, testing::_, testing::_, testing::_))
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillOnce(testing::Return(SQL_ERROR))
         .WillOnce(testing::Return(SQL_SUCCESS));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
-    SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_STREQ(valid_token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
 }
@@ -129,12 +129,12 @@ TEST_F(OktaAuthPluginTest, Connect_Fail_CacheMiss) {
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
         *mock_base_plugin,
-        Connect(testing::_, testing::_, testing::_, testing::_, testing::_))
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_ERROR));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
-    SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }
 
@@ -163,11 +163,11 @@ TEST_F(OktaAuthPluginTest, Connect_Fail_CacheHit) {
         .WillOnce(testing::Return());
     EXPECT_CALL(
         *mock_base_plugin,
-        Connect(testing::_, testing::_, testing::_, testing::_, testing::_))
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillRepeatedly(testing::Return(SQL_ERROR));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
-    SQLRETURN ret = plugin.Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }
