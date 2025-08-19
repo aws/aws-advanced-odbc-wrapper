@@ -21,6 +21,9 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  BUILD_CONFIG: Release
+
 jobs:
   test-win-unit:
     name: Windows - Unit Test
@@ -33,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
@@ -67,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
@@ -101,7 +104,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |

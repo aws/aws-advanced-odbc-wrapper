@@ -4,12 +4,20 @@
 - [Build and Test AWS ODBC Wrapper](#build-and-test-aws-odbc-wrapper)
   - [Table of Contents](#table-of-contents)
   - [Building the Wrapper](#building-the-wrapper)
+    - [Wrapper CMake Parameters](#wrapper-cmake-parameters)
     - [Windows](#windows)
     - [MacOS](#macos)
     - [Linux](#linux)
   - [Build and Run Tests](#build-and-run-tests)
 
 ## Building the Wrapper
+
+### Wrapper CMake Parameters
+| Key | Possible Values | Default Value | Explanation |
+|-----------------|:-------------:|:-----:|-|
+| BUILD_ANSI      | `ON` / `OFF`  | `OFF` | Toggle to `ON` to build the **ANSI version** of the wrapper. By default, if both UNICODE and ANSI are `OFF`, both will be built. |
+| BUILD_UNICODE   | `ON` / `OFF`  | `OFF` | Toggle to `ON` to build the **UNICODE version** of the wrapper. By default, if both UNICODE and ANSI are `OFF`, both will be built. |
+| BUILD_UNIT_TEST | `ON` / `OFF`  | `OFF` | Toggle to `ON` to build the **Unit Tests**. |
 
 ### Windows
 
@@ -23,7 +31,8 @@
 
 #### Build Wrapper
 ```
-cmake -S driver -B build -DUNICODE=<ON/OFF> 
+# In Repository Root
+cmake -S . -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF>
 cmake --build build --config <Release/Debug>
 ```
 
@@ -45,7 +54,8 @@ brew install cmake curl openssl unixodbc zlib
 
 #### Build Wrapper
 ```
-cmake -S driver -B build -DUNICODE=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+# In Repository Root
+cmake -S driver -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
@@ -64,7 +74,8 @@ sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev
 
 #### Build Wrapper
 ```
-cmake -S driver -B build -DUNICODE=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+# In Repository Root
+cmake -S driver -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
@@ -87,7 +98,7 @@ cmake --build test_compatibility
 ```
 
 ### Running the Tests
-The tests will use environment variables to construct connection strings. 
+The tests will use environment variables to construct connection strings.
 Each test will vary on what is required to run the test.
 For compatibility tests, the follow are needed:
 ```
@@ -100,7 +111,7 @@ TEST_PASSWORD: Password for the database
 TEST_BASE_DRIVER: A full path to the driver to wrap against
 TEST_BASE_DSN: DSN Name created for driver to be wrapped against
 ```
-and to run after setting environment variables. 
+and to run after setting environment variables.
 
 Note: Windows will build binaries into a subfolder of the build config while Unix does not.
 ```

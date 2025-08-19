@@ -74,8 +74,9 @@ inline RDS_STR ToRdsStr(const std::string &str)
 {
     RDS_STR converted;
 #ifdef UNICODE
-    wchar_t* buf = new wchar_t[str.size() * 2 + 2];
-    swprintf(buf, L"%S", str.c_str());
+    size_t new_len = str.size() * 2 + 2;
+    wchar_t* buf = new wchar_t[new_len];
+    swprintf(buf, new_len, L"%S", str.c_str());
     converted = buf;
     delete[] buf;
 #else

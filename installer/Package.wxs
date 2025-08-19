@@ -1,0 +1,69 @@
+﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+    <!-- GUIDs -->
+    <?define WRAPPER_BINARY_GUID    = "82a6cf37-b360-46cc-bff7-f92bd559ddd7" ?>
+    <?define WRAPPER_REGISTRY_GUID  = "b73beecb-8ab8-4ca0-8fbb-67e69a598f76" ?>
+
+    <!-- Package Details -->
+    <Package
+        Name="AWS Advanced ODBC Wrapper"
+        Manufacturer="Amazon Web Services (AWS)"
+        Version="1.0.0.0"
+        UpgradeCode="194e58ff-da59-4ea5-8b19-091bf719db25"
+    >
+        <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" />
+
+        <!-- Installation Options -->
+        <Feature Id="InstallerMain" Title="AWS Advanced ODBC Wrapper" Level="1" Description="AWS Advanced ODBC Wrapper" ConfigurableDirectory="INSTALLFOLDER" Display="expand">
+            <ComponentGroupRef Id="WrapperBinaries" />
+        </Feature>
+        <Media Id="1" EmbedCab="yes" Cabinet="awsodbcwrapper.cab" CompressionLevel="high"/>
+
+        <!-- UI -->
+        <ui:WixUI Id="WixUI_FeatureTree" InstallDirectory="BASEDIR" />
+        <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+        <WixVariable Id="WixUIDialogBmp" Value="background.jpg" />
+        <WixVariable Id="WixUIBannerBmp" Value="banner.jpg" />
+
+        <!-- Driver Icon -->
+        <Icon Id="aws.ico" SourceFile="aws.ico"/>
+        <Property Id="ARPPRODUCTICON" Value="aws.ico" />
+    </Package>
+
+    <!-- Install Folder -->
+    <Fragment>
+        <StandardDirectory Id="ProgramFiles6432Folder">
+            <Directory Id="INSTALLFOLDER" Name="!(bind.Property.ProductName)" />
+        </StandardDirectory>
+    </Fragment>
+
+    <!-- Components -->
+    <Fragment>
+        <!-- Driver Installation -->
+        <ComponentGroup Id="WrapperBinaries" Directory="INSTALLFOLDER">
+            <!-- Binaries -->
+            <Component Id="RegisterWrapper" Guid="$(WRAPPER_BINARY_GUID)" KeyPath="yes">
+                <File Id="DriverFileAnsi" Source="../build/driver/$(CONFIG)/aws-advanced-odbc-wrapper-a.dll" />
+                <File Id="DriverFileUnicode" Source="../build/driver/$(CONFIG)/aws-advanced-odbc-wrapper-w.dll" />
+            </Component>
+            <!-- Registry Entries -->
+            <Component Id="ODBCRegistration" Guid="$(WRAPPER_REGISTRY_GUID)" KeyPath="yes">
+                <!-- Driver Location -->
+                <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\AWS Advanced ODBC Wrapper Ansi">
+                    <RegistryValue Type="string" Name="Driver" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-a.dll" />
+                    <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-a.dll" />
+                </RegistryKey>
+                <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\AWS Advanced ODBC Wrapper Unicode">
+                    <RegistryValue Type="string" Name="Driver" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-w.dll" />
+                    <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-w.dll" />
+                </RegistryKey>
+                <!-- Driver List -->
+                <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers">
+                    <RegistryValue Type="string" Name="AWS Advanced ODBC Wrapper Ansi" Value="Installed" />
+                    <RegistryValue Type="string" Name="AWS Advanced ODBC Wrapper Unicode" Value="Installed" />
+                </RegistryKey>
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+</Wix>
+
