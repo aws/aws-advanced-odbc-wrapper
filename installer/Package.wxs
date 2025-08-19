@@ -14,7 +14,7 @@
         <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" />
 
         <!-- Installation Options -->
-        <Feature Id="InstallerMain" Title="AWS Advanced ODBC Wrapper" Level="1" Description="AWS ANSI ODBC Driver for PostgreSQL" ConfigurableDirectory="INSTALLFOLDER" Display="expand">
+        <Feature Id="InstallerMain" Title="AWS Advanced ODBC Wrapper" Level="1" Description="AWS Advanced ODBC Wrapper" ConfigurableDirectory="INSTALLFOLDER" Display="expand">
             <ComponentGroupRef Id="WrapperBinaries" />
         </Feature>
         <Media Id="1" EmbedCab="yes" Cabinet="awsodbcwrapper.cab" CompressionLevel="high"/>
@@ -66,3 +66,4 @@
         </ComponentGroup>
     </Fragment>
 </Wix>
+
