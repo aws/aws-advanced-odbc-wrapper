@@ -354,15 +354,16 @@ SQLRETURN SQL_API SQLExecute(
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
-        stmt->wrapped_stmt
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (dbc->plugin_head) {
+        return dbc->plugin_head->Execute(StatementHandle);
+    }
+
+    stmt->err = new ERR_INFO("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
+    return SQL_ERROR;
 }
 
 SQLRETURN SQL_API SQLExtendedFetch(

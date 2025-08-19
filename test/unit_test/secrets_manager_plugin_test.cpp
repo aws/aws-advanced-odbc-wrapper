@@ -44,7 +44,7 @@ Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeSucce
     return GetMockSecretValueOutcome(TEST_SECRET_STRING);
 }
 
-Aws::SecretsManager::Model::GetSecretValueOutcome GetMockecretValueOutcomeInvalid() {
+Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeInvalid() {
     return GetMockSecretValueOutcome(TEST_SECRET_INVALID_JSON);
 }
 
@@ -71,7 +71,7 @@ protected:
         mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         EXPECT_CALL(
             *mock_base_plugin,
-            Connect(testing::_, testing::_, testing::_, testing::_, testing::_))
+            Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
             .WillRepeatedly(testing::Return(SQL_SUCCESS));
         dbc = new DBC();
     }
@@ -128,7 +128,7 @@ TEST_F(SecretsManagerPluginTest, UseSecretIdAndRegion) {
     EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
-    SQLRETURN ret = plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
@@ -148,7 +148,7 @@ TEST_F(SecretsManagerPluginTest, UseSecretArn) {
         .WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
-    SQLRETURN ret = plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
@@ -168,8 +168,8 @@ TEST_F(SecretsManagerPluginTest, UseCachedSecret) {
         .WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
 
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
     plugin->ClearSecretsCache();
@@ -190,9 +190,9 @@ TEST_F(SecretsManagerPluginTest, UseExpiredSecret) {
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
 
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
 
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
     plugin->ClearSecretsCache();
@@ -209,11 +209,11 @@ TEST_F(SecretsManagerPluginTest, SecretIsInvalid) {
         *mock_sm_client,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(1))
-        .WillRepeatedly(GetMockecretValueOutcomeInvalid);
+        .WillRepeatedly(GetMockSecretValueOutcomeInvalid);
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
 
-    EXPECT_EQ(SQL_ERROR, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     EXPECT_EQ(0, plugin->GetSecretsCacheSize());
 
     delete plugin;
@@ -232,7 +232,7 @@ TEST_F(SecretsManagerPluginTest, SecretMissingCredentials) {
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin.get(), mock_sm_client);
 
-    EXPECT_EQ(SQL_ERROR, plugin->Connect(nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     EXPECT_EQ(0, plugin->GetSecretsCacheSize());
 
     delete plugin;

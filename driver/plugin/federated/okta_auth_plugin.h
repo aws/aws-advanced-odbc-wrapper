@@ -17,9 +17,9 @@
 
 #include "../../util/auth_provider.h"
 
-#include "../base_plugin.h"
-
 #include "saml_util.h"
+#include "../base_plugin.h"
+#include "../../driver.h"
 
 class OktaSamlUtil : public SamlUtil {
 public:
@@ -44,6 +44,7 @@ public:
     ~OktaAuthPlugin() override;
 
     SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
         SQLHWND        WindowHandle,
         SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,

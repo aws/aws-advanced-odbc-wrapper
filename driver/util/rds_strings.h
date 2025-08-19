@@ -39,6 +39,12 @@
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
 #define AS_CONST_WCHAR(str) (reinterpret_cast<const wchar_t*>(str))
 
+#ifdef WIN32
+    #define STR_ICMP(str1, str2) strcmpi(str1, str2)
+#else
+    #define STR_ICMP(str1, str2) strcasecmp(str1, str2)
+#endif
+
 #ifdef UNICODE
     #include <cwctype>
     #include <wchar.h>

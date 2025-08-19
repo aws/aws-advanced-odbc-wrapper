@@ -20,12 +20,35 @@
 #include <vector>
 
 #include "../host_info.h"
+#include "../util/connection_string_keys.h"
+
+typedef enum {
+    HIGHEST_WEIGHT,
+    RANDOM_HOST,
+    ROUND_ROBIN,
+    UNKNOWN_STRATEGY
+} HostSelectorStrategies;
+
+static std::unordered_map<RDS_STR, HostSelectorStrategies> const host_selector_table = {
+    {VALUE_HIGHEST_WEIGHT_HOST_SELECTOR,    HostSelectorStrategies::HIGHEST_WEIGHT},
+    {VALUE_RANDOM_HOST_SELECTOR,            HostSelectorStrategies::RANDOM_HOST},
+    {VALUE_ROUND_ROBIN_HOST_SELECTOR,       HostSelectorStrategies::ROUND_ROBIN}
+};
 
 class HostSelector {
 public:
     virtual ~HostSelector() = default;
     virtual HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer,
         std::unordered_map<std::string, std::string> properties) = 0;
+    static HostSelectorStrategies GetHostSelectorStrategy(const RDS_STR &auth_type) {
+        RDS_STR local_str = auth_type;
+        RDS_STR_UPPER(local_str);
+        if (host_selector_table.contains(local_str)) {
+            return host_selector_table.at(local_str);
+        } else {
+            return HostSelectorStrategies::UNKNOWN_STRATEGY;
+        }
+    }
 };
 
 #endif // HOST_SELECTOR_H_

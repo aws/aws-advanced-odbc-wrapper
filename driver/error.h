@@ -150,6 +150,10 @@ typedef enum {
     ERR_NO_UNDER_LYING_DRIVER,
     ERR_NO_UNDER_LYING_FUNCTION,
     ERR_DIFF_ENV_UNDERLYING_DRIVER,
+    /* Failover Related */
+    ERR_FAILOVER_FAILED,
+    ERR_FAILOVER_SUCCESS,
+    ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE,
 
     /* End Error, used for sizing */
     INVALID_ERR
@@ -171,6 +175,8 @@ const std::string ODBC_STATE_MAP[] = {
     /* Wrapper Specific */
     /* Dynamic Library Related */
     "LD001", "LD002", "LD003",
+    /* Failover Related */
+    "08S01", "08S02", "08007",
     /* END */
     "ERROR"
 };
@@ -197,7 +203,7 @@ struct ERR_INFO {
         if (msg) {
             error_msg = strdup(msg);
         }
-        if (sql_state < INVALID_ERR) {
+        if (sql_state >= 0 && sql_state < INVALID_ERR) {
             std::string str_sql_state = ODBC_STATE_MAP[sql_state];
             is_odbc3_subclass = IsOdbc3Subclass(str_sql_state);
             sqlstate = strdup(str_sql_state.c_str());

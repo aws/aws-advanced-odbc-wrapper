@@ -14,6 +14,7 @@
 
 #include "base_plugin.h"
 
+#include "../driver.h"
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
 #include "../util/logger_wrapper.h"
@@ -22,20 +23,13 @@
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
 BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
-    dbc(dbc),
     next_plugin(next_plugin),
-    plugin_name("BasePlugin")
-{
-    if (!dbc) {
-        throw std::runtime_error("DBC cannot be null.");
-    }
-}
+    plugin_name("BasePlugin") {}
 
-BasePlugin::~BasePlugin()
-{
-}
+BasePlugin::~BasePlugin() {}
 
 SQLRETURN BasePlugin::Connect(
+    SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
@@ -44,6 +38,7 @@ SQLRETURN BasePlugin::Connect(
 {
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
+    DBC* dbc = (DBC*) ConnectionHandle;
     ENV* env = dbc->env;
 
     // TODO - Should a new connect use a new underlying DBC?
@@ -87,4 +82,29 @@ SQLRETURN BasePlugin::Connect(
         }
     }
     return ret;
+}
+
+SQLRETURN BasePlugin::Execute(
+    SQLHSTMT       StatementHandle,
+    SQLTCHAR *     StatementText,
+    SQLINTEGER     TextLength)
+{
+    SQLRETURN ret = SQL_ERROR;
+    RdsLibResult res;
+    STMT* stmt = (STMT*) StatementHandle;
+    DBC* dbc = stmt->dbc;
+    ENV* env = dbc->env;
+    RDS_STR query = AS_RDS_STR(StatementText);
+
+    if (query.empty()) {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
+            stmt->wrapped_stmt
+        );
+    } else {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+            stmt->wrapped_stmt, StatementText, TextLength
+        );
+    }
+
+    return res.fn_result;
 }
