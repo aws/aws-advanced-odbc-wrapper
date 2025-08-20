@@ -30,9 +30,9 @@
 class ClusterTopologyQueryHelper {
 public:
     ClusterTopologyQueryHelper(std::shared_ptr<RdsLibLoader> lib_loader, int port, std::string endpoint_template, RDS_STR topology_query, RDS_STR writer_id_query, RDS_STR node_id_query);
-    virtual std::string GetWriterId(SQLHDBC dbc);
-    virtual std::string GetNodeId(SQLHDBC dbc);
-    virtual std::vector<HostInfo> QueryTopology(SQLHDBC dbc);
+    virtual std::string GetWriterId(SQLHDBC hdbc);
+    virtual std::string GetNodeId(SQLHDBC hdbc);
+    virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc);
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLREAL replica_lag_ms);
     virtual std::string GetEndpoint(SQLTCHAR* node_id);
 
