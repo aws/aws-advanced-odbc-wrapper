@@ -50,10 +50,18 @@ public:
     );
     virtual ~FailoverPlugin();
 
-    virtual SQLRETURN Execute(
-        STMT*          StatementHandle,
+    SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
+        SQLHWND        WindowHandle,
+        SQLTCHAR *     OutConnectionString,
+        SQLSMALLINT    BufferLength,
+        SQLSMALLINT *  StringLengthPtr,
+        SQLUSMALLINT   DriverCompletion) override;
+
+    SQLRETURN Execute(
+        SQLHSTMT       StatementHandle,
         SQLTCHAR *     StatementText,
-        SQLINTEGER     TextLength);
+        SQLINTEGER     TextLength) override;
 
 private:
     static const int MAX_STATE_LENGTH = 32;

@@ -16,6 +16,7 @@
 
 #include "../base_plugin.h"
 #include "../../odbcapi.h"
+#include "../../odbcapi_rds_helper.h"
 
 #include "../../dialect/dialect_aurora_postgres.h"
 
@@ -34,7 +35,7 @@ FailoverPlugin::FailoverPlugin(DBC *dbc) : FailoverPlugin(dbc, nullptr) {}
 
 FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr) {}
 
-FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode failover_mode, std::shared_ptr<Dialect> dialect, std::shared_ptr<HostSelector> host_selector, std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper, std::shared_ptr<ClusterTopologyMonitor> topology_monitor)
+FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode failover_mode, std::shared_ptr<Dialect> dialect, std::shared_ptr<HostSelector> host_selector, std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper, std::shared_ptr<ClusterTopologyMonitor> topology_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
     std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
@@ -54,23 +55,47 @@ FailoverPlugin::~FailoverPlugin()
     topology_monitor_.reset();
 }
 
+SQLRETURN FailoverPlugin::Connect(
+    SQLHDBC ConnectionHandle,
+    SQLHWND WindowHandle,
+    SQLTCHAR *OutConnectionString,
+    SQLSMALLINT BufferLength,
+    SQLSMALLINT *StringLengthPtr,
+    SQLUSMALLINT DriverCompletion)
+{
+    DBC* dbc = (DBC*) ConnectionHandle;
+    topology_monitor_->StartMonitor(dbc->plugin_head);
+    return next_plugin->Connect(
+        ConnectionHandle,
+        WindowHandle,
+        OutConnectionString,
+        BufferLength,
+        StringLengthPtr,
+        DriverCompletion
+    );
+}
+
 SQLRETURN FailoverPlugin::Execute(
-    STMT *         StatementHandle,
+    SQLHSTMT       StatementHandle,
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    STMT* stmt = (STMT*) StatementHandle;
+    DBC* dbc = stmt->dbc;
     SQLRETURN ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
 
     if (SQL_SUCCEEDED(ret)) {
         return ret;
     }
 
-    const char* sql_state = StatementHandle->err ? StatementHandle->err->sqlstate : "";
-    if (!CheckShouldFailover(sql_state)) {
+    SQLSMALLINT stmt_length;
+    SQLINTEGER native_error;
+    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 }, message[MAX_MSG_LENGTH] = { 0 };
+    RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
+    if (!CheckShouldFailover(AS_CONST_CHAR(sql_state))) {
         return ret;
     }
 
-    DBC* dbc = StatementHandle->dbc;
     bool failover_result = false;
     if (failover_mode_ == STRICT_WRITER) {
         failover_result = FailoverWriter(dbc);
@@ -85,12 +110,12 @@ SQLRETURN FailoverPlugin::Execute(
         //  May need to track ourselves?
         if (false /* in transactions */) {
             // TODO - Rollback?
-            StatementHandle->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+            stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
-            StatementHandle->err = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
+            stmt->err = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         }
     } else {
-        StatementHandle->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
     }
 
     return ret;
@@ -98,6 +123,7 @@ SQLRETURN FailoverPlugin::Execute(
 
 bool FailoverPlugin::CheckShouldFailover(const char *sql_state)
 {
+    return true; // Debug
     // Check if the SQL State is related to a communication error
     const char* start = "08";
     LOG(INFO) << "Checking if SQLSTATE [" << sql_state << "] should trigger failover.";
@@ -179,7 +205,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
             }
             RemoveHostCandidate(host_string, remaining_readers);
             NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                dbc
+                dbc->wrapped_dbc
             );
             LOG(INFO) << "[Failover Service] Cleaned up first connection, required a strict reader: " << host_string << ", " << dbc;
 
@@ -209,7 +235,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
         if (is_connected) {
             if (topology_query_helper_->GetNodeId(dbc).empty()) {
                 NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    dbc
+                    dbc->wrapped_dbc
                 );
                 continue;
             }
@@ -226,7 +252,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
 
     // Timed out.
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-        dbc
+        dbc->wrapped_dbc
     );
     LOG(INFO) << "[Failover Service] The reader failover process was not able to establish a connection before timing out.";
     return false;
@@ -266,13 +292,16 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     }
     LOG(INFO) << "[Failover Service] writer failover unable to connect to any instance for: " << cluster_id_;
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-        dbc
+        dbc->wrapped_dbc
     );
     return false;
 }
 
 bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
 {
+    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+        dbc->wrapped_dbc
+    );
     LOG(INFO) << "Attempting to connect to host: " << host_string;
     dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_string));
 
@@ -344,8 +373,8 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC 
 {
     std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
 
-    std::string endpoint_template = ToStr(conn_info.at(KEY_ENDPOINT_TEMPLATE));
-    std::string host = ToStr(conn_info.at(KEY_SERVER));
+    std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? ToStr(conn_info.at(KEY_ENDPOINT_TEMPLATE)) : "";
+    std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
     if (endpoint_template.empty()) {
         endpoint_template = RdsUtils::GetRdsInstanceHostPattern(host);
     }
@@ -365,6 +394,5 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC 
     std::shared_ptr<ClusterTopologyMonitor> topology_monitor = std::make_shared<ClusterTopologyMonitor>(
         dbc, topology_map_, topology_query_helper_
     );
-    topology_monitor->StartMonitor();
     return topology_monitor;
 }

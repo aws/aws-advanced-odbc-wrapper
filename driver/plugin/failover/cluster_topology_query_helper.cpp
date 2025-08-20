@@ -37,16 +37,21 @@ ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
       writer_id_query_{ std::move(writer_id_query) },
       node_id_query_{ std::move(node_id_query) } {}
 
-std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC dbc)
+std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR writer_id[BUFFER_SIZE] = {0};
     SQLLEN rt = 0;
     RdsLibResult res;
+    DBC* dbc = (DBC*) hdbc;
+
+    if (!dbc || !dbc->wrapped_dbc) {
+        return "";
+    }
 
     res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc, &stmt
+        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
@@ -70,15 +75,20 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC dbc)
     return ToStr(AS_RDS_CHAR(writer_id));
 }
 
-std::string ClusterTopologyQueryHelper::GetNodeId(SQLHDBC dbc)
+std::string ClusterTopologyQueryHelper::GetNodeId(SQLHDBC hdbc)
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR node_id[BUFFER_SIZE] = {0};
     SQLLEN rt = 0;
     RdsLibResult res;
+    DBC* dbc = (DBC*) hdbc;
+
+    if (!dbc || !dbc->wrapped_dbc) {
+        return "";
+    }
 
     res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc, &stmt
+        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
@@ -102,7 +112,7 @@ std::string ClusterTopologyQueryHelper::GetNodeId(SQLHDBC dbc)
     return ToStr(AS_RDS_CHAR(node_id));
 }
 
-std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC dbc)
+std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR node_id[BUFFER_SIZE] = {0};
@@ -112,14 +122,19 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC dbc)
     SQLLEN rt = 0;
     RdsLibResult res;
     std::vector<HostInfo> hosts;
+    DBC* dbc = (DBC*) hdbc;
+
+    if (!dbc || !dbc->wrapped_dbc) {
+        return hosts;
+    }
 
     res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc, &stmt
+        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(writer_id_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(topology_query_.c_str()), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,

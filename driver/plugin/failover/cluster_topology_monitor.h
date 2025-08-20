@@ -53,7 +53,7 @@ public:
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms);
     virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, uint32_t timeout_ms);
 
-    virtual void StartMonitor();
+    virtual void StartMonitor(BasePlugin* plugin_head);
 
 protected:
     void Run();
@@ -146,6 +146,7 @@ private:
     void ReaderThreadFetchTopology();
 
     ClusterTopologyMonitor* main_monitor_;
+    std::map<RDS_STR, RDS_STR> conn_info_;
     std::shared_ptr<HostInfo> host_info_;
     std::shared_ptr<HostInfo> writer_host_info_;
     bool writer_changed_ = false;

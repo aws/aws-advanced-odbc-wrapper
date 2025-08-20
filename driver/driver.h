@@ -159,21 +159,42 @@ SQLRETURN RDS_SQLSetConnectAttr(
 #define NOT_IMPLEMENTED \
      return SQL_ERROR
 
-#define NULL_CHECK_HANDLE(h) \
+#define NULL_CHECK_HANDLE(h)                           \
     if (h == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DBC(h) \
-    if (h == NULL \
-         || ((DBC*) h)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_DBC(h)                   \
+    if (h == NULL                                      \
+         || ((DBC*) h)->env == NULL)                   \
          return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_STMT(h) \
-    if (h == NULL \
-         || ((STMT*) h)->dbc == NULL \
-         || ((DBC*) ((STMT*) h)->dbc)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_STMT(h)                  \
+    if (h == NULL                                      \
+         || ((STMT*) h)->dbc == NULL                   \
+         || ((DBC*) ((STMT*) h)->dbc)->env == NULL)    \
          return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DESC(h) \
-    if (h == NULL \
-         || ((DESC*) h)->dbc == NULL \
-         || ((DBC*) ((DESC*) h)->dbc)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_DESC(h)                  \
+    if (h == NULL                                      \
+         || ((DESC*) h)->dbc == NULL                   \
+         || ((DBC*) ((DESC*) h)->dbc)->env == NULL)    \
+         return SQL_INVALID_HANDLE
+
+#define NULL_CHECK_CALL_LIB_FUNC(lib_loader, fn_type, fn_name, ...) lib_loader ? \
+    lib_loader->CallFunction<fn_type>(fn_name, __VA_ARGS__) \
+    : RdsLibResult{.fn_load_success = false, .fn_result = SQL_ERROR}
+
+#define CHECK_WRAPPED_ENV(h)                 \
+    if (h == NULL                                 \
+         || ((ENV*) h)->wrapped_env == NULL)      \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_DBC(h)                 \
+    if (h == NULL                                 \
+         || ((DBC*) h)->wrapped_dbc == NULL)      \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_STMT(h)                \
+    if (h == NULL                                 \
+         || ((STMT*) h)->wrapped_stmt == NULL)    \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_DESC(h)                \
+    if (h == NULL                                 \
+         || ((DESC*) h)->wrapped_desc == NULL)    \
          return SQL_INVALID_HANDLE
 
 #define CLEAR_ENV_ERROR(env)                 \

@@ -30,7 +30,7 @@
 #include <sql.h>
 
 #include <regex>
-#include <string>
+#include <string.h>
 #include <sstream>
 
 #define AS_SQLTCHAR(str) (const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str)))
