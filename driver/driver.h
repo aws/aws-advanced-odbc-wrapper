@@ -79,6 +79,7 @@ struct DBC {
     std::recursive_mutex        lock;
     ENV*                        env;
     std::list<STMT*>            stmt_list;
+    unsigned short              unnamed_cursor_count;
     std::list<DESC*>            desc_list;
     SQLHDBC                     wrapped_dbc;
     CONN_STATUS                 conn_status;
@@ -97,6 +98,11 @@ struct STMT {
     std::recursive_mutex        lock;
     DBC*                        dbc;
     SQLHSTMT                    wrapped_stmt;
+
+    // TODO - May need to change SQLPOINTER to an actual object
+    std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
+    RDS_STR cursor_name;
+
     ERR_INFO*                   err;
 }; // STMT
 

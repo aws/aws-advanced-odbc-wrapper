@@ -231,15 +231,19 @@ SQLRETURN SQL_API SQLCloseCursor(
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
     ENV *env = (ENV*) dbc->env;
+    SQLRETURN ret = SQL_SUCCESS;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
-        stmt->wrapped_stmt
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (stmt->wrapped_stmt) {
+        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+            stmt->wrapped_stmt
+        );
+        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    }
+
+    return ret;
 }
 
 // TODO Maybe - Impl SQLCompleteAsync

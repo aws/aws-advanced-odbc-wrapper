@@ -150,6 +150,7 @@ typedef enum {
     ERR_NO_UNDER_LYING_DRIVER,
     ERR_NO_UNDER_LYING_FUNCTION,
     ERR_DIFF_ENV_UNDERLYING_DRIVER,
+    ERR_UNDERLYING_HANDLE_NULL,
     /* Failover Related */
     ERR_FAILOVER_FAILED,
     ERR_FAILOVER_SUCCESS,
@@ -174,7 +175,7 @@ const std::string ODBC_STATE_MAP[] = {
     "IM009", "IM010", "IM011", "IM012", "IM013", "IM014", "IM015",
     /* Wrapper Specific */
     /* Dynamic Library Related */
-    "LD001", "LD002", "LD003",
+    "LD001", "LD002", "LD003", "LD004",
     /* Failover Related */
     "08S01", "08S02", "08007",
     /* END */

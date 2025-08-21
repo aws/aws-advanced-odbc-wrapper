@@ -35,6 +35,9 @@ public:
     virtual RDS_STR GetNodeIdQuery() { return AS_RDS_STR(TEXT("")); };
     virtual RDS_STR GetIsReaderQuery() { return AS_RDS_STR(TEXT("")); };
 
+    virtual bool IsSqlStateAccessError(RDS_CHAR* sql_state) { return false; };
+    virtual bool IsSqlStateNetworkError(RDS_CHAR* sql_state) { return false; };
+
     static DatabaseDialectType DatabaseDialectFromString(const RDS_STR &database_dialect) {
         RDS_STR local_str = database_dialect;
         RDS_STR_UPPER(local_str);
