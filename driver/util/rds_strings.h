@@ -57,6 +57,7 @@
     typedef std::wsmatch RDS_MATCH;
     #define RDS_sprintf(buffer, max_length, format, ...) swprintf(buffer, max_length, format, __VA_ARGS__)
     #define RDS_CHAR_FORMAT TEXT("%ws")
+    #define RDS_NUM_APPEND(str, num) str.append(std::to_wstring(num))
 #else
     #include <cstring>
     typedef std::string RDS_STR;
@@ -68,6 +69,7 @@
     typedef std::smatch RDS_MATCH;
     #define RDS_sprintf(buffer, max_length, format, ...) snprintf(buffer, max_length, format, __VA_ARGS__)
     #define RDS_CHAR_FORMAT TEXT("%s")
+    #define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
 #endif
 
 #define EMPTY_RDS_STR TEXT("")

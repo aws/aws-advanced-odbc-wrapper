@@ -216,12 +216,14 @@ SQLRETURN RDS_FreeConnect(
     env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
 
     // Cleanup tracked statements
-    for (STMT* stmt : dbc->stmt_list) {
+    std::list<STMT*> stmt_list = dbc->stmt_list;
+    for (STMT* stmt : stmt_list) {
         RDS_FreeStmt(stmt);
     }
     dbc->stmt_list.clear();
     // and descriptors
-    for (DESC* desc : dbc->desc_list) {
+    std::list<DESC*> desc_list = dbc->desc_list;
+    for (DESC* desc : desc_list) {
         RDS_FreeDesc(desc);
     }
     dbc->desc_list.clear();
@@ -275,7 +277,8 @@ SQLRETURN RDS_FreeEnv(
     ENV* env = (ENV*) EnvironmentHandle;
 
     // Clean tracked connections
-    for (DBC* dbc : env->dbc_list) {
+    std::list<DBC*> dbc_list = env->dbc_list;
+    for (DBC* dbc : dbc_list) {
         RDS_FreeConnect(dbc);
     }
     env->dbc_list.clear();
@@ -359,7 +362,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else {
             RDS_sprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(value_pair.first));
             if (value_pair.second >= BufferLength) {
-                    ret = SQL_SUCCESS_WITH_INFO;
+                ret = SQL_SUCCESS_WITH_INFO;
             }
         }
         ret = SQL_SUCCESS;
@@ -377,7 +380,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
     DBC *dbc = (DBC*) ConnectionHandle;
     ENV *env = (ENV*) dbc->env;
 
-    SQLRETURN ret = SQL_ERROR;
+    SQLRETURN ret = SQL_SUCCESS;
 
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
@@ -388,9 +391,8 @@ SQLRETURN RDS_SQLSetConnectAttr(
             dbc->wrapped_dbc, Attribute, ValuePtr, StringLength
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-    } else {
-        dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
     }
+    dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
 
     return ret;
 }
@@ -790,15 +792,34 @@ SQLRETURN RDS_SQLGetCursorName(
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
     ENV *env = (ENV*) dbc->env;
+    SQLRETURN ret = SQL_SUCCESS;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetCursorName, RDS_STR_SQLGetCursorName,
-        stmt->wrapped_stmt, CursorName, BufferLength, NameLengthPtr
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (stmt->wrapped_stmt) {
+        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetCursorName, RDS_STR_SQLGetCursorName,
+            stmt->wrapped_stmt, CursorName, BufferLength, NameLengthPtr
+        );
+        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    } else {
+        if (stmt->cursor_name.empty()) {
+            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR(TEXT("CUR_")), stmt->dbc->unnamed_cursor_count++);
+        }
+        RDS_STR name = stmt->cursor_name;
+        SQLULEN len = name.length();
+        if (CursorName) {
+            RDS_sprintf((RDS_CHAR *) CursorName, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
+            if (len >= BufferLength) {
+                ret = SQL_SUCCESS_WITH_INFO;
+            }
+        }
+        if (NameLengthPtr) {
+            *NameLengthPtr = (SQLSMALLINT) len * sizeof(SQLTCHAR);
+        }
+    }
+
+    return ret;
 }
 
 SQLRETURN RDS_SQLGetDescField(
@@ -1497,15 +1518,19 @@ SQLRETURN RDS_SQLSetCursorName(
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
     ENV *env = (ENV*) dbc->env;
+    SQLRETURN ret = SQL_SUCCESS;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
-        stmt->wrapped_stmt, CursorName, NameLength
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (stmt->wrapped_stmt) {
+        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+            stmt->wrapped_stmt, CursorName, NameLength
+        );
+        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    }
+    stmt->cursor_name = AS_RDS_STR_MAX(CursorName, NameLength);
+    return ret;
 }
 
 SQLRETURN RDS_SQLSetDescField(
@@ -1539,15 +1564,20 @@ SQLRETURN RDS_SQLSetStmtAttr(
     STMT *stmt = (STMT*) StatementHandle;
     DBC *dbc = (DBC*) stmt->dbc;
     ENV *env = (ENV*) dbc->env;
+    SQLRETURN ret = SQL_SUCCESS;
 
     std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
-    CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
-        stmt->wrapped_stmt, Attribute, ValuePtr, StringLength
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (stmt->wrapped_stmt) {
+        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
+            stmt->wrapped_stmt, Attribute, ValuePtr, StringLength
+        );
+        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    }
+    stmt->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
+
+    return ret;
 }
 
 SQLRETURN RDS_SQLSpecialColumns(

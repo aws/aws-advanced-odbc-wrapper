@@ -92,7 +92,7 @@ SQLRETURN FailoverPlugin::Execute(
     SQLINTEGER native_error;
     SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 }, message[MAX_MSG_LENGTH] = { 0 };
     RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
-    if (!CheckShouldFailover(AS_CONST_CHAR(sql_state))) {
+    if (!CheckShouldFailover(AS_RDS_CHAR(sql_state))) {
         return ret;
     }
 
@@ -121,13 +121,11 @@ SQLRETURN FailoverPlugin::Execute(
     return ret;
 }
 
-bool FailoverPlugin::CheckShouldFailover(const char *sql_state)
+bool FailoverPlugin::CheckShouldFailover(RDS_CHAR* sql_state)
 {
-    return true; // Debug
     // Check if the SQL State is related to a communication error
-    const char* start = "08";
-    LOG(INFO) << "Checking if SQLSTATE [" << sql_state << "] should trigger failover.";
-    return strncmp(start, sql_state, strlen(start)) == 0;
+    bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);
+    return should_failover;
 }
 
 void FailoverPlugin::RemoveHostCandidate(const std::string &host, std::vector<HostInfo> &candidates)
@@ -218,7 +216,6 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
 
         // We were not able to connect to any of the original readers. We will try connecting to the original writer,
         // which may have been demoted to a reader.
-
         if (get_current() > end) {
             // Timed out.
             continue;
@@ -302,6 +299,19 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
+    // Invalidate statements, but don't fully clean up
+    for (STMT* stmt : dbc->stmt_list) {
+        stmt->wrapped_stmt = nullptr;
+        if (stmt->err) delete stmt->err;
+        stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+    }
+    // and descriptors
+    for (DESC* desc : dbc->desc_list) {
+        desc->wrapped_desc = nullptr;
+        if (desc->err) delete desc->err;
+        desc->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+    }
+
     LOG(INFO) << "Attempting to connect to host: " << host_string;
     dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_string));
 
