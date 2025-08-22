@@ -45,9 +45,8 @@ public:
         RDS_STR_UPPER(local_str);
         if (host_selector_table.contains(local_str)) {
             return host_selector_table.at(local_str);
-        } else {
-            return HostSelectorStrategies::UNKNOWN_STRATEGY;
         }
+        return HostSelectorStrategies::UNKNOWN_STRATEGY;
     }
 };
 

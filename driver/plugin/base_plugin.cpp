@@ -26,7 +26,9 @@ BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
     next_plugin(next_plugin),
     plugin_name("BasePlugin") {}
 
-BasePlugin::~BasePlugin() {}
+BasePlugin::~BasePlugin() {
+    if (next_plugin) delete next_plugin;
+}
 
 SQLRETURN BasePlugin::Connect(
     SQLHDBC        ConnectionHandle,
