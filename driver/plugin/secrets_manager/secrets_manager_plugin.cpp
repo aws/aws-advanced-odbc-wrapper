@@ -137,9 +137,8 @@ Secret SecretsManagerPlugin::ParseSecret(std::string secret_string, std::chrono:
 
     if (view.ValueExists(SECRET_USERNAME_KEY) && view.ValueExists(SECRET_PASSWORD_KEY)) {
         return Secret{view.GetString(SECRET_USERNAME_KEY).c_str(), view.GetString(SECRET_PASSWORD_KEY).c_str(), curr_time + expiration};
-    } else {
-        return Secret{"", "", curr_time + expiration};
     }
+    return Secret{"", "", curr_time + expiration};
 }
 
 int SecretsManagerPlugin::GetSecretsCacheSize() {

@@ -43,9 +43,8 @@ public:
         RDS_STR_UPPER(local_str);
         if (database_dialect_table.contains(local_str)) {
             return database_dialect_table.at(local_str);
-        } else {
-            return DatabaseDialectType::UNKNOWN_DIALECT;
         }
+        return DatabaseDialectType::UNKNOWN_DIALECT;
     }
 };
 

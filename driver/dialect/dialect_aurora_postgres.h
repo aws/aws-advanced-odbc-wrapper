@@ -33,7 +33,6 @@ public:
         RDS_STR state(sql_state);
         for (RDS_STR prefix : ACCESS_ERRORS) {
             if (state.rfind(prefix, 0) == 0) return true;
-
         }
         return false;
     };
