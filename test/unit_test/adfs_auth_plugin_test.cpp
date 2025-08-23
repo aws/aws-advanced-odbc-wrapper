@@ -33,7 +33,7 @@ namespace {
 
 class AdfsAuthPluginTest : public testing::Test {
 protected:
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
+    MOCK_BASE_PLUGIN* mock_base_plugin;
     std::shared_ptr<MOCK_AUTH_PROVIDER> mock_auth_provider;
     std::shared_ptr<MOCK_SAML_UTIL> mock_saml_util;
     DBC* dbc;
@@ -50,7 +50,7 @@ protected:
     void SetUp() override {
         mock_auth_provider = std::make_shared<MOCK_AUTH_PROVIDER>();
         mock_saml_util = std::make_shared<MOCK_SAML_UTIL>();
-        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
+        mock_base_plugin = new MOCK_BASE_PLUGIN();
         dbc = new DBC();
         dbc->conn_attr.insert_or_assign(KEY_SERVER, server);
         dbc->conn_attr.insert_or_assign(KEY_REGION, region);
@@ -58,7 +58,7 @@ protected:
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, username);
     }
     void TearDown() override {
-        if (mock_base_plugin) mock_base_plugin.reset();
+        // mock_base_plugin should be cleaned up by plugin chain
         if (dbc) delete dbc;
         if (mock_auth_provider) mock_auth_provider.reset();
         if (mock_saml_util) mock_saml_util.reset();
@@ -78,7 +78,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success) {
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_SUCCESS));
 
-    AdfsAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
+    AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
@@ -114,7 +114,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_CacheExpire) {
         .WillOnce(testing::Return(SQL_ERROR))
         .WillOnce(testing::Return(SQL_SUCCESS));
 
-    AdfsAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
+    AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_STREQ(valid_token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
@@ -133,7 +133,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheMiss) {
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_ERROR));
 
-    AdfsAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
+    AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }
@@ -167,7 +167,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheHit) {
         .Times(testing::Exactly(2))
         .WillRepeatedly(testing::Return(SQL_ERROR));
 
-    AdfsAuthPlugin plugin(dbc, mock_base_plugin.get(), mock_saml_util, mock_auth_provider);
+    AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }
