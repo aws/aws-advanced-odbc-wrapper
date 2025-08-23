@@ -67,6 +67,7 @@ public:
 class MOCK_BASE_PLUGIN : public BasePlugin {
 public:
     MOCK_BASE_PLUGIN() : BasePlugin() {}
+    ~MOCK_BASE_PLUGIN() override {}
 
     MOCK_METHOD(SQLRETURN, Connect,
         (SQLHDBC ConnectionHandle, SQLHWND WindowHandle, SQLTCHAR *OutConnectionString, SQLSMALLINT BufferLength,
