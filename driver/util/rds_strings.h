@@ -30,8 +30,9 @@
 #include <sql.h>
 
 #include <regex>
-#include <string.h>
 #include <sstream>
+#include <string.h>
+#include <vector>
 
 #define AS_SQLTCHAR(str) (const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str)))
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
@@ -105,6 +106,29 @@ inline std::string ToStr(const RDS_STR &str)
 #else
     return str;
 #endif
+}
+
+inline RDS_STR TrimStr(RDS_STR &str) {
+    str = str.erase(str.find_last_not_of(TEXT(' ')) + 1);
+    str = str.erase(0, str.find_first_not_of(TEXT(' ')));
+    return str;
+}
+
+inline std::vector<RDS_STR> SplitStr(RDS_STR &str, RDS_STR &delimiter) {
+    RDS_REGEX pattern(delimiter);
+    RDS_MATCH match;
+    RDS_STR str_itr = str;
+    std::vector<RDS_STR> matches;
+    while (std::regex_search(str_itr, match, pattern)) {
+        matches.push_back(match.prefix().str());
+        str_itr = match.suffix().str();
+    }
+
+    if (matches.empty()) {
+        matches.push_back(str);
+    }
+
+    return matches;
 }
 
 #endif // RDS_STRINGS_H_

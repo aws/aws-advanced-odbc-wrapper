@@ -19,6 +19,7 @@
 #include "../util/connection_string_helper.h"
 #include "../util/logger_wrapper.h"
 #include "../util/rds_lib_loader.h"
+#include "../util/sql_query_analyzer.h"
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
@@ -132,6 +133,25 @@ SQLRETURN BasePlugin::Execute(
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
             stmt->wrapped_stmt, StatementText, TextLength
         );
+    }
+
+    // Supports checking for transaction changes only if it was a direct execute
+    if (SQL_SUCCEEDED(res.fn_result) && !query.empty()) {
+        if (SqlQueryAnalyzer::DoesOpenTransaction(query)) {
+            dbc->transaction_status = TRANSACTION_OPEN;
+        } else if (SqlQueryAnalyzer::DoesCloseTransaction(dbc, query)
+            || SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(dbc, query)
+        ) {
+            dbc->transaction_status = TRANSACTION_CLOSED;
+        }
+
+        if (SqlQueryAnalyzer::IsStatementSettingAutoCommit(query)) {
+            dbc->auto_commit = SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(query);
+            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+                dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) dbc->auto_commit, 0
+            );
+            dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair((SQLPOINTER) dbc->auto_commit, 0));
+        }
     }
 
     return res.fn_result;

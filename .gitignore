@@ -30,6 +30,8 @@
 *.exe
 *.out
 *.app
+*.msi
+*.*pdb*
 
 # VSC Settings
 .vscode/*

@@ -173,6 +173,9 @@ SQLRETURN RDS_SQLEndTran(
                     HandleType, env->wrapped_env, CompletionType
                 );
                 ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                if (SQL_SUCCEEDED(ret)) {
+                    dbc->transaction_status = TRANSACTION_CLOSED;
+                }
             }
             break;
         case SQL_HANDLE_ENV:
@@ -194,6 +197,9 @@ SQLRETURN RDS_SQLEndTran(
                         SQL_HANDLE_DBC, dbc->wrapped_dbc, CompletionType
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+                    if (SQL_SUCCEEDED(ret)) {
+                        dbc->transaction_status = TRANSACTION_CLOSED;
+                    }
                 }
             }
             break;
@@ -389,6 +395,10 @@ SQLRETURN RDS_SQLSetConnectAttr(
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
     }
     dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
+
+    if (SQL_ATTR_AUTOCOMMIT == Attribute) {
+        dbc->auto_commit = (SQLPOINTER) TRUE == ValuePtr;
+    }
 
     return ret;
 }

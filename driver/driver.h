@@ -54,6 +54,13 @@ typedef enum
     CONN_EXECUTING
 } CONN_STATUS;
 
+typedef enum
+{
+    TRANSACTION_CLOSED,
+    TRANSACTION_OPEN,
+    TRANSACTION_ERROR
+} TRANSACTION_STATUS;
+
 struct ERR_INFO;
 struct ENV;
 struct DBC;
@@ -83,6 +90,8 @@ struct DBC {
     std::list<DESC*>            desc_list;
     SQLHDBC                     wrapped_dbc;
     CONN_STATUS                 conn_status;
+    TRANSACTION_STATUS          transaction_status;
+    bool                        auto_commit = true; // By default, drivers will be in auto commit mode
 
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>

@@ -110,21 +110,18 @@ SQLRETURN FailoverPlugin::Execute(
     }
 
     bool failover_result = false;
+    TRANSACTION_STATUS original_transaction_status = dbc->transaction_status;
     if (failover_mode_ == STRICT_WRITER) {
         failover_result = FailoverWriter(dbc);
     } else {
         failover_result = FailoverReader(dbc);
     }
 
-    CLEAR_STMT_ERROR(StatementHandle);
     if (failover_result) {
-        // TODO - How to check transaction state?
-        //  ODBC does not provide any way to check this natively
-        //  May need to track ourselves?
         ERR_INFO* err_info;
-        if (false /* in transactions */) {
-            // TODO - Rollback?
-            err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+        if (TRANSACTION_OPEN == original_transaction_status) {
+            dbc->transaction_status = TRANSACTION_CLOSED;
+            stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
             err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         }
@@ -321,6 +318,16 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
 
 bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
 {
+    if (TRANSACTION_OPEN == dbc->transaction_status) {
+        // TODO - Need to revisit rolling back internally
+        //  Using psqlodbc's rollback causes issues with the underlying driver
+        //  where it would encounter a read access violation
+        //  potentially a order of operation issue
+        // Set transaction to closed internally
+        // we are cleaning up the underlying DBC
+        dbc->transaction_status = TRANSACTION_CLOSED;
+    }
+
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
