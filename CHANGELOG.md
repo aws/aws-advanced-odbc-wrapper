@@ -18,4 +18,4 @@ The Amazon Web Services (AWS) Advanced ODBC Wrapper allows an application to tak
 - Limitless Connection Plugin
 - Failover Connection Plugin
 
-[1.0.0]: https://github.com/olivierlacan/keep-a-changelog/releases/tag/v1.0.0
+[1.0.0]: https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/v1.0.0

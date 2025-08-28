@@ -43,7 +43,7 @@ jobs:
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -198,7 +198,7 @@ jobs:
   test-macos-compat:
     name: MacOS - Compatibility Test
     needs: [build-macos-psqlodbc]
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4

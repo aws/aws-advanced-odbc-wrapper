@@ -57,7 +57,7 @@ jobs:
 
   test-macos-unit:
     name: MacOS - Unit Test
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
