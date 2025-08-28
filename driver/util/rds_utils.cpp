@@ -16,6 +16,7 @@
 #include <windows.h>
 #endif
 
+#include <regex>
 #include <string>
 
 #include "rds_utils.h"

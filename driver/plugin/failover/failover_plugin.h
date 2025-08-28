@@ -42,7 +42,9 @@ public:
     FailoverPlugin() = default;
     FailoverPlugin(DBC* dbc);
     FailoverPlugin(DBC* dbc, BasePlugin* next_plugin);
-    FailoverPlugin(DBC* dbc, BasePlugin* next_plugin,
+    FailoverPlugin(
+        DBC* dbc,
+        BasePlugin* next_plugin,
         FailoverMode failover_mode, std::shared_ptr<Dialect> dialect,
         std::shared_ptr<HostSelector> host_selector,
         std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper,
@@ -85,6 +87,7 @@ private:
     std::chrono::milliseconds failover_timeout_ms_;
     std::string cluster_id_;
     std::shared_ptr<Dialect> dialect_;
+    HostSelectorStrategies host_selector_strategy_;
     std::shared_ptr<HostSelector> host_selector_;
     std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper_;
     std::shared_ptr<ClusterTopologyMonitor> topology_monitor_;

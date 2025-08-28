@@ -167,7 +167,9 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
     }
 
     std::unordered_map<std::string, std::string> properties;
-    RoundRobinHostSelector::SetRoundRobinWeight(reader_candidates, properties);
+    if (ROUND_ROBIN == host_selector_strategy_) {
+        RoundRobinHostSelector::SetRoundRobinWeight(reader_candidates, properties);
+    }
 
     std::string host_string;
     bool is_original_writer_still_writer = false;
@@ -357,17 +359,16 @@ std::shared_ptr<Dialect> FailoverPlugin::InitDialect(std::map<RDS_STR, RDS_STR> 
             return std::make_shared<Dialect>();
             break;
     }
-
 }
 
 std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> conn_info)
 {
-    HostSelectorStrategies selector_strategy = RANDOM_HOST;
+    host_selector_strategy_ = RANDOM_HOST;
     if (conn_info.contains(KEY_HOST_SELECTOR_STRATEGY)) {
-        selector_strategy = HostSelector::GetHostSelectorStrategy(conn_info.at(KEY_HOST_SELECTOR_STRATEGY));
+        host_selector_strategy_ = HostSelector::GetHostSelectorStrategy(conn_info.at(KEY_HOST_SELECTOR_STRATEGY));
     }
 
-    switch (selector_strategy) {
+    switch (host_selector_strategy_) {
         case ROUND_ROBIN:
             return std::make_shared<RoundRobinHostSelector>();
         case HIGHEST_WEIGHT:
