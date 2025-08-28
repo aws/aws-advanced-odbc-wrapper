@@ -388,6 +388,7 @@ SQLRETURN RDS_GetConnectAttr(
     }
     // Otherwise get from the DBC's attribute map
     else if (dbc->attr_map.contains(Attribute)) {
+        ret = SQL_SUCCESS;
         std::pair<SQLPOINTER, SQLINTEGER> value_pair = dbc->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
             *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLSMALLINT>(reinterpret_cast<intptr_t>(value_pair.first));
@@ -399,7 +400,6 @@ SQLRETURN RDS_GetConnectAttr(
                 ret = SQL_SUCCESS_WITH_INFO;
             }
         }
-        ret = SQL_SUCCESS;
     }
     return ret;
 }

@@ -15,7 +15,7 @@
 #ifndef RDS_UTILS_H_
 #define RDS_UTILS_H_
 
-#include <regex>
+#include <string>
 
 class RdsUtils {
 public:
