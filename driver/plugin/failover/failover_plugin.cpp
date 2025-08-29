@@ -96,6 +96,19 @@ SQLRETURN FailoverPlugin::Execute(
         return ret;
     }
 
+    // Invalidate statements, but don't fully clean up
+    for (STMT* stmt : dbc->stmt_list) {
+        stmt->wrapped_stmt = nullptr;
+        delete stmt->err;
+        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);;
+    }
+    // and descriptors
+    for (DESC* desc : dbc->desc_list) {
+        desc->wrapped_desc = nullptr;
+        delete desc->err;
+        desc->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+    }
+
     bool failover_result = false;
     if (failover_mode_ == STRICT_WRITER) {
         failover_result = FailoverWriter(dbc);
@@ -108,14 +121,23 @@ SQLRETURN FailoverPlugin::Execute(
         // TODO - How to check transaction state?
         //  ODBC does not provide any way to check this natively
         //  May need to track ourselves?
+        ERR_INFO* err_info;
         if (false /* in transactions */) {
             // TODO - Rollback?
-            stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+            err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
-            stmt->err = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
+            err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         }
-    } else {
-        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+        // Set failover error messages for all related statements
+        for (STMT* stmt : dbc->stmt_list) {
+            delete stmt->err;
+            stmt->err = new ERR_INFO(*err_info);
+        }
+        // and descriptors
+        for (DESC* desc : dbc->desc_list) {
+            delete desc->err;
+            stmt->err = new ERR_INFO(*err_info);
+        }
     }
 
     return ret;
@@ -137,10 +159,7 @@ void FailoverPlugin::RemoveHostCandidate(const std::string &host, std::vector<Ho
 
 bool FailoverPlugin::FailoverReader(DBC *dbc)
 {
-    auto get_current = [] {
-        return std::chrono::steady_clock::time_point(std::chrono::high_resolution_clock::now().time_since_epoch());
-    };
-    auto curr_time = get_current();
+    auto curr_time = std::chrono::steady_clock::now();
     auto end = curr_time + failover_timeout_ms_;
 
     LOG(INFO) << "Starting reader failover procedure.";
@@ -175,7 +194,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
     bool is_original_writer_still_writer = false;
     do {
         std::vector<HostInfo> remaining_readers(reader_candidates);
-        while (!remaining_readers.empty() && (curr_time = get_current()) < end) {
+        while (!remaining_readers.empty() && (curr_time = std::chrono::steady_clock::now()) < end) {
             LOG(INFO) << "Failover for ClusterId: " << cluster_id_ << ". Remaining Hosts: " << remaining_readers.size();
             HostInfo host;
             try {
@@ -193,9 +212,8 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
                 continue;
             }
 
-            bool is_reader = false;
             if (!topology_query_helper_->GetNodeId(dbc).empty()) {
-                is_reader = topology_query_helper_->GetWriterId(dbc).empty();
+                bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "[Failover Service] connected to a new reader for: " << host_string;
                     curr_host_ = host;
@@ -209,7 +227,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
             );
             LOG(INFO) << "[Failover Service] Cleaned up first connection, required a strict reader: " << host_string << ", " << dbc;
 
-            if (!is_reader) {
+            if (host.IsHostWriter()) {
                 // The reader candidate is actually a writer, which is not valid when failoverMode is STRICT_READER.
                 // We will remove it from the list of reader candidates to avoid retrying it in future iterations.
                 RemoveHostCandidate(host_string, reader_candidates);
@@ -218,7 +236,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
 
         // We were not able to connect to any of the original readers. We will try connecting to the original writer,
         // which may have been demoted to a reader.
-        if (get_current() > end) {
+        if (std::chrono::steady_clock::now() > end) {
             // Timed out.
             continue;
         }
@@ -238,16 +256,21 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
                 );
                 continue;
             }
-            if (topology_query_helper_->GetWriterId(dbc).empty() || failover_mode_ != STRICT_READER) {
-                LOG(INFO) << "[Failover Service] reader failover connected to writer instance for: " << host_string;
-                curr_host_ = original_writer;
-                return true;
+            if (!topology_query_helper_->GetWriterId(dbc).empty()) {
+                is_original_writer_still_writer = true;
+                if (STRICT_READER == this->failover_mode_) {
+                    LOG(INFO) << "[Failover Service] Strict Reader Mode, not connected to a reader: " << host_string;
+                    continue;
+                }
             }
+            LOG(INFO) << "[Failover Service] reader failover connected to writer instance for: " << host_string;
+            curr_host_ = original_writer;
+            return true;
         } else {
             LOG(INFO) << "[Failover Service] Failed to connect to host: " << original_writer;
         }
 
-    } while (get_current() < end);
+    } while (std::chrono::steady_clock::now() < end);
 
     // Timed out.
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
@@ -301,19 +324,6 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
-    // Invalidate statements, but don't fully clean up
-    for (STMT* stmt : dbc->stmt_list) {
-        stmt->wrapped_stmt = nullptr;
-        if (stmt->err) delete stmt->err;
-        stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
-    }
-    // and descriptors
-    for (DESC* desc : dbc->desc_list) {
-        desc->wrapped_desc = nullptr;
-        if (desc->err) delete desc->err;
-        desc->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
-    }
-
     LOG(INFO) << "Attempting to connect to host: " << host_string;
     dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_string));
 

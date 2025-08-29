@@ -109,7 +109,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     if (request_outcome.IsSuccess()) {
         Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
-            if (dbc->err) delete dbc->err;
+            delete dbc->err;
             dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
@@ -122,7 +122,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(secret.password));
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     } else {
-        if (dbc->err) delete dbc->err;
+        delete dbc->err;
         dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }

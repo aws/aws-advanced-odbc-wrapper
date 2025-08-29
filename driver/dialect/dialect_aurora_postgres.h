@@ -36,6 +36,7 @@ public:
         }
         return false;
     };
+
     bool IsSqlStateNetworkError(RDS_CHAR* sql_state) override {
         RDS_STR state(sql_state);
         for (RDS_STR prefix : NETWORK_ERRORS) {

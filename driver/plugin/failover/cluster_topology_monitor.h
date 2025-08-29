@@ -102,6 +102,7 @@ private:
     std::chrono::milliseconds high_refresh_rate_ms_ = std::chrono::milliseconds(100);
     const std::chrono::seconds high_refresh_rate_after_panic_ = std::chrono::seconds(30);
     std::chrono::milliseconds refresh_rate_ms_ = std::chrono::seconds(30);
+    std::chrono::steady_clock::time_point epoch_ = std::chrono::steady_clock::time_point{};
 
     // Main Thread
     std::shared_ptr<std::thread> monitoring_thread_;
