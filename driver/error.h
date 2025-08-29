@@ -228,8 +228,8 @@ struct ERR_INFO {
     }
 
     ~ERR_INFO() {
-        if (error_msg) delete error_msg;
-        if (sqlstate) delete sqlstate;
+        delete error_msg;
+        delete sqlstate;
     }
 
     bool IsOdbc3Subclass(std::string str_sql_state) {

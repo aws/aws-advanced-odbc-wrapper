@@ -44,28 +44,28 @@ SQLRETURN RDS_ProcessLibRes(
             case SQL_HANDLE_ENV:
                 {
                     ENV *env = (ENV*) InputHandle;
-                    if (env->err) delete env->err;
+                    delete env->err;
                     env->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_DBC:
                 {
                     DBC *dbc = (DBC*) InputHandle;
-                    if (dbc->err) delete dbc->err;
+                    delete dbc->err;
                     dbc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_STMT:
                 {
                     STMT *stmt = (STMT*) InputHandle;
-                    if (stmt->err) delete stmt->err;
+                    delete stmt->err;
                     stmt->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_DESC:
                 {
                     DESC *desc = (DESC*) InputHandle;
-                    if (desc->err) delete desc->err;
+                    delete desc->err;
                     desc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
@@ -271,9 +271,8 @@ SQLRETURN RDS_FreeConnect(
         dbc->wrapped_dbc = nullptr;
     }
 
-    if (dbc->plugin_head) delete dbc->plugin_head;
-    if (dbc->err) delete dbc->err;
-
+    delete dbc->plugin_head;
+    delete dbc->err;
     delete dbc;
     return SQL_SUCCESS;
 }
@@ -298,8 +297,7 @@ SQLRETURN RDS_FreeDesc(
         desc->wrapped_desc = nullptr;
     }
 
-    if (desc->err) delete desc->err;
-
+    delete desc->err;
     delete desc;
     return SQL_SUCCESS;
 }
@@ -329,11 +327,9 @@ SQLRETURN RDS_FreeEnv(
         env->driver_lib_loader.reset();
     }
 
-    if (env->err) delete env->err;
-
-    LoggerWrapper::Shutdown();
-
+    delete env->err;
     delete env;
+    LoggerWrapper::Shutdown();
     return SQL_SUCCESS;
 }
 
@@ -357,7 +353,7 @@ SQLRETURN RDS_FreeStmt(
         stmt->wrapped_stmt = nullptr;
     }
 
-    if (stmt->err) delete stmt->err;
+    delete stmt->err;
 
     delete stmt;
     return SQL_SUCCESS;
