@@ -81,7 +81,14 @@ cmake --build build
 
 ## Build and Run Tests
 There are multiple types of test, each type will be in its own folder under `test`.
-This will go over how to build compatibility tests, in particular, how to test against PostgreSQL.
+
+The unit tests is built along side the driver by passing in the CMake flag `-DUNITTEST` and can be ran manually from the build folder
+e.g.
+Note: Windows will build binaries into a subfolder of the build config while Unix does not.
+```
+./build_folder/test/unit_test/<Release/Debug/nil>/unit-test
+```
+The following will go over how to build compatibility tests, in particular, how to test against PostgreSQL.
 
 ### Building
 ```
