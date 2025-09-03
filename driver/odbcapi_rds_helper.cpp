@@ -173,9 +173,6 @@ SQLRETURN RDS_SQLEndTran(
                     HandleType, env->wrapped_env, CompletionType
                 );
                 ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-                if (SQL_SUCCEEDED(ret)) {
-                    dbc->transaction_status = TRANSACTION_CLOSED;
-                }
             }
             break;
         case SQL_HANDLE_ENV:
@@ -197,9 +194,6 @@ SQLRETURN RDS_SQLEndTran(
                         SQL_HANDLE_DBC, dbc->wrapped_dbc, CompletionType
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
-                    if (SQL_SUCCEEDED(ret)) {
-                        dbc->transaction_status = TRANSACTION_CLOSED;
-                    }
                 }
             }
             break;
@@ -207,6 +201,10 @@ SQLRETURN RDS_SQLEndTran(
             // TODO - Set error
             ret = SQL_ERROR;
             break;
+    }
+
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->transaction_status = TRANSACTION_CLOSED;
     }
     return ret;
 }

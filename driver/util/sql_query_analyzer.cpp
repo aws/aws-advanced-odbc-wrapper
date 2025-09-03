@@ -101,7 +101,7 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &stateme
     if (std::string::npos != separator_index) {
         value_index = separator_index + 1;
     } else {
-        separator_index = first_statement.find(TEXT(" = "));
+        separator_index = first_statement.find(TEXT(" TO "));
         if (std::string::npos == separator_index) {
             return false;
         }
