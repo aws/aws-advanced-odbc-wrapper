@@ -2,14 +2,14 @@
 The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL ODBC Wrapper, psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) are supported.
 
 ## Using the AWS ODBC Wrapper with plain RDS databases
-It is possible to use the AWS ODBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling are not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled when specifying the DSN or connection string. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
+It is possible to use the AWS ODBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling is not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled when specifying the DSN or connection string. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
 
-## ODBC Compliant
+## ODBC Compliance
 The AWS ODBC Wrapper is compliant with the Microsoft ODBC 3.8 specification, ensuring compatibility with existing applications. Internally, the ODBC Wrapper will compute any plugin functionality before loading and passing the actual calls to an underlying driver.
 
 ## Logging
 
-Logs are generated for the AWS ODBC Wrapper as well as the underlying driver. Logs for the AWS ODBC Wrapper are saved in the user's temp directory under the folder `aws-odbc-wrapper`, at the moment. For configuring the underlying ODBC driver, please refer to the individual driver's documentation for driver-specific information.
+Logs are generated for the AWS ODBC Wrapper as well as the underlying driver. Logs for the AWS ODBC Wrapper are saved in the user's `temp` directory under the folder `aws-odbc-wrapper`. For configuring the underlying ODBC driver, please refer to the individual driver's documentation.
 
 ## AWS Advanced ODBC Wrapper Parameters
 These parameters are applicable to any instance of the AWS ODBC Wrapper.
