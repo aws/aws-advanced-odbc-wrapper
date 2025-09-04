@@ -1,5 +1,5 @@
 # Using the AWS Advanced ODBC Wrapper
-The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL ODBC Wrapper, psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) are supported.
+The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL ODBC Wrapper, psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) is supported.
 
 ## Using the AWS Advanced ODBC Wrapper with plain RDS databases
 It is possible to use the AWS Advanced ODBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling is not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled when specifying the DSN or connection string. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).

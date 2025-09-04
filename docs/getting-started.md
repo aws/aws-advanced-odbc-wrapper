@@ -10,7 +10,7 @@ Before using the AWS Advanced ODBC Wrapper, you must install:
 
 ## Obtaining the AWS Advanced ODBC Wrapper
 
-You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-odbc-wrapper/releases)
+You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-odbc-wrapper/releases).
 
 ## Installation
 
@@ -29,7 +29,7 @@ To uninstall the AWS Advanced ODBC Wrapper, open the same installer file, select
 
 Download the releases `aws-advanced-odbc-wrapper-<Version>-macos-arm64.zip` and extract the artifacts to a location of your choice.
 
-Once extracted, can optionally perform a checksum to ensure match from GitHub build by running
+Once extracted, you can optionally perform a checksum to ensure match from GitHub build by running
 ```
 shasum -a 256 aws-advanced-odbc-wrapper-a.dylib
 shasum -a 256 aws-advanced-odbc-wrapper-w.dylib
@@ -39,7 +39,7 @@ shasum -a 256 aws-advanced-odbc-wrapper-w.dylib
 
 Download the releases `aws-advanced-odbc-wrapper-<Version>-linux-x64.tar.gz` and extract the artifacts to a location of your choice.
 
-Once extracted, can optionally perform a checksum to ensure match from GitHub build by running
+Once extracted, you can optionally perform a checksum to ensure match from GitHub build by running
 ```
 sha256sum aws-advanced-odbc-wrapper-a.so
 sha256sum aws-advanced-odbc-wrapper-w.so
