@@ -1,7 +1,7 @@
-# Build and Test AWS ODBC Wrapper
+# Build and Test AWS Advanced ODBC Wrapper
 
 ## Table of Contents
-- [Build and Test AWS ODBC Wrapper](#build-and-test-aws-odbc-wrapper)
+- [Build and Test AWS Advanced ODBC Wrapper](#build-and-test-aws-odbc-wrapper)
   - [Table of Contents](#table-of-contents)
   - [Building the Wrapper](#building-the-wrapper)
     - [Wrapper CMake Parameters](#wrapper-cmake-parameters)
@@ -98,7 +98,7 @@ cmake -S test/compatibility -B test_compatibility \
     -DTEST_SERVER="<Test Database Host>" \
     -DTEST_PORT="<Test Database Port>" \
     -DTEST_DATABASE="<Test Database>" \
-    -DTEST_DRIVER_PATH="<Path to AWS ODBC Wrapper>" \
+    -DTEST_DRIVER_PATH="<Path to AWS Advanced ODBC Wrapper>" \
     -DBASE_PG_DRIVER_PATH="<Path to PostgreSQL Driver>"
 
 cmake --build test_compatibility

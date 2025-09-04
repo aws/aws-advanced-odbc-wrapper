@@ -1,12 +1,12 @@
-## Amazon Web Services (AWS) ODBC Wrapper
+## Amazon Web Services (AWS) Advanced ODBC Wrapper
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-The Amazon Web Services (AWS) ODBC Wrapper is complementary to existing ODBC drivers and aims to extend the functionality of the driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS ODBC Wrapper does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying ODBC driver of the user's choice. This approach enables service-specific enhancements, without requiring users to change their workflow and existing ODBC driver tooling.
+The Amazon Web Services (AWS) Advanced ODBC Wrapper is complementary to existing ODBC drivers and aims to extend the functionality of the driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS Advanced ODBC Wrapper does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying ODBC driver of the user's choice. This approach enables service-specific enhancements, without requiring users to change their workflow and existing ODBC driver tooling.
 
-The AWS ODBC Wrapper is targeted to work with any existing ODBC driver. Currently, the AWS ODBC Driver has been validated to support [psqlodbc, a PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc).
+The AWS Advanced ODBC Wrapper is targeted to work with any existing ODBC driver. Currently, the AWS Advanced ODBC Wrapper has been validated to support [psqlodbc, a PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc).
 
-## Benefits of the AWS ODBC Wrapper for All Aurora and RDS Database Services
+## Benefits of the AWS Advanced ODBC Wrapper for All Aurora and RDS Database Services
 
 ### Seamless AWS Authentication Service Integration
 
@@ -20,7 +20,7 @@ The wrapper design allows developers to continue using their preferred ODBC driv
 
 The plugin-based design ensures applications only load the functionality they need, reducing dependencies and overhead.
 
-### Benefits of the AWS ODBC Wrapper for Aurora PostgreSQL
+### Benefits of the AWS Advanced ODBC Wrapper for Aurora PostgreSQL
 
 #### Faster Failover and Reduced Downtime
 
@@ -28,14 +28,14 @@ For Aurora PostgreSQL, the driver significantly reduces connection recovery time
 
 ## Getting Started
 
-For more information on how to download the AWS ODBC Wrapper, minimum requirements to use it, and how to integrate it within your project and with your ODBC driver of choice, please visit the [Getting Started page](./docs/getting-started.md).
+For more information on how to download the AWS Advanced ODBC Wrapper, minimum requirements to use it, and how to integrate it within your project and with your ODBC driver of choice, please visit the [Getting Started page](./docs/getting-started.md).
 
 ## Documentation
 
-Technical documentation regarding the functionality of the AWS ODBC Wrapper will be maintained in this GitHub repository. Since the AWS ODBC Wrapper requires an underlying ODBC driver, please refer to the individual driver's documentation for driver-specific information.
+Technical documentation regarding the functionality of the AWS Advanced ODBC Wrapper will be maintained in this GitHub repository. Since the AWS Advanced ODBC Wrapper requires an underlying ODBC driver, please refer to the individual driver's documentation for driver-specific information.
 
-### Using the AWS ODBC Wrapper
-To find all the documentation and concrete examples on how to use the AWS ODBC Wrapper, please refer to the [AWS ODBC Wrapper Documentation page](./docs/table-of-contents.md).
+### Using the AWS Advanced ODBC Wrapper
+To find all the documentation and concrete examples on how to use the AWS Advanced ODBC Wrapper, please refer to the [AWS Advanced ODBC Wrapper Documentation page](./docs/table-of-contents.md).
 
 ### Known Limitations
 
@@ -44,7 +44,7 @@ AWS Authentication requires the proper region to be set to generate a proper cre
 
 ## Getting Help & Opening Issues
 
-If you encounter a bug with the AWS ODBC Wrapper, we would like to hear about it. Please search the [existing issues](https://github.com/aws/aws-advanced-odbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.
+If you encounter a bug with the AWS Advanced ODBC Wrapper, we would like to hear about it. Please search the [existing issues](https://github.com/aws/aws-advanced-odbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.
 
 When opening a new issue, please fill in all required fields in the issue template to help expedite the investigation process.
 

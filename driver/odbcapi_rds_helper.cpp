@@ -1248,7 +1248,7 @@ SQLRETURN RDS_SQLGetInfo(
             break;
         // TODO - Add other cases as needed
         default:
-            LOG(ERROR) << "[" << InfoType << "] not implemented for AWS ODBC Wrapper's SQLGetInfo";
+            LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
             std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);

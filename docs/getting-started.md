@@ -8,7 +8,7 @@ Before using the AWS Advanced ODBC Wrapper, you must install:
 - and an underlying ODBC Driver of your choice
   - To use the wrapper with Aurora with PostgreSQL compatibility, install the [psqlodbc PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc).
 
-## Obtaining the AWS ODBC Wrapper
+## Obtaining the AWS Advanced ODBC Wrapper
 
 You can use pre-compiled packages that can be downloaded directly from [GitHub Releases](https://github.com/aws/aws-advanced-odbc-wrapper/releases)
 
@@ -16,16 +16,16 @@ You can use pre-compiled packages that can be downloaded directly from [GitHub R
 
 ### Windows
 
-Download the `.msi` Windows installer for your system; execute the installer and follow the onscreen instructions. The default target installation location for the driver files is `C:\Program Files\AWS Advanced ODBC Wrapper`.
-Two drivers will be installed:
+Download the `.msi` Windows installer for your system; execute the installer and follow the onscreen instructions. The default target installation location for the wrapper files is `C:\Program Files\AWS Advanced ODBC Wrapper`.
+Two wrappers will be installed:
 - AWS Advanced ODBC Wrapper Ansi
 - AWS Advanced ODBC Wrapper Unicode
 
-To uninstall the ODBC driver, open the same installer file, select the option to uninstall the driver and follow the onscreen instructions to successfully uninstall the driver.
+To uninstall the AWS Advanced ODBC Wrapper, open the same installer file, select the option to uninstall the wrapper and follow the onscreen instructions to successfully uninstall the wrapper.
 
 ### MacOS
 > [!WARNING]\
-> This driver currently only supports MacOS with Silicon chips.
+> This wrapper currently only supports MacOS with Silicon chips.
 
 Download the releases `aws-advanced-odbc-wrapper-<Version>-macos-arm64.zip` and extract the artifacts to a location of your choice.
 
@@ -85,4 +85,4 @@ Driver = aws-advanced-odbc-wrapper-w.dylib # or `aws-advanced-odbc-wrapper-w.so`
 
 ### Using the Wrapper
 
-For more information on how to use and configure, visit [Using the AWS ODBC Wrapper page](./using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md)
+For more information on how to use and configure, visit [Using the AWS Advanced ODBC Wrapper page](./using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md)

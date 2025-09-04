@@ -1,18 +1,18 @@
 # Using the AWS Advanced ODBC Wrapper
 The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL ODBC Wrapper, psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) are supported.
 
-## Using the AWS ODBC Wrapper with plain RDS databases
-It is possible to use the AWS ODBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling is not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled when specifying the DSN or connection string. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
+## Using the AWS Advanced ODBC Wrapper with plain RDS databases
+It is possible to use the AWS Advanced ODBC Wrapper with plain RDS databases, but individual features may or may not be compatible. For example, failover handling is not compatible with plain RDS databases and the relevant plugins must be disabled. Plugins can be enabled or disabled when specifying the DSN or connection string. Plugin compatibility can be verified in the [plugins table](#list-of-available-plugins).
 
 ## ODBC Compliance
-The AWS ODBC Wrapper is compliant with the Microsoft ODBC 3.8 specification, ensuring compatibility with existing applications. Internally, the ODBC Wrapper will compute any plugin functionality before loading and passing the actual calls to an underlying driver.
+The AWS Advanced ODBC Wrapper is compliant with the Microsoft ODBC 3.8 specification, ensuring compatibility with existing applications. Internally, the ODBC Wrapper will compute any plugin functionality before loading and passing the actual calls to an underlying driver.
 
 ## Logging
 
-Logs are generated for the AWS ODBC Wrapper as well as the underlying driver. Logs for the AWS ODBC Wrapper are saved in the user's `temp` directory under the folder `aws-odbc-wrapper`. For configuring the underlying ODBC driver, please refer to the individual driver's documentation.
+Logs are generated for the AWS Advanced ODBC Wrapper as well as the underlying driver. Logs for the AWS Advanced ODBC Wrapper are saved in the user's `temp` directory under the folder `aws-odbc-wrapper`. For configuring the underlying ODBC driver, please refer to the individual driver's documentation.
 
 ## AWS Advanced ODBC Wrapper Parameters
-These parameters are applicable to any instance of the AWS ODBC Wrapper.
+These parameters are applicable to any instance of the AWS Advanced ODBC Wrapper.
 
 | Parameter | Type  | Required | Description | Default Value |
 |-----------|-------|----------|-------------|---------------|
@@ -26,10 +26,10 @@ These parameters are applicable to any instance of the AWS ODBC Wrapper.
 | `nil` | `String` | No | For additional settings to the underlying driver, the connection string can be used for the specific underlying driver's options too. | `nil` |
 
 ## Plugins
-The AWS ODBC Wrapper uses plugins to execute ODBC methods. You can think of a plugin as an extensible code module that adds extra logic around any ODBC method calls. The AWS ODBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use.
+The AWS Advanced ODBC Wrapper uses plugins to execute ODBC methods. You can think of a plugin as an extensible code module that adds extra logic around any ODBC method calls. The AWS Advanced ODBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use.
 
 ### List of Available Plugins
-The AWS ODBC Wrapper has several built-in plugins that are available to use. Please visit the individual plugin page for more details.
+The AWS Advanced ODBC Wrapper has several built-in plugins that are available to use. Please visit the individual plugin page for more details.
 
 | Plugin Name | Database Compatibility | Description |
 |-------------|----------|-------------|
