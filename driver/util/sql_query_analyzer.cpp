@@ -115,12 +115,7 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &stateme
     }
 
     first_statement = TrimStr(first_statement);
-    if (std::string::npos != first_statement.find(TEXT("FALSE"))
-        || std::string::npos != first_statement.find(TEXT("0"))
-        || std::string::npos != first_statement.find(TEXT("OFF"))
-    ) {
-        return false;
-    } else if (std::string::npos != first_statement.find(TEXT("TRUE"))
+    if (std::string::npos != first_statement.find(TEXT("TRUE"))
         || std::string::npos != first_statement.find(TEXT("1"))
         || std::string::npos != first_statement.find(TEXT("ON"))
     ) {
