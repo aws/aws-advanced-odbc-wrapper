@@ -1,17 +1,17 @@
-## Failover Support for the AWS ODBC Wrapper
+## Failover Plugin for the AWS Advanced ODBC Wrapper
 
 ### Failover Process
 
-In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Aurora automatically repairs the DB cluster status when a primary DB instance becomes unavailable. It achieves this goal by electing an Aurora Replica to become the new primary DB instance, so that the DB cluster can provide maximum availability to a primary read-write DB instance. The AWS ODBC Wrapper implements failover support to coordinate with this behavior to provide minimal downtime in the event of a DB instance failure.
+In an Amazon Aurora database (DB) cluster, failover is a mechanism by which Aurora automatically repairs the DB cluster status when a primary DB instance becomes unavailable. It achieves this goal by electing an Aurora Replica to become the new primary DB instance, so that the DB cluster can provide maximum availability to a primary read-write DB instance. The AWS Advanced ODBC Wrapper implements failover support to coordinate with this behavior to provide minimal downtime in the event of a DB instance failure.
 To learn more about Aurora cluster's failover feature see the [Amazon RDS documentation](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html#Aurora.Managing.FaultTolerance).
 
 ![failover_diagram](../../images/failover_diagram.png)
 
-The figure above provides a simplified overview of how the AWS ODBC Wrapper handles an Aurora failover encounter. Starting at the top of the diagram, an application using the driver sends a request to get a logical connection to an Aurora database.
+The figure above provides a simplified overview of how the AWS Advanced ODBC Wrapper handles an Aurora failover encounter. Starting at the top of the diagram, an application using the driver sends a request to get a logical connection to an Aurora database.
 
 In this example, the application requests a connection using the Aurora DB cluster endpoint and is returned a logical connection that is physically connected to the primary DB instance in the DB cluster, DB instance C. By design, details about which specific DB instance the physical connection is connected to have been abstracted away.
 
-Over the course of the application's lifetime, it executes various statements against the logical connection. If DB instance C is stable and active, these statements succeed and the application continues as normal. If DB instance C experiences a failure, Aurora will initiate failover to promote a new primary DB instance. At the same time, the AWS ODBC Wrapper will intercept the related communication exception and kick off its own internal failover process.
+Over the course of the application's lifetime, it executes various statements against the logical connection. If DB instance C is stable and active, these statements succeed and the application continues as normal. If DB instance C experiences a failure, Aurora will initiate failover to promote a new primary DB instance. At the same time, the AWS Advanced ODBC Wrapper will intercept the related communication exception and kick off its own internal failover process.
 
 If the primary DB instance has failed, the driver will use its internal topology cache to temporarily connect to an active Aurora Replica. This Aurora Replica will be periodically queried for the DB cluster topology until the new primary DB instance is identified (DB instance A or B in this case).
 
@@ -21,7 +21,7 @@ At this point, the driver will connect to the new primary DB instance and return
 
 | Field | Connection Option Key | Value | Default Value | Sample Value |
 |-------|-----------------------|-------|---------------|--------------|
-| Enable Cluster Failover | `ENABLE_CLUSTER_FAILOVER` | Set to `1` to enable the fast failover behaviour offered by the AWS ODBC Wrapper. | `0` | `1` |
+| Enable Cluster Failover | `ENABLE_CLUSTER_FAILOVER` | Set to `1` to enable the fast failover behaviour offered by the AWS Advanced ODBC Wrapper. | `0` | `1` |
 | Failover Mode | `FAILOVER_MODE` | Defines a mode for failover process. Failover process may prioritize nodes with different roles and connect to them. Possible values: <br><br>- `STRICT_WRITER` - Failover process tries to detect the new writer when it changes. If it cannot detect this writer within the set `FAILOVER_TIMEOUT_MS` value, the driver raises an error.<br>- `READER_OR_WRITER` - During failover, the driver tries to connect to any available/accessible reader node. If no reader is available, the driver will connect to a writer node. This logic mimics the logic of the Aurora read-only cluster endpoint.<br>- `STRICT_READER` - During failover, the driver tries to connect to any available reader node. If no reader is available, the driver raises an error. Reader failover to a writer node will only be allowed for single-node clusters. This logic mimics the logic of the Aurora read-only cluster endpoint. | Default value depends on connection url. For Aurora read-only cluster endpoint, it's set to `READER_OR_WRITER`. Otherwise, it's `STRICT_WRITER`. | `STRICT_READER` |
 | Host Pattern | `HOST_PATTERN` | This parameter is not required unless connecting to an AWS RDS cluster via an IP address or custom domain URL. In those cases, this parameter specifies the cluster instance DNS pattern that will be used to build a complete instance endpoint. A "?" character in this pattern should be used as a placeholder for the DB instance identifiers of the instances in the cluster.  <br/><br/>Example: `?.my-domain.com`, `any-subdomain.?.my-domain.com:9999`<br/><br/>Usecase Example: If your cluster instance endpoint follows this pattern:`instanceIdentifier1.customHost`, `instanceIdentifier2.customHost`, etc. and you want your initial connection to be to `customHost:1234`, then your connection string should look like this: `SERVER=customHost;PORT=1234;DATABASE=test;HOST_PATTERN=?.customHost` <br><br/> If the provided connection string is not an IP address or custom domain, the driver will automatically acquire the cluster instance host pattern from the customer-provided connection string. |  nil | `?.my-domain.com` |
 | Cluster Identifier | `CLUSTER_ID` | A unique identifier for the cluster. Connections with the same cluster ID share a cluster topology cache. This connection parameter is not required and thus should only be set if desired. | The cluster | `my-cluster-id` |
@@ -58,7 +58,7 @@ The original connection failed while the driver was in a transaction. Please res
 
 ### Failover Usage Advisories
 > [!WARNING]\
-> We don't recommend enabling both the Failover and Limitless Connection feature at the same time.
+> We don't recommend enabling both the Failover and Limitless Plugin at the same time.
 > While it won't result in issues, the Failover feature was not designed to be used with Aurora Limitless Database.
 > Enabling both features will introduce unnecessary computation and memory overhead with no added benefits.
 

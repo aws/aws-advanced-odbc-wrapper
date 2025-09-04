@@ -1,4 +1,4 @@
-## IAM Authentication
+## IAM Authentication Plugin for the AWS Advanced ODBC Wrapper
 
 ### What is IAM?
 AWS Identity and Access Management (IAM) grants users access control across all Amazon Web Services. IAM supports granular permissions, giving you the ability to grant different permissions to different users. For more information on IAM and its use cases, please refer to the [IAM documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html).

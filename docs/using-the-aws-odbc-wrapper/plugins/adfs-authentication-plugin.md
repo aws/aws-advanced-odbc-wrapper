@@ -1,4 +1,4 @@
-## ADFS Authentication
+## ADFS Authentication Plugin for the AWS Advanced ODBC Wrapper
 The driver supports authentication via [Microsoft's Active Directory Federation Services (ADFS)](https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/ad-fs-overview) federated identity and then database access via IAM.
 
 ### What is Federated Identity

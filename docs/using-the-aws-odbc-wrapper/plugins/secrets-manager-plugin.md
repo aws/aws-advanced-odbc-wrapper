@@ -1,4 +1,4 @@
-## Secrets Manager Authentication
+## Secrets Manager Authentication Plugin for the AWS Advanced ODBC Wrapper
 
 ### What is Secrets Manager?
 AWS Secrets Manager helps manage, retrieve, and rotate database credentials. Secrets Manager can also further grant granulated access through [AWS Identity and Access Management (IAM)](https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html).
