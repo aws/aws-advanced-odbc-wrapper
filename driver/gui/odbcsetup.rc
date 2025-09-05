@@ -1,0 +1,312 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "winres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""winres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,0
+ PRODUCTVERSION 1,0,0,0
+ FILEFLAGSMASK 0x3L
+#ifdef _DEBUG
+ FILEFLAGS 0x9L
+#else
+ FILEFLAGS 0x8L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x2L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041104e4"
+        BEGIN
+            VALUE "Comments", "AWS Advanced ODBC Wrapper"
+            VALUE "CompanyName", "Amazon.com Inc. or affiliates."
+            VALUE "FileDescription", "AWS Advanced ODBC Wrapper"
+            VALUE "FileVersion", "1.0.0.0"
+            VALUE "InternalName", "aws-advanced-odbc-wrapper-a"
+            VALUE "LegalCopyright", "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
+            VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
+            VALUE "OriginalFilename", "aws-advanced-odbc-wrapper-a.dll"
+            VALUE "ProductName", "AWS Advanced ODBC Wrapper"
+            VALUE "ProductVersion", "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x411, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG_MAIN DIALOGEX 0, 0, 694, 261
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_CONTROLPARENT
+CAPTION "AWS Advanced ODBC Wrapper Data Source Configuration"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    LTEXT           "Data Source Name:",IDC_STATIC,17,19,65,8
+    EDITTEXT        IDC_DSN_NAME,17,27,301,14,ES_AUTOHSCROLL
+    LTEXT           "Description:",IDC_STATIC,17,44,40,8
+    EDITTEXT        IDC_DESC,17,53,301,14,ES_AUTOHSCROLL
+    LTEXT           "Server:",IDC_STATIC,17,69,26,8
+    EDITTEXT        IDC_SERVER,17,77,301,14,ES_AUTOHSCROLL
+    LTEXT           "Username:",IDC_STATIC,17,94,37,8
+    EDITTEXT        IDC_UID,17,102,143,14,ES_AUTOHSCROLL
+    LTEXT           "Password:",IDC_STATIC,17,118,35,8
+    EDITTEXT        IDC_PWD,17,127,143,14,ES_PASSWORD | ES_AUTOHSCROLL
+    LTEXT           "Port:",IDC_STATIC,170,93,17,8
+    EDITTEXT        IDC_PORT,170,102,148,14,ES_AUTOHSCROLL
+    LTEXT           "Database:",IDC_STATIC,170,118,34,8
+    EDITTEXT        IDC_DB,170,127,148,14,ES_AUTOHSCROLL
+    LTEXT           "Base Driver Data Source Name:",IDC_STATIC,17,145,104,8
+    EDITTEXT        IDC_BASE_DSN,17,153,301,14,ES_AUTOHSCROLL
+    LTEXT           "Base Driver Connection String:",IDC_STATIC,17,169,101,8
+    EDITTEXT        IDC_BASE_CONN,17,179,301,14,ES_AUTOHSCROLL
+    LTEXT           "Base Driver Location:",IDC_STATIC,17,196,70,8
+    EDITTEXT        IDC_BASE_DRIVER,17,206,275,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Test",IDTEST,17,233,52,14
+    DEFPUSHBUTTON   "OK",IDOK,214,233,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,268,233,50,14
+    CONTROL         "",IDD_TABCONTROL,"SysTabControl32",0x0,343,21,334,220
+    GROUPBOX        "Wrapper Plugin Parameters",IDC_STATIC,335,7,351,240
+    GROUPBOX        "Connection Parameters",IDC_STATIC,7,7,319,220
+    PUSHBUTTON      "...",IDC_FILE_SELECT,297,206,16,14
+    PUSHBUTTON      "Save",IDC_SAVE,160,233,50,14
+END
+
+IDC_TAB_AWS_AUTH DIALOGEX 5, 15, 322, 201
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_AUTH_MODE,62,7,96,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_REGION,62,25,96,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EXPIRE,62,46,96,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IAM_HOST,64,87,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_IAM_PORT,64,106,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET,64,125,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET_REGION,64,144,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET_END,64,164,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_IDP_UID,209,7,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IDP_PWD,209,25,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IDP_END,209,45,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_APP_ID,209,65,106,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_ROLE_ARN,209,85,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IDP_ARN,209,104,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IDP_PORT,209,124,106,14,ES_AUTOHSCROLL
+    RTEXT           "Authentication Mode:",IDC_STATIC,10,5,47,18,0,WS_EX_RIGHT
+    LTEXT           "IAM Host:",IDC_STATIC,24,89,33,8,0,WS_EX_RIGHT
+    LTEXT           "IAM Port:",IDC_STATIC,25,108,32,8,0,WS_EX_RIGHT
+    RTEXT           "Expire Time (ms):",IDC_STATIC,17,44,40,16,0,WS_EX_RIGHT
+    LTEXT           "Secret ID:",IDC_STATIC,23,127,34,8,0,WS_EX_RIGHT
+    RTEXT           "Secret Endpoint:",IDC_STATIC,25,161,32,17,0,WS_EX_RIGHT
+    LTEXT           "Secret Region:",IDC_STATIC,7,145,50,8,0,WS_EX_RIGHT
+    RTEXT           "IDP Username:",IDC_STATIC,166,5,39,17,0,WS_EX_RIGHT
+    RTEXT           "IDP Password:",IDC_STATIC,168,23,37,18,0,WS_EX_RIGHT
+    RTEXT           "IDP Endpoint:",IDC_STATIC,169,44,36,16,0,WS_EX_RIGHT
+    LTEXT           "App ID:",IDC_STATIC,179,67,26,8,0,WS_EX_RIGHT
+    RTEXT           "IAM Role ARN:",IDC_STATIC,171,83,34,16,0,WS_EX_RIGHT
+    RTEXT           "IAM IDP ARN:",IDC_STATIC,173,103,32,15,0,WS_EX_RIGHT
+    LTEXT           "IDP Port:",IDC_STATIC,176,126,30,8,0,WS_EX_RIGHT
+    CONTROL         "",IDC_URL_ENCODE,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_MULTILINE | WS_TABSTOP,62,67,10,17
+    LTEXT           "Extra URL Encoding:",IDC_STATIC,21,66,36,18,0,WS_EX_RIGHT
+    LTEXT           "AWS Region:",IDC_STATIC,13,28,44,8,0,WS_EX_RIGHT
+END
+
+IDC_TAB_FED_AUTH DIALOGEX 5, 15, 322, 201
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+END
+
+IDC_TAB_FAILOVER DIALOGEX 5, 15, 322, 201
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_SYSMENU
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_FAILOVER_MODE,126,21,149,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_HOST_PATTERN,126,38,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_FAILOVER_TIME,126,108,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_CLUSTER_ID,126,56,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_HIGH_TRR,126,90,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_TRR,126,73,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IGNORE_TR,126,126,149,14,ES_AUTOHSCROLL
+    LTEXT           "Failover Mode:",IDC_STATIC,70,22,50,8,0,WS_EX_RIGHT
+    LTEXT           "Host Pattern:",IDC_STATIC,76,40,44,8,0,WS_EX_RIGHT
+    LTEXT           "Cluster ID:",IDC_STATIC,84,58,36,8,0,WS_EX_RIGHT
+    LTEXT           "Topology Refresh Rate (ms):",IDC_STATIC,24,75,96,8,0,WS_EX_RIGHT
+    LTEXT           "Failover Timeout (ms):",IDC_STATIC,44,110,76,8,0,WS_EX_RIGHT
+    LTEXT           "Ignore Topology Request (ms):",IDC_STATIC,17,128,103,8,0,WS_EX_RIGHT
+    LTEXT           "High Topology Refresh Rate (ms):",IDC_STATIC,7,92,113,8,0,WS_EX_RIGHT
+    LTEXT           "Reader Host Selector:",IDC_STATIC,47,146,73,8,0,WS_EX_RIGHT
+    COMBOBOX        IDC_READER_HOST,126,145,149,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "",IDC_ENABLE_FAILOVER,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | WS_TABSTOP,125,7,10,10
+    LTEXT           "Enable Cluster Failover:",IDC_STATIC,41,7,79,8,0,WS_EX_RIGHT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG_MAIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 686
+        VERTGUIDE, 17
+        VERTGUIDE, 160
+        VERTGUIDE, 170
+        VERTGUIDE, 318
+        VERTGUIDE, 326
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 247
+    END
+
+    IDC_TAB_AWS_AUTH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 315
+        VERTGUIDE, 57
+        VERTGUIDE, 62
+        VERTGUIDE, 158
+        VERTGUIDE, 163
+        VERTGUIDE, 205
+        VERTGUIDE, 209
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 194
+    END
+
+    IDC_TAB_FED_AUTH, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 315
+        VERTGUIDE, 83
+        VERTGUIDE, 88
+        VERTGUIDE, 256
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 194
+    END
+
+    IDC_TAB_FAILOVER, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 315
+        VERTGUIDE, 120
+        VERTGUIDE, 126
+        VERTGUIDE, 275
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 194
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_DIALOG_MAIN AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDC_TAB_AWS_AUTH AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDC_TAB_FED_AUTH AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDC_TAB_FAILOVER AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

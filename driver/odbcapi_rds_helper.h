@@ -37,6 +37,12 @@ SQLRETURN RDS_AllocDesc(
     SQLHDBC        ConnectionHandle,
     SQLHANDLE *    DescriptorHandlePointer);
 
+SQLRETURN RDS_SQLSetEnvAttr(
+    SQLHENV        EnvironmentHandle,
+    SQLINTEGER     Attribute,
+    SQLPOINTER     ValuePtr,
+    SQLINTEGER     StringLength);
+
 SQLRETURN RDS_SQLEndTran(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle,
