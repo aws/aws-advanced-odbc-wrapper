@@ -726,27 +726,7 @@ SQLRETURN SQL_API SQLSetEnvAttr(
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength)
 {
-    NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV *env = (ENV*) EnvironmentHandle;
-    SQLRETURN ret = SQL_SUCCESS;
-
-    std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
-
-    // Track new value
-    env->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
-
-    // Check if underlying library is loaded
-    //  Don't fail if it isn't loaded as
-    //  this can be called prior to connecting
-    if (env->driver_lib_loader) {
-        // Update existing connections environments
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
-            env->wrapped_env, Attribute, ValuePtr, StringLength
-        );
-        ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
-    }
-
-    return ret;
+    return RDS_SQLSetEnvAttr(EnvironmentHandle, Attribute, ValuePtr, StringLength);
 }
 
 SQLRETURN SQL_API SQLSetParam(

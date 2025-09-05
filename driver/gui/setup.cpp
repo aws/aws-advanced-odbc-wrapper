@@ -14,26 +14,816 @@
 
 #ifdef WIN32
     #include <windows.h>
+    #include <windowsx.h>
+    #include <CommCtrl.h>
 #endif
 
+#include <iostream>
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
 #include <odbcinst.h>
+#include <wchar.h>
+#include <map>
+#include <regex>
+#include <vector>
+#include <commdlg.h>
 
-#define NOT_IMPLEMENTED \
-     return SQL_ERROR
+#include "resource.h"
+#include "setup.h"
+#include "../util/connection_string_keys.h"
+#include "../util/odbc_dsn_helper.h"
+#include "../odbcapi_rds_helper.h"
+#include "../util/rds_lib_loader.h"
 
-// GUI Related
-// TODO - Impl ConfigDriver
-// Later process
-BOOL ConfigDriver(SQLHWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg,
-                WORD cbMsgMax, WORD* pcbMsgOut) {
-    NOT_IMPLEMENTED;
+enum ControlType {
+    EDIT_TEXT,
+    COMBO,
+    CHECK
+};
+
+enum TabSelection {
+    AWS_AUTH,
+    FAILOVER
+};
+
+enum AuthModeSelection {
+    EMPTY,
+    IAM,
+    SECRETS_MANAGER,
+    ADFS,
+    OKTA
+};
+
+static const std::regex SPECIAL_CHAR = std::regex(R"([\\\[\]\{\},;?\*=!@]+)");
+
+#if !defined(UNICODE) && defined(_WIN32)
+
+const std::map<std::string, std::pair<int, ControlType>> MAIN_KEYS = {
+    {KEY_DSN, {IDC_DSN_NAME, EDIT_TEXT}},
+    {KEY_DESC, {IDC_DESC, EDIT_TEXT}},
+    {KEY_SERVER, {IDC_SERVER, EDIT_TEXT}},
+    {KEY_DB_USERNAME, {IDC_UID, EDIT_TEXT}},
+    {KEY_DB_PASSWORD, {IDC_PWD, EDIT_TEXT}},
+    {KEY_PORT, {IDC_PORT, EDIT_TEXT}},
+    {KEY_DATABASE, {IDC_DB, EDIT_TEXT}},
+    {KEY_BASE_DSN, {IDC_BASE_DSN, EDIT_TEXT}},
+    {KEY_BASE_CONN, {IDC_BASE_CONN, EDIT_TEXT}},
+    {KEY_BASE_DRIVER, {IDC_BASE_DRIVER, EDIT_TEXT}}
+};
+
+const std::map<std::string, std::pair<int, ControlType>> AUTH_KEYS = {
+    {KEY_AUTH_TYPE,{IDC_AUTH_MODE, COMBO}},
+    {KEY_REGION, {IDC_REGION, EDIT_TEXT}},
+    {KEY_TOKEN_EXPIRATION, {IDC_EXPIRE, EDIT_TEXT}}
+};
+
+const std::map<std::string, std::pair<int, ControlType>> IAM_KEYS = {
+    {KEY_EXTRA_URL_ENCODE, {IDC_URL_ENCODE, CHECK}},
+    {KEY_IAM_HOST, {IDC_IAM_HOST, EDIT_TEXT}},
+    {KEY_IAM_PORT, {IDC_IAM_PORT, EDIT_TEXT}}
+};
+
+const std::map<std::string, std::pair<int, ControlType>> SECRETS_KEYS = {
+    {KEY_SECRET_ID, {IDC_SECRET, EDIT_TEXT}},
+    {KEY_SECRET_REGION, {IDC_SECRET_REGION, EDIT_TEXT}},
+    {KEY_SECRET_ENDPOINT, {IDC_SECRET_END, EDIT_TEXT}}
+};
+
+const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
+    {KEY_IDP_USERNAME, {IDC_IDP_UID, EDIT_TEXT}},
+    {KEY_IDP_PASSWORD, {IDC_IDP_PWD, EDIT_TEXT}},
+    {KEY_IDP_ENDPOINT, {IDC_IDP_END, EDIT_TEXT}},
+    {KEY_APP_ID, {IDC_APP_ID, EDIT_TEXT}},
+    {KEY_IDP_ROLE_ARN, {IDC_ROLE_ARN, EDIT_TEXT}},
+    {KEY_IAM_IDP_ARN, {IDC_IDP_ARN, EDIT_TEXT}},
+    {KEY_IDP_PORT, {IDC_IDP_PORT, EDIT_TEXT}},
+};
+
+const std::map<std::string, std::pair<int, ControlType>> FAILOVER_KEYS = {
+    {KEY_ENABLE_FAILOVER, {IDC_ENABLE_FAILOVER, CHECK}},
+    {KEY_FAILOVER_MODE, {IDC_FAILOVER_MODE, COMBO}},
+    {KEY_ENDPOINT_TEMPLATE, {IDC_HOST_PATTERN, EDIT_TEXT}},
+    {KEY_CLUSTER_ID, {IDC_CLUSTER_ID, EDIT_TEXT}},
+    {KEY_REFRESH_RATE, {IDC_TRR, EDIT_TEXT}},
+    {KEY_HIGH_REFRESH_RATE, {IDC_HIGH_TRR, EDIT_TEXT}},
+    {KEY_FAILOVER_TIMEOUT, {IDC_FAILOVER_TIME, EDIT_TEXT}},
+    {KEY_IGNORE_TOPOLOGY_REQUEST, {IDC_IGNORE_TR, EDIT_TEXT}},
+    {KEY_HOST_SELECTOR_STRATEGY, {IDC_READER_HOST, COMBO}}
+};
+
+const std::vector<std::pair<const char*, const char*>> AWS_AUTH_MODES = {
+    {"Database", ""}, 
+    {"IAM", VALUE_AUTH_IAM},
+    {"Secrets Manager", VALUE_AUTH_SECRETS},
+    {"ADFS", VALUE_AUTH_ADFS},
+    {"OKTA", VALUE_AUTH_OKTA}
+};
+
+const std::vector<std::pair<const char*, const char*>> FAILOVER_MODES = {
+    {"", ""},
+    {"Strict Writer", VALUE_FAILOVER_MODE_STRICT_WRITER},
+    {"Strict Reader", VALUE_FAILOVER_MODE_STRICT_READER},
+    {"Reader or Writer", VALUE_FAILOVER_MODE_READER_OR_WRITER}
+};
+
+const std::vector<std::pair<const char*, const char*>> READER_SELECTION_MODES = { 
+    {"", ""},
+    {"Random", VALUE_RANDOM_HOST_SELECTOR},
+    {"Round Robin", VALUE_ROUND_ROBIN_HOST_SELECTOR },
+    {"Highest Weight", VALUE_HIGHEST_WEIGHT_HOST_SELECTOR}
+};
+
+HINSTANCE ghInstance;
+HWND tab_control;
+HWND aws_auth_tab;
+HWND failover_tab;
+HWND main_win;
+
+std::string driver;
+std::string current_dsn;
+std::string connection_str;
+std::string out_connection_str;
+bool driver_connect = false;
+bool disable_optional = false;
+
+template<typename T>
+T CastConst(const char* value) {
+    return const_cast<TCHAR*>(reinterpret_cast<const TCHAR*>(value));
 }
 
-// TODO - Impl ConfigDSN
-// Later process
-BOOL ConfigDSN(SQLHWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes) {
-    NOT_IMPLEMENTED;
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+{
+	ghInstance = hModule;
+    return true;
+}
+
+void ChooseFile(HWND parent, int ctrl_id)
+{
+    TCHAR szFile[MAX_PATH];
+
+    HWND control = GetDlgItem(parent, ctrl_id);
+    GetWindowText(control, szFile, MAX_PATH);
+
+    CHAR szFileNameOUT[MAX_PATH];
+
+    OPENFILENAME ofn = {};
+    ZeroMemory(&szFile, sizeof(szFile));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFilter = "Any File\0*.*\0";
+    ofn.lpstrFile = szFile;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = "Select File";
+    ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+
+    if (GetOpenFileName(&ofn)) {
+        SetWindowText(control, ofn.lpstrFile);
+    }
+}
+
+void AddTabToTabControl(char* name, HWND tab_control, int index)
+{
+    TCITEM tie;
+    tie.mask = TCIF_TEXT;
+    tie.pszText = const_cast<LPSTR>(name);
+    TabCtrl_InsertItem(tab_control, index, &tie);
+}
+
+std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
+{
+    int id = pair.first;
+    int control_type = pair.second;
+    HWND control = GetDlgItem(hwnd, id);
+    if (IsWindowEnabled(control)) {
+        TCHAR buffer[MAX_KEY_SIZE] = {};
+        if (control_type == EDIT_TEXT) {
+            GetWindowText(control, buffer, MAX_KEY_SIZE);
+            return buffer;
+        }
+        
+        if (control_type == COMBO) {
+            int selection = ComboBox_GetCurSel(control);
+            if (selection >= 0) {
+                switch (id) {
+                    case IDC_AUTH_MODE:
+                        return CastConst<TCHAR*>(AWS_AUTH_MODES[selection].second);
+                    case IDC_FAILOVER_MODE:
+                        return CastConst<TCHAR*>(FAILOVER_MODES[selection].second);
+                    case IDC_READER_HOST:
+                        return CastConst<TCHAR*>(READER_SELECTION_MODES[selection].second);
+                    default:
+                        break;
+                }
+            }
+        }
+        
+        if (control_type == CHECK) {
+            LRESULT state = Button_GetCheck(control);
+            if (state == BST_CHECKED) {
+                return CastConst<TCHAR*>(VALUE_BOOL_TRUE);
+            }
+            return CastConst<TCHAR*>(VALUE_BOOL_FALSE);
+        }
+    }
+    return CastConst<TCHAR*>("");
+}
+
+void SetInitialCheckBoxValue(HWND hwnd, int id, std::string key)
+{
+    HWND ctrl = GetDlgItem(hwnd, id);
+    char buff[MAX_KEY_SIZE] = {};
+    if (!current_dsn.empty()) {
+        if (!driver_connect) {
+            SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, sizeof(buff), ODBC_INI);
+        } else {
+            WORD cbDriver;
+            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
+        }
+    }
+
+    if (strcmp(buff, VALUE_BOOL_TRUE) == 0) {
+        Button_SetCheck(ctrl, BST_CHECKED);
+    } else {
+        Button_SetCheck(ctrl, BST_UNCHECKED);
+    }
+}
+
+void SetInitialComboBoxValue(HWND hwnd, int id, std::string key, std::vector<std::pair<const char*, const char*>> options)
+{
+    HWND ctrl = GetDlgItem(hwnd, id);
+    char buff[MAX_KEY_SIZE] = {};
+    if (!current_dsn.empty()) {
+        if (!driver_connect) {
+            SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, sizeof(buff), ODBC_INI);
+        } else {
+            WORD cbDriver;
+            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
+        }
+    }
+    int index = 0;
+    for (const auto& option : options) {
+        if (strcmp(buff, option.second) == 0) {
+            ComboBox_SetCurSel(ctrl, index);
+        }
+        index++;
+    }
+
+}
+
+void SetInitialEditTextValue(HWND hwnd, int id, std::string key, std::string value)
+{
+    HWND ctrl = GetDlgItem(hwnd, id);
+    std::string key_value;
+
+    if (!current_dsn.empty()) {
+        char buff[MAX_KEY_SIZE] = {};
+        if (!driver_connect) {
+            if (value.empty()) {
+                SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, MAX_KEY_SIZE, ODBC_INI);
+            } else {
+                RDS_sprintf(buff, MAX_KEY_SIZE, RDS_CHAR_FORMAT, value.c_str());
+            }
+            key_value = std::string(buff);
+        } else {
+            WORD cbDriver;
+            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
+            key_value = std::string(buff);
+
+            // If the key value read from a file is enclosed in curly braces, do not display the braces in the dialog box.
+            if (key_value.starts_with("{") && key_value.ends_with("}")) {
+                key_value = key_value.substr(1, key_value.length() - 2);
+            }
+        }
+        SetWindowText(ctrl, key_value.c_str());
+    }
+}
+
+std::string AddKeyToConnectionString(std::string conn_str, std::string key, std::string value, bool test_conn) {
+    if (!value.empty()) {
+        if (key == KEY_BASE_CONN && test_conn) {
+            conn_str += value;
+            if (!value.ends_with(";")) {
+                conn_str += ";";
+            }
+            return conn_str;
+        }
+
+        conn_str += key + "=";
+
+        // Some symbols must be enclosed in curly braces to form the out connection string.
+        std::smatch matches;
+        if (!test_conn && !value.starts_with("{") && !value.ends_with("}") && std::regex_search(value, matches, SPECIAL_CHAR) && matches.length() > 0) {
+            conn_str += "{" + value + "};";
+        } else {
+            conn_str += value + ";";
+        }
+    }
+
+    return conn_str;
+}
+
+std::string GetDsn(bool test_conn)
+{
+    std::string conn_str;
+
+    if (driver_connect) {
+        conn_str = AddKeyToConnectionString(conn_str, KEY_SAVEFILE, current_dsn, test_conn);
+        conn_str = AddKeyToConnectionString(conn_str, KEY_DRIVER, driver, test_conn);
+    }
+
+    std::map<std::string, std::pair<int, ControlType>> all_auth_keys = {};
+    all_auth_keys.insert(AUTH_KEYS.begin(), AUTH_KEYS.end());
+    all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
+    all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
+    all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+
+    std::string value;
+    for (const auto& keys : MAIN_KEYS) {
+        value = GetControlValue(main_win, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
+    for (const auto& keys : all_auth_keys) {
+        value = GetControlValue(aws_auth_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
+    for (const auto& keys : FAILOVER_KEYS) {
+        value = GetControlValue(failover_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
+    return conn_str;
+}
+
+void TestConnection(HWND hwnd)
+{
+    SQLHENV henv = SQL_NULL_HANDLE;
+    SQLHDBC hdbc = SQL_NULL_HANDLE;
+
+    RDS_AllocEnv(&henv);
+    RDS_SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+    RDS_AllocDbc(henv, &hdbc);
+
+    std::string test_conn_str = GetDsn(true);
+
+    SQLRETURN ret = RDS_SQLDriverConnect(
+        hdbc,
+        nullptr,
+        AS_SQLTCHAR(test_conn_str.c_str()),
+        RDS_STR_LEN(test_conn_str.c_str()),
+        0,
+        MAX_KEY_SIZE,
+        nullptr,
+        SQL_DRIVER_NOPROMPT
+    );
+
+    if (SQL_SUCCEEDED(ret)) {
+        MessageBox(hwnd, "Connection success", "Test Connection", MB_OK);
+    } else {
+        std::string fail_msg = "Connection Failed";
+        SQLSMALLINT stmt_length;
+        SQLINTEGER native_error;
+        SQLTCHAR sql_state[MAX_KEY_SIZE] = {}, message[MAX_KEY_SIZE] = {};
+        RDS_SQLError(henv, hdbc, nullptr, sql_state, &native_error, message, MAX_KEY_SIZE, &stmt_length);
+        if (stmt_length > 1) {
+            fail_msg += ": ";
+            fail_msg += (char*) message;
+        }
+        MessageBox(hwnd, fail_msg.c_str(), "Test Connection", MB_OK);
+    }
+
+    if (((ENV*)henv)->driver_lib_loader && ((DBC*)hdbc)->wrapped_dbc) {
+        NULL_CHECK_CALL_LIB_FUNC(((ENV*)henv)->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+            ((DBC*)hdbc)->wrapped_dbc
+        );
+    }
+    RDS_FreeConnect(hdbc);
+    RDS_FreeEnv(henv);
+}
+
+void SaveKey(LPCSTR profile, LPCSTR key, LPCSTR value)
+{
+    bool success = SQLWritePrivateProfileString(profile, key, value, ODBC_INI);
+    if (!success) {
+        throw std::runtime_error("Unable to save value to DSN");
+    }
+}
+
+bool SaveDsn() 
+{
+    if (driver_connect) {
+        connection_str = GetDsn(true);
+        out_connection_str = GetDsn(false);
+        return true;
+    }
+
+    std::string dsn = GetControlValue(main_win, { IDC_DSN_NAME, EDIT_TEXT });
+    bool new_dsn = false;
+    if (current_dsn.empty()) {
+        new_dsn = true;
+    } else if (dsn != current_dsn) {
+        SQLRemoveDSNFromIni(current_dsn.c_str());
+        new_dsn = true;
+    }
+
+    if (!dsn.empty()) {
+        if (new_dsn) {
+            SaveKey(ODBC_DATA_SOURCES, dsn.c_str(), driver.c_str());
+        }
+
+        char buff[MAX_KEY_SIZE] = {};
+        SQLGetPrivateProfileString(driver.c_str(), KEY_DRIVER, "", buff, sizeof(buff), ODBCINST_INI);
+        SaveKey(dsn.c_str(), KEY_DRIVER, buff);
+
+        std::map<std::string, std::pair<int, ControlType>> all_auth_keys = {};
+        all_auth_keys.insert(AUTH_KEYS.begin(), AUTH_KEYS.end());
+        all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
+        all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
+        all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+
+        try {
+            for (const auto& keys : MAIN_KEYS) {
+                if (keys.first != KEY_DSN) {
+                    SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(main_win, keys.second).c_str()));
+                }
+            }
+            for (const auto& keys : all_auth_keys) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(aws_auth_tab, keys.second).c_str()));
+            }
+            for (const auto& keys : FAILOVER_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(failover_tab, keys.second).c_str()));
+            }
+        } catch (const std::runtime_error e) {
+            MessageBox(main_win, "Failed to save DSN", "Save DSN", MB_OK);
+            if (new_dsn) {
+                SQLRemoveDSNFromIni(current_dsn.c_str());
+            }
+        }
+
+        return true;
+    } else {
+        MessageBox(main_win, "Please provide a data source name", "Save DSN", MB_OK);
+        return false;
+    }
+}
+
+void HandleEnableFailover(HWND hwnd) {
+    HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_FAILOVER);
+    LRESULT state = Button_GetCheck(check_box);
+    bool show_all = false;
+    if (state == BST_CHECKED) {
+        show_all = true;
+    }
+
+    for (const auto& keys : FAILOVER_KEYS) {
+        if (keys.first != KEY_ENABLE_FAILOVER) {
+            HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+            EnableWindow(ctrl, (show_all) ? TRUE : FALSE);
+        }
+    }
+}
+
+void HandleFailoverInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_ENABLE_FAILOVER:
+            HandleEnableFailover(hwnd);
+            break;
+        default:
+            break;
+    }
+}
+
+BOOL FailoverTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    HWND failover_mode = GetDlgItem(hwnd, IDC_FAILOVER_MODE);
+    for (int i = 0; i < FAILOVER_MODES.size(); i++) {
+        ComboBox_InsertString(failover_mode, i, FAILOVER_MODES[i].first);
+    }
+    HWND reader_select_strat = GetDlgItem(hwnd, IDC_READER_HOST);
+    for (int i = 0; i < READER_SELECTION_MODES.size(); i++) {
+        ComboBox_InsertString(reader_select_strat, i, READER_SELECTION_MODES[i].first);
+    }
+
+    for (const auto& keys : FAILOVER_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        } else if (keys.second.second == COMBO) {
+            SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, FAILOVER_MODES);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleEnableFailover(hwnd);
+
+    return false;
+}
+
+BOOL FailoverDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, FailoverTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleFailoverInteraction);
+        default:
+            break;
+    }
+
+    return false;
+}
+
+void HandleAuthModeSelection(HWND hwnd) {
+    HWND auth_mode_box = GetDlgItem(hwnd, IDC_AUTH_MODE);
+    int selection = ComboBox_GetCurSel(auth_mode_box);
+
+    std::map<std::string, std::pair<int, ControlType>> all_auth_keys = {};
+    all_auth_keys.insert(AUTH_KEYS.begin(), AUTH_KEYS.end());
+    all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
+    all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
+    all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+
+    for (const auto& keys : all_auth_keys) {
+        int id = keys.second.first;
+        HWND ctrl = GetDlgItem(hwnd, id);
+        bool show_ctrl = true;
+
+        if (id != IDC_AUTH_MODE) {
+            switch (selection) {
+                case EMPTY:
+                    show_ctrl = false;
+                    break;
+                case IAM:
+                    if (!IAM_KEYS.contains(keys.first) && !AUTH_KEYS.contains(keys.first)) {
+                        show_ctrl = false;
+                    }
+                    break;
+                case SECRETS_MANAGER:
+                    if (!SECRETS_KEYS.contains(keys.first)) {
+                        show_ctrl = false;
+                    }
+                    break;
+                case ADFS:
+                    if (!IAM_KEYS.contains(keys.first) &&
+                        !FED_AUTH_KEYS.contains(keys.first) &&
+                        !AUTH_KEYS.contains(keys.first) ||
+                        id == IDC_APP_ID ) {
+                        show_ctrl = false;
+                    }
+                    break;
+                case OKTA:
+                    if (!IAM_KEYS.contains(keys.first) && !FED_AUTH_KEYS.contains(keys.first) && !AUTH_KEYS.contains(keys.first)) {
+                        show_ctrl = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            switch (keys.second.second) {
+                case EDIT_TEXT:
+                    SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+                    break;
+                case CHECK:
+                    SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        EnableWindow(ctrl, show_ctrl);
+    }
+}
+
+void HandleAuthInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_AUTH_MODE:
+            if (codeNotify == CBN_SELCHANGE) {
+                HandleAuthModeSelection(hwnd);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+BOOL AuthTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    HWND auth_mode_box = GetDlgItem(hwnd, IDC_AUTH_MODE);
+    for (int i = 0; i < AWS_AUTH_MODES.size(); i++) {
+        ComboBox_InsertString(auth_mode_box, i, AWS_AUTH_MODES[i].first);
+    }
+
+    SetInitialComboBoxValue(hwnd, IDC_AUTH_MODE, KEY_AUTH_TYPE, AWS_AUTH_MODES);
+
+    HandleAuthModeSelection(hwnd);
+
+    return false;
+}
+
+BOOL AuthDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, AuthTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleAuthInteraction);
+        default:
+            break;
+    }
+
+    return false;
+}
+
+void HandleGuiInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_FILE_SELECT:
+            ChooseFile(main_win, IDC_BASE_DRIVER);
+            break;
+        case IDCANCEL:
+            if (codeNotify == BN_CLICKED) {
+                if (driver_connect) {
+                    connection_str = GetDsn(true);
+                    out_connection_str = GetDsn(false);
+                }
+                EndDialog(hwnd, NULL);
+            }
+            break;
+        case IDOK:
+            if (codeNotify == BN_CLICKED) {
+                if (SaveDsn()) {
+                    EndDialog(hwnd, NULL);
+                }
+            }
+            break;
+        case IDC_SAVE:
+            if (codeNotify == BN_CLICKED) {
+                bool saved = SaveDsn();
+                if (saved) { // If SaveDsn fails, a message is created within the function.
+                    MessageBox(main_win, "DSN saved successfully", "Save DSN", MB_OK);
+                }
+            }
+            break;
+        case IDTEST:
+            if (codeNotify == BN_CLICKED) {
+                TestConnection(hwnd);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+void OnSelChange(HWND hwnd)
+{
+    int selection = TabCtrl_GetCurSel(tab_control);
+    ShowWindow(aws_auth_tab, (selection == AWS_AUTH) ? SW_SHOW : SW_HIDE);
+    ShowWindow(failover_tab, (selection == FAILOVER) ? SW_SHOW : SW_HIDE);
+}
+
+BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    tab_control = GetDlgItem(hwnd, IDD_TABCONTROL);
+    aws_auth_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_AWS_AUTH), tab_control, (DLGPROC)AuthDlgProc);
+    failover_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_FAILOVER), tab_control, (DLGPROC)FailoverDlgProc);
+
+    if (driver_connect) {
+        HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
+        EnableWindow(dsn_text, SW_HIDE);
+    }
+
+    for (const auto& keys : MAIN_KEYS) {
+        if (keys.first == KEY_DSN && !driver_connect) {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, current_dsn);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    AddTabToTabControl((char*)"Authentication", tab_control, AWS_AUTH);
+    AddTabToTabControl((char*)"Failover Settings", tab_control, FAILOVER);
+
+    SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
+    OnSelChange(hwnd);
+
+    if (disable_optional) {
+        std::vector<int> optional_main_ctrls = {IDC_DESC, IDC_BASE_DSN, IDC_BASE_CONN};
+        for (const auto& id : optional_main_ctrls) {
+            HWND control = GetDlgItem(main_win, id);
+            EnableWindow(control, SW_HIDE);
+        }
+
+        std::map<std::string, std::pair<int, ControlType>> all_auth_keys = {};
+        all_auth_keys.insert(AUTH_KEYS.begin(), AUTH_KEYS.end());
+        all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
+        all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
+        all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+        for (const auto& keys : all_auth_keys) {
+            HWND control = GetDlgItem(aws_auth_tab, keys.second.first);
+            EnableWindow(control, SW_HIDE);
+        }
+        EnableWindow(tab_control, SW_HIDE);
+    }
+
+    return false;
+}
+
+BOOL FormMainDlgProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    main_win = hwnd;
+
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleGuiInteraction);
+        HANDLE_MSG(hwnd, WM_INITDIALOG, FormMainInit);
+        case WM_NOTIFY:
+            switch (((LPNMHDR)lParam)->code)
+            {
+            case TCN_SELCHANGE:
+                OnSelChange(hwnd);
+                break;
+            }
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+void GetDsnFromConnectionString(std::string conn_str, HWND hwndParent) {
+    std::smatch matches;
+    std::regex dsn_pattern = std::regex("DSN=([^;]*)(;)?");
+    if (driver_connect) {
+        dsn_pattern = std::regex("SAVEFILE=([^;]*)(;)?");
+    }
+    if (std::regex_search(conn_str, matches, dsn_pattern) && matches.length() > 0) {
+        std::string match = matches[1];
+        current_dsn = match;
+    }
+}
+
+void GetDriverFromConnectionString(std::string conn_str, HWND hwndParent) {
+    if (driver_connect) {
+        std::smatch matches;
+        std::regex driver_pattern = std::regex("DRIVER=([^;]*)(;)?");
+        if (std::regex_search(conn_str, matches, driver_pattern) && matches.length() > 0) {
+            std::string match = matches[1];
+            driver = match;
+        }
+    }
+}
+
+std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required) {
+    connection_str = "";
+    out_connection_str = "";
+    driver_connect = true;
+    disable_optional = complete_required;
+
+    GetDsnFromConnectionString(reinterpret_cast<char*>(InConnectionString), hwnd);
+    GetDriverFromConnectionString(reinterpret_cast<char*>(InConnectionString), hwnd);
+
+    DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwnd, (DLGPROC)FormMainDlgProc);
+    driver_connect = false;
+    disable_optional = false;
+    return { connection_str, out_connection_str };
+}
+#endif
+
+BOOL ConfigDSN(HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes) {
+#ifndef UNICODE
+    if (hwndParent) {
+        main_win = hwndParent;
+        driver = lpszDriver;
+        if (lstrlen(lpszAttributes) != 0) {
+            std::string conn_str(lpszAttributes);
+            GetDsnFromConnectionString(conn_str, hwndParent);
+        }
+        switch (fRequest) {
+            case ODBC_ADD_DSN:
+            case ODBC_CONFIG_DSN:
+                DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwndParent, (DLGPROC)FormMainDlgProc);
+                break;
+            case ODBC_REMOVE_DSN:
+                SQLRemoveDSNFromIni(current_dsn.c_str());
+                break;
+            default:
+                break;
+        }
+    }
+#endif
+
+    return true;
+}
+
+// This function has been left empty intentionally, using WiX for driver installation instead.
+BOOL ConfigDriver(HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszArgs, LPSTR lpszMsg,
+    WORD cbMsgMax, WORD* pcbMsgOut) {
+    return true;
 }

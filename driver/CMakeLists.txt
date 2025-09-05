@@ -58,9 +58,6 @@ set(INC
 )
 
 set(SRC
-    # GUI
-    ${CMAKE_CURRENT_SOURCE_DIR}/gui/setup.cpp
-
     # Host Selectors
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/highest_weight_host_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/random_host_selector.cpp
@@ -89,6 +86,18 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.cpp
 )
+
+# GUI
+if(WIN32)
+    list(APPEND INC
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/resource.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/odbcsetup.rc
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/setup.h
+    )
+    list(APPEND SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/gui/setup.cpp
+    )
+endif()
 
 # Configure Build Defines ------------------------------------------------------------------------------------
 add_compile_definitions(

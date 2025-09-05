@@ -28,6 +28,11 @@
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
+#ifdef WIN32
+    #include "gui/setup.h"
+    #include "gui/resource.h"
+#endif
+
 SQLRETURN RDS_ProcessLibRes(
     SQLSMALLINT    HandleType,
     SQLHANDLE      InputHandle,
@@ -144,6 +149,35 @@ SQLRETURN RDS_AllocDesc(
     dbc->desc_list.emplace_back(desc);
 
     return SQL_SUCCESS;
+}
+
+SQLRETURN RDS_SQLSetEnvAttr(
+    SQLHENV        EnvironmentHandle,
+    SQLINTEGER     Attribute,
+    SQLPOINTER     ValuePtr,
+    SQLINTEGER     StringLength)
+{
+    NULL_CHECK_HANDLE(EnvironmentHandle);
+    ENV* env = (ENV*)EnvironmentHandle;
+    SQLRETURN ret = SQL_SUCCESS;
+
+    std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+
+    // Track new value
+    env->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
+
+    // Check if underlying library is loaded
+    //  Don't fail if it isn't loaded as
+    //  this can be called prior to connecting
+    if (env->driver_lib_loader) {
+        // Update existing connections environments
+        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+            env->wrapped_env, Attribute, ValuePtr, StringLength
+        );
+        ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+    }
+
+    return ret;
 }
 
 SQLRETURN RDS_SQLEndTran(
@@ -584,6 +618,31 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
+    char conn_str[MAX_KEY_SIZE] = {0};
+    char out_conn_str[MAX_KEY_SIZE] = {0};
+    if (DriverCompletion && WindowHandle) {
+#if !defined(UNICODE) && defined(_WIN32)
+        bool complete_required = true;
+        std::pair<std::string, std::string> dialog_result;
+
+        switch (DriverCompletion) {
+            case SQL_DRIVER_PROMPT:
+            case SQL_DRIVER_COMPLETE:
+                complete_required = false;
+            case SQL_DRIVER_COMPLETE_REQUIRED:
+                dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
+                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, dialog_result.first.c_str());
+                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, dialog_result.second.c_str());
+                break;
+            case SQL_DRIVER_NOPROMPT:
+            default:
+                break;
+        }
+#endif
+    } else {
+        RDS_sprintf((RDS_CHAR*)conn_str, MAX_KEY_SIZE, RDS_CHAR_FORMAT, (RDS_CHAR*)InConnectionString);
+    }
+
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC *dbc = (DBC*) ConnectionHandle;
     ENV *env = (ENV*) dbc->env;
@@ -601,8 +660,8 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(InConnectionString)) : StringLength1;
-    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(InConnectionString, load_len), dbc->conn_attr);
+    size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(conn_str)) : StringLength1;
+    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(conn_str, load_len), dbc->conn_attr);
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {
@@ -613,8 +672,19 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
+        ret = dbc->plugin_head->Connect(nullptr, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
     }
+
+#ifndef UNICODE
+    if (OutConnectionString && StringLength2Ptr) {
+        SQLULEN len = RDS_STR_LEN(out_conn_str);
+        SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+        if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
+            ret = SQL_SUCCESS_WITH_INFO;
+        }
+        *StringLength2Ptr = (SQLSMALLINT) written;
+    }
+#endif
 
     return ret;
 }

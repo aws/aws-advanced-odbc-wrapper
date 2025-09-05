@@ -19,6 +19,8 @@
 #include "logger_wrapper.h"
 
 #include "../driver.h"
+#include "../util/connection_string_keys.h"
+#include "../util/connection_string_helper.h"
 
 void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)
 {
@@ -41,10 +43,26 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
         RDS_STR key(entries);
         RDS_STR_UPPER(key);
         RDS_STR val = Load(dsn_key, key);
+
         // Insert if value exists
         if (!val.empty()) {
-            // Insert if absent, connection string keys take precedence
-            conn_map.try_emplace(key, val);
+            if (key.compare(KEY_BASE_CONN) == 0) {
+                std::map<RDS_STR, RDS_STR> base_conn_map;
+                ConnectionStringHelper::ParseConnectionString(val, base_conn_map);
+                for (const auto& pair : base_conn_map) {
+                    RDS_STR base_conn_val = pair.second;
+                    if (base_conn_val.back() == ';') {
+                        base_conn_val.pop_back();
+                    }
+                    if (!base_conn_val.empty()) {
+                        conn_map.try_emplace(pair.first, base_conn_val);
+                    }
+                }
+            }
+            else {
+                // Insert if absent, connection string keys take precedence
+                conn_map.try_emplace(key, val);
+            }
         }
     }
 }
