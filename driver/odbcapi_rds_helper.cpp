@@ -652,18 +652,19 @@ SQLRETURN RDS_SQLError(
 
     // Take in order of lowest to high
     //  Stmt > Dbc > Env
+    // SQLError is deprecated, if called directly, return the first error
     if (StatementHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_STMT, StatementHandle, 0,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_STMT, StatementHandle, 1,
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
     else if (ConnectionHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_DBC, ConnectionHandle, 0,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_DBC, ConnectionHandle, 1,
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
     else if (EnvironmentHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_ENV, EnvironmentHandle, 0,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_ENV, EnvironmentHandle, 1,
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
