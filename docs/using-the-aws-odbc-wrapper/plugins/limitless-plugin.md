@@ -2,7 +2,7 @@
 
 ## What is Amazon Aurora Limitless Database?
 
-Amazon Aurora Limitless Database is a new type of database that can horizontally scale to handle millions of write transactions per second and manage petabytes of data. Users will be able to use the AWS PG ODBC Driver with Aurora Limitless Databases and optimize their experience using the Limitless Plugin. To learn more about Aurora Limitless Database, see the [Amazon Aurora Limitless documentation](https://aws.amazon.com/about-aws/whats-new/2023/11/amazon-aurora-limitless-database/).
+Amazon Aurora Limitless Database is a new type of database that can horizontally scale to handle millions of write transactions per second and manage petabytes of data. Users will be able to use the AWS Advanced ODBC Wrapper with Aurora Limitless Databases and optimize their experience using the Limitless Plugin. To learn more about Aurora Limitless Database, see the [Amazon Aurora Limitless documentation](https://aws.amazon.com/about-aws/whats-new/2023/11/amazon-aurora-limitless-database/).
 
 ## Why use the Limitless Plugin?
 

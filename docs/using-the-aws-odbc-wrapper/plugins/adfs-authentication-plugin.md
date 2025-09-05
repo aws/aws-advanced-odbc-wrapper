@@ -7,7 +7,7 @@ Federated Identity allows users to use the same set of credentials to access mul
 When a user wants access to a resource, it authenticates with the IdP. From this, a security token generated and passed to the Service Providers (SP), which grants access to the specific resource. In the case of ADFS, the user signs into the ADFS sign in page. This generates a SAML Assertion which acts as a security token. The user then passes the SAML Assertion to the SP when requesting access to resources. The SP verifies the SAML Assertion and grants access to the user.
 
 ### Enable ADFS Authentication
-1. Follow steps in `Enable AWS IAM Database Authentication` to setup IAM authentication.
+1. Follow steps in [Enable AWS IAM Database Authentication](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Enabling.html) to setup IAM authentication.
 1. Set up an IAM Identity Provider and IAM role. The IAM role should be using the IAM policy set up in step 1.
     1. If needed, review the documentation about [creating IAM identity providers](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create.html). For ADFS, see the documention about [creating IAM SAML identity providers](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_saml.html).
 
@@ -15,7 +15,7 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 
 | Field | Connection Option Key | Value | Default Value | Sample Value |
 |-------|-----------------------|-------|---------------|--------------|
-| Authentication Type | `RDS_AUTH_TYPE` | Should be `ADFS` | `database` | `ADFS` |
+| Authentication Type | `RDS_AUTH_TYPE` | Must be `ADFS` | `database` | `ADFS` |
 | Server | `SERVER` | Database instance server host | nil | `database.us-east-1-rds.amazon.com` |
 | Port | `PORT` | Port that the database is listening on | nil | 5432 |
 | User Name | `UID` | Database user name for IAM authentication | nil | `iam_user` |
@@ -32,6 +32,7 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | HTTP Socket Timeout | `HTTP_SOCKET_TIMEOUT` | The socket timeout value in milliseconds for the HttpClient reading | 3000 | 3000 |
 | HTTP Connect Timeout | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient | 5000 | 5000 |
 | Relaying Party ID | `RELAY_PARTY_ID` | The relaying party identifier | `urn:amazon:webservices` | `urn:amazon:webservices` |
+| Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplicated for scenarios of underlying driver's automatically decoding before passing to the database for connection | `0` | `1` |
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
