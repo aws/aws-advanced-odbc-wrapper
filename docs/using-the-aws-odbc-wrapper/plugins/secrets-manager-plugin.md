@@ -19,3 +19,7 @@ To enable AWS Secrets Manager authentication, follow the AWS RDS documents on [E
 | Database | `DATABASE` | Default database that a user will work on | nil | `my_database` |
 | Token Expiration | `TOKEN_EXPIRATION` | Token expiration in seconds, supported max value is 900 | 900 | 900 |
 | Secret Id | `SECRET_ID` | Secret ID which holds the database credentials | nil | `arn:aws:secretsmanager:us-west-2:123412341234:secret:rds!cluster-UUID` |
+| Secrets Manager Endpoint | `SECRET_ENDPOINT` | Endpoint to call to retrieve Secrets from | nil | `localhost` |
+
+### Sample Code
+[Secrets Manager Authentication Example](../../../examples/secrets_manager_authentication_sample.cpp)

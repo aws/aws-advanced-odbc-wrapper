@@ -27,3 +27,6 @@ To enable AWS IAM authentication, the following steps should be completed first 
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+
+### Sample Code
+[IAM Authentication Example](../../../examples/iam_authentication_sample.cpp)

@@ -35,3 +35,6 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+
+### Sample Code
+[ADFS Authentication Example](../../../examples/adfs_authentication_sample.cpp)

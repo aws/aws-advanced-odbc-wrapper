@@ -37,3 +37,6 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+
+### Sample Code
+[Okta Authentication Example](../../../examples/okta_authentication_sample.cpp)
