@@ -16,15 +16,15 @@ To enable AWS IAM authentication, the following steps should be completed first 
 
 | Field | Connection Option Key | Value | Default Value | Sample Value |
 |-------|-----------------------|-------|---------------|--------------|
-| Authentication Type | `RDS_AUTH_TYPE` | Must be `IAM` | `database` | `IAM` |
-| Server | `SERVER` | Database instance server host | nil | `database.us-east-1-rds.amazon.com` |
-| Port | `PORT` | Port that the database is listening on | nil | 5432 |
-| User Name | `UID` | Database user name for IAM authentication | nil | `iam_user` |
+| Authentication Type | `RDS_AUTH_TYPE` | Must be `IAM`. | `database` | `IAM` |
+| Server | `SERVER` | Database instance server host. | nil | `database.us-east-1-rds.amazon.com` |
+| Port | `PORT` | Port that the database is listening on. | nil | 5432 |
+| User Name | `UID` | Database user name for IAM authentication. | nil | `iam_user` |
 | IAM Host | `IAM_HOST` | The endpoint used to generate the authentication token. This is only required if you are connecting using custom endpoints such as an IP address. | nil | `database.us-east-1-rds.amazon.com` |
-| Region | `REGION` | The region of the database for IAM authentication | `us-east-1` | `us-east-1` |
-| Database | `DATABASE` | Default database that a user will work on | nil | `my_database` |
-| Token Expiration | `TOKEN_EXPIRATION` | Token expiration in seconds, supported max value is 900 | 900 | 900 |
-| Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplicated for scenarios of underlying driver's automatically decoding before passing to the database for connection | `0` | `1` |
+| Region | `REGION` | The region of the database for IAM authentication. | `us-east-1` | `us-east-1` |
+| Database | `DATABASE` | Default database that a user will work on. | nil | `my_database` |
+| Token Expiration | `TOKEN_EXPIRATION` | Token expiration in seconds, supported max value is 900. | 900 | 900 |
+| Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplication for scenarios where underlying drivers automatically decode the URL before passing to the database for connections. | `0` | `1` |
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.

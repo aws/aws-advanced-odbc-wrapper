@@ -15,24 +15,24 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 
 | Field | Connection Option Key | Value | Default Value | Sample Value |
 |-------|-----------------------|-------|---------------|--------------|
-| Authentication Type | `RDS_AUTH_TYPE` | Must be `ADFS` | `database` | `ADFS` |
-| Server | `SERVER` | Database instance server host | nil | `database.us-east-1-rds.amazon.com` |
-| Port | `PORT` | Port that the database is listening on | nil | 5432 |
-| User Name | `UID` | Database user name for IAM authentication | nil | `iam_user` |
+| Authentication Type | `RDS_AUTH_TYPE` | Must be `ADFS`. | `database` | `ADFS` |
+| Server | `SERVER` | Database instance server host. | nil | `database.us-east-1-rds.amazon.com` |
+| Port | `PORT` | Port that the database is listening on. | nil | 5432 |
+| User Name | `UID` | Database user name for IAM authentication. | nil | `iam_user` |
 | IAM Host | `IAM_HOST` | The endpoint used to generate the authentication token. This is only required if you are connecting using custom endpoints such as an IP address. | nil | `database.us-east-1-rds.amazon.com` |
-| Region | `REGION` | The region of the database for IAM authentication | `us-east-1` | `us-east-1` |
-| Database | `DATABASE` | Default database that a user will work on | nil | `my_database` |
-| Token Expiration | `TOKEN_EXPIRATION` | Token expiration in seconds, supported max value is 900 | 900 | 900 |
-| IdP Endpoint | `IDP_ENDPOINT` | The ADFS host that is used to authenticate with | nil | `my-adfs-host.com` |
-| IdP Port | `IDP_PORT` | The ADFS host port | 443 | 443 |
-| IdP User Name | `IDP_USERNAME` | The user name for the IdP Endpoint server | nil | `user@email.com` |
-| IdP Password | `IDP_PASSWORD` | The IdP user's password | nil | `my_password_123` |
-| Role ARN | `IDP_ROLE_ARN` | The ARN of the IAM Role that is to be assumed for database access | nil | `arn:aws:iam::123412341234:role/ADFS-SAML-Assume` |
-| IdP SAML Provider ARN | `IDP_SAML_ARN` | The ARN of the Identity Provider | nil | `arn:aws:iam::123412341234:saml-provider/ADFS-AWS-IAM` |
-| HTTP Socket Timeout | `HTTP_SOCKET_TIMEOUT` | The socket timeout value in milliseconds for the HttpClient reading | 3000 | 3000 |
-| HTTP Connect Timeout | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient | 5000 | 5000 |
-| Relaying Party ID | `RELAY_PARTY_ID` | The relaying party identifier | `urn:amazon:webservices` | `urn:amazon:webservices` |
-| Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplicated for scenarios of underlying driver's automatically decoding before passing to the database for connection | `0` | `1` |
+| Region | `REGION` | The region of the database for IAM authentication. | `us-east-1` | `us-east-1` |
+| Database | `DATABASE` | Default database that a user will work on. | nil | `my_database` |
+| Token Expiration | `TOKEN_EXPIRATION` | Token expiration in seconds, supported max value is 900. | 900 | 900 |
+| IdP Endpoint | `IDP_ENDPOINT` | The ADFS host that is used to authenticate with. | nil | `my-adfs-host.com` |
+| IdP Port | `IDP_PORT` | The ADFS host port. | 443 | 443 |
+| IdP User Name | `IDP_USERNAME` | The user name for the IdP Endpoint server. | nil | `user@email.com` |
+| IdP Password | `IDP_PASSWORD` | The IdP user's password. | nil | `my_password_123` |
+| Role ARN | `IDP_ROLE_ARN` | The ARN of the IAM Role that is to be assumed for database access. | nil | `arn:aws:iam::123412341234:role/ADFS-SAML-Assume` |
+| IdP SAML Provider ARN | `IDP_SAML_ARN` | The ARN of the Identity Provider. | nil | `arn:aws:iam::123412341234:saml-provider/ADFS-AWS-IAM` |
+| HTTP Socket Timeout | `HTTP_SOCKET_TIMEOUT` | The socket timeout value in milliseconds for the HttpClient reading. | 3000 | 3000 |
+| HTTP Connect Timeout | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient. | 5000 | 5000 |
+| Relaying Party ID | `RELAY_PARTY_ID` | The relaying party identifier. | `urn:amazon:webservices` | `urn:amazon:webservices` |
+| Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplication for scenarios where underlying drivers automatically decode the URL before passing to the database for connections. | `0` | `1` |
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
