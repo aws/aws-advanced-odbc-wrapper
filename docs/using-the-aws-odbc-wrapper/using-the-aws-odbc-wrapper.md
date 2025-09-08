@@ -21,9 +21,9 @@ These parameters are applicable to any instance of the AWS Advanced ODBC Wrapper
 | `DATABASE` | `String` | No | Name of database to connect to. If using a Base DSN, and the DSN has a field covering `DATABASE` then this value is not required for the ODBC Wrapper. | `nil` |
 | `UID` | `String` | No | Username to authenticate to database to. This value is not required to be set if using an alternative authentication plugin such as Secrets Manager Authentication or if using a Base DSN, and the DSN has a field covering `UID` then this value is not required for the ODBC Wrapper. | `nil` |
 | `PWD` | `String` | No | Password to authenticate to database to. This value is not required to be set if using an alternative authentication plugin such as Secrets Manager Authentication or if using a Base DSN, and the DSN has a field covering `PWD` then this value is not required for the ODBC Wrapper. | `nil` |
-| `BASE_DSN` | `String` | No | Name of an existing DSN to use for additional value pairs | `nil` |
+| `BASE_DSN` | `String` | No | Name of an existing DSN to use for additional value pairs. | `nil` |
 | `BASE_DRIVER` | `String` | No | Path to an underlying driver to make ODBC calls to. This is not required if the Base DSN is given and the underlying driver set as `DRIVER` is wanted to be used. | `nil` |
-| `nil` | `String` | No | For additional settings to the underlying driver, the connection string can be used for the specific underlying driver's options too. | `nil` |
+| `BASE_CONN` / `nil` | `String` | No | A connection string to specify underlying driver specific options and additional settings. | `nil` |
 
 ## Plugins
 The AWS Advanced ODBC Wrapper uses plugins to execute ODBC methods. You can think of a plugin as an extensible code module that adds extra logic around any ODBC method calls. The AWS Advanced ODBC Wrapper has a number of [built-in plugins](#list-of-available-plugins) available for use.
