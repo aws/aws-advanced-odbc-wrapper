@@ -66,7 +66,7 @@ typedef enum {
     ERR_INVALID_CHARACTER_VALUE_FOR_CAST_SPECIFICATION,
     ERR_INVALID_ESCAPE_CHARACTER,
     ERR_INVALID_ESCAPE_SEQUENCE,
-    ERR_STRING_DATA,_LENGTH_MISMATCH,
+    ERR_STRING_DATA_LENGTH_MISMATCH,
     ERR_INTEGRITY_CONSTRAINT_VIOLATION,
     ERR_INVALID_CURSOR_STATE,
     ERR_INVALID_TRANSACTION_STATE,
@@ -163,7 +163,7 @@ typedef enum {
 const std::string ODBC_STATE_MAP[] = {
     /* ODBC SQL States*/
     "01000", "01001", "01002", "01003", "01004", "01006", "01007", "01S00", "01S01", "01S02", "01S06",
-    "01S07", "01S08", "01S09", "07001", "07002", "07005", "07006", "07009", "07S01",  "08001", "08002",
+    "01S07", "01S08", "01S09", "07001", "07002", "07005", "07006", "07009", "07S01", "08001", "08002",
     "08003", "08004", "08007", "08S01", "21S01", "21S02", "22001", "22002", "22003", "22007", "22008",
     "22012", "22015", "22018", "22019", "22025", "22026", "23000", "24000", "25000", "25S01", "25S02",
     "25S03", "28000", "34000", "3C000", "3D000", "3F000", "40001", "40002", "40003", "42000", "42S01",
@@ -204,7 +204,7 @@ struct ERR_INFO {
         if (msg) {
             error_msg = strdup(msg);
         }
-        if (sql_state >= 0 && sql_state < INVALID_ERR) {
+        if (sql_state >= 0 && sql_state <= INVALID_ERR) {
             std::string str_sql_state = ODBC_STATE_MAP[sql_state];
             is_odbc3_subclass = IsOdbc3Subclass(str_sql_state);
             sqlstate = strdup(str_sql_state.c_str());

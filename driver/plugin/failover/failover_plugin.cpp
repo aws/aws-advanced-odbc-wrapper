@@ -43,6 +43,7 @@ FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode f
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
         std::chrono::milliseconds(std::strtol(ToStr(conn_info.at(KEY_FAILOVER_TIMEOUT)).c_str(), nullptr, 10))
         : DEFAULT_FAILOVER_TIMEOUT_MS;
+    this->cluster_id_ = InitClusterId(conn_info);
     this->failover_mode_ = failover_mode != FailoverMode::UNKNOWN_FAILOVER_MODE ? failover_mode : InitFailoverMode(conn_info);
     this->dialect_ = dialect ? dialect : InitDialect(conn_info);
     this->host_selector_ = host_selector ? host_selector : InitHostSelectorStrategy(conn_info);
@@ -121,7 +122,7 @@ SQLRETURN FailoverPlugin::Execute(
         ERR_INFO* err_info;
         if (TRANSACTION_OPEN == original_transaction_status) {
             dbc->transaction_status = TRANSACTION_CLOSED;
-            stmt->err = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
+            err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
             err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         }
@@ -335,6 +336,22 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
     dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_string));
 
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+}
+
+std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> conn_info)
+{
+    std::string generated_id;
+    if (conn_info.contains(KEY_CLUSTER_ID)) {
+        generated_id = ToStr(conn_info.at(KEY_CLUSTER_ID));
+    } else {
+        generated_id = RdsUtils::GetRdsClusterId(ToStr(conn_info.at(KEY_SERVER)));
+        if (generated_id.empty()) {
+            generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+        }
+        LOG(INFO) << "ClusterId generated and set to: " << generated_id;
+        conn_info.insert_or_assign(KEY_CLUSTER_ID, ToRdsStr(generated_id));
+    }
+    return generated_id;
 }
 
 FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_info)

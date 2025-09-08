@@ -429,7 +429,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
     dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
 
     if (SQL_ATTR_AUTOCOMMIT == Attribute) {
-        dbc->auto_commit = (SQLPOINTER) TRUE == ValuePtr;
+        dbc->auto_commit = reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_ON) == ValuePtr;
     }
 
     return ret;

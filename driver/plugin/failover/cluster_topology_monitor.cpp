@@ -82,7 +82,6 @@ ClusterTopologyMonitor::~ClusterTopologyMonitor() {
         request_update_topology_.store(true);
     }
     request_update_topology_cv_.notify_all();
-    node_monitoring_threads_.clear();
 
     // Close main monitor
     if (monitoring_thread_ && monitoring_thread_->joinable()) {
@@ -161,6 +160,7 @@ void ClusterTopologyMonitor::Run() {
     } catch (const std::exception& ex) {
         LOG(ERROR) << "Cluster Topology Main Monitor encountered error: " << ex.what();
     }
+    node_monitoring_threads_.clear();
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t timeout_ms) {
