@@ -75,6 +75,7 @@ SecretsManagerPlugin::~SecretsManagerPlugin()
 }
 
 SQLRETURN SecretsManagerPlugin::Connect(
+    SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
@@ -82,6 +83,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     SQLRETURN ret = SQL_ERROR;
+    DBC* dbc = (DBC*) ConnectionHandle;
 
     {
         std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
@@ -91,7 +93,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(cached_secret.password));
-                ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 secrets_cache.erase(secret_key);
             }
@@ -107,7 +109,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     if (request_outcome.IsSuccess()) {
         Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
-            if (dbc->err) delete dbc->err;
+            delete dbc->err;
             dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
@@ -118,9 +120,9 @@ SQLRETURN SecretsManagerPlugin::Connect(
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(secret.username));
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(secret.password));
-        return next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     } else {
-        if (dbc->err) delete dbc->err;
+        delete dbc->err;
         dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
@@ -135,9 +137,8 @@ Secret SecretsManagerPlugin::ParseSecret(std::string secret_string, std::chrono:
 
     if (view.ValueExists(SECRET_USERNAME_KEY) && view.ValueExists(SECRET_PASSWORD_KEY)) {
         return Secret{view.GetString(SECRET_USERNAME_KEY).c_str(), view.GetString(SECRET_PASSWORD_KEY).c_str(), curr_time + expiration};
-    } else {
-        return Secret{"", "", curr_time + expiration};
     }
+    return Secret{"", "", curr_time + expiration};
 }
 
 int SecretsManagerPlugin::GetSecretsCacheSize() {

@@ -54,6 +54,13 @@ typedef enum
     CONN_EXECUTING
 } CONN_STATUS;
 
+typedef enum
+{
+    TRANSACTION_CLOSED,
+    TRANSACTION_OPEN,
+    TRANSACTION_ERROR
+} TRANSACTION_STATUS;
+
 struct ERR_INFO;
 struct ENV;
 struct DBC;
@@ -79,9 +86,12 @@ struct DBC {
     std::recursive_mutex        lock;
     ENV*                        env;
     std::list<STMT*>            stmt_list;
+    unsigned short              unnamed_cursor_count;
     std::list<DESC*>            desc_list;
     SQLHDBC                     wrapped_dbc;
     CONN_STATUS                 conn_status;
+    TRANSACTION_STATUS          transaction_status;
+    bool                        auto_commit = true; // By default, drivers will be in auto commit mode
 
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
@@ -97,6 +107,11 @@ struct STMT {
     std::recursive_mutex        lock;
     DBC*                        dbc;
     SQLHSTMT                    wrapped_stmt;
+
+    // TODO - May need to change SQLPOINTER to an actual object
+    std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
+    RDS_STR cursor_name;
+
     ERR_INFO*                   err;
 }; // STMT
 
@@ -159,21 +174,42 @@ SQLRETURN RDS_SQLSetConnectAttr(
 #define NOT_IMPLEMENTED \
      return SQL_ERROR
 
-#define NULL_CHECK_HANDLE(h) \
+#define NULL_CHECK_HANDLE(h)                           \
     if (h == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DBC(h) \
-    if (h == NULL \
-         || ((DBC*) h)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_DBC(h)                   \
+    if (h == NULL                                      \
+         || ((DBC*) h)->env == NULL)                   \
          return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_STMT(h) \
-    if (h == NULL \
-         || ((STMT*) h)->dbc == NULL \
-         || ((DBC*) ((STMT*) h)->dbc)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_STMT(h)                  \
+    if (h == NULL                                      \
+         || ((STMT*) h)->dbc == NULL                   \
+         || ((DBC*) ((STMT*) h)->dbc)->env == NULL)    \
          return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DESC(h) \
-    if (h == NULL \
-         || ((DESC*) h)->dbc == NULL \
-         || ((DBC*) ((DESC*) h)->dbc)->env == NULL) \
+#define NULL_CHECK_ENV_ACCESS_DESC(h)                  \
+    if (h == NULL                                      \
+         || ((DESC*) h)->dbc == NULL                   \
+         || ((DBC*) ((DESC*) h)->dbc)->env == NULL)    \
+         return SQL_INVALID_HANDLE
+
+#define NULL_CHECK_CALL_LIB_FUNC(lib_loader, fn_type, fn_name, ...) lib_loader ? \
+    lib_loader->CallFunction<fn_type>(fn_name, __VA_ARGS__) \
+    : RdsLibResult{.fn_load_success = false, .fn_result = SQL_ERROR}
+
+#define CHECK_WRAPPED_ENV(h)                 \
+    if (h == NULL                                 \
+         || ((ENV*) h)->wrapped_env == NULL)      \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_DBC(h)                 \
+    if (h == NULL                                 \
+         || ((DBC*) h)->wrapped_dbc == NULL)      \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_STMT(h)                \
+    if (h == NULL                                 \
+         || ((STMT*) h)->wrapped_stmt == NULL)    \
+         return SQL_INVALID_HANDLE
+#define CHECK_WRAPPED_DESC(h)                \
+    if (h == NULL                                 \
+         || ((DESC*) h)->wrapped_desc == NULL)    \
          return SQL_INVALID_HANDLE
 
 #define CLEAR_ENV_ERROR(env)                 \

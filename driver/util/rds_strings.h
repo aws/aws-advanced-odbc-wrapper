@@ -30,14 +30,21 @@
 #include <sql.h>
 
 #include <regex>
-#include <string>
 #include <sstream>
+#include <string.h>
+#include <vector>
 
 #define AS_SQLTCHAR(str) (const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str)))
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
 #define AS_CONST_WCHAR(str) (reinterpret_cast<const wchar_t*>(str))
+
+#ifdef WIN32
+    #define STR_ICMP(str1, str2) strcmpi(str1, str2)
+#else
+    #define STR_ICMP(str1, str2) strcasecmp(str1, str2)
+#endif
 
 #ifdef UNICODE
     #include <cwctype>
@@ -51,6 +58,7 @@
     typedef std::wsmatch RDS_MATCH;
     #define RDS_sprintf(buffer, max_length, format, ...) swprintf(buffer, max_length, format, __VA_ARGS__)
     #define RDS_CHAR_FORMAT TEXT("%ws")
+    #define RDS_NUM_APPEND(str, num) str.append(std::to_wstring(num))
 #else
     #include <cstring>
     typedef std::string RDS_STR;
@@ -62,6 +70,7 @@
     typedef std::smatch RDS_MATCH;
     #define RDS_sprintf(buffer, max_length, format, ...) snprintf(buffer, max_length, format, __VA_ARGS__)
     #define RDS_CHAR_FORMAT TEXT("%s")
+    #define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
 #endif
 
 #define EMPTY_RDS_STR TEXT("")
@@ -97,6 +106,29 @@ inline std::string ToStr(const RDS_STR &str)
 #else
     return str;
 #endif
+}
+
+inline RDS_STR TrimStr(RDS_STR &str) {
+    str = str.erase(str.find_last_not_of(TEXT(' ')) + 1);
+    str = str.erase(0, str.find_first_not_of(TEXT(' ')));
+    return str;
+}
+
+inline std::vector<RDS_STR> SplitStr(RDS_STR &str, RDS_STR &delimiter) {
+    RDS_REGEX pattern(delimiter);
+    RDS_MATCH match;
+    RDS_STR str_itr = str;
+    std::vector<RDS_STR> matches;
+    while (std::regex_search(str_itr, match, pattern)) {
+        matches.push_back(match.prefix().str());
+        str_itr = match.suffix().str();
+    }
+
+    if (matches.empty()) {
+        matches.push_back(str);
+    }
+
+    return matches;
 }
 
 #endif // RDS_STRINGS_H_

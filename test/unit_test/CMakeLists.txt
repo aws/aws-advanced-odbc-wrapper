@@ -30,13 +30,14 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
 )
 
 set(TEST_RUNNER

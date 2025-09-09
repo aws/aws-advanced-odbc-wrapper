@@ -14,6 +14,9 @@
 
 #include "iam_auth_plugin.h"
 
+#include "../../util/auth_provider.h"
+
+#include "../../driver.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 
@@ -41,12 +44,15 @@ IamAuthPlugin::~IamAuthPlugin()
 }
 
 SQLRETURN IamAuthPlugin::Connect(
+    SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    DBC* dbc = (DBC*) ConnectionHandle;
+
     std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     // TODO - Helper to parse from URL
@@ -63,7 +69,7 @@ SQLRETURN IamAuthPlugin::Connect(
         std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10) : false;
 
     if (server.empty() || region.empty() || port.empty() || username.empty()) {
-        if (dbc->err) delete dbc->err;
+        delete dbc->err;
         dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
@@ -73,14 +79,14 @@ SQLRETURN IamAuthPlugin::Connect(
     SQLRETURN ret = SQL_ERROR;
 
     dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
-    ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         token = auth_provider->GetToken(server, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
-        ret = next_plugin->Connect(WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     return ret;

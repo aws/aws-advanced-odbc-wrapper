@@ -14,28 +14,28 @@
 
 #include "base_plugin.h"
 
+#include "../driver.h"
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
 #include "../util/logger_wrapper.h"
 #include "../util/rds_lib_loader.h"
+#include "../util/sql_query_analyzer.h"
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
 BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
-    dbc(dbc),
     next_plugin(next_plugin),
-    plugin_name("BasePlugin")
-{
-    if (!dbc) {
-        throw std::runtime_error("DBC cannot be null.");
+    plugin_name("BasePlugin") {}
+
+BasePlugin::~BasePlugin() {
+    if (next_plugin) {
+        delete next_plugin;
+        next_plugin = nullptr;
     }
 }
 
-BasePlugin::~BasePlugin()
-{
-}
-
 SQLRETURN BasePlugin::Connect(
+    SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     OutConnectionString,
     SQLSMALLINT    BufferLength,
@@ -44,6 +44,7 @@ SQLRETURN BasePlugin::Connect(
 {
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
+    DBC* dbc = (DBC*) ConnectionHandle;
     ENV* env = dbc->env;
 
     // TODO - Should a new connect use a new underlying DBC?
@@ -87,4 +88,71 @@ SQLRETURN BasePlugin::Connect(
         }
     }
     return ret;
+}
+
+SQLRETURN BasePlugin::Execute(
+    SQLHSTMT       StatementHandle,
+    SQLTCHAR *     StatementText,
+    SQLINTEGER     TextLength)
+{
+    SQLRETURN ret = SQL_ERROR;
+    RdsLibResult res;
+    STMT* stmt = (STMT*) StatementHandle;
+    DBC* dbc = stmt->dbc;
+    ENV* env = dbc->env;
+    RDS_STR query = AS_RDS_STR(StatementText);
+
+    // Allocate wrapped handle if NULL
+    if (!stmt->wrapped_stmt) {
+        if (dbc->wrapped_dbc) {
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+                SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
+            );
+        } else {
+            stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
+            return SQL_ERROR;
+        }
+        // Set statement settings
+        for (auto const& [key, val] : stmt->attr_map) {
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
+                stmt->wrapped_stmt, key, val.first, val.second
+            );
+        }
+        // Cursor Name
+        RDS_STR cursor_name = stmt->cursor_name;
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name.c_str()), cursor_name.length()
+        );
+    }
+
+    if (query.empty()) {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
+            stmt->wrapped_stmt
+        );
+    } else {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+            stmt->wrapped_stmt, StatementText, TextLength
+        );
+    }
+
+    // Supports checking for transaction changes only if it was a direct execute
+    if (SQL_SUCCEEDED(res.fn_result) && !query.empty()) {
+        if (SqlQueryAnalyzer::DoesOpenTransaction(query)) {
+            dbc->transaction_status = TRANSACTION_OPEN;
+        } else if (SqlQueryAnalyzer::DoesCloseTransaction(dbc, query)
+            || SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(dbc, query)
+        ) {
+            dbc->transaction_status = TRANSACTION_CLOSED;
+        }
+
+        if (SqlQueryAnalyzer::IsStatementSettingAutoCommit(query)) {
+            dbc->auto_commit = SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(query);
+            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+                dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) dbc->auto_commit, 0
+            );
+            dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair((SQLPOINTER) dbc->auto_commit, 0));
+        }
+    }
+
+    return res.fn_result;
 }

@@ -50,6 +50,7 @@ public:
     ~AdfsAuthPlugin() override;
 
     SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
         SQLHWND        WindowHandle,
         SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,

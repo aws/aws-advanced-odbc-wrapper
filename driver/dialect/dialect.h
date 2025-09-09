@@ -15,7 +15,17 @@
 #ifndef DIALECT_H
 #define DIALECT_H
 
+#include "../util/connection_string_keys.h"
 #include "../util/rds_strings.h"
+
+typedef enum {
+    AURORA_POSTGRESQL,
+    UNKNOWN_DIALECT
+} DatabaseDialectType;
+
+static std::map<RDS_STR, DatabaseDialectType> const database_dialect_table = {
+    {VALUE_DB_DIALECT_AURORA_POSTGRESQL,    DatabaseDialectType::AURORA_POSTGRESQL}
+};
 
 class Dialect {
 public:
@@ -24,6 +34,18 @@ public:
     virtual RDS_STR GetWriterIdQuery() { return AS_RDS_STR(TEXT("")); };
     virtual RDS_STR GetNodeIdQuery() { return AS_RDS_STR(TEXT("")); };
     virtual RDS_STR GetIsReaderQuery() { return AS_RDS_STR(TEXT("")); };
+
+    virtual bool IsSqlStateAccessError(RDS_CHAR* sql_state) { return false; };
+    virtual bool IsSqlStateNetworkError(RDS_CHAR* sql_state) { return false; };
+
+    static DatabaseDialectType DatabaseDialectFromString(const RDS_STR &database_dialect) {
+        RDS_STR local_str = database_dialect;
+        RDS_STR_UPPER(local_str);
+        if (database_dialect_table.contains(local_str)) {
+            return database_dialect_table.at(local_str);
+        }
+        return DatabaseDialectType::UNKNOWN_DIALECT;
+    }
 };
 
 #endif // DIALECT_H

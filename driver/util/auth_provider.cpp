@@ -106,9 +106,8 @@ AuthType AuthProvider::AuthTypeFromString(const RDS_STR &auth_type) {
     RDS_STR_UPPER(local_str);
     if (auth_table.contains(local_str)) {
         return auth_table.at(local_str);
-    } else {
-        return AuthType::INVALID;
     }
+    return AuthType::INVALID;
 }
 
 std::string AuthProvider::BuildCacheKey(

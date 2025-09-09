@@ -31,11 +31,18 @@ set(INC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
+    ## Failover
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.h
+    ## Federated
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.h
+    ## IAM
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.h
+    ## Secrets Manager
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.h
 
     # Utils
@@ -47,7 +54,9 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
@@ -65,6 +74,9 @@ set(SRC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.cpp
@@ -79,7 +91,9 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp

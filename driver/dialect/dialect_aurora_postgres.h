@@ -17,6 +17,10 @@
 
 #include "dialect.h"
 
+#include <vector>
+
+#include "../util/rds_strings.h"
+
 class DialectAuroraPostgres : public Dialect {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
@@ -24,6 +28,22 @@ public:
     RDS_STR GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     RDS_STR GetNodeIdQuery() override { return NODE_ID_QUERY; };
     RDS_STR GetIsReaderQuery() override { return IS_READER_QUERY; };
+
+    bool IsSqlStateAccessError(RDS_CHAR* sql_state) override {
+        RDS_STR state(sql_state);
+        for (RDS_STR prefix : ACCESS_ERRORS) {
+            if (state.rfind(prefix, 0) == 0) return true;
+        }
+        return false;
+    };
+
+    bool IsSqlStateNetworkError(RDS_CHAR* sql_state) override {
+        RDS_STR state(sql_state);
+        for (RDS_STR prefix : NETWORK_ERRORS) {
+            if (state.rfind(prefix, 0) == 0) return true;
+        }
+        return false;
+    };
 
 private:
     const int DEFAULT_POSTGRES_PORT = 5432;
@@ -41,6 +61,23 @@ private:
     const RDS_STR NODE_ID_QUERY = AS_RDS_STR(TEXT("SELECT aurora_db_instance_identifier()"));
 
     const RDS_STR IS_READER_QUERY = AS_RDS_STR(TEXT("SELECT pg_is_in_recovery()"));
+
+    const std::vector<RDS_STR> ACCESS_ERRORS = {
+        AS_RDS_STR(TEXT("28P01")),
+        AS_RDS_STR(TEXT("28000"))   // PAM authentication errors
+    };
+
+    const std::vector<RDS_STR> NETWORK_ERRORS = {
+        AS_RDS_STR(TEXT("53")),       // insufficient resources
+        AS_RDS_STR(TEXT("57P01")),    // admin shutdown
+        AS_RDS_STR(TEXT("57P02")),    // crash shutdown
+        AS_RDS_STR(TEXT("57P03")),    // cannot connect now
+        AS_RDS_STR(TEXT("58")),       // system error (backend)
+        AS_RDS_STR(TEXT("08")),       // connection error
+        AS_RDS_STR(TEXT("99")),       // unexpected error
+        AS_RDS_STR(TEXT("F0")),       // configuration file error (backend)
+        AS_RDS_STR(TEXT("XX"))        // internal error (backend)
+    };
 };
 
 #endif  // DIALECT_AURORA_POSTGRES_H
