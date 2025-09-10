@@ -36,7 +36,7 @@
     #define FUNC_HANDLE void*
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, RTLD_LAZY | RTLD_LOCAL)
 #ifdef UNICODE
-    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(AS_CONST_CHAR(module_name), load_flag)
+    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(ToStr(module_name).c_str(), load_flag)
 #else
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
 #endif
