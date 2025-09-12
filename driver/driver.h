@@ -76,6 +76,7 @@ struct ENV {
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
     ERR_INFO*                   err;
+    char                        sql_error_called = 0;
 
     SQLHENV                     wrapped_env;
 
@@ -100,6 +101,7 @@ struct DBC {
     std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head;
     ERR_INFO*                   err;
+    char                        sql_error_called = 0;
 }; // DBC
 
 struct STMT {
@@ -113,6 +115,7 @@ struct STMT {
     RDS_STR cursor_name;
 
     ERR_INFO*                   err;
+    char                        sql_error_called = 0;
 }; // STMT
 
 struct DESC {
@@ -122,6 +125,7 @@ struct DESC {
     DBC*                        dbc;
     SQLHDESC                    wrapped_desc;
     ERR_INFO*                   err;
+    char                        sql_error_called = 0;
 }; // DESC
 
 /* Function Declarations */
@@ -195,50 +199,65 @@ SQLRETURN RDS_SQLSetConnectAttr(
     lib_loader->CallFunction<fn_type>(fn_name, __VA_ARGS__) \
     : RdsLibResult{.fn_load_success = false, .fn_result = SQL_ERROR}
 
-#define CHECK_WRAPPED_ENV(h)                 \
+#define CHECK_WRAPPED_ENV(h)                      \
     if (h == NULL                                 \
          || ((ENV*) h)->wrapped_env == NULL)      \
          return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_DBC(h)                 \
+#define CHECK_WRAPPED_DBC(h)                      \
     if (h == NULL                                 \
          || ((DBC*) h)->wrapped_dbc == NULL)      \
          return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_STMT(h)                \
+#define CHECK_WRAPPED_STMT(h)                     \
     if (h == NULL                                 \
          || ((STMT*) h)->wrapped_stmt == NULL)    \
          return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_DESC(h)                \
+#define CHECK_WRAPPED_DESC(h)                     \
     if (h == NULL                                 \
          || ((DESC*) h)->wrapped_desc == NULL)    \
          return SQL_INVALID_HANDLE
 
-#define CLEAR_ENV_ERROR(env)                 \
-     do {                                    \
-          if (env && ((ENV*)env)->err) {     \
-               delete ((ENV*)env)->err;      \
-               ((ENV*)env)->err = nullptr;   \
-          }                                  \
+#define CLEAR_ENV_ERROR(env)                      \
+     do {                                         \
+          if (env) {                              \
+               ((ENV*)env)->sql_error_called = 0; \
+               delete ((ENV*)env)->err;           \
+               ((ENV*)env)->err = nullptr;        \
+          }                                       \
      } while (0)
-#define CLEAR_DBC_ERROR(dbc)                 \
-     do {                                    \
-          if (dbc && ((DBC*)dbc)->err) {     \
-               delete ((DBC*)dbc)->err;      \
-               ((DBC*)dbc)->err = nullptr;   \
-          }                                  \
+#define CLEAR_DBC_ERROR(dbc)                      \
+     do {                                         \
+          if (dbc) {                              \
+               ((DBC*)dbc)->sql_error_called = 0; \
+               delete ((DBC*)dbc)->err;           \
+               ((DBC*)dbc)->err = nullptr;        \
+          }                                       \
      } while (0)
-#define CLEAR_STMT_ERROR(stmt)               \
-     do {                                    \
-          if (stmt && ((STMT*)stmt)->err) {  \
-               delete ((STMT*)stmt)->err;    \
-               ((STMT*)stmt)->err = nullptr; \
-          }                                  \
+#define CLEAR_STMT_ERROR(stmt)                         \
+     do {                                              \
+          if (stmt) {                                  \
+               ((STMT*)stmt)->sql_error_called = 0;    \
+               delete ((STMT*)stmt)->err;              \
+               ((STMT*)stmt)->err = nullptr;           \
+          }                                            \
      } while (0)
-#define CLEAR_DESC_ERROR(desc)               \
-     do {                                    \
-          if (desc && ((DESC*)desc)->err) {  \
-               delete ((DESC*)desc)->err;    \
-               ((DESC*)desc)->err = nullptr; \
-          }                                  \
+#define CLEAR_DESC_ERROR(desc)                         \
+     do {                                              \
+          if (desc) {                                  \
+               ((STMT*)stmt)->sql_error_called = 0;    \
+               delete ((DESC*)desc)->err;              \
+               ((DESC*)desc)->err = nullptr;           \
+          }                                            \
      } while (0)
+
+#define NEXT_ERROR(err) err ? 0 : (err = 1)
+
+#define NEXT_ENV_ERROR(env)   \
+     env ? NEXT_ERROR(((ENV*)env)->sql_error_called) : 0
+#define NEXT_DBC_ERROR(dbc)   \
+     dbc ? NEXT_ERROR(((DBC*)dbc)->sql_error_called) : 0
+#define NEXT_STMT_ERROR(stmt) \
+     stmt ? NEXT_ERROR(((STMT*)stmt)->sql_error_called) : 0
+#define NEXT_DESC_ERROR(desc) \
+     desc ? NEXT_ERROR(((DESC*)desc)->sql_error_called) : 0
 
 #endif // DRIVER_H
