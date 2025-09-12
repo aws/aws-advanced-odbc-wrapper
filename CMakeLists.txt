@@ -95,6 +95,6 @@ list(APPEND EXTERNAL_LIBRARIES ng-log::ng-log)
 add_subdirectory(driver)
 
 # Build Unit Tests -------------------------------------------------------------------------------------------
-if(UNIT_TEST)
+if(BUILD_UNIT_TEST)
     add_subdirectory(test/unit_test)
 endif()

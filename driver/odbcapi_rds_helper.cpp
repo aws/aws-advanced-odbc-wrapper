@@ -16,12 +16,15 @@
 
 #include "odbcapi_rds_helper.h"
 
+#include <unordered_set>
+
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
+#include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/logger_wrapper.h"
@@ -1780,6 +1783,18 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
     // If driver is not loaded from Base DSN, try input base driver
     if (!dbc->conn_attr.contains(KEY_DRIVER) && dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
         dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
+    }
+
+    std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
+    if (!invalid_params.empty()) {
+        CLEAR_DBC_ERROR(dbc);
+        std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
+        for (RDS_STR msg : invalid_params) {
+            invalid_message += ToStr(msg);
+            invalid_message += "\n\t";
+        }
+        dbc->err = new ERR_INFO(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return SQL_ERROR;
     }
 
     if (dbc->conn_attr.contains(KEY_DRIVER)) {

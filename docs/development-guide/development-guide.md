@@ -32,7 +32,7 @@
 #### Build Wrapper
 ```
 # In Repository Root
-cmake -S . -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF>
+cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF>
 cmake --build build --config <Release/Debug>
 ```
 
@@ -55,7 +55,7 @@ brew install cmake curl openssl unixodbc zlib
 #### Build Wrapper
 ```
 # In Repository Root
-cmake -S driver -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
@@ -75,7 +75,7 @@ sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev
 #### Build Wrapper
 ```
 # In Repository Root
-cmake -S driver -B build -DUNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
