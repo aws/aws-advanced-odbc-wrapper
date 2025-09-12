@@ -42,7 +42,7 @@ bool AttributeValidator::IsValueInt(const RDS_STR& value) {
     try {
         std::size_t pos{};
         std::stoi(value, &pos);
-        return pos != value.length();
+        return pos == value.length();
     } catch (std::invalid_argument) {
         return false;
     } catch (std::out_of_range) {

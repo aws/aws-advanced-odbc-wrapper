@@ -20,11 +20,10 @@
 
 #include "rds_strings.h"
 
-class AttributeValidator {
-public:
-    static std::unordered_set<RDS_STR> ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr);
-    static bool ShouldKeyBeInt(const RDS_STR& key);
-    static bool IsValueInt(const RDS_STR& value);
+namespace AttributeValidator {
+    std::unordered_set<RDS_STR> ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr);
+    bool ShouldKeyBeInt(const RDS_STR& key);
+    bool IsValueInt(const RDS_STR& value);
 };
 
 #endif // ATTRIBUTE_VALIDATOR_H_
