@@ -42,20 +42,15 @@ bool AttributeValidator::IsValueInt(const RDS_STR& value) {
     try {
         std::size_t pos{};
         std::stoi(value, &pos);
-        if (pos != value.length()) {
-            // String did not contain only numbers
-            return false;
-        }
+        return pos != value.length();
     } catch (std::invalid_argument) {
         return false;
     } catch (std::out_of_range) {
         return false;
     }
-    return true;
 }
 
-std::unordered_set<RDS_STR> AttributeValidator::ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr)
-{
+std::unordered_set<RDS_STR> AttributeValidator::ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr) {
     std::unordered_set<RDS_STR> invalid_keys;
     for (const auto& e : conn_attr) {
         RDS_STR key = e.first;
