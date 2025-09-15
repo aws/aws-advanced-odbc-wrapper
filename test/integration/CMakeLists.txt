@@ -13,7 +13,7 @@
 # limitations under the License.
 
 cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
-project("compatibility-test")
+project("integration-test")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -21,12 +21,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.cpp
 )
 
 set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
 
-    ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
 )
 
 set(TEST_RUNNER
@@ -60,7 +63,7 @@ if(WIN32)
     )
 endif()
 
-if(UNICODE)
+if(BUILD_UNICODE)
     add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
         UNICODE
         _UNICODE

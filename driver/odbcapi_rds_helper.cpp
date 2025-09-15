@@ -1839,51 +1839,57 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
     }
 
     // Initialize Plugins
-    if (!dbc->plugin_head) {
-        BasePlugin* plugin_head = new BasePlugin(dbc);
-        BasePlugin* next_plugin;
+    try {
+        if (!dbc->plugin_head) {
+            BasePlugin* plugin_head = new BasePlugin(dbc);
+            BasePlugin* next_plugin;
 
-        // Auth Plugins
-        if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
-            AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
-            switch (type) {
-                    case AuthType::IAM:
-                        next_plugin = new IamAuthPlugin(dbc, plugin_head);
-                        plugin_head = next_plugin;
-                        break;
-                    case AuthType::SECRETS_MANAGER:
-                        next_plugin = new SecretsManagerPlugin(dbc, plugin_head);
-                        plugin_head = next_plugin;
-                        break;
-                    case AuthType::ADFS:
-                        next_plugin = new AdfsAuthPlugin(dbc, plugin_head);
-                        plugin_head = next_plugin;
-                        break;
-                    case AuthType::OKTA:
-                        next_plugin = new OktaAuthPlugin(dbc, plugin_head);
-                        plugin_head = next_plugin;
-                        break;
-                    case AuthType::DATABASE:
-                    case AuthType::INVALID:
-                    default:
-                        break;
+            // Auth Plugins
+            if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
+                AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
+                switch (type) {
+                        case AuthType::IAM:
+                            next_plugin = new IamAuthPlugin(dbc, plugin_head);
+                            plugin_head = next_plugin;
+                            break;
+                        case AuthType::SECRETS_MANAGER:
+                            next_plugin = new SecretsManagerPlugin(dbc, plugin_head);
+                            plugin_head = next_plugin;
+                            break;
+                        case AuthType::ADFS:
+                            next_plugin = new AdfsAuthPlugin(dbc, plugin_head);
+                            plugin_head = next_plugin;
+                            break;
+                        case AuthType::OKTA:
+                            next_plugin = new OktaAuthPlugin(dbc, plugin_head);
+                            plugin_head = next_plugin;
+                            break;
+                        case AuthType::DATABASE:
+                        case AuthType::INVALID:
+                        default:
+                            break;
+                }
             }
+
+            // Limitless
+            if (dbc->conn_attr.contains(KEY_LIMITLESS_ENABLED)
+                && dbc->conn_attr.at(KEY_LIMITLESS_ENABLED) == VALUE_BOOL_TRUE);
+
+            // Failover
+            if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
+                && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new FailoverPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Finalize and track in DBC
+            dbc->plugin_head = plugin_head;
         }
-
-        // Limitless
-        if (dbc->conn_attr.contains(KEY_LIMITLESS_ENABLED)
-            && dbc->conn_attr.at(KEY_LIMITLESS_ENABLED) == VALUE_BOOL_TRUE);
-
-        // Failover
-        if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
-            && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
-        {
-            next_plugin = new FailoverPlugin(dbc, plugin_head);
-            plugin_head = next_plugin;
-        }
-
-        // Finalize and track in DBC
-        dbc->plugin_head = plugin_head;
+    } catch (const std::exception& ex) {
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO((std::string("Error initializing plugins: ") + ex.what()).c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return SQL_ERROR;
     }
 
     return SQL_SUCCESS;
