@@ -766,19 +766,21 @@ SQLRETURN RDS_SQLError(
 
     // Take in order of lowest to high
     //  Stmt > Dbc > Env
-    // SQLError is deprecated, if called directly, return the first error
+    // SQLError is deprecated, if called directly,
+    //  return the first error only once
+    //  UnixODBC will enter an infinite loop otherwise
     if (StatementHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_STMT, StatementHandle, 1,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_STMT, StatementHandle, NEXT_STMT_ERROR(StatementHandle),
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
     else if (ConnectionHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_DBC, ConnectionHandle, 1,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_DBC, ConnectionHandle, NEXT_DBC_ERROR(ConnectionHandle),
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
     else if (EnvironmentHandle) {
-        ret = RDS_SQLGetDiagRec(SQL_HANDLE_ENV, EnvironmentHandle, 1,
+        ret = RDS_SQLGetDiagRec(SQL_HANDLE_ENV, EnvironmentHandle, NEXT_ENV_ERROR(EnvironmentHandle),
             SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
         );
     }
