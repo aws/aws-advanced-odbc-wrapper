@@ -243,7 +243,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
 #define CLEAR_DESC_ERROR(desc)                         \
      do {                                              \
           if (desc) {                                  \
-               ((STMT*)stmt)->sql_error_called = 0;    \
+               ((DESC*)desc)->sql_error_called = 0;    \
                delete ((DESC*)desc)->err;              \
                ((DESC*)desc)->err = nullptr;           \
           }                                            \

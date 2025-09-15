@@ -15,15 +15,7 @@
 #ifndef CONNECTION_STRING_BUILDER_H_
 #define CONNECTION_STRING_BUILDER_H_
 
-#include <string>
-
-#define AS_SQLTCHAR(str) (const_cast<SQLTCHAR*>(reinterpret_cast<const SQLTCHAR*>(str)))
-
-#ifdef UNICODE
-    #define RDS_STR std::wstring
-#else
-    #define RDS_STR std::string
-#endif
+#include "string_helper.h"
 
 class ConnectionStringBuilder {
 public:
@@ -55,6 +47,90 @@ public:
 
     ConnectionStringBuilder& withBaseDSN(const std::string& dsn) {
         length += sprintf(conn_in + length, "BASE_DSN=%s;", dsn.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withEnableClusterFailover(const bool& enable_cluster_failover) {
+        length += sprintf(conn_in + length, "ENABLE_CLUSTER_FAILOVER=%d;", enable_cluster_failover ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withFailoverMode(const std::string& failover_mode) {
+        length += sprintf(conn_in + length, "FAILOVER_MODE=%s;", failover_mode.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withReaderHostSelectorStrategy(const std::string& strategy) {
+        length += sprintf(conn_in + length, "HOST_SELECTOR_STRATEGY=%s;", strategy.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withIgnoreTopologyRequest(const int& ignore_topology_request) {
+        length += sprintf(conn_in + length, "IGNORE_TOPOLOGY_REQUEST_MS=%d;", ignore_topology_request);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withTopologyHighRefreshRate(const int& topology_high_refresh_rate) {
+        length += sprintf(conn_in + length, "TOPOLOGY_HIGH_REFRESH_RATE_MS=%d;", topology_high_refresh_rate);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withTopologyRefreshRate(const int& topology_refresh_rate) {
+        length += sprintf(conn_in + length, "TOPOLOGY_REFRESH_RATE_MS=%d;", topology_refresh_rate);
+        return *this;
+    }
+    ConnectionStringBuilder& withFailoverTimeout(const int& failover_t) {
+        length += sprintf(conn_in + length, "FAILOVER_TIMEOUT_MS=%d;", failover_t);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withHostPattern(const std::string& host_pattern) {
+        length += sprintf(conn_in + length, "HOST_PATTERN=%s;", host_pattern.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withAuthMode(const std::string& auth_mode) {
+        length += sprintf(conn_in + length, "RDS_AUTH_TYPE=%s;", auth_mode.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withAuthRegion(const std::string& auth_region) {
+        length += sprintf(conn_in + length, "REGION=%s;", auth_region.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withAuthExpiration(const int& auth_expiration) {
+        length += sprintf(conn_in + length, "TOKEN_EXPIRATION=%d;", auth_expiration);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSecretId(const std::string& secret_id) {
+        length += sprintf(conn_in + length, "SECRET_ID=%s;", secret_id.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withLimitlessEnabled(const bool& limitless_enabled) {
+        length += sprintf(conn_in + length, "ENABLE_LIMITLESS=%d;", limitless_enabled ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withLimitlessMode(const std::string& limitless_mode) {
+        length += sprintf(conn_in + length, "LIMITLESS_MODE=%s;", limitless_mode.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withLimitlessMonitorIntervalMs(const int& interval) {
+        length += sprintf(conn_in + length, "LIMITLESS_MONITOR_INTERVAL_MS=%d;", interval);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withExtraUrlEncode(const bool& with_encode) {
+        length += sprintf(conn_in + length, "EXTRA_URL_ENCODE=%d;", with_encode ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSslMode(const std::string& ssl_mode) {
+        length += sprintf(conn_in + length, "SSLMODE=%s;", ssl_mode.c_str());
         return *this;
     }
 
