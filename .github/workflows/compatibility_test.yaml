@@ -126,7 +126,7 @@ jobs:
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build --config ${{env.BUILD_CONFIG}}
       # TODO - Replace this step once installers are made
       - name: Manual Install Wrapper Driver
@@ -218,7 +218,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -283,7 +283,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc

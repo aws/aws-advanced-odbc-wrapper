@@ -43,7 +43,7 @@ jobs:
           ./scripts/compile_aws_sdk_win.ps1 Release
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON
           cmake --build build --config Release
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -77,7 +77,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh Release
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON
           cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -111,7 +111,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh Release
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=ON
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON
           cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
