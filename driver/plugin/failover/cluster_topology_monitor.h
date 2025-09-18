@@ -38,6 +38,7 @@
 #include "../../util/logger_wrapper.h"
 #include "../../util/sliding_cache_map.h"
 #include "../../util/rds_strings.h"
+#include "../../dialect/dialect.h"
 
 struct DBC;
 struct ENV;
@@ -46,7 +47,8 @@ class ClusterTopologyMonitor {
 public:
     ClusterTopologyMonitor(DBC* dbc,
         const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
-        const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper);
+        const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
+        std::shared_ptr<Dialect> dialect_);
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
@@ -131,6 +133,8 @@ private:
     std::mutex hdbc_mutex_;
     std::shared_ptr<SQLHDBC> main_hdbc_;
     std::shared_ptr<HostInfo> main_writer_host_info_;
+
+    std::shared_ptr<Dialect> dialect_;
 };
 
 class ClusterTopologyMonitor::NodeMonitoringThread {

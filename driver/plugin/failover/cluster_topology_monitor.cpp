@@ -22,15 +22,18 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/rds_utils.h"
+#include "../../util/odbc_helper.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
     DBC* dbc,
     const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
-    const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper)
+    const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
+    std::shared_ptr<Dialect> dialect)
     : connection_attributes_{ dbc->conn_attr },
       topology_map_{ topology_map },
       query_helper_{ std::move(query_helper) },
-      lib_loader_{ dbc->env->driver_lib_loader }
+      lib_loader_{ dbc->env->driver_lib_loader },
+      dialect_{ dialect }
 {
     if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
         cluster_id_ = ToStr(connection_attributes_.at(KEY_CLUSTER_ID));
@@ -217,7 +220,7 @@ void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
 
 std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQLHDBC hdbc) {
     std::vector<HostInfo> hosts;
-    if (query_helper_->GetNodeId(hdbc).empty()) {
+    if (GetNodeId(hdbc, dialect_).empty()) {
         LOG(ERROR) << "Cluster Monitor invalid connection for querying for ClusterId: " << cluster_id_;
         return hosts;
     }
@@ -415,7 +418,7 @@ bool ClusterTopologyMonitor::GetPossibleWriterConn() {
     auto* local_hdbc = node_threads_writer_hdbc_ ?
         static_cast<SQLHDBC>(*node_threads_writer_hdbc_) : SQL_NULL_HDBC;
     HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, false);
-    if (SQL_NULL_HDBC != local_hdbc && !query_helper_->GetNodeId(local_hdbc).empty() && local_hostinfo.IsHostUp()) {
+    if (SQL_NULL_HDBC != local_hdbc && !GetNodeId(local_hdbc, dialect_).empty() && local_hostinfo.IsHostUp()) {
         LOG(INFO) << "The writer host detected by the node monitors was picked up by the topology monitor: " << local_hostinfo;
         std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
         CleanUpDbc(main_hdbc_);
@@ -489,7 +492,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     try {
         bool should_stop = main_monitor_->node_threads_stop_.load();
         while (!should_stop) {
-            if (main_monitor_->query_helper_->GetNodeId(hdbc_).empty()) {
+            if (GetNodeId(hdbc_, main_monitor_->dialect_).empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
                     LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect.";
@@ -597,7 +600,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
 void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
     auto* local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
     // Check connection
-    if (main_monitor_->query_helper_->GetNodeId(local_hdbc).empty()) {
+    if (GetNodeId(local_hdbc, main_monitor_->dialect_).empty()) {
         return;
     };
     // Query for hosts

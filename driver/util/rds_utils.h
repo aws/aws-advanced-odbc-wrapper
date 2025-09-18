@@ -26,6 +26,7 @@ public:
     static bool IsRdsWriterClusterDns(const std::string& host);
     static bool IsRdsReaderClusterDns(const std::string& host);
     static bool IsRdsCustomClusterDns(const std::string& host);
+    static bool IsLimitlessDbShardGroupDns(const std::string& host);
     static bool IsIpv4(const std::string& host);
     static bool IsIpv6(const std::string& host);
 

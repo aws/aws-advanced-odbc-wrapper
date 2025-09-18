@@ -32,7 +32,9 @@ bool AttributeValidator::ShouldKeyBeInt(const RDS_STR& key) {
         KEY_HIGH_REFRESH_RATE,
         KEY_REFRESH_RATE,
         KEY_FAILOVER_TIMEOUT,
-        KEY_LIMITLESS_MONITOR_INTERVAL_MS
+        KEY_LIMITLESS_MONITOR_INTERVAL_MS,
+        KEY_ROUTER_MAX_RETRIES,
+        KEY_LIMITLESS_MAX_RETRIES
     };
     return int_keys.contains(key);
 }

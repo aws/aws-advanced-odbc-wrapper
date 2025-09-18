@@ -21,7 +21,7 @@
 
 #include "../util/rds_strings.h"
 
-class DialectAuroraPostgres : public Dialect {
+class DialectAuroraPostgres : virtual public Dialect {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
     RDS_STR GetTopologyQuery() override { return TOPOLOGY_QUERY; };
@@ -78,6 +78,14 @@ private:
         AS_RDS_STR(TEXT("F0")),       // configuration file error (backend)
         AS_RDS_STR(TEXT("XX"))        // internal error (backend)
     };
+};
+
+class DialectAuroraPostgresLimitless : public DialectLimitless, public DialectAuroraPostgres {
+public:
+    RDS_STR GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
+
+private:
+    const RDS_STR LIMITLESS_ROUTER_ENDPOINT_QUERY = AS_RDS_STR(TEXT("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints()"));
 };
 
 #endif  // DIALECT_AURORA_POSTGRES_H

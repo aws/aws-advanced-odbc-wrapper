@@ -17,8 +17,8 @@
 // Used by odbcsetup.rc
 //
 #define IDC_IDP_ARN                     5
-#define IDC_TAB_FED_AUTH                5
 #define IDD_DIALOG_MAIN                 101
+#define IDC_TAB_LIMITLESS               124
 #define IDC_SERVER                      1000
 #define IDC_IDP_END                     1000
 #define IDC_HOST_PATTERN                1000
@@ -65,14 +65,21 @@
 #define IDC_FILE_SELECT                 1046
 #define IDC_SAVE                        1047
 #define IDC_URL_ENCODE                  1048
+#define IDC_ENABLE_LIMITLESS            1053
+#define IDC_COMBO1                      1054
+#define IDC_LIMITLESS_MODE              1054
+#define IDC_LIMITLESS_INTERVAL          1055
+#define IDC_LIMITLESS_RETRIES           1056
+#define IDC_EDIT1                       1057
+#define IDC_ROUTER_RETRIES              1058
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        124
+#define _APS_NEXT_RESOURCE_VALUE        126
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1053
+#define _APS_NEXT_CONTROL_VALUE         1059
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

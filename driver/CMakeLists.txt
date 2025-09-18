@@ -44,6 +44,11 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.h
     ## Secrets Manager
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.h
+    ## Limitless
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_query_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.h
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.h
@@ -58,6 +63,8 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
@@ -84,6 +91,10 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_query_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.cpp
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.cpp
@@ -96,6 +107,8 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
