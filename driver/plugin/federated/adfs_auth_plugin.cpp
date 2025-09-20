@@ -65,6 +65,8 @@ SQLRETURN AdfsAuthPlugin::Connect(
 
     std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
+    std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
+        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
     // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
@@ -78,7 +80,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     // TODO - Proper error handling for missing parameters
-    std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true, extra_url_encode, token_expiration);
+    std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
 
@@ -93,7 +95,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
         //  and retry without cache
-        token = auth_provider->GetToken(server, region, port, username, false, extra_url_encode, token_expiration);
+        token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
