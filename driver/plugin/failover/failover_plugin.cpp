@@ -18,13 +18,13 @@
 #include "../../odbcapi.h"
 #include "../../odbcapi_rds_helper.h"
 
-#include "../../dialect/dialect_aurora_postgres.h"
-
 #include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
+#include "../../util/init_plugin_helper.h"
+#include "../../util/odbc_helper.h"
 
 #include "../../host_selector/highest_weight_host_selector.h"
 #include "../../host_selector/host_selector.h"
@@ -210,7 +210,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
                 continue;
             }
 
-            if (!topology_query_helper_->GetNodeId(dbc).empty()) {
+            if (!GetNodeId(dbc, dialect_).empty()) {
                 bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "[Failover Service] connected to a new reader for: " << host_string;
@@ -248,7 +248,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
         host_string = original_writer.GetHost();
         bool is_connected = ConnectToHost(dbc, host_string);
         if (is_connected) {
-            if (topology_query_helper_->GetNodeId(dbc).empty()) {
+            if (GetNodeId(dbc, dialect_).empty()) {
                 NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
                     dbc->wrapped_dbc
                 );
@@ -301,7 +301,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         LOG(INFO) << "[Failover Service] writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
     }
-    if (!topology_query_helper_->GetNodeId(dbc).empty()) {
+    if (!GetNodeId(dbc, dialect_).empty()) {
         if (!topology_query_helper_->GetWriterId(dbc).empty()) {
             LOG(INFO) << "[Failover Service] writer failover connected to a new writer for: " << host_string;
             curr_host_ = host;
@@ -373,28 +373,6 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_in
     return mode;
 }
 
-std::shared_ptr<Dialect> FailoverPlugin::InitDialect(std::map<RDS_STR, RDS_STR> conn_info)
-{
-    DatabaseDialectType dialect = DatabaseDialectType::UNKNOWN_DIALECT;
-    if (conn_info.contains(KEY_DATABASE_DIALECT)) {
-        dialect = Dialect::DatabaseDialectFromString(conn_info.at(KEY_DATABASE_DIALECT));
-    }
-
-    if (dialect == DatabaseDialectType::UNKNOWN_DIALECT) {
-        // TODO - Dialect from host
-        // For release, we are only supporting Aurora PostgreSQL
-        dialect = DatabaseDialectType::AURORA_POSTGRESQL;
-    }
-
-    switch (dialect) {
-        case DatabaseDialectType::AURORA_POSTGRESQL:
-            return std::make_shared<DialectAuroraPostgres>();
-        default:
-            return std::make_shared<Dialect>();
-            break;
-    }
-}
-
 std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> conn_info)
 {
     host_selector_strategy_ = RANDOM_HOST;
@@ -437,7 +415,7 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC 
 std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC *dbc)
 {
     std::shared_ptr<ClusterTopologyMonitor> topology_monitor = std::make_shared<ClusterTopologyMonitor>(
-        dbc, topology_map_, topology_query_helper_
+        dbc, topology_map_, topology_query_helper_, dialect_
     );
     return topology_monitor;
 }

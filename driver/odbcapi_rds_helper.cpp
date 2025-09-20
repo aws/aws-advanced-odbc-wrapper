@@ -22,6 +22,7 @@
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
+#include "plugin/limitless/limitless_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
 #include "util/attribute_validator.h"
@@ -1871,8 +1872,12 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         }
 
         // Limitless
-        if (dbc->conn_attr.contains(KEY_LIMITLESS_ENABLED)
-            && dbc->conn_attr.at(KEY_LIMITLESS_ENABLED) == VALUE_BOOL_TRUE);
+        if (dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS)
+            && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE)
+        {
+            next_plugin = new LimitlessPlugin(dbc, plugin_head);
+            plugin_head = next_plugin;
+        }
 
         // Failover
         if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
