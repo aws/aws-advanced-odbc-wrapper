@@ -33,6 +33,10 @@
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
+#include "unicode/ustring.h"
+#include "unicode/unistr.h"
+#include "unicode/utypes.h"
+
 #ifdef WIN32
     #include "gui/setup.h"
     #include "gui/resource.h"
@@ -692,20 +696,12 @@ SQLRETURN RDS_SQLDriverConnect(
 
         conn_str_utf8 = conn_str;
 #endif
-    } 
-
-#if UNICODE
-    int32_t length = 0;
-    if (StringLength1 < 0) {
-        while (InConnectionString[length] != 0x0000) {
-            length++;
-        }
-    } else {
+    } else { 
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-        unicode_str.toUTF8String(conn_str_utf8); 
+        unicode_str.toUTF8String(conn_str); 
 #else
-        conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
+        conn_str = reinterpret_cast<const char *>(InConnectionString);
 #endif
     }
 
@@ -726,7 +722,11 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
+<<<<<<< HEAD
     ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
+=======
+    ConnectionStringHelper::ParseConnectionString(conn_str, dbc->conn_attr);
+>>>>>>> 1bea621 (Update how connection strings are handled)
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {

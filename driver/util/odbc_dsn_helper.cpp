@@ -16,6 +16,10 @@
 
 #include <odbcinst.h>
 
+#include "unicode/unistr.h"
+#include "unicode/ustring.h"
+#include "unicode/utypes.h"
+
 #include "logger_wrapper.h"
 
 #include "../driver.h"
