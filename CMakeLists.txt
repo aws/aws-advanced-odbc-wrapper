@@ -72,9 +72,9 @@ else(WIN32)
                 ODBC_ROOT
             REQUIRED
         )
-        add_compile_definitions(
-            SQL_WCHART_CONVERT # Use `wchar_t` instead of `unsigned short`
-        )
+        #add_compile_definitions(
+        #    SQL_WCHART_CONVERT # Use `wchar_t` instead of `unsigned short`
+        #)
     endif()
     list(APPEND EXTERNAL_LIBRARIES ${ODBC_INST_LIB})
 endif()
@@ -90,6 +90,23 @@ set(BUILD_EXAMPLES OFF)
 set(BUILD_SHARED_LIBS OFF)
 FetchContent_MakeAvailable(ng-log)
 list(APPEND EXTERNAL_LIBRARIES ng-log::ng-log)
+
+# ICU
+if(APPLE)
+    set(ICU_ROOT /opt/homebrew/opt/icu4c)
+    find_package(ICU COMPONENTS i18n io uc)
+    list(APPEND EXTERNAL_LIBRARIES
+        ICU::i18n
+        ICU::io
+        ICU::uc
+    )
+elseif(WIN32)
+    # TODO
+else()
+    # TODO
+endif()
+
+
 
 # Build Driver -----------------------------------------------------------------------------------------------
 add_subdirectory(driver)

@@ -680,9 +680,20 @@ SQLRETURN RDS_SQLDriverConnect(
                 break;
         }
 #endif
+    } 
+
+#if UNICODE
+    int32_t length = 0;
+    if (StringLength1 < 0) {
+        while (InConnectionString[length] != 0x0000) {
+            length++;
+        }
     } else {
-        RDS_sprintf((RDS_CHAR*)conn_str, MAX_KEY_SIZE, RDS_CHAR_FORMAT, (RDS_CHAR*)InConnectionString);
+        length = (int32_t)StringLength1;
     }
+    icu_77::UnicodeString unicode_str = reinterpret_cast<const char16_t*>(InConnectionString, length); 
+    unicode_str.toUTF8String(conn_str); 
+#endif
 
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC *dbc = (DBC*) ConnectionHandle;
