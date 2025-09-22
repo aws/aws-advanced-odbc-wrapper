@@ -15,6 +15,7 @@
 #include "odbc_dsn_helper.h"
 
 #include <odbcinst.h>
+#include "unicode/ustring.h"
 
 #include "logger_wrapper.h"
 
@@ -30,9 +31,9 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
 
 #ifdef UNICODE
     #include "unicode/utypes.h"
-    icu_77::StringPiece dsn_key_string_piece(dsn_key.c_str());
-    icu_77::UnicodeString dsn_key_utf16 = icu_77::UnicodeString::fromUTF8(dsn_key_string_piece);
-    const char16_t *dsn_key_ushort = dsn_key_utf16.getBuffer();
+    icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
+    icu::UnicodeString dsn_key_utf16 = icu_77::UnicodeString::fromUTF8(dsn_key_string_piece);
+    const unsigned short *dsn_key_ushort = reinterpret_cast<const unsigned short *>(dsn_key_utf16.getBuffer());
 
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
