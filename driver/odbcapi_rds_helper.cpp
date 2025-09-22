@@ -692,6 +692,14 @@ SQLRETURN RDS_SQLDriverConnect(
 
         conn_str_utf8 = conn_str;
 #endif
+    } 
+
+#if UNICODE
+    int32_t length = 0;
+    if (StringLength1 < 0) {
+        while (InConnectionString[length] != 0x0000) {
+            length++;
+        }
     } else {
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));

@@ -46,7 +46,6 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
     RDS_CHAR *entries = buffer;
-
     if (size < 1) {
         // No entries in DSN
         // TODO - Error handling?
