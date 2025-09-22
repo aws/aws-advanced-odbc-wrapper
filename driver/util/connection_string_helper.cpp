@@ -16,22 +16,38 @@
 
 #include "connection_string_keys.h"
 #include "odbc_dsn_helper.h"
+#include "unicode/ucasemap.h"
+#include "unicode/utypes.h"
 
-void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map)
+void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map)
 {
-    RDS_REGEX pattern(TEXT("([^;=]+)=([^;]+)"));
-    RDS_MATCH match;
-    RDS_STR conn_str_itr = conn_str;
+    std::locale old;
+    std::locale::global(std::locale("en_US.UTF-8"));
+
+    std::regex pattern("([^;=]+)=([^;]+)");
+    std::smatch match;
+    std::string conn_str_itr = conn_str;
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
-        RDS_STR key = match[1].str();
-        RDS_STR_UPPER(key);
-        RDS_STR val = match[2].str();
+        std::string key = match[1].str();
+
+        UErrorCode upperStatus = U_ZERO_ERROR;
+        char key_buffer[1024];
+        
+        UErrorCode ucasemapStatus = U_ZERO_ERROR;
+        UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemapStatus);
+        
+        ucasemap_utf8ToUpper(ucasemap, key_buffer, 1024, key.c_str(), -1, &upperStatus);
+        std::string val = match[2].str();
+
+        key = key_buffer;
 
         // Connection String takes precedence
         conn_map.insert_or_assign(key, val);
         conn_str_itr = match.suffix().str();
     }
+
+    std::locale::global(old);
 }
 
 RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)

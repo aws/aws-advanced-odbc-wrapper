@@ -29,6 +29,10 @@
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
+#include "unicode/ustring.h"
+#include "unicode/unistr.h"
+#include "unicode/utypes.h"
+
 #ifdef WIN32
     #include "gui/setup.h"
     #include "gui/resource.h"
@@ -659,40 +663,12 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
-    char conn_str[MAX_KEY_SIZE] = {0};
-    char out_conn_str[MAX_KEY_SIZE] = {0};
-    if (DriverCompletion && WindowHandle) {
-#if !defined(UNICODE) && defined(_WIN32)
-        bool complete_required = true;
-        std::pair<std::string, std::string> dialog_result;
-
-        switch (DriverCompletion) {
-            case SQL_DRIVER_PROMPT:
-            case SQL_DRIVER_COMPLETE:
-                complete_required = false;
-            case SQL_DRIVER_COMPLETE_REQUIRED:
-                dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
-                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, dialog_result.first.c_str());
-                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, dialog_result.second.c_str());
-                break;
-            case SQL_DRIVER_NOPROMPT:
-            default:
-                break;
-        }
-#endif
-    } 
-
-#if UNICODE
-    int32_t length = 0;
-    if (StringLength1 < 0) {
-        while (InConnectionString[length] != 0x0000) {
-            length++;
-        }
-    } else {
-        length = (int32_t)StringLength1;
-    }
-    icu_77::UnicodeString unicode_str = reinterpret_cast<const char16_t*>(InConnectionString, length); 
+    std::string conn_str;
+#ifdef UNICODE
+    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
     unicode_str.toUTF8String(conn_str); 
+#else
+    conn_str = reinterpret_cast<const char *>(InConnectionString);
 #endif
 
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
@@ -712,8 +688,7 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(conn_str)) : StringLength1;
-    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(conn_str, load_len), dbc->conn_attr);
+    ConnectionStringHelper::ParseConnectionString(conn_str, dbc->conn_attr);
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {
@@ -726,17 +701,6 @@ SQLRETURN RDS_SQLDriverConnect(
     if (SQL_SUCCEEDED(ret)) {
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
     }
-
-#ifndef UNICODE
-    if (OutConnectionString && StringLength2Ptr) {
-        SQLULEN len = RDS_STR_LEN(out_conn_str);
-        SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
-        if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
-            ret = SQL_SUCCESS_WITH_INFO;
-        }
-        *StringLength2Ptr = (SQLSMALLINT) written;
-    }
-#endif
 
     return ret;
 }
