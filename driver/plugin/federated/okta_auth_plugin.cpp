@@ -21,6 +21,7 @@
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/rds_utils.h"
 #include "saml_util.h"
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
@@ -41,7 +42,10 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_pt
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+            ToStr(dbc->conn_attr.at(KEY_REGION)) :
+            dbc->conn_attr.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+                Aws::Region::US_EAST_1;
         std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
@@ -67,9 +71,11 @@ SQLRETURN OktaAuthPlugin::Connect(
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
         ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
-    // TODO - Helper to parse from URL
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        ToStr(dbc->conn_attr.at(KEY_REGION)) :
+        dbc->conn_attr.contains(KEY_SERVER) ?
+            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+            Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
