@@ -399,7 +399,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
             *((SQLUINTEGER *) ValuePtr) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            RDS_sprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(value_pair.first));
+            RDS_sprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, value_pair.first);
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -856,7 +856,7 @@ SQLRETURN RDS_SQLGetCursorName(
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     } else {
         if (stmt->cursor_name.empty()) {
-            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR(TEXT("CUR_")), stmt->dbc->unnamed_cursor_count++);
+            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR("CUR_"), stmt->dbc->unnamed_cursor_count++);
         }
         RDS_STR name = stmt->cursor_name;
         SQLULEN len = name.length();
@@ -1057,9 +1057,9 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     } else {
                         if (err->sqlstate && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
-                            char_value = TEXT("ODBC 3.0");
+                            char_value = "ODBC 3.0";
                         else {
-                            char_value = TEXT("ISO 9075");
+                            char_value = "ISO 9075";
                         }
                     }
                     break;
@@ -1129,9 +1129,9 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     }
                     if (err->is_odbc3_subclass) {
-                        char_value = TEXT("ODBC 3.0");
+                        char_value = "ODBC 3.0";
                     } else {
-                        char_value = TEXT("ISO 9075");
+                        char_value = "ISO 9075";
                     }
                     break;
                 }
@@ -1349,7 +1349,7 @@ SQLRETURN RDS_SQLGetInfo(
     // Get info for shell driver
     switch (InfoType) {
         case SQL_DRIVER_ODBC_VER:
-            RDS_sprintf(odbcver, ODBC_VER_SiZE, TEXT("%02x.%02x"), ODBCVER / 256, ODBCVER % 256);
+            RDS_sprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
             char_value = odbcver;
             break;
         case SQL_MAX_CONCURRENT_ACTIVITIES:

@@ -33,8 +33,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     int size = 0;
 
 #ifdef UNICODE
-    // icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
-    icu::StringPiece dsn_key_string_piece("testing123");
+    icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
     icu::UnicodeString dsn_key_utf16 = icu::UnicodeString::fromUTF8(dsn_key_string_piece);
     unsigned short *dsn_key_ushort = (unsigned short *)(dsn_key_utf16.getBuffer());
 
@@ -43,7 +42,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     icu::StringPiece empty_string_piece("");
     icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
     unsigned short *test_empty = (unsigned short *)(empty_string_utf16.getBuffer());
-    icu::StringPiece odbc_ini_piece("ODBC.INI");
+    icu::StringPiece odbc_ini_piece(ODBC_INI);
     icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
     unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
 
@@ -52,6 +51,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
 #else
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
+
     if (size < 1) {
         // No entries in DSN
         // TODO - Error handling?
@@ -63,8 +63,8 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     for (size_t used = 0; used < MAX_VAL_SIZE && entries[0];
         used += RDS_STR_LEN(entries) + 1, entries += RDS_STR_LEN(entries) + 1)
     {
-        RDS_STR key(entries);
-        RDS_STR_UPPER(key);
+        RDS_STR raw_key(entries);
+        std::string key = RDS_STR_UPPER(raw_key);
         RDS_STR val = Load(dsn_key, key);
 
         // Insert if value exists
@@ -95,23 +95,30 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     RDS_CHAR buffer[MAX_VAL_SIZE];
     int size = 0;
 
-    icu::StringPiece dsn_key_string_piece("dsn_key");
+#ifdef UNICODE
+    icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
     icu::UnicodeString dsn_key_utf16 = icu::UnicodeString::fromUTF8(dsn_key_string_piece);
     unsigned short *dsn_key_ushort = (unsigned short *)(dsn_key_utf16.getBuffer());
-    
-    icu::StringPiece entry_key_string_piece("entry_key");
+
+    icu::StringPiece entry_key_string_piece(entry_key.c_str());
     icu::UnicodeString entry_key_utf16 = icu::UnicodeString::fromUTF8(entry_key_string_piece);
     unsigned short *entry_key_ushort = (unsigned short *)(entry_key_utf16.getBuffer());
 
+    // Test Buffer
     unsigned short test_buffer[MAX_VAL_SIZE];
     icu::StringPiece empty_string_piece("");
     icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
     unsigned short *test_empty = (unsigned short *)(empty_string_utf16.getBuffer());
-    icu::StringPiece odbc_ini_piece("ODBC.INI");
+    icu::StringPiece odbc_ini_piece(ODBC_INI);
     icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
     unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
 
-    size = SQLGetPrivateProfileString(dsn_key_ushort, entry_key_ushort, test_empty, test_buffer, MAX_VAL_SIZE, odbc_ini);
+    // Check DSN if it is valid and contains entries
+    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, test_empty, test_buffer, MAX_VAL_SIZE, odbc_ini);
+#else
+    size = SQLGetPrivateProfileString(dsn_key.c_str(), entry_key.c_str(), EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
+#endif
+
     if (size < 0) {
         // No entries
         LOG(WARNING) << "No value found for DSN entry key: " << ToStr(dsn_key) << ", " << ToStr(entry_key);

@@ -42,9 +42,9 @@ public:
         std::unordered_map<std::string, std::string> properties) = 0;
     static HostSelectorStrategies GetHostSelectorStrategy(const RDS_STR &auth_type) {
         RDS_STR local_str = auth_type;
-        RDS_STR_UPPER(local_str);
-        if (host_selector_table.contains(local_str)) {
-            return host_selector_table.at(local_str);
+        std::string local_str_upper = RDS_STR_UPPER(local_str);
+        if (host_selector_table.contains(local_str_upper)) {
+            return host_selector_table.at(local_str_upper);
         }
         return HostSelectorStrategies::UNKNOWN_STRATEGY;
     }

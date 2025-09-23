@@ -29,11 +29,7 @@
 
 namespace logger_config {
     const std::string PROGRAM_NAME = "aws-odbc-wrapper";
-#ifdef UNICODE
-    const RDS_STR DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).wstring();
-#else
     const RDS_STR DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).string();
-#endif
     const int DEFAULT_LOG_THRESHOLD = 4;
 }  // namespace logger_config
 

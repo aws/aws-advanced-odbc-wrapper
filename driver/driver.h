@@ -98,7 +98,7 @@ struct DBC {
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
-    std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
+    std::map<std::string, std::string>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head;
     ERR_INFO*                   err;
     char                        sql_error_called = 0;

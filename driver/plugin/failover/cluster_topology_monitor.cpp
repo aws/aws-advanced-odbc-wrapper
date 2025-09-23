@@ -243,9 +243,9 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     request_update_topology_cv_.notify_one();
 }
 
-RDS_STR ClusterTopologyMonitor::ConnForHost(const std::string& new_host) {
-    RDS_STR new_host_str = ToRdsStr(new_host);
-    std::map<RDS_STR, RDS_STR> conn_map(connection_attributes_);
+std::string ClusterTopologyMonitor::ConnForHost(const std::string& new_host) {
+    std::string new_host_str = new_host;
+    std::map<std::string, std::string> conn_map(connection_attributes_);
     conn_map.insert_or_assign(KEY_SERVER, new_host_str);
     return ConnectionStringHelper::BuildFullConnectionString(conn_map);
 }
@@ -483,6 +483,9 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     std::string thread_host = host_info_->GetHost();
     auto updated_conn_str = main_monitor_->ConnForHost(thread_host);
     DBC* local_dbc = (DBC*) hdbc_;
+
+    // TODO: Do this UTF-8 conversion properly (why is this a wchar?)
+    
     ConnectionStringHelper::ParseConnectionString(updated_conn_str, conn_info_);
     local_dbc->conn_attr = conn_info_;
 

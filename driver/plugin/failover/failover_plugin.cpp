@@ -359,9 +359,9 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_in
     FailoverMode mode = UNKNOWN_FAILOVER_MODE;
     if (conn_info.contains(KEY_FAILOVER_MODE)) {
         RDS_STR local_str = conn_info.at(KEY_FAILOVER_MODE);
-        RDS_STR_UPPER(local_str);
-        if (failover_mode_table.contains(local_str)) {
-            mode = failover_mode_table.at(local_str);
+        std::string local_str_upper = RDS_STR_UPPER(local_str);
+        if (failover_mode_table.contains(local_str_upper)) {
+            mode = failover_mode_table.at(local_str_upper);
         }
     }
 

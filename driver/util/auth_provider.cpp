@@ -103,9 +103,9 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR &auth_type) {
     RDS_STR local_str = auth_type;
-    RDS_STR_UPPER(local_str);
-    if (auth_table.contains(local_str)) {
-        return auth_table.at(local_str);
+    std::string local_str_upper = RDS_STR_UPPER(local_str);
+    if (auth_table.contains(local_str_upper)) {
+        return auth_table.at(local_str_upper);
     }
     return AuthType::INVALID;
 }

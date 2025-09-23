@@ -30,19 +30,19 @@ static std::map<RDS_STR, DatabaseDialectType> const database_dialect_table = {
 class Dialect {
 public:
     virtual int GetDefaultPort() { return 0; };
-    virtual RDS_STR GetTopologyQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetWriterIdQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetNodeIdQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetIsReaderQuery() { return AS_RDS_STR(TEXT("")); };
+    virtual RDS_STR GetTopologyQuery() { return AS_RDS_STR(""); };
+    virtual RDS_STR GetWriterIdQuery() { return AS_RDS_STR(""); };
+    virtual RDS_STR GetNodeIdQuery() { return AS_RDS_STR(""); };
+    virtual RDS_STR GetIsReaderQuery() { return AS_RDS_STR(""); };
 
     virtual bool IsSqlStateAccessError(RDS_CHAR* sql_state) { return false; };
     virtual bool IsSqlStateNetworkError(RDS_CHAR* sql_state) { return false; };
 
     static DatabaseDialectType DatabaseDialectFromString(const RDS_STR &database_dialect) {
         RDS_STR local_str = database_dialect;
-        RDS_STR_UPPER(local_str);
-        if (database_dialect_table.contains(local_str)) {
-            return database_dialect_table.at(local_str);
+        std::string upper_local_str = RDS_STR_UPPER(local_str);
+        if (database_dialect_table.contains(upper_local_str)) {
+            return database_dialect_table.at(upper_local_str);
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }
