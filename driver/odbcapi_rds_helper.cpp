@@ -33,10 +33,6 @@
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
-#include "unicode/ustring.h"
-#include "unicode/unistr.h"
-#include "unicode/utypes.h"
-
 #ifdef WIN32
     #include "gui/setup.h"
     #include "gui/resource.h"
@@ -722,11 +718,7 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-<<<<<<< HEAD
     ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
-=======
-    ConnectionStringHelper::ParseConnectionString(conn_str, dbc->conn_attr);
->>>>>>> 1bea621 (Update how connection strings are handled)
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {
