@@ -18,6 +18,8 @@
     #include <windows.h>
 #endif
 
+#include <thread>
+#include <chrono>
 #include <sql.h>
 #include <sqlext.h>
 
@@ -47,6 +49,7 @@ protected:
     static void TearDownTestSuite() {}
 
     void SetUp() override {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
         SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
         SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);

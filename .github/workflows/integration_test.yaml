@@ -323,8 +323,8 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'integration-test-logs'
-          path: logs
+          name: 'windows-integration-test-logs'
+          path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
           retention-days: 3
 
   macos-integration-tests:
@@ -451,6 +451,9 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Get log location
+        id: log_location
+        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
       # - name: Build and Run Unicode Integration Tests
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -509,8 +512,8 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'integration-test-logs'
-          path: logs
+          name: 'mac-integration-test-logs'
+          path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 3
 
   linux-integration-tests:
@@ -689,6 +692,6 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'integration-test-logs'
-          path: logs
+          name: 'linux-integration-test-logs'
+          path: /tmp/aws-odbc-wrapper/
           retention-days: 3
