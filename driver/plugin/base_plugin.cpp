@@ -61,7 +61,7 @@ SQLRETURN BasePlugin::Connect(
     std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
-        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
     if (res.fn_load_success) {
@@ -121,7 +121,7 @@ SQLRETURN BasePlugin::Execute(
         // Cursor Name
         RDS_STR cursor_name = stmt->cursor_name;
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
-            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name.c_str()), cursor_name.length()
+            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );
     }
 

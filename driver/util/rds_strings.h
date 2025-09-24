@@ -30,7 +30,18 @@
 #include <string.h>
 #include <vector>
 
-#define AS_SQLTCHAR(str) (const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str)))
+#ifdef UNICODE
+#include "unicode/unistr.h"
+inline SQLTCHAR * AS_SQLTCHAR(std::string str) {
+    icu::StringPiece str_piece(str);
+    icu::UnicodeString unicode_str = icu::UnicodeString::fromUTF8(str_piece);
+    const char16_t *buffer = unicode_str.getBuffer();
+    return const_cast<unsigned short *>(reinterpret_cast<const unsigned short *>(buffer)); 
+}
+#else
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR*>(reinterpret_cast<const SQLTCHAR*>(str.c_str()))
+#endif
+
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))

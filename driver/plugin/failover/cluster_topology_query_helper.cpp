@@ -56,7 +56,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(writer_id_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(writer_id_query_), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
@@ -93,7 +93,7 @@ std::string ClusterTopologyQueryHelper::GetNodeId(SQLHDBC hdbc)
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(node_id_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(node_id_query_), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
@@ -134,7 +134,7 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(topology_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(topology_query_), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,

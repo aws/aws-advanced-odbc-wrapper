@@ -288,7 +288,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
                 std::lock_guard host_info_lock(node_threads_writer_hdbc_mutex_);
-                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id.c_str()), true, 0, 0));
+                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id), true, 0, 0));
             }
         } else {
             // Connection already set, close local HDBC
