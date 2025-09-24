@@ -17,6 +17,11 @@ project("integration-test")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Configuration ----------------------------------------------------------------------------------------------
+set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
+set(BUILD_FAILOVER OFF CACHE BOOL "Build Failover Tests")
+set(BUILD_LIMITLESS OFF CACHE BOOL "Build Limitless Tests")
+
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
@@ -31,6 +36,17 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
 )
+
+if(BUILD_FAILOVER)
+    list(APPEND TEST_SUITE
+        ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/failover_integration_test.cpp
+    )
+elseif(BUILD_LIMITLESS)
+    list(APPEND TEST_SUITE
+        ${CMAKE_CURRENT_SOURCE_DIR}/limitless_integration_test.cpp
+    )
+endif()
 
 set(TEST_RUNNER
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_runner.cpp
@@ -55,6 +71,22 @@ endif()
 
 find_package(ODBC REQUIRED)
 list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
+
+# -- AWS SDK --
+# Used for Failover Integration Tests
+if(BUILD_FAILOVER)
+    if(UNIX)
+        message("Unix - Adding ZLIB explicitly for AWS SDK")
+        find_package(ZLIB REQUIRED)
+    endif()
+
+    # Path to built AWS SDK
+    set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../aws_sdk/install")
+    list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
+
+    find_package(AWSSDK REQUIRED COMPONENTS core rds sts)
+    list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
+endif()
 
 # Build Executable ------------------------------------------------------------------------------------------
 if(WIN32)

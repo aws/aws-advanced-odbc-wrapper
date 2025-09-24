@@ -17,6 +17,10 @@
 
 #include <gtest/gtest.h>
 
+#ifdef WIN32
+    #include <windows.h>
+#endif
+
 #include <sqlext.h>
 
 #define SQL_MAX_MESSAGE_LENGTH  512

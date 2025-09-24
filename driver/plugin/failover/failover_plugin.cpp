@@ -38,7 +38,7 @@ FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin) : FailoverPlug
 FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode failover_mode, std::shared_ptr<Dialect> dialect, std::shared_ptr<HostSelector> host_selector, std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper, std::shared_ptr<ClusterTopologyMonitor> topology_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
-    std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
+    std::map<RDS_STR, RDS_STR> &conn_info = dbc->conn_attr;
 
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
         std::chrono::milliseconds(std::strtol(ToStr(conn_info.at(KEY_FAILOVER_TIMEOUT)).c_str(), nullptr, 10))
@@ -121,7 +121,6 @@ SQLRETURN FailoverPlugin::Execute(
     if (failover_result) {
         ERR_INFO* err_info;
         if (TRANSACTION_OPEN == original_transaction_status) {
-            dbc->transaction_status = TRANSACTION_CLOSED;
             err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
             err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
@@ -338,7 +337,7 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
 
-std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> conn_info)
+std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info)
 {
     std::string generated_id;
     if (conn_info.contains(KEY_CLUSTER_ID)) {
@@ -354,7 +353,7 @@ std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> conn_info)
     return generated_id;
 }
 
-FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_info)
+FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_info)
 {
     FailoverMode mode = UNKNOWN_FAILOVER_MODE;
     if (conn_info.contains(KEY_FAILOVER_MODE)) {
@@ -365,7 +364,7 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_in
         }
     }
 
-    if (failover_mode_ == UNKNOWN_FAILOVER_MODE) {
+    if (mode == UNKNOWN_FAILOVER_MODE) {
         std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
         mode = RdsUtils::IsRdsReaderClusterDns(host) ? READER_OR_WRITER : STRICT_WRITER;
     }
@@ -373,7 +372,7 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_in
     return mode;
 }
 
-std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> conn_info)
+std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> &conn_info)
 {
     host_selector_strategy_ = RANDOM_HOST;
     if (conn_info.contains(KEY_HOST_SELECTOR_STRATEGY)) {

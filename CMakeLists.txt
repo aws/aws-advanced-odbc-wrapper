@@ -19,8 +19,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Configuration ----------------------------------------------------------------------------------------------
-set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Unicode Wrapper")
-set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
+set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
+set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode Wrapper")
 set(BUILD_UNIT_TEST OFF CACHE BOOL "Toggle to build Unit Tests")
 set(WITH_IODBC OFF CACHE BOOL "Build with iODBC")
 
