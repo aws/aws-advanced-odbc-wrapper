@@ -78,6 +78,7 @@ SQLRETURN BasePlugin::Connect(
         }
         has_conn_attr_errors != res.fn_result;
     }
+    dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
 
     // TODO - Error Handling for ConnAttr, IsConnected
     // Successful Connection, but bad environment and/or connection attribute setting

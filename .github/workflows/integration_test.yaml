@@ -258,7 +258,8 @@ jobs:
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_ansi -DBUILD_UNICODE=OFF
+          cmake -S test/integration -B build_ansi `
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
@@ -275,7 +276,8 @@ jobs:
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
-      #     cmake -S test/integration -B build_unicode -DBUILD_UNICODE=ON
+      #     cmake -S test/integration -B build_unicode \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
       #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
       #   env:
@@ -354,7 +356,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -430,7 +432,7 @@ jobs:
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
-            -DBUILD_UNICODE=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -459,7 +461,7 @@ jobs:
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
       #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
       #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
       #       -DTEST_PORT="5432" \
       #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -616,7 +618,7 @@ jobs:
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
-            -DBUILD_UNICODE=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -642,7 +644,7 @@ jobs:
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
       #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
       #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
       #       -DTEST_PORT="5432" \
       #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \

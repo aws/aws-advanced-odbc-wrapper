@@ -434,6 +434,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
 
     if (SQL_ATTR_AUTOCOMMIT == Attribute) {
         dbc->auto_commit = reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_ON) == ValuePtr;
+        dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
     }
 
     return ret;
