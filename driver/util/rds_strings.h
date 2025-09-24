@@ -39,7 +39,7 @@ inline SQLTCHAR * AS_SQLTCHAR(std::string str) {
     return const_cast<unsigned short *>(reinterpret_cast<const unsigned short *>(buffer)); 
 }
 #else
-    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR*>(reinterpret_cast<const SQLTCHAR*>(str.c_str()))
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
 #endif
 
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))

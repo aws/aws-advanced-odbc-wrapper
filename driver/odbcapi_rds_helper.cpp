@@ -29,10 +29,6 @@
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
 
-#include "unicode/ustring.h"
-#include "unicode/unistr.h"
-#include "unicode/utypes.h"
-
 #ifdef WIN32
     #include "gui/setup.h"
     #include "gui/resource.h"
@@ -663,13 +659,37 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
-    std::string conn_str;
-#ifdef UNICODE
-    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-    unicode_str.toUTF8String(conn_str); 
-#else
-    conn_str = reinterpret_cast<const char *>(InConnectionString);
+    std::string conn_str_utf8;
+    char conn_str[MAX_KEY_SIZE] = {0};
+    char out_conn_str[MAX_KEY_SIZE] = {0};
+    if (DriverCompletion && WindowHandle) {
+#if !defined(UNICODE) && defined(_WIN32)
+        bool complete_required = true;
+        std::pair<std::string, std::string> dialog_result;
+
+        switch (DriverCompletion) {
+            case SQL_DRIVER_PROMPT:
+            case SQL_DRIVER_COMPLETE:
+                complete_required = false;
+            case SQL_DRIVER_COMPLETE_REQUIRED:
+                dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
+                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, dialog_result.first.c_str());
+                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, dialog_result.second.c_str());
+                break;
+            case SQL_DRIVER_NOPROMPT:
+            default:
+                break;
+        }
+        conn_str_utf8 = conn_str;
 #endif
+    } else {
+#ifdef UNICODE
+        icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
+        unicode_str.toUTF8String(conn_str_utf8); 
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
+#endif
+    }
 
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC *dbc = (DBC*) ConnectionHandle;
@@ -688,7 +708,7 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    ConnectionStringHelper::ParseConnectionString(conn_str, dbc->conn_attr);
+    ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {

@@ -72,9 +72,6 @@ else(WIN32)
                 ODBC_ROOT
             REQUIRED
         )
-        #add_compile_definitions(
-        #    SQL_WCHART_CONVERT # Use `wchar_t` instead of `unsigned short`
-        #)
     endif()
     list(APPEND EXTERNAL_LIBRARIES ${ODBC_INST_LIB})
 endif()

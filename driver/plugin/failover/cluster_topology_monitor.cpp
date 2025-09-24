@@ -483,9 +483,6 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     std::string thread_host = host_info_->GetHost();
     auto updated_conn_str = main_monitor_->ConnForHost(thread_host);
     DBC* local_dbc = (DBC*) hdbc_;
-
-    // TODO: Do this UTF-8 conversion properly (why is this a wchar?)
-    
     ConnectionStringHelper::ParseConnectionString(updated_conn_str, conn_info_);
     local_dbc->conn_attr = conn_info_;
 

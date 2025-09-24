@@ -30,12 +30,10 @@ void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::ma
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
         std::string key = match[1].str();
-        std::string key_upper = RDS_STR_UPPER(key);
-
         std::string val = match[2].str();
 
         // Connection String takes precedence
-        conn_map.insert_or_assign(key_upper, val);
+        conn_map.insert_or_assign(RDS_STR_UPPER(key), val);
         conn_str_itr = match.suffix().str();
     }
 
