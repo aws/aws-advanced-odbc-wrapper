@@ -850,26 +850,31 @@ BOOL FormMainDlgProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return false;
 }
 
+void GetFileDsnFromConnectionString(std::string conn_str, HWND hwndParent) {
+  std::smatch matches;
+  std::regex dsn_pattern = std::regex("SAVEFILE=([^;]*)(;)?");
+  if (std::regex_search(conn_str, matches, dsn_pattern) &&
+    !matches.empty()) {
+    std::string match = matches[1];
+    current_dsn = match;
+  }
+}
+
 void GetDsnFromConnectionString(std::string conn_str, HWND hwndParent) {
     std::smatch matches;
     std::regex dsn_pattern = std::regex("DSN=([^;]*)(;)?");
-    if (driver_connect) {
-        dsn_pattern = std::regex("SAVEFILE=([^;]*)(;)?");
-    }
-    if (std::regex_search(conn_str, matches, dsn_pattern) && matches.length() > 0) {
+    if (std::regex_search(conn_str, matches, dsn_pattern) && !matches.empty()) {
         std::string match = matches[1];
         current_dsn = match;
     }
 }
 
 void GetDriverFromConnectionString(std::string conn_str, HWND hwndParent) {
-    if (driver_connect) {
-        std::smatch matches;
-        std::regex driver_pattern = std::regex("DRIVER=([^;]*)(;)?");
-        if (std::regex_search(conn_str, matches, driver_pattern) && matches.length() > 0) {
-            std::string match = matches[1];
-            driver = match;
-        }
+    std::smatch matches;
+    std::regex driver_pattern = std::regex("DRIVER=([^;]*)(;)?");
+    if (std::regex_search(conn_str, matches, driver_pattern) && !matches.empty()) {
+        std::string match = matches[1];
+        driver = match;
     }
 }
 
@@ -878,11 +883,24 @@ std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQ
     out_connection_str = "";
     driver_connect = true;
     disable_optional = complete_required;
+    std::string converted_str = reinterpret_cast<char*>(InConnectionString);
 
-    GetDsnFromConnectionString(reinterpret_cast<char*>(InConnectionString), hwnd);
-    GetDriverFromConnectionString(reinterpret_cast<char*>(InConnectionString), hwnd);
+    // Check if DSN is specified.
+    GetDsnFromConnectionString(converted_str, hwnd);
+    if (!current_dsn.empty()) {
+        return {converted_str, converted_str};
+    }
 
+    // Check for SAVEFILE and DRIVER from the connection string.
+    GetFileDsnFromConnectionString(converted_str, hwnd);
+    GetDriverFromConnectionString(converted_str, hwnd);
+    if (!current_dsn.empty() || !driver.empty()) {
+        return {converted_str, converted_str};
+    }
+
+    // If the connection string does not contain either the DRIVER, DSN, or FILEDSN keyword, the Driver Manager displays the Data Sources dialog box.
     DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwnd, (DLGPROC)FormMainDlgProc);
+
     driver_connect = false;
     disable_optional = false;
     return { connection_str, out_connection_str };
