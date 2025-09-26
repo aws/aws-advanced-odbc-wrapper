@@ -55,7 +55,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(SQLHDBC con
     );
 
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-        stmt, AS_SQLTCHAR(limitless_router_endpoint_query.c_str()), SQL_NTS
+        stmt, AS_SQLTCHAR(limitless_router_endpoint_query), SQL_NTS
     );
 
     std::vector<HostInfo> limitless_routers;
