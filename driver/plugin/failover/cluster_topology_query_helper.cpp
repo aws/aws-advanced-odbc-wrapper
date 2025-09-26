@@ -75,42 +75,6 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
     return ToStr(AS_RDS_CHAR(writer_id));
 }
 
-std::string ClusterTopologyQueryHelper::GetNodeId(SQLHDBC hdbc)
-{
-    SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR node_id[BUFFER_SIZE] = {0};
-    SQLLEN rt = 0;
-    RdsLibResult res;
-    DBC* dbc = (DBC*) hdbc;
-
-    if (!dbc || !dbc->wrapped_dbc) {
-        return "";
-    }
-
-    res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
-    );
-
-    if (SQL_SUCCEEDED(res.fn_result)) {
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(node_id_query_), SQL_NTS
-        );
-
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, NODE_ID_COL, SQL_C_TCHAR, &node_id, sizeof(node_id), &rt
-        );
-
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
-            stmt
-        );
-
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt
-        );
-    }
-
-    return ToStr(AS_RDS_CHAR(node_id));
-}
 
 std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 {

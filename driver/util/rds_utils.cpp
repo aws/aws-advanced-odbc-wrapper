@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #ifdef WIN32
-#include <windows.h>
+    #include <windows.h>
 #endif
 
 #include <regex>
@@ -34,6 +34,8 @@ namespace {
     const std::regex AURORA_READER_CLUSTER_PATTERN(R"#((.+)\.(cluster-ro-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                                    std::regex_constants::icase);
     const std::regex AURORA_CUSTOM_CLUSTER_PATTERN(R"#((.+)\.(cluster-custom-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
+                                                   std::regex_constants::icase);
+    const std::regex AURORA_LIMITLESS_CLUSTER_PATTERN(R"#((.+)\.(shardgrp-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.(amazonaws\.com|amazonaws\.com\.cn\.?|sc2s\.sgov\.gov\.?|c2s\.ic\.gov\.?)))#",
                                                    std::regex_constants::icase);
     const std::regex AURORA_CHINA_DNS_PATTERN(
         R"#((.+)\.(proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#",
@@ -81,6 +83,10 @@ bool RdsUtils::IsRdsReaderClusterDns(const std::string& host) {
 
 bool RdsUtils::IsRdsCustomClusterDns(const std::string& host) {
     return std::regex_match(host, AURORA_CUSTOM_CLUSTER_PATTERN) || std::regex_match(host, AURORA_CHINA_CUSTOM_CLUSTER_PATTERN);
+}
+
+bool RdsUtils::IsLimitlessDbShardGroupDns(const std::string& host) {
+    return std::regex_match(host, AURORA_LIMITLESS_CLUSTER_PATTERN);
 }
 
 std::string RdsUtils::GetRdsClusterHostUrl(const std::string& host) {

@@ -18,7 +18,6 @@
     #include <CommCtrl.h>
 #endif
 
-#include <iostream>
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
@@ -44,7 +43,8 @@ enum ControlType {
 
 enum TabSelection {
     AWS_AUTH,
-    FAILOVER
+    FAILOVER,
+    LIMITLESS
 };
 
 enum AuthModeSelection {
@@ -112,8 +112,16 @@ const std::map<std::string, std::pair<int, ControlType>> FAILOVER_KEYS = {
     {KEY_HOST_SELECTOR_STRATEGY, {IDC_READER_HOST, COMBO}}
 };
 
+const std::map<std::string, std::pair<int, ControlType>> LIMITLESS_KEYS = {
+    {KEY_ENABLE_LIMITLESS, {IDC_ENABLE_LIMITLESS, CHECK}},
+    {KEY_LIMITLESS_MODE, {IDC_LIMITLESS_MODE, COMBO}},
+    {KEY_LIMITLESS_MONITOR_INTERVAL_MS, {IDC_LIMITLESS_INTERVAL, EDIT_TEXT}},
+    {KEY_LIMITLESS_MAX_RETRIES, {IDC_LIMITLESS_RETRIES, EDIT_TEXT}},
+    {KEY_ROUTER_MAX_RETRIES, {IDC_ROUTER_RETRIES, EDIT_TEXT}}
+};
+
 const std::vector<std::pair<const char*, const char*>> AWS_AUTH_MODES = {
-    {"Database", ""}, 
+    {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
     {"Secrets Manager", VALUE_AUTH_SECRETS},
     {"ADFS", VALUE_AUTH_ADFS},
@@ -127,17 +135,24 @@ const std::vector<std::pair<const char*, const char*>> FAILOVER_MODES = {
     {"Reader or Writer", VALUE_FAILOVER_MODE_READER_OR_WRITER}
 };
 
-const std::vector<std::pair<const char*, const char*>> READER_SELECTION_MODES = { 
+const std::vector<std::pair<const char*, const char*>> READER_SELECTION_MODES = {
     {"", ""},
     {"Random", VALUE_RANDOM_HOST_SELECTOR},
     {"Round Robin", VALUE_ROUND_ROBIN_HOST_SELECTOR },
     {"Highest Weight", VALUE_HIGHEST_WEIGHT_HOST_SELECTOR}
 };
 
+const std::vector<std::pair<const char*, const char*>> LIMITLESS_MODES = {
+    {"", ""},
+    {"Lazy", VALUE_LIMITLESS_MODE_LAZY},
+    {"Immediate", VALUE_LIMITLESS_MODE_IMMEDIATE}
+};
+
 HINSTANCE ghInstance;
 HWND tab_control;
 HWND aws_auth_tab;
 HWND failover_tab;
+HWND limitless_tab;
 HWND main_win;
 
 std::string driver;
@@ -201,7 +216,7 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
             GetWindowText(control, buffer, MAX_KEY_SIZE);
             return buffer;
         }
-        
+
         if (control_type == COMBO) {
             int selection = ComboBox_GetCurSel(control);
             if (selection >= 0) {
@@ -212,12 +227,14 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return CastConst<TCHAR*>(FAILOVER_MODES[selection].second);
                     case IDC_READER_HOST:
                         return CastConst<TCHAR*>(READER_SELECTION_MODES[selection].second);
+                    case IDC_LIMITLESS_MODE:
+                        return CastConst<TCHAR*>(LIMITLESS_MODES[selection].second);
                     default:
                         break;
                 }
             }
         }
-        
+
         if (control_type == CHECK) {
             LRESULT state = Button_GetCheck(control);
             if (state == BST_CHECKED) {
@@ -360,6 +377,13 @@ std::string GetDsn(bool test_conn)
         }
     }
 
+    for (const auto& keys : LIMITLESS_KEYS) {
+        value = GetControlValue(limitless_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
     return conn_str;
 }
 
@@ -417,7 +441,7 @@ void SaveKey(LPCSTR profile, LPCSTR key, LPCSTR value)
     }
 }
 
-bool SaveDsn() 
+bool SaveDsn()
 {
     if (driver_connect) {
         connection_str = GetDsn(true);
@@ -461,6 +485,9 @@ bool SaveDsn()
             for (const auto& keys : FAILOVER_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(failover_tab, keys.second).c_str()));
             }
+            for (const auto& keys : LIMITLESS_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(limitless_tab, keys.second).c_str()));
+            }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, "Failed to save DSN", "Save DSN", MB_OK);
             if (new_dsn) {
@@ -473,6 +500,69 @@ bool SaveDsn()
         MessageBox(main_win, "Please provide a data source name", "Save DSN", MB_OK);
         return false;
     }
+}
+
+void HandleEnableLimitless(HWND hwnd) {
+    HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_LIMITLESS);
+    LRESULT state = Button_GetCheck(check_box);
+    bool show_all = false;
+    if (state == BST_CHECKED) {
+        show_all = true;
+    }
+
+    for (const auto& keys : LIMITLESS_KEYS) {
+        if (keys.first != KEY_ENABLE_LIMITLESS) {
+            HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+            EnableWindow(ctrl, (show_all) ? TRUE : FALSE);
+        }
+    }
+}
+
+void HandleLimitlessInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+    case IDC_ENABLE_LIMITLESS:
+        HandleEnableLimitless(hwnd);
+        break;
+    default:
+        break;
+    }
+}
+
+BOOL LimitlessTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    HWND limitless_mode = GetDlgItem(hwnd, IDC_LIMITLESS_MODE);
+    for (int i = 0; i < LIMITLESS_MODES.size(); i++) {
+        ComboBox_InsertString(limitless_mode, i, LIMITLESS_MODES[i].first);
+    }
+
+    for (const auto& keys : LIMITLESS_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        }
+        else if (keys.second.second == COMBO) {
+            SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, LIMITLESS_MODES);
+        }
+        else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleEnableLimitless(hwnd);
+
+    return false;
+}
+
+BOOL LimitlessDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, LimitlessTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleLimitlessInteraction);
+    default:
+        break;
+    }
+
+    return false;
 }
 
 void HandleEnableFailover(HWND hwnd) {
@@ -687,6 +777,7 @@ void OnSelChange(HWND hwnd)
     int selection = TabCtrl_GetCurSel(tab_control);
     ShowWindow(aws_auth_tab, (selection == AWS_AUTH) ? SW_SHOW : SW_HIDE);
     ShowWindow(failover_tab, (selection == FAILOVER) ? SW_SHOW : SW_HIDE);
+    ShowWindow(limitless_tab, (selection == LIMITLESS) ? SW_SHOW : SW_HIDE);
 }
 
 BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
@@ -694,6 +785,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     tab_control = GetDlgItem(hwnd, IDD_TABCONTROL);
     aws_auth_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_AWS_AUTH), tab_control, (DLGPROC)AuthDlgProc);
     failover_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_FAILOVER), tab_control, (DLGPROC)FailoverDlgProc);
+    limitless_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_LIMITLESS), tab_control, (DLGPROC)LimitlessDlgProc);
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
@@ -710,6 +802,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 
     AddTabToTabControl((char*)"Authentication", tab_control, AWS_AUTH);
     AddTabToTabControl((char*)"Failover Settings", tab_control, FAILOVER);
+    AddTabToTabControl((char*)"Limitless", tab_control, LIMITLESS);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);

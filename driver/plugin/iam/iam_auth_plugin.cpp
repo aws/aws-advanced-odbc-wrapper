@@ -15,10 +15,10 @@
 #include "iam_auth_plugin.h"
 
 #include "../../util/auth_provider.h"
-
 #include "../../driver.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
+#include "../../util/rds_utils.h"
 
 IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 
@@ -31,9 +31,11 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<
     if (auth_provider) {
         this->auth_provider = auth_provider;
     } else {
-        // TODO - Helper to parse from URL
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+            ToStr(dbc->conn_attr.at(KEY_REGION)) :
+            dbc->conn_attr.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+                Aws::Region::US_EAST_1;
         this->auth_provider = std::make_shared<AuthProvider>(region);
     }
 }
@@ -55,9 +57,13 @@ SQLRETURN IamAuthPlugin::Connect(
 
     std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
-    // TODO - Helper to parse from URL
+    std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
+        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        ToStr(dbc->conn_attr.at(KEY_REGION)) :
+        dbc->conn_attr.contains(KEY_SERVER) ?
+            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+            Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
@@ -68,13 +74,13 @@ SQLRETURN IamAuthPlugin::Connect(
     bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10) : false;
 
-    if (server.empty() || region.empty() || port.empty() || username.empty()) {
+    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         delete dbc->err;
         dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
-    std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true, extra_url_encode, token_expiration);
+    std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
 
@@ -84,7 +90,7 @@ SQLRETURN IamAuthPlugin::Connect(
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
-        token = auth_provider->GetToken(server, region, port, username, false, extra_url_encode, token_expiration);
+        token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }

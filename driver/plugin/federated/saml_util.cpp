@@ -20,6 +20,7 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/rds_strings.h"
+#include "../../util/rds_utils.h"
 
 SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
     : SamlUtil(connection_attributes, nullptr, nullptr) {}
@@ -54,7 +55,10 @@ SamlUtil::SamlUtil(
         this->sts_client = sts_client;
     } else {
         std::string region = connection_attributes.contains(KEY_REGION) ?
-            ToStr(connection_attributes.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+            ToStr(connection_attributes.at(KEY_REGION)) :
+            connection_attributes.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(connection_attributes.at(KEY_SERVER))) :
+                Aws::Region::US_EAST_1;
         Aws::STS::STSClientConfiguration sts_client_config;
         sts_client_config.region = region;
         this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);

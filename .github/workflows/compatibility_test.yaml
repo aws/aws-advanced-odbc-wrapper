@@ -43,7 +43,7 @@ jobs:
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -126,7 +126,7 @@ jobs:
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build --config ${{env.BUILD_CONFIG}}
       # TODO - Replace this step once installers are made
       - name: Manual Install Wrapper Driver
@@ -198,7 +198,7 @@ jobs:
   test-macos-compat:
     name: MacOS - Compatibility Test
     needs: [build-macos-psqlodbc]
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
@@ -213,12 +213,11 @@ jobs:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
       - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -283,7 +282,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DUNICODE=OFF -DUNIT_TEST=OFF
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc

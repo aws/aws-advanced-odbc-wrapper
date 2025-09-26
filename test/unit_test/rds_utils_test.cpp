@@ -25,6 +25,7 @@ namespace {
     const std::string US_EAST_REGION_INSTANCE = "instance-test-name.XYZ.us-east-2.rds.amazonaws.com";
     const std::string US_EAST_REGION_PROXY = "proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com";
     const std::string US_EAST_REGION_CUSTOM_DOMAIN = "custom-test-name.cluster-custom-XYZ.us-east-2.rds.amazonaws.com";
+    const std::string US_EAST_LIMITLESS_SHARD_GROUP = "database-test-name.shardgrp-XYZ.us-east-2.rds.amazonaws.com";
 
     const std::string CHINA_REGION_CLUSTER = "database-test-name.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
     const std::string CHINA_REGION_CLUSTER_READ_ONLY = "database-test-name.cluster-ro-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
@@ -46,6 +47,7 @@ TEST_F(RdsUtilsTest, IsRdsDns) {
     EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_PROXY));
     EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_TRUE(RdsUtils::IsRdsDns(CHINA_REGION_CLUSTER));
     EXPECT_TRUE(RdsUtils::IsRdsDns(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -58,6 +60,7 @@ TEST_F(RdsUtilsTest, IsRdsClusterDns) {
     EXPECT_TRUE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_PROXY));
     EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_TRUE(RdsUtils::IsRdsClusterDns(CHINA_REGION_CLUSTER));
     EXPECT_TRUE(RdsUtils::IsRdsClusterDns(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -70,6 +73,7 @@ TEST_F(RdsUtilsTest, IsRdsProxyDns) {
     EXPECT_FALSE(RdsUtils::IsRdsProxyDns(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_TRUE(RdsUtils::IsRdsProxyDns(US_EAST_REGION_PROXY));
     EXPECT_FALSE(RdsUtils::IsRdsProxyDns(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_FALSE(RdsUtils::IsRdsProxyDns(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_FALSE(RdsUtils::IsRdsProxyDns(CHINA_REGION_CLUSTER));
     EXPECT_FALSE(RdsUtils::IsRdsProxyDns(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -82,6 +86,7 @@ TEST_F(RdsUtilsTest, IsRdsWriterClusterDns) {
     EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_REGION_PROXY));
     EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_TRUE(RdsUtils::IsRdsWriterClusterDns(CHINA_REGION_CLUSTER));
     EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -94,6 +99,7 @@ TEST_F(RdsUtilsTest, IsRdsCustomClusterDns) {
     EXPECT_FALSE(RdsUtils::IsRdsCustomClusterDns(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_FALSE(RdsUtils::IsRdsCustomClusterDns(US_EAST_REGION_PROXY));
     EXPECT_TRUE(RdsUtils::IsRdsCustomClusterDns(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_FALSE(RdsUtils::IsRdsCustomClusterDns(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_FALSE(RdsUtils::IsRdsCustomClusterDns(CHINA_REGION_CLUSTER));
     EXPECT_FALSE(RdsUtils::IsRdsCustomClusterDns(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -107,6 +113,7 @@ TEST_F(RdsUtilsTest, GetRdsInstanceHostPattern) {
     EXPECT_EQ(expected_pattern, RdsUtils::GetRdsInstanceHostPattern(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_EQ(expected_pattern, RdsUtils::GetRdsInstanceHostPattern(US_EAST_REGION_PROXY));
     EXPECT_EQ(expected_pattern, RdsUtils::GetRdsInstanceHostPattern(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_EQ(expected_pattern, RdsUtils::GetRdsInstanceHostPattern(US_EAST_LIMITLESS_SHARD_GROUP));
 
     const std::string expected_china_pattern = "?.XYZ.rds.cn-northwest-1.amazonaws.com.cn";
     EXPECT_EQ(expected_china_pattern, RdsUtils::GetRdsInstanceHostPattern(CHINA_REGION_CLUSTER));
@@ -120,6 +127,7 @@ TEST_F(RdsUtilsTest, GetRdsClusterHostUrl) {
     EXPECT_EQ(US_EAST_REGION_CLUSTER, RdsUtils::GetRdsClusterHostUrl(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_EQ(std::string(), RdsUtils::GetRdsClusterHostUrl(US_EAST_REGION_PROXY));
     EXPECT_EQ(std::string(), RdsUtils::GetRdsClusterHostUrl(US_EAST_REGION_CUSTOM_DOMAIN));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsClusterHostUrl(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_EQ(CHINA_REGION_CLUSTER, RdsUtils::GetRdsClusterHostUrl(CHINA_REGION_CLUSTER));
     EXPECT_EQ(CHINA_REGION_CLUSTER, RdsUtils::GetRdsClusterHostUrl(CHINA_REGION_CLUSTER_READ_ONLY));
@@ -134,6 +142,8 @@ TEST_F(RdsUtilsTest, GetRdsClusterId) {
 
     EXPECT_EQ("proxy-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_PROXY));
     EXPECT_EQ("custom-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_CUSTOM_DOMAIN));
+
+    EXPECT_EQ("database-test-name", RdsUtils::GetRdsClusterId(US_EAST_LIMITLESS_SHARD_GROUP));
 
     EXPECT_EQ("database-test-name", RdsUtils::GetRdsClusterId(CHINA_REGION_CLUSTER));
     EXPECT_EQ("database-test-name", RdsUtils::GetRdsClusterId(CHINA_REGION_CLUSTER_READ_ONLY));

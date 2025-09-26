@@ -16,12 +16,16 @@
 
 #include "odbcapi_rds_helper.h"
 
+#include <unordered_set>
+
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
+#include "plugin/limitless/limitless_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 
+#include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/logger_wrapper.h"
@@ -1779,6 +1783,18 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
     }
 
+    std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
+    if (!invalid_params.empty()) {
+        CLEAR_DBC_ERROR(dbc);
+        std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
+        for (RDS_STR msg : invalid_params) {
+            invalid_message += ToStr(msg);
+            invalid_message += "\n\t";
+        }
+        dbc->err = new ERR_INFO(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return SQL_ERROR;
+    }
+
     if (dbc->conn_attr.contains(KEY_DRIVER)) {
         // TODO - Need to ensure the paths (slashes) are correct per OS
         RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
@@ -1851,8 +1867,12 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         }
 
         // Limitless
-        if (dbc->conn_attr.contains(KEY_LIMITLESS_ENABLED)
-            && dbc->conn_attr.at(KEY_LIMITLESS_ENABLED) == VALUE_BOOL_TRUE);
+        if (dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS)
+            && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE)
+        {
+            next_plugin = new LimitlessPlugin(dbc, plugin_head);
+            plugin_head = next_plugin;
+        }
 
         // Failover
         if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)

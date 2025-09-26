@@ -88,6 +88,48 @@ TEST_F(IamAuthPluginTest, Connect_Success) {
     EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
 }
 
+TEST_F(IamAuthPluginTest, Connect_Success_Empty_Region) {
+    dbc->conn_attr.insert_or_assign(KEY_SERVER, "mydbname.cluster-xyz.us-east-2.rds.amazonaws.com");
+    dbc->conn_attr.erase(KEY_REGION);
+    std::pair<std::string, bool> token_info("cached_token", true);
+    EXPECT_CALL(
+        *mock_auth_provider,
+        GetToken(testing::_, "us-east-2", testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillRepeatedly(testing::Return(token_info));
+    EXPECT_CALL(
+        *mock_base_plugin,
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SQL_SUCCESS));
+
+    IamAuthPlugin plugin(dbc, mock_base_plugin, mock_auth_provider);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+}
+
+TEST_F(IamAuthPluginTest, Connect_Success_IAM_HOST) {
+    std::string test_iam_host = "test-host";
+    std::pair<std::string, bool> token_info("cached_token", true);
+    EXPECT_CALL(
+        *mock_auth_provider,
+        GetToken(test_iam_host, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillRepeatedly(testing::Return(token_info));
+    EXPECT_CALL(
+        *mock_base_plugin,
+        Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SQL_SUCCESS));
+
+    dbc->conn_attr.insert_or_assign(KEY_IAM_HOST, ToStr(test_iam_host));
+    IamAuthPlugin plugin(dbc, mock_base_plugin, mock_auth_provider);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+}
+
 TEST_F(IamAuthPluginTest, Connect_Success_CacheExpire) {
     std::pair<std::string, bool> expired_token_info("expired_cached_token", true);
     std::pair<std::string, bool> valid_token_info("fresh_token", false);

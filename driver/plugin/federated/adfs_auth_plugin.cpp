@@ -21,6 +21,7 @@
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/rds_utils.h"
 #include "saml_util.h"
 
 AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc) : AdfsAuthPlugin(dbc, nullptr) {}
@@ -41,7 +42,10 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_pt
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+            ToStr(dbc->conn_attr.at(KEY_REGION)) :
+            dbc->conn_attr.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+                Aws::Region::US_EAST_1;
         std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
@@ -65,9 +69,13 @@ SQLRETURN AdfsAuthPlugin::Connect(
 
     std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
-    // TODO - Helper to parse from URL
+    std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
+        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : Aws::Region::US_EAST_1;
+        ToStr(dbc->conn_attr.at(KEY_REGION)) :
+        dbc->conn_attr.contains(KEY_SERVER) ?
+            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+            Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
@@ -78,7 +86,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     // TODO - Proper error handling for missing parameters
-    std::pair<std::string, bool> token = auth_provider->GetToken(server, region, port, username, true, extra_url_encode, token_expiration);
+    std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
 
@@ -93,7 +101,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
         //  and retry without cache
-        token = auth_provider->GetToken(server, region, port, username, false, extra_url_encode, token_expiration);
+        token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }

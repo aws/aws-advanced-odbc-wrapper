@@ -15,16 +15,20 @@
 #ifndef DIALECT_H
 #define DIALECT_H
 
+#include <map>
+
 #include "../util/connection_string_keys.h"
 #include "../util/rds_strings.h"
 
 typedef enum {
     AURORA_POSTGRESQL,
+    AURORA_POSTGRESQL_LIMITLESS,
     UNKNOWN_DIALECT
 } DatabaseDialectType;
 
 static std::map<RDS_STR, DatabaseDialectType> const database_dialect_table = {
-    {VALUE_DB_DIALECT_AURORA_POSTGRESQL,    DatabaseDialectType::AURORA_POSTGRESQL}
+    {VALUE_DB_DIALECT_AURORA_POSTGRESQL,    DatabaseDialectType::AURORA_POSTGRESQL},
+    {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,    DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS}
 };
 
 class Dialect {
@@ -46,6 +50,11 @@ public:
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }
+};
+
+class DialectLimitless : virtual public Dialect {
+public:
+    virtual RDS_STR GetLimitlessRouterEndpointQuery() { return AS_RDS_STR(TEXT("")); };
 };
 
 #endif // DIALECT_H

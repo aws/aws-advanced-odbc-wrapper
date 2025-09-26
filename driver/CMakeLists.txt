@@ -44,8 +44,14 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.h
     ## Secrets Manager
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.h
+    ## Limitless
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_query_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.h
 
     # Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
@@ -57,6 +63,8 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
@@ -83,8 +91,13 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_query_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.cpp
 
     # Utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
@@ -94,6 +107,8 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
@@ -145,7 +160,7 @@ IF(BUILD_UNICODE OR NOT BUILD_ANSI)
     target_compile_definitions(${COMPILE_FILE_NAME_UNICODE} PRIVATE
         ${COMPILE_DEFINITIONS_UNICODE}
     )
-    if(UNIT_TEST) # Static Library for Unit Tests
+    if(BUILD_UNIT_TEST) # Static Library for Unit Tests
         add_library(${COMPILE_FILE_NAME_UNICODE}-static STATIC
             ${INC}
             ${SRC}
@@ -183,7 +198,7 @@ IF(BUILD_ANSI OR NOT BUILD_UNICODE)
     target_compile_definitions(${COMPILE_FILE_NAME_ANSI} PRIVATE
         ${COMPILE_DEFINITIONS_ANSI}
     )
-    if(UNIT_TEST) # Static Library for Unit Tests
+    if(BUILD_UNIT_TEST) # Static Library for Unit Tests
         add_library(${COMPILE_FILE_NAME_ANSI}-static STATIC
             ${INC}
             ${SRC}
@@ -203,7 +218,7 @@ foreach(target ${COMPILE_FILE_NAME_UNICODE} ${COMPILE_FILE_NAME_ANSI})
     target_link_libraries(${target} PRIVATE ${EXTERNAL_LIBRARIES})
 
     # Static library to run unit tests against -------------------------------------------------------------------
-    if(UNIT_TEST)
+    if(BUILD_UNIT_TEST)
         target_link_libraries(${target}-static PRIVATE ${EXTERNAL_LIBRARIES})
     endif()
 endforeach()

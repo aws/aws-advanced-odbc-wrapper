@@ -32,6 +32,7 @@ public:
     bool Find(const K& key);
     unsigned int Size();
     void Clear();
+    void Delete(const K& key);
 
 private:
     struct CacheEntry {

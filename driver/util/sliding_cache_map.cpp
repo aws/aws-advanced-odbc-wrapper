@@ -16,10 +16,10 @@
 
 #include <chrono>
 #include <mutex>
-#include <unordered_map>
 
 #include "../host_selector/round_robin_host_selector.h"
 #include "../host_info.h"
+#include "../plugin/limitless/limitless_router_monitor.h"
 
 template <typename K, typename V>
 void SlidingCacheMap<K, V>::Put(const K& key, const V& value) {
@@ -112,7 +112,14 @@ void SlidingCacheMap<K, V>::Clear() {
     cache.clear();
 }
 
+template <typename K, typename V>
+void SlidingCacheMap<K, V>::Delete(const K& key) {
+    std::lock_guard<std::mutex> lock(cache_lock);
+    cache.erase(key);
+}
+
 // Explicit Template Instantiations
 template class SlidingCacheMap<std::string, std::shared_ptr<round_robin_property::RoundRobinClusterInfo>>;
 template class SlidingCacheMap<std::string, std::string>;
 template class SlidingCacheMap<std::string, std::vector<HostInfo>>;
+template class SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>>;
