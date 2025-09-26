@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "logger_wrapper.h"
-
 #include <ng-log/logging.h>
 
 #include "rds_strings.h"
