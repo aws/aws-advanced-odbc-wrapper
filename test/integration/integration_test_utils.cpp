@@ -124,15 +124,16 @@ SQLRETURN INTEGRATION_TEST_UTILS::exec_query(SQLHSTMT stmt, char *query_buffer) 
 
 void INTEGRATION_TEST_UTILS::clear_memory(void* dest, size_t count) {
     #ifdef _WIN32
-    SecureZeroMemory(dest, count);
+        SecureZeroMemory(dest, count);
     #else
-    #ifdef __STDC_LIB_EXT1__
-    memset_s(dest, count, '\0', count);
-    #else
-    memset(dest, '\0', count);
-    #endif /* __STDC__LIB_EXT1__*/
+        #ifdef __STDC_LIB_EXT1__
+            memset_s(dest, count, '\0', count);
+        #else
+            memset(dest, '\0', count);
+        #endif /* __STDC__LIB_EXT1__*/
     #endif /* _WIN32 */
-return;
+
+    return;
 }
 
 void INTEGRATION_TEST_UTILS::odbc_cleanup(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt) {

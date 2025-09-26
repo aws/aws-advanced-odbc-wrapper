@@ -23,16 +23,15 @@
 #define SQL_ERR_UNABLE_TO_CONNECT "08001"
 #define SQL_ERR_INVALID_PARAMETER "01S00"
 
-class INTEGRATION_TEST_UTILS {
-public:
-    static char* get_env_var(const char* key, char* default_value);
-    static int str_to_int(const char* str);
-    static double str_to_double(const char* str);
-    static std::string host_to_IP(std::string hostname);
-    static void print_errors(SQLHANDLE handle, int32_t handle_type);
-    static SQLRETURN exec_query(SQLHSTMT stmt, char *query_buffer);
-	static void clear_memory(void* dest, size_t count);
-    static void odbc_cleanup(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
+namespace INTEGRATION_TEST_UTILS {
+    char* get_env_var(const char* key, char* default_value);
+    int str_to_int(const char* str);
+    double str_to_double(const char* str);
+    std::string host_to_IP(std::string hostname);
+    void print_errors(SQLHANDLE handle, int32_t handle_type);
+    SQLRETURN exec_query(SQLHSTMT stmt, char *query_buffer);
+	void clear_memory(void* dest, size_t count);
+    void odbc_cleanup(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
 };
 
 #endif // INTEGRATION_TEST_UTILS_H_
