@@ -31,16 +31,10 @@
 #include <vector>
 
 #ifdef UNICODE
-#include "unicode/unistr.h"
-inline SQLTCHAR * AS_SQLTCHAR(std::string str) {
-    icu::StringPiece str_piece(str);
-    icu::UnicodeString unicode_str = icu::UnicodeString::fromUTF8(str_piece);
-    const char16_t *buffer = unicode_str.getBuffer();
-    return const_cast<unsigned short *>(reinterpret_cast<const unsigned short *>(buffer)); 
-}
-#else
-    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
+    #include "unicode/unistr.h"
 #endif
+
+#define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
 
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
@@ -67,12 +61,15 @@ typedef std::smatch RDS_MATCH;
 #include "unicode/utypes.h"
 #include "unicode/ucasemap.h"
 inline std::string RDS_STR_UPPER(std::string str) {
-    UErrorCode upperStatus = U_ZERO_ERROR;
-    char buf[str.length() * 4];
+    size_t buf_len = str.length() * 4;
+    char *buf = new char[buf_len];
     UErrorCode ucasemapStatus = U_ZERO_ERROR;
     UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemapStatus);
-    ucasemap_utf8ToUpper(ucasemap, buf, str.length() * 4, str.c_str(), -1, &upperStatus);
-    return buf;
+    UErrorCode upperStatus = U_ZERO_ERROR;
+    ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upperStatus);
+    std::string upper(buf);
+    delete[] buf;
+    return upper;
 }
 
 #define EMPTY_RDS_STR ""

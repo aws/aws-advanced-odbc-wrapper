@@ -60,8 +60,18 @@ SQLRETURN BasePlugin::Connect(
     // and a new connection string should be built without DSN & Driver
     std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
+
+    SQLTCHAR *conn_in_sqltchar;
+#if UNICODE
+    icu::StringPiece str_piece(conn_in);
+    icu::UnicodeString conn_in_unistr = icu::UnicodeString::fromUTF8(str_piece);
+    const char16_t *conn_in_buffer = conn_in_unistr.getBuffer();
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_buffer));
+#else
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
+#endif
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
-        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
     if (res.fn_load_success) {
