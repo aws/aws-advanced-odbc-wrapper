@@ -717,7 +717,8 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
+        // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
+        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
 
 #ifndef UNICODE

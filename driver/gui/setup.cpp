@@ -851,13 +851,12 @@ BOOL FormMainDlgProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 void GetSaveFileFromConnectionString(std::string conn_str, HWND hwndParent) {
-  std::smatch matches;
-  std::regex dsn_pattern = std::regex("SAVEFILE=([^;]*)(;)?");
-  if (std::regex_search(conn_str, matches, dsn_pattern) &&
-    !matches.empty()) {
-    std::string match = matches[1];
-    current_dsn = match;
-  }
+    std::smatch matches;
+    std::regex dsn_pattern = std::regex("SAVEFILE=([^;]*)(;)?");
+    if (std::regex_search(conn_str, matches, dsn_pattern) && !matches.empty()) {
+        std::string match = matches[1];
+        current_dsn = match;
+    }
 }
 
 void GetDsnFromConnectionString(std::string conn_str, HWND hwndParent) {
@@ -893,7 +892,7 @@ std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQ
         // Check for DSN and DRIVER from the connection string.
         GetDsnFromConnectionString(converted_str, hwnd);
         if (!current_dsn.empty() || !driver.empty()) {
-            return {converted_str, converted_str};
+            return { converted_str, converted_str };
         }
     }
 
