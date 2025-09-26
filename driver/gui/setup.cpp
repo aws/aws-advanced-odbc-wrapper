@@ -159,6 +159,7 @@ std::string driver;
 std::string current_dsn;
 std::string connection_str;
 std::string out_connection_str;
+bool dialog_box_cancelled = false;
 bool driver_connect = false;
 bool disable_optional = false;
 
@@ -739,6 +740,7 @@ void HandleGuiInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
             ChooseFile(main_win, IDC_BASE_DRIVER);
             break;
         case IDCANCEL:
+            dialog_box_cancelled = true;
             if (codeNotify == BN_CLICKED) {
                 if (driver_connect) {
                     connection_str = GetDsn(true);
@@ -877,7 +879,7 @@ void GetDriverFromConnectionString(std::string conn_str, HWND hwndParent) {
     }
 }
 
-std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required) {
+std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required) {
     connection_str = "";
     out_connection_str = "";
     driver_connect = true;
@@ -892,7 +894,7 @@ std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQ
         // Check for DSN and DRIVER from the connection string.
         GetDsnFromConnectionString(converted_str, hwnd);
         if (!current_dsn.empty() || !driver.empty()) {
-            return { converted_str, converted_str };
+            return { converted_str, converted_str, false };
         }
     }
 
@@ -901,7 +903,7 @@ std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQ
 
     driver_connect = false;
     disable_optional = false;
-    return { connection_str, out_connection_str };
+    return { connection_str, out_connection_str, dialog_box_cancelled };
 }
 #endif
 
