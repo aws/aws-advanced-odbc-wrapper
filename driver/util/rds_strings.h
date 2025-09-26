@@ -35,7 +35,6 @@
 #endif
 
 #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
-
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
