@@ -75,7 +75,6 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
     return AS_RDS_CHAR(writer_id);
 }
 
-
 std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
