@@ -51,7 +51,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     if (size < 1) {
         // No entries in DSN
         // TODO - Error handling?
-        LOG(WARNING) << "No DSN entry found for: " << ToStr(dsn_key);
+        LOG(WARNING) << "No DSN entry found for: " << dsn_key;
         return;
     }
 
@@ -117,7 +117,7 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
 
     if (size < 0) {
         // No entries
-        LOG(WARNING) << "No value found for DSN entry key: " << ToStr(dsn_key) << ", " << ToStr(entry_key);
+        LOG(WARNING) << "No value found for DSN entry key: " << dsn_key << ", " << entry_key;
         return RDS_STR();
     }
     return RDS_STR(buffer);

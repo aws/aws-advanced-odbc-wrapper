@@ -72,7 +72,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
         );
     }
 
-    return ToStr(AS_RDS_CHAR(writer_id));
+    return AS_RDS_CHAR(writer_id);
 }
 
 
@@ -147,7 +147,7 @@ HostInfo ClusterTopologyQueryHelper::CreateHost(
 std::string ClusterTopologyQueryHelper::GetEndpoint(SQLTCHAR* node_id)
 {
     std::string res(endpoint_template_);
-    std::string node_id_str = ToStr(AS_RDS_CHAR(node_id));
+    std::string node_id_str = AS_RDS_CHAR(node_id);
 
     size_t pos = res.find(REPLACE_CHAR);
     if (pos != std::string::npos) {

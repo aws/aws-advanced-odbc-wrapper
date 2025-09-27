@@ -34,12 +34,8 @@
     #include <dlfcn.h>
     #define MODULE_HANDLE void*
     #define FUNC_HANDLE void*
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, RTLD_LAZY | RTLD_LOCAL)
-#ifdef UNICODE
-    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(ToStr(module_name).c_str(), load_flag)
-#else
+    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name.c_str(), RTLD_LAZY | RTLD_LOCAL)
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
-#endif
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
 #endif

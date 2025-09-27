@@ -25,11 +25,9 @@
 #include <atomic>
 #include <filesystem>
 
-#include "rds_strings.h"
-
 namespace logger_config {
     const std::string PROGRAM_NAME = "aws-odbc-wrapper";
-    const RDS_STR DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).string();
+    const std::string DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).string();
     const int DEFAULT_LOG_THRESHOLD = 4;
 }  // namespace logger_config
 
@@ -39,8 +37,8 @@ public:
 
     static void Initialize();
     static void Initialize(int threshold);
-    static void Initialize(RDS_STR log_location);
-    static void Initialize(RDS_STR log_location, int threshold);
+    static void Initialize(std::string log_location);
+    static void Initialize(std::string log_location, int threshold);
 
     static void Shutdown();
 
@@ -51,7 +49,7 @@ public:
     LoggerWrapper& operator=(LoggerWrapper&&) = delete;
 
 private:
-    static void SetLogDirectory(const RDS_STR &directory_path);
+    static void SetLogDirectory(const std::string &directory_path);
     static inline std::atomic<int> logger_init_count = 0;
 };
 

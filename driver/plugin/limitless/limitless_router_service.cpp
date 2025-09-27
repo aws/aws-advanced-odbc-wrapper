@@ -32,16 +32,16 @@ SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRo
 LimitlessRouterService::LimitlessRouterService(std::shared_ptr<DialectLimitless> dialect, const std::map<RDS_STR, RDS_STR> &conn_attr) {
     this->dialect_ = dialect;
     this->limitless_monitor_interval_ms_ = conn_attr.contains(KEY_LIMITLESS_MONITOR_INTERVAL_MS) ?
-        std::strtol(ToStr(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS)).c_str(), nullptr, 10) :
+        std::strtol(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS).c_str(), nullptr, 10) :
         DEFAULT_LIMITLESS_MONITOR_INTERVAL_MS;
     this->max_router_retries_ = conn_attr.contains(KEY_ROUTER_MAX_RETRIES) ?
-        std::strtol(ToStr(conn_attr.at(KEY_ROUTER_MAX_RETRIES)).c_str(), nullptr, 10) :
+        std::strtol(conn_attr.at(KEY_ROUTER_MAX_RETRIES).c_str(), nullptr, 10) :
         DEFAULT_LIMITLESS_CONNECT_RETRY_ATTEMPTS;
     this->max_connect_retries_ = conn_attr.contains(KEY_LIMITLESS_MAX_RETRIES) ?
-        std::strtol(ToStr(conn_attr.at(KEY_LIMITLESS_MAX_RETRIES)).c_str(), nullptr, 10) :
+        std::strtol(conn_attr.at(KEY_LIMITLESS_MAX_RETRIES).c_str(), nullptr, 10) :
         DEFAULT_LIMITLESS_CONNECT_RETRY_ATTEMPTS;
     this->host_port_ = conn_attr.contains(KEY_PORT) ?
-            std::strtol(ToStr(conn_attr.at(KEY_PORT)).c_str(), nullptr, 10) :
+            std::strtol(conn_attr.at(KEY_PORT).c_str(), nullptr, 10) :
             dialect_->GetDefaultPort();
 }
 
@@ -65,7 +65,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     std::shared_ptr<std::mutex> limitless_mutex = std::make_shared<std::mutex>();
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect);
 
-    std::string host = conn_attr.contains(KEY_SERVER) ? ToStr(conn_attr.at(KEY_SERVER)) : "";
+    std::string host = conn_attr.contains(KEY_SERVER) ? conn_attr.at(KEY_SERVER) : "";
     std::string service_id = RdsUtils::GetRdsClusterId(host);
 
     if (service_id.empty()) {
@@ -74,8 +74,8 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     }
 
     bool block_and_query_immediately = true;
-    std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ? ToStr(conn_attr.at(KEY_LIMITLESS_MODE)) : ToStr(VALUE_LIMITLESS_MODE_IMMEDIATE);
-    if (std::strcmp(limitless_mode.c_str(), ToStr(VALUE_LIMITLESS_MODE_LAZY).c_str())) {
+    std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ? conn_attr.at(KEY_LIMITLESS_MODE) : VALUE_LIMITLESS_MODE_IMMEDIATE;
+    if (std::strcmp(limitless_mode.c_str(), VALUE_LIMITLESS_MODE_LAZY)) {
         block_and_query_immediately = false;
     }
 
@@ -167,7 +167,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     try {
         RoundRobinHostSelector::SetRoundRobinWeight(limitless_routers, properties);
         HostInfo host_info = this->round_robin_.GetHost(limitless_routers, true, properties);
-        dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_info.GetHost()));
+        dbc->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
         rc = next_plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     } catch (std::runtime_error& error) {
         LOG(INFO) << "Got runtime error while getting round robin host for limitless (trying for highest weight host next): " << error.what();
@@ -183,7 +183,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     for (int i = 0; i < max_connect_retries_; i++) {
         try {
             HostInfo host_info = this->highest_weight_.GetHost(limitless_routers, true, properties);
-            dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_info.GetHost()));
+            dbc->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
 
             SQLRETURN rc = next_plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
             if (SQL_SUCCEEDED(rc)) {
@@ -213,7 +213,7 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
 {
     BasePlugin* plugin_head= dbc->plugin_head;
     std::map<RDS_STR, RDS_STR> conn_attr = dbc->conn_attr;
-    std::string host = ToStr(conn_attr.at(KEY_SERVER));
+    std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);

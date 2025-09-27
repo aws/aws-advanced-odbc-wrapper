@@ -36,27 +36,27 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
       dialect_{ dialect }
 {
     if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
-        cluster_id_ = ToStr(connection_attributes_.at(KEY_CLUSTER_ID));
+        cluster_id_ = connection_attributes_.at(KEY_CLUSTER_ID);
     } else {
-        std::string generated_id = RdsUtils::GetRdsClusterId(ToStr(connection_attributes_.at(KEY_SERVER)));
+        std::string generated_id = RdsUtils::GetRdsClusterId(connection_attributes_.at(KEY_SERVER));
         if (generated_id.empty()) {
             generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         }
         LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, ToRdsStr(generated_id));
+        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, generated_id);
         cluster_id_ = generated_id;
     }
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST)).c_str(), nullptr, 10));
+            connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST).c_str(), nullptr, 10));
     }
     if (connection_attributes_.contains(KEY_HIGH_REFRESH_RATE)) {
         high_refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_HIGH_REFRESH_RATE)).c_str(), nullptr, 10));
+            connection_attributes_.at(KEY_HIGH_REFRESH_RATE).c_str(), nullptr, 10));
     }
     if (connection_attributes_.contains(KEY_REFRESH_RATE)) {
         refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_REFRESH_RATE)).c_str(), nullptr, 10));
+            connection_attributes_.at(KEY_REFRESH_RATE).c_str(), nullptr, 10));
     }
 
     // Create ENV local to cluster topology monitor

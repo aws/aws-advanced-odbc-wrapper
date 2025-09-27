@@ -30,6 +30,10 @@
 #include <string.h>
 #include <vector>
 
+#include "logger_wrapper.h"
+#include "unicode/utypes.h"
+#include "unicode/ucasemap.h"
+
 #ifdef UNICODE
     #include "unicode/unistr.h"
 #endif
@@ -57,15 +61,21 @@ typedef std::smatch RDS_MATCH;
 #define RDS_CHAR_FORMAT "%s"
 #define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
 
-#include "unicode/utypes.h"
-#include "unicode/ucasemap.h"
 inline std::string RDS_STR_UPPER(std::string str) {
     size_t buf_len = str.length() * 4;
     char *buf = new char[buf_len];
-    UErrorCode ucasemapStatus = U_ZERO_ERROR;
-    UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemapStatus);
-    UErrorCode upperStatus = U_ZERO_ERROR;
-    ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upperStatus);
+    UErrorCode ucasemap_status = U_ZERO_ERROR;
+    UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
+    if (U_FAILURE(ucasemap_status)) {
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status)); 
+       return str;
+    }
+    UErrorCode upper_status = U_ZERO_ERROR;
+    ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
+    if (U_FAILURE(upper_status)) {
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status)); 
+       return str;
+    }
     std::string upper(buf);
     delete[] buf;
     return upper;
@@ -75,16 +85,6 @@ inline std::string RDS_STR_UPPER(std::string str) {
 #define AS_RDS_CHAR(str) (reinterpret_cast<RDS_CHAR *>(str))
 #define AS_RDS_STR(str) RDS_STR((RDS_CHAR *) str)
 #define AS_RDS_STR_MAX(str, len) RDS_STR((RDS_CHAR *) str, len)
-
-inline RDS_STR ToRdsStr(const std::string &str)
-{
-    return str;
-}
-
-inline std::string ToStr(const RDS_STR &str)
-{
-    return str;
-}
 
 inline RDS_STR TrimStr(RDS_STR &str) {
     str = str.erase(str.find_last_not_of(TEXT(' ')) + 1);

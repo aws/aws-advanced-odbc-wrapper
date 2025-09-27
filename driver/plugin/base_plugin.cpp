@@ -59,7 +59,7 @@ SQLRETURN BasePlugin::Connect(
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
     std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
-    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
+    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
 
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE

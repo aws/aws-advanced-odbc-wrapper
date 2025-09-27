@@ -16,8 +16,6 @@
 
 #include <ng-log/logging.h>
 
-#include "rds_strings.h"
-
 void LoggerWrapper::Initialize()
 {
     Initialize(logger_config::DEFAULT_LOG_LOCATION, logger_config::DEFAULT_LOG_THRESHOLD);
@@ -28,12 +26,12 @@ void LoggerWrapper::Initialize(int threshold)
     Initialize(logger_config::DEFAULT_LOG_LOCATION, threshold);
 }
 
-void LoggerWrapper::Initialize(RDS_STR log_location)
+void LoggerWrapper::Initialize(std::string log_location)
 {
     Initialize(log_location, logger_config::DEFAULT_LOG_THRESHOLD);
 }
 
-void LoggerWrapper::Initialize(RDS_STR log_location, int threshold)
+void LoggerWrapper::Initialize(std::string log_location, int threshold)
 {
     if (0 == logger_init_count++) {
         // Set to 4 to disable console output
@@ -56,11 +54,11 @@ void LoggerWrapper::Shutdown()
     }
 }
 
-void LoggerWrapper::SetLogDirectory(const RDS_STR &directory_path)
+void LoggerWrapper::SetLogDirectory(const std::string &directory_path)
 {
     std::filesystem::path log_dir(directory_path);
     if (!std::filesystem::exists(log_dir)) {
         std::filesystem::create_directories(log_dir);
     }
-    FLAGS_log_dir = ToStr(directory_path);
+    FLAGS_log_dir = directory_path;
 }

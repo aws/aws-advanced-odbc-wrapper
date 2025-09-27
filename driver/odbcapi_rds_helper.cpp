@@ -1788,7 +1788,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         CLEAR_DBC_ERROR(dbc);
         std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
         for (RDS_STR msg : invalid_params) {
-            invalid_message += ToStr(msg);
+            invalid_message += msg;
             invalid_message += "\n\t";
         }
         dbc->err = new ERR_INFO(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
