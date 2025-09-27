@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-std::pair<std::string, std::string> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required);
+std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required);
