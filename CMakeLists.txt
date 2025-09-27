@@ -110,8 +110,6 @@ list(APPEND EXTERNAL_LIBRARIES
     ICU::io
     ICU::uc
 )
-
-
 # Build Driver -----------------------------------------------------------------------------------------------
 add_subdirectory(driver)
 
