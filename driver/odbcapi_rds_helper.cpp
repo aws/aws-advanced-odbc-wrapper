@@ -668,7 +668,7 @@ SQLRETURN RDS_SQLDriverConnect(
     if (DriverCompletion && WindowHandle) {
 #if !defined(UNICODE) && defined(_WIN32)
         bool complete_required = true;
-        std::pair<std::string, std::string> dialog_result;
+        std::tuple<std::string, std::string, bool> dialog_result; // conn_str, out_conn_str, dialog_box_cancelled
 
         switch (DriverCompletion) {
             case SQL_DRIVER_PROMPT:
@@ -676,13 +676,19 @@ SQLRETURN RDS_SQLDriverConnect(
                 complete_required = false;
             case SQL_DRIVER_COMPLETE_REQUIRED:
                 dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
-                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, dialog_result.first.c_str());
-                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, dialog_result.second.c_str());
+                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, std::get<0>(dialog_result).c_str());
+                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, std::get<1>(dialog_result).c_str());
                 break;
             case SQL_DRIVER_NOPROMPT:
             default:
                 break;
         }
+
+        if (std::get<2>(dialog_result)) {
+            // If a dialog box was opened but cancelled mid-operation, do not continue with the connection attempt.
+            return SQL_NO_DATA_FOUND;
+        }
+
 #endif
     } else {
         RDS_sprintf((RDS_CHAR*)conn_str, MAX_KEY_SIZE, RDS_CHAR_FORMAT, (RDS_CHAR*)InConnectionString);
@@ -717,7 +723,8 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, DriverCompletion);
+        // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
+        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
 
 #ifndef UNICODE
