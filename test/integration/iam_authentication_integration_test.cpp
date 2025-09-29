@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentialsProvider.h>
+
 #include <gtest/gtest.h>
 
 #ifdef WIN32
@@ -27,6 +30,8 @@
 
 #include "../common/connection_string_builder.h"
 #include "integration_test_utils.h"
+
+static Aws::SDKOptions options;
 
 class IamAuthenticationIntegrationTest : public testing::Test {
 protected:
@@ -47,8 +52,9 @@ protected:
     SQLHENV env = nullptr;
     SQLHDBC dbc = nullptr;
 
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() { Aws::InitAPI(options); }
+
+    static void TearDownTestSuite() { Aws::ShutdownAPI(options); }
 
     void SetUp() override {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
