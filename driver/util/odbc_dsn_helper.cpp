@@ -24,8 +24,6 @@
 
 void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)
 {
-    RDS_CHAR buffer[MAX_VAL_SIZE];
-    RDS_CHAR *entries = buffer;
     int size = 0;
 
 #ifdef UNICODE
@@ -33,20 +31,26 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     icu::UnicodeString dsn_key_utf16 = icu::UnicodeString::fromUTF8(dsn_key_string_piece);
     unsigned short *dsn_key_ushort = (unsigned short *)(dsn_key_utf16.getBuffer());
 
-    // Test Buffer
-    unsigned short test_buffer[MAX_VAL_SIZE];
+    unsigned short buffer_utf16[MAX_VAL_SIZE];
     icu::StringPiece empty_string_piece("");
     icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
-    unsigned short *test_empty = (unsigned short *)(empty_string_utf16.getBuffer());
+    unsigned short *empty = (unsigned short *)(empty_string_utf16.getBuffer());
     icu::StringPiece odbc_ini_piece(ODBC_INI);
     icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
     unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
 
     // Check DSN if it is valid and contains entries
-    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, test_empty, test_buffer, MAX_VAL_SIZE, odbc_ini);
+    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
+    char buffer[MAX_VAL_SIZE];
+    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
+    std::string buffer_utf8;
+    unicode_str.toUTF8String(buffer_utf8);
+    std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
+    RDS_CHAR buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
+    RDS_CHAR *entries = buffer;
 
     if (size < 1) {
         // No entries in DSN
@@ -88,7 +92,6 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
 
 RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
 {
-    RDS_CHAR buffer[MAX_VAL_SIZE];
     int size = 0;
 
 #ifdef UNICODE
@@ -100,18 +103,24 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     icu::UnicodeString entry_key_utf16 = icu::UnicodeString::fromUTF8(entry_key_string_piece);
     unsigned short *entry_key_ushort = (unsigned short *)(entry_key_utf16.getBuffer());
 
-    // Test Buffer
-    unsigned short test_buffer[MAX_VAL_SIZE];
+    unsigned short buffer_utf16[MAX_VAL_SIZE];
     icu::StringPiece empty_string_piece("");
     icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
-    unsigned short *test_empty = (unsigned short *)(empty_string_utf16.getBuffer());
+    unsigned short *empty = (unsigned short *)(empty_string_utf16.getBuffer());
     icu::StringPiece odbc_ini_piece(ODBC_INI);
     icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
     unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
 
     // Check DSN if it is valid and contains entries
-    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, test_empty, test_buffer, MAX_VAL_SIZE, odbc_ini);
+    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
+
+    char buffer[MAX_VAL_SIZE];
+    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
+    std::string buffer_utf8;
+    unicode_str.toUTF8String(buffer_utf8);
+    std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
+    RDS_CHAR buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), entry_key.c_str(), EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
 
@@ -120,5 +129,5 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
         LOG(WARNING) << "No value found for DSN entry key: " << dsn_key << ", " << entry_key;
         return RDS_STR();
     }
-    return RDS_STR(buffer);
+    return buffer;
 }
