@@ -50,6 +50,11 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withDatabaseDialect(const std::string& dialect) {
+        length += sprintf(conn_in + length, "DATABASE_DIALECT=%s;", dialect.c_str());
+        return *this;
+    }
+
     ConnectionStringBuilder& withEnableClusterFailover(const bool& enable_cluster_failover) {
         length += sprintf(conn_in + length, "ENABLE_CLUSTER_FAILOVER=%d;", enable_cluster_failover ? 1 : 0);
         return *this;

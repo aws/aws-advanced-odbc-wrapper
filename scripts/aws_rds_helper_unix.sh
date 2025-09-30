@@ -317,9 +317,14 @@ function delete_limitless_db_cluster {
     # Retry logic for deleting DB shards
     while [[ $attempt -lt $maxRetries && $deleteShardsSuccessful -eq $false ]]
     do
-        delete_dbshards $ShardId
+        output=$(delete_dbshards $ShardId 2>&1)
         if [ $? -ne 0 ]; then
-            deleteShardsSuccessful=$false
+            if echo "$output" | grep -q "already being deleted"; then
+                echo "Shard is already being deleted. Treating as success."
+                deleteShardsSuccessful=$true
+            else
+                deleteShardsSuccessful=$false
+            fi
         else
             deleteShardsSuccessful=$true
         fi
