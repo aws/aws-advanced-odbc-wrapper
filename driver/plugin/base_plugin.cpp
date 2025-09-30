@@ -63,10 +63,10 @@ SQLRETURN BasePlugin::Connect(
 
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE
-    icu::StringPiece str_piece(conn_in);
-    icu::UnicodeString conn_in_unistr = icu::UnicodeString::fromUTF8(str_piece);
-    const char16_t *conn_in_buffer = conn_in_unistr.getBuffer();
-    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_buffer));
+    std::vector<unsigned short> conn_in_vec = convertUTF8ToUTF16(conn_in);
+    unsigned short *conn_in_ushort = conn_in_vec.data();
+
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));
 #else
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
 #endif

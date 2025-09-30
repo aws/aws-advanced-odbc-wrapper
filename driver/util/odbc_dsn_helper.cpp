@@ -27,24 +27,19 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     int size = 0;
 
 #ifdef UNICODE
-    icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
-    icu::UnicodeString dsn_key_utf16 = icu::UnicodeString::fromUTF8(dsn_key_string_piece);
-    unsigned short *dsn_key_ushort = (unsigned short *)(dsn_key_utf16.getBuffer());
+    std::vector<unsigned short> dsn_key_vec = convertUTF8ToUTF16(dsn_key);
+    unsigned short *dsn_key_ushort = dsn_key_vec.data();
+
+    std::vector<unsigned short> empty_vec = convertUTF8ToUTF16("");
+    unsigned short *empty = empty_vec.data();
+    std::vector<unsigned short> odbc_ini_vec = convertUTF8ToUTF16(ODBC_INI);
+    unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
-    icu::StringPiece empty_string_piece("");
-    icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
-    unsigned short *empty = (unsigned short *)(empty_string_utf16.getBuffer());
-    icu::StringPiece odbc_ini_piece(ODBC_INI);
-    icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
-    unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
-
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
+    std::string buffer_utf8 = convertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
-    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
-    std::string buffer_utf8;
-    unicode_str.toUTF8String(buffer_utf8);
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
     RDS_CHAR buffer[MAX_VAL_SIZE];
@@ -95,29 +90,23 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     int size = 0;
 
 #ifdef UNICODE
-    icu::StringPiece dsn_key_string_piece(dsn_key.c_str());
-    icu::UnicodeString dsn_key_utf16 = icu::UnicodeString::fromUTF8(dsn_key_string_piece);
-    unsigned short *dsn_key_ushort = (unsigned short *)(dsn_key_utf16.getBuffer());
+    std::vector<unsigned short> dsn_key_vec = convertUTF8ToUTF16(dsn_key);
+    unsigned short *dsn_key_ushort = dsn_key_vec.data();
 
-    icu::StringPiece entry_key_string_piece(entry_key.c_str());
-    icu::UnicodeString entry_key_utf16 = icu::UnicodeString::fromUTF8(entry_key_string_piece);
-    unsigned short *entry_key_ushort = (unsigned short *)(entry_key_utf16.getBuffer());
+    std::vector<unsigned short> entry_key_vec = convertUTF8ToUTF16(entry_key);
+    unsigned short *entry_key_ushort = entry_key_vec.data();
+
+    std::vector<unsigned short> empty_vec = convertUTF8ToUTF16("");
+    unsigned short *empty = empty_vec.data();
+    std::vector<unsigned short> odbc_ini_vec = convertUTF8ToUTF16(ODBC_INI);
+    unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
-    icu::StringPiece empty_string_piece("");
-    icu::UnicodeString empty_string_utf16 = icu::UnicodeString::fromUTF8(empty_string_piece);
-    unsigned short *empty = (unsigned short *)(empty_string_utf16.getBuffer());
-    icu::StringPiece odbc_ini_piece(ODBC_INI);
-    icu::UnicodeString odbc_ini_utf16 = icu::UnicodeString::fromUTF8(odbc_ini_piece);
-    unsigned short *odbc_ini = (unsigned short *)(odbc_ini_utf16.getBuffer());
-
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
 
+    std::string buffer_utf8 = convertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
-    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
-    std::string buffer_utf8;
-    unicode_str.toUTF8String(buffer_utf8);
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
     RDS_CHAR buffer[MAX_VAL_SIZE];
