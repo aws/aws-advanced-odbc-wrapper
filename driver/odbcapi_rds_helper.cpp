@@ -689,9 +689,8 @@ SQLRETURN RDS_SQLDriverConnect(
             // If a dialog box was opened but cancelled mid-operation, do not continue with the connection attempt.
             return SQL_NO_DATA_FOUND;
         }
-
+      
         conn_str_utf8 = conn_str;
-#endif
     } else { 
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
