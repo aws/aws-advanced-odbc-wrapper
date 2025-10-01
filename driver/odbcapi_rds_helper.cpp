@@ -691,6 +691,7 @@ SQLRETURN RDS_SQLDriverConnect(
         }
       
         conn_str_utf8 = conn_str;
+#endif
     } else { 
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
@@ -731,6 +732,17 @@ SQLRETURN RDS_SQLDriverConnect(
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
+
+#ifndef UNICODE
+    if (OutConnectionString && StringLength2Ptr) {
+        SQLULEN len = RDS_STR_LEN(out_conn_str);
+        SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+        if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
+            ret = SQL_SUCCESS_WITH_INFO;
+        }
+        *StringLength2Ptr = (SQLSMALLINT) written;
+    }
+#endif
 
     return ret;
 }
