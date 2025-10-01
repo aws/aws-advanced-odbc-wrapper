@@ -54,7 +54,7 @@
                     <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-a.dll" />
                     <RegistryValue Type="string" Name="APILevel" Value="1" />
                     <RegistryValue Type="string" Name="ConnectFunctions" Value="YYN" />
-                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.51" />
+                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.8" />
                     <RegistryValue Type="string" Name="FileUsage" Value="0" />
                     <RegistryValue Type="string" Name="SQLLevel" Value="1" />
                     <RegistryValue Type="string" Name="CPTimeout" Value="60" />
@@ -65,7 +65,7 @@
                     <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-w.dll" />
                     <RegistryValue Type="string" Name="APILevel" Value="1" />
                     <RegistryValue Type="string" Name="ConnectFunctions" Value="YYN" />
-                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.51" />
+                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.8" />
                     <RegistryValue Type="string" Name="FileUsage" Value="0" />
                     <RegistryValue Type="string" Name="SQLLevel" Value="1" />
                     <RegistryValue Type="string" Name="CPTimeout" Value="60" />

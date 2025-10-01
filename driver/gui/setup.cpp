@@ -908,6 +908,8 @@ std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND h
 #endif
 
 std::string ConvertNullSeparatedToSemicolon(LPCSTR lpszAttributes) {
+    // https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/configdsn-function?view=sql-server-ver17#arguments
+    // lpszAttributes is a doubly null-terminated list of attributes like so "Server=test\0Port=1234\0\0"
     std::string result;
     const char* ptr = lpszAttributes;
     while (*ptr) {
