@@ -695,9 +695,9 @@ SQLRETURN RDS_SQLDriverConnect(
     } else { 
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-        unicode_str.toUTF8String(conn_str); 
+        unicode_str.toUTF8String(conn_str_utf8); 
 #else
-        conn_str = reinterpret_cast<const char *>(InConnectionString);
+        conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
 #endif
     }
 
