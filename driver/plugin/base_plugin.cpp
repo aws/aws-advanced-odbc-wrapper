@@ -63,7 +63,7 @@ SQLRETURN BasePlugin::Connect(
 
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE
-    std::vector<unsigned short> conn_in_vec = convertUTF8ToUTF16(conn_in);
+    std::vector<unsigned short> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
     unsigned short *conn_in_ushort = conn_in_vec.data();
 
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));

@@ -36,7 +36,7 @@
 
 #ifdef UNICODE
 #include "unicode/unistr.h"
-inline size_t ushort_strlen(const unsigned short* str) {
+inline size_t UShortStrlen(const unsigned short* str) {
     size_t length = 0;
     while (str[length] != 0) {
         length++;
@@ -44,16 +44,16 @@ inline size_t ushort_strlen(const unsigned short* str) {
     return length;
 }
 
-inline std::vector<unsigned short> convertUTF8ToUTF16(std::string input) {
+inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input);
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     unsigned short *ushort_string = (unsigned short *)(string_utf16.getBuffer());
-    size_t size = ushort_strlen(ushort_string);
+    size_t size = UShortStrlen(ushort_string);
     std::vector<unsigned short> ushort_vec(ushort_string, ushort_string + size);
     return ushort_vec;
 }
 
-inline std::string convertUTF16ToUTF8(unsigned short *buffer_utf16) {
+inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
     icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
     std::string buffer_utf8;
     unicode_str.toUTF8String(buffer_utf8);

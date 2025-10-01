@@ -27,18 +27,18 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     int size = 0;
 
 #ifdef UNICODE
-    std::vector<unsigned short> dsn_key_vec = convertUTF8ToUTF16(dsn_key);
+    std::vector<unsigned short> dsn_key_vec = ConvertUTF8ToUTF16(dsn_key);
     unsigned short *dsn_key_ushort = dsn_key_vec.data();
 
-    std::vector<unsigned short> empty_vec = convertUTF8ToUTF16("");
+    std::vector<unsigned short> empty_vec = ConvertUTF8ToUTF16("");
     unsigned short *empty = empty_vec.data();
-    std::vector<unsigned short> odbc_ini_vec = convertUTF8ToUTF16(ODBC_INI);
+    std::vector<unsigned short> odbc_ini_vec = ConvertUTF8ToUTF16(ODBC_INI);
     unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
-    std::string buffer_utf8 = convertUTF16ToUTF8(buffer_utf16);
+    std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
@@ -89,22 +89,22 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     int size = 0;
 
 #ifdef UNICODE
-    std::vector<unsigned short> dsn_key_vec = convertUTF8ToUTF16(dsn_key);
+    std::vector<unsigned short> dsn_key_vec = ConvertUTF8ToUTF16(dsn_key);
     unsigned short *dsn_key_ushort = dsn_key_vec.data();
 
-    std::vector<unsigned short> entry_key_vec = convertUTF8ToUTF16(entry_key);
+    std::vector<unsigned short> entry_key_vec = ConvertUTF8ToUTF16(entry_key);
     unsigned short *entry_key_ushort = entry_key_vec.data();
 
-    std::vector<unsigned short> empty_vec = convertUTF8ToUTF16("");
+    std::vector<unsigned short> empty_vec = ConvertUTF8ToUTF16("");
     unsigned short *empty = empty_vec.data();
-    std::vector<unsigned short> odbc_ini_vec = convertUTF8ToUTF16(ODBC_INI);
+    std::vector<unsigned short> odbc_ini_vec = ConvertUTF8ToUTF16(ODBC_INI);
     unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
 
-    std::string buffer_utf8 = convertUTF16ToUTF8(buffer_utf16);
+    std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
