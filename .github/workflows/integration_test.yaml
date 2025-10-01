@@ -25,7 +25,7 @@ env:
   # Test configuration
   TEST_DATABASE: 'postgres'
   ENGINE: 'aurora-postgresql'
-  ENGINE_VERSION: '16.4'
+  ENGINE_VERSION: 'latest'
   NUM_INSTANCES: '5'
   TEST_DSN_ANSI: 'AWS-ODBC-ANSI'
   TEST_DSN_UNICODE: 'AWS-ODBC-UNICODE'
