@@ -247,9 +247,8 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
 }
 
 std::string ClusterTopologyMonitor::ConnForHost(const std::string& new_host) {
-    std::string new_host_str = new_host;
     std::map<std::string, std::string> conn_map(connection_attributes_);
-    conn_map.insert_or_assign(KEY_SERVER, new_host_str);
+    conn_map.insert_or_assign(KEY_SERVER, new_host);
     return ConnectionStringHelper::BuildFullConnectionString(conn_map);
 }
 
