@@ -100,6 +100,17 @@ function create_aurora_rds_cluster {
 
     echo "Creating RDS Cluster"
 
+    # Find latest engine version
+    if [ "$EngineVersion" = "latest" ]; then
+        AllEngineVersions=$(aws rds describe-db-engine-versions\
+            --engine $Engine\
+            --query "DBEngineVersions[?!contains(EngineVersion, '-limitless')].EngineVersion"\
+            --output text)
+        LatestVersion=$(echo $AllEngineVersions | tr ' ' '\n' | sort -V | tail -n 1)
+        EngineVersion=$LatestVersion
+        echo "Using Latest Version: $EngineVersion"
+    fi
+
     # Create RDS Cluster
     ClusterInfo=$(
         aws rds create-db-cluster\
@@ -158,6 +169,17 @@ function create_limitless_rds_cluster {
     Region=$9
 
     echo "Creating Limitless RDS Cluster"
+
+    # Find latest engine version
+    if [ "$EngineVersion" = "latest" ]; then
+        AllEngineVersions=$(aws rds describe-db-engine-versions\
+            --engine $Engine\
+            --query "DBEngineVersions[?contains(EngineVersion, '-limitless')].EngineVersion"\
+            --output text)
+        LatestVersion=$(echo $AllEngineVersions | tr ' ' '\n' | sort -V | tail -n 1)
+        EngineVersion=$LatestVersion
+        echo "Using Latest Version: $EngineVersion"
+    fi
 
     # Create Limitless RDS Cluster
     ClusterInfo=$(
@@ -380,7 +402,7 @@ function create_db_secrets {
     ClusterEndpoint=$4
 
     # Define the secret name (you can adjust this if you want a different name)
-    secretName="AWS-PGSQL-ODBC-Tests-$ClusterEndpoint"
+    secretName="AWS-ODBC-Tests-$ClusterEndpoint"
 
     # Create a dictionary to hold key-value pairs for the secret
     jsonSecretValue=$(

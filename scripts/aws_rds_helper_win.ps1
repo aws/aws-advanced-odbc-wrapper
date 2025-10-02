@@ -45,6 +45,17 @@ function Create-Aurora-RDS-Cluster {
 
     Write-Host "Creating RDS Cluster"
 
+    # Find latest engine version
+    if ($EngineVersion -eq "latest") {
+        $AllEngineVersions = aws rds describe-db-engine-versions `
+            --engine $Engine `
+            --query "DBEngineVersions[?!contains(EngineVersion, '-limitless')].EngineVersion" `
+            --output json | ConvertFrom-Json
+        $LatestVersion = $AllEngineVersions | Sort-Object {$_} -Descending | Select-Object -First 1
+        $EngineVersion = $LatestVersion
+        Write-Host "Using Latest Version: $EngineVersion"
+    }
+
     # Create RDS Cluster
     $ClusterInfo = $( aws rds create-db-cluster `
                         --db-cluster-identifier $ClusterId `
@@ -110,6 +121,17 @@ function Create-Limitless-RDS-Cluster {
     )
 
     Write-Host "Creating Limitless RDS Cluster"
+
+    # Find latest engine version
+    if ($EngineVersion -eq "latest") {
+        $AllEngineVersions = aws rds describe-db-engine-versions `
+            --engine $Engine `
+            --query "DBEngineVersions[?contains(EngineVersion, '-limitless')].EngineVersion" `
+            --output json | ConvertFrom-Json
+        $LatestVersion = $AllEngineVersions | Sort-Object {$_} -Descending | Select-Object -First 1
+        $EngineVersion = $LatestVersion
+        Write-Host "Using Latest Version: $EngineVersion"
+    }
 
     # Create RDS Cluster
     $ClusterInfo = $( aws rds create-db-cluster `
@@ -414,7 +436,7 @@ function Create-Db-Secrets {
     $randomNumber = Get-Random -Minimum 1000 -Maximum 9999
     $randomNumber = $randomNumber.ToString()
     # Define the secret name (you can adjust this if you want a different name)
-    $secretName = "AWS-PGSQL-ODBC-Tests-$ClusterEndpoint-$randomNumber"
+    $secretName = "AWS-ODBC-Tests-$ClusterEndpoint-$randomNumber"
 
     # Create a dictionary to hold key-value pairs for the secret
     $secretValue = @{
