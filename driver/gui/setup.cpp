@@ -907,26 +907,65 @@ std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND h
 }
 #endif
 
+std::string ConvertNullSeparatedToSemicolon(LPCSTR lpszAttributes) {
+    // https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/configdsn-function?view=sql-server-ver17#arguments
+    // lpszAttributes is a doubly null-terminated list of attributes like so "Server=test\0Port=1234\0\0"
+    std::string result;
+    const char* ptr = lpszAttributes;
+    while (*ptr) {
+        if (!result.empty()) result += ";";
+        result += ptr;
+        ptr += strlen(ptr) + 1;
+    }
+    return result;
+}
+
 BOOL ConfigDSN(HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes) {
 #ifndef UNICODE
-    if (hwndParent) {
-        main_win = hwndParent;
-        driver = lpszDriver;
-        if (lstrlen(lpszAttributes) != 0) {
-            std::string conn_str(lpszAttributes);
-            GetDsnFromConnectionString(conn_str, hwndParent);
-        }
-        switch (fRequest) {
-            case ODBC_ADD_DSN:
-            case ODBC_CONFIG_DSN:
+    driver = lpszDriver;
+    const std::string conn_str = ConvertNullSeparatedToSemicolon(lpszAttributes);
+    GetDsnFromConnectionString(conn_str, hwndParent);
+
+    switch (fRequest) {
+        case ODBC_ADD_DSN:
+        case ODBC_CONFIG_DSN:
+
+            if (hwndParent) {
+                main_win = hwndParent;
                 DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwndParent, (DLGPROC)FormMainDlgProc);
                 break;
-            case ODBC_REMOVE_DSN:
-                SQLRemoveDSNFromIni(current_dsn.c_str());
-                break;
-            default:
-                break;
-        }
+            }
+
+            // Handle the case where hwndParent is NULL.
+            // This can happen if ConfigDSN is called from a non-GUI context, like the command line.
+
+            if (!conn_str.empty() && !current_dsn.empty()) {
+                SQLWritePrivateProfileString(ODBC_DATA_SOURCES, current_dsn.c_str(), driver.c_str(), ODBC_INI);
+
+                char driver_path[MAX_KEY_SIZE] = {};
+                SQLGetPrivateProfileString(driver.c_str(), KEY_DRIVER, "", driver_path, sizeof(driver_path), ODBCINST_INI);
+                SQLWritePrivateProfileString(current_dsn.c_str(), KEY_DRIVER, driver_path, ODBC_INI);
+
+                // Parse key-value pair like so: Server=test;Port=1234
+                const std::regex kv_pattern(R"(([^=;]+)=([^;]*)(;|$))");
+                std::sregex_iterator iter(conn_str.begin(), conn_str.end(), kv_pattern);
+
+                for (const std::sregex_iterator end; iter != end; ++iter) {
+                    std::string key = (*iter)[1].str();
+                    std::string value = (*iter)[2].str();
+
+                    if (key != "DSN") {
+                        SQLWritePrivateProfileString(current_dsn.c_str(), key.c_str(), value.c_str(), ODBC_INI);
+                    }
+                }
+            }
+            break;
+
+        case ODBC_REMOVE_DSN:
+            SQLRemoveDSNFromIni(current_dsn.c_str());
+            break;
+        default:
+            break;
     }
 #endif
 

@@ -52,10 +52,24 @@
                 <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\AWS Advanced ODBC Wrapper Ansi">
                     <RegistryValue Type="string" Name="Driver" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-a.dll" />
                     <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-a.dll" />
+                    <RegistryValue Type="string" Name="APILevel" Value="1" />
+                    <RegistryValue Type="string" Name="ConnectFunctions" Value="YYN" />
+                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.8" />
+                    <RegistryValue Type="string" Name="FileUsage" Value="0" />
+                    <RegistryValue Type="string" Name="SQLLevel" Value="1" />
+                    <RegistryValue Type="string" Name="CPTimeout" Value="60" />
+                    <RegistryValue Type="integer" Name="UsageCount" Value="1" />
                 </RegistryKey>
                 <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\AWS Advanced ODBC Wrapper Unicode">
                     <RegistryValue Type="string" Name="Driver" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-w.dll" />
                     <RegistryValue Type="string" Name="Setup" Value="[INSTALLFOLDER]aws-advanced-odbc-wrapper-w.dll" />
+                    <RegistryValue Type="string" Name="APILevel" Value="1" />
+                    <RegistryValue Type="string" Name="ConnectFunctions" Value="YYN" />
+                    <RegistryValue Type="string" Name="DriverODBCVer" Value="03.8" />
+                    <RegistryValue Type="string" Name="FileUsage" Value="0" />
+                    <RegistryValue Type="string" Name="SQLLevel" Value="1" />
+                    <RegistryValue Type="string" Name="CPTimeout" Value="60" />
+                    <RegistryValue Type="integer" Name="UsageCount" Value="1" />
                 </RegistryKey>
                 <!-- Driver List -->
                 <RegistryKey Root="HKLM" Key="SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers">
