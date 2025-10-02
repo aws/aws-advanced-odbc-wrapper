@@ -81,7 +81,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success) {
     AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_EQ(token_info.first, dbc->conn_attr.at(KEY_DB_PASSWORD));
 }
 
 TEST_F(AdfsAuthPluginTest, Connect_Success_IAM_Host) {
@@ -98,11 +98,11 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_IAM_Host) {
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_SUCCESS));
 
-    dbc->conn_attr.insert_or_assign(KEY_IAM_HOST, ToStr(test_iam_host));
+    dbc->conn_attr.insert_or_assign(KEY_IAM_HOST, test_iam_host);
     AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_EQ(token_info.first.c_str(), dbc->conn_attr.at(KEY_DB_PASSWORD));
 }
 
 TEST_F(AdfsAuthPluginTest, Connect_Success_Empty_Region) {
@@ -123,7 +123,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_Empty_Region) {
     AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_STREQ(token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_EQ(token_info.first, dbc->conn_attr.at(KEY_DB_PASSWORD));
 }
 
 TEST_F(AdfsAuthPluginTest, Connect_Success_CacheExpire) {
@@ -159,7 +159,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_CacheExpire) {
     AdfsAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
-    EXPECT_STREQ(valid_token_info.first.c_str(), ToStr(dbc->conn_attr.at(KEY_DB_PASSWORD)).c_str());
+    EXPECT_EQ(valid_token_info.first, dbc->conn_attr.at(KEY_DB_PASSWORD));
 }
 
 TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheMiss) {

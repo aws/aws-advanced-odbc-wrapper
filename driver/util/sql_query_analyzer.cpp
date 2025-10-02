@@ -26,10 +26,10 @@ RDS_STR SqlQueryAnalyzer::GetFirstSqlStatement(const RDS_STR &statement)
     std::string first_statement_upper = RDS_STR_UPPER(first_statement);
     // Remove spaces and comments (/* */)
     RDS_REGEX space_comment_pattern(R"(\s*/\*(.*?)\*/\s*)");
-    first_statement = std::regex_replace(first_statement_upper, space_comment_pattern, " ");
-    first_statement = TrimStr(first_statement_upper);
+    first_statement_upper = std::regex_replace(first_statement_upper, space_comment_pattern, " ");
+    first_statement_upper = TrimStr(first_statement_upper);
 
-    return first_statement;
+    return first_statement_upper;
 }
 
 std::vector<RDS_STR> SqlQueryAnalyzer::ParseMultiStatement(const RDS_STR &statement)

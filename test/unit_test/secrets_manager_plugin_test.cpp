@@ -84,8 +84,8 @@ protected:
 };
 
 TEST_F(SecretsManagerPluginTest, MissingSecretId) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr(""));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr("us-east-2"));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
 
     EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(0);
 
@@ -103,8 +103,8 @@ TEST_F(SecretsManagerPluginTest, MissingSecretId) {
 }
 
 TEST_F(SecretsManagerPluginTest, MissingRegion) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("test-secret"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
     EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(0);
 
@@ -122,8 +122,8 @@ TEST_F(SecretsManagerPluginTest, MissingRegion) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseSecretIdAndRegion) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("test-secret"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr("us-east-2"));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
 
     EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
@@ -138,8 +138,8 @@ TEST_F(SecretsManagerPluginTest, UseSecretIdAndRegion) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseSecretArn) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
     EXPECT_CALL(
         *mock_sm_client,
@@ -158,8 +158,8 @@ TEST_F(SecretsManagerPluginTest, UseSecretArn) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseCachedSecret) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
     EXPECT_CALL(
         *mock_sm_client,
@@ -178,9 +178,9 @@ TEST_F(SecretsManagerPluginTest, UseCachedSecret) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseExpiredSecret) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, ToRdsStr("1"));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
         *mock_sm_client,
@@ -201,9 +201,9 @@ TEST_F(SecretsManagerPluginTest, UseExpiredSecret) {
 }
 
 TEST_F(SecretsManagerPluginTest, SecretIsInvalid) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, ToRdsStr("1"));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
         *mock_sm_client,
@@ -220,9 +220,9 @@ TEST_F(SecretsManagerPluginTest, SecretIsInvalid) {
 }
 
 TEST_F(SecretsManagerPluginTest, SecretMissingCredentials) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, ToRdsStr("arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef"));
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, ToRdsStr(""));
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, ToRdsStr("1"));
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
         *mock_sm_client,
