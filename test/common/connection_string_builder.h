@@ -20,7 +20,7 @@
 class ConnectionStringBuilder {
 public:
     ConnectionStringBuilder(const std::string& dsn, const std::string& server, int port) {
-        length += sprintf(conn_in, "DSN=%s;SERVER=%s;PORT=%d;", dsn.c_str(), server.c_str(), port);
+        length += sprintf(conn_in, "DSN=%s;SERVER=%s;PORT=%d;SSLMODE=prefer;", dsn.c_str(), server.c_str(), port);
     }
 
     ConnectionStringBuilder(const std::string& str) { length += sprintf(conn_in, "%s", str.c_str()); }
