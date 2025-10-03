@@ -689,13 +689,13 @@ SQLRETURN RDS_SQLDriverConnect(
             // If a dialog box was opened but cancelled mid-operation, do not continue with the connection attempt.
             return SQL_NO_DATA_FOUND;
         }
-      
+
         conn_str_utf8 = conn_str;
 #endif
-    } else { 
+    } else {
 #ifdef UNICODE
         icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-        unicode_str.toUTF8String(conn_str_utf8); 
+        unicode_str.toUTF8String(conn_str_utf8);
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
 #endif
@@ -726,13 +726,13 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     ret = RDS_InitializeConnection(dbc);
-
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
 
+    // Update OutConnectionString with parsed values
 #ifndef UNICODE
     if (OutConnectionString && StringLength2Ptr) {
         SQLULEN len = RDS_STR_LEN(out_conn_str);

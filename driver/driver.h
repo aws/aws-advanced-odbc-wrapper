@@ -40,7 +40,7 @@
 #include "util/rds_strings.h"
 
 /* Const Lengths */
-#define NO_DATA_SQL_STATE     TEXT("00000")
+#define NO_DATA_SQL_STATE     "00000"
 #define NO_DATA_NATIVE_ERR    0
 #define MAX_SQL_STATE_LEN     6
 #define ODBC_VER_SiZE         16

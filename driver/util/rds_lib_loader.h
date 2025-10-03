@@ -27,7 +27,11 @@
     #define MODULE_HANDLE HINSTANCE
     #define FUNC_HANDLE FARPROC
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)
-    #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name, NULL, load_flag)
+    #ifdef UNICODE
+        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(ConvertUTF8ToWString(module_name).c_str(), NULL, load_flag)
+    #else
+        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name.c_str(), NULL, load_flag)
+    #endif // UNICODE
     #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
     #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
 #else // Unix (Linux / MacOS)

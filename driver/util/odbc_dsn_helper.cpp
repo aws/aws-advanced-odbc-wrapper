@@ -37,7 +37,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
     // Check DSN if it is valid and contains entries
-    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
+    size = SQLGetPrivateProfileString((SQLWCHAR*) dsn_key_ushort, nullptr, (SQLWCHAR*) empty, (SQLWCHAR*) buffer_utf16, MAX_VAL_SIZE, (SQLWCHAR*) odbc_ini);
     std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
@@ -102,7 +102,7 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
     // Check DSN if it is valid and contains entries
-    size = SQLGetPrivateProfileString(dsn_key_ushort, nullptr, empty, buffer_utf16, MAX_VAL_SIZE, odbc_ini);
+    size = SQLGetPrivateProfileString((SQLWCHAR*) dsn_key_ushort, nullptr, (SQLWCHAR*) empty, (SQLWCHAR*) buffer_utf16, MAX_VAL_SIZE, (SQLWCHAR*) odbc_ini);
 
     std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];

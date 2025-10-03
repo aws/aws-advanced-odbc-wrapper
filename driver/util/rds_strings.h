@@ -44,6 +44,20 @@ inline size_t UShortStrlen(const unsigned short* str) {
     return length;
 }
 
+inline std::wstring ConvertUTF8ToWString(std::string input) {
+    icu::StringPiece string_piece(input);
+    icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
+
+    int32_t size;
+    UErrorCode error = U_ZERO_ERROR;
+    u_strToWCS(nullptr, 0, &size, string_utf16.getBuffer(), string_utf16.length(), &error);
+
+    std::wstring wstr(size, 0);
+    u_strToWCS(wstr.data(), wstr.size(), nullptr, string_utf16.getBuffer(), string_utf16.length(), &error);
+
+    return wstr;
+}
+
 inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input);
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
@@ -90,13 +104,13 @@ inline std::string RDS_STR_UPPER(std::string str) {
     UErrorCode ucasemap_status = U_ZERO_ERROR;
     UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
     if (U_FAILURE(ucasemap_status)) {
-       LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status)); 
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
        return str;
     }
     UErrorCode upper_status = U_ZERO_ERROR;
     ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
     if (U_FAILURE(upper_status)) {
-       LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status)); 
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status));
        return str;
     }
     std::string upper(buf);
