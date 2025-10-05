@@ -45,7 +45,6 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
         buffer_utf16_ptr += entries_vec.back().size() + 1;
     }
     //std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
->>>>>>> Stashed changes
     char buffer[MAX_VAL_SIZE];
     char* p = buffer;
     for (std::string s : entries_vec) { 
