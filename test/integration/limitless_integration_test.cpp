@@ -173,8 +173,9 @@ protected:
 
 TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
     std::vector<LimitlessHostInfo> all_hosts = QueryRouters(monitor_dbc);
-    std::vector<LimitlessHostInfo> round_robin_sorted = SortedRoundRobin(all_hosts);
-    std::string expected_host = round_robin_sorted[0].host_name;
+    std::vector<LimitlessHostInfo> round_robin_hosts = SortedRoundRobin(all_hosts);
+    ASSERT_FALSE(round_robin_hosts.empty());
+    std::string expected_host = round_robin_hosts[0].host_name;
 
     auto conn_in_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_uid)
@@ -218,8 +219,9 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
     std::this_thread::sleep_for(std::chrono::milliseconds(2 * MONITOR_INTERVAL_MS));
 
     std::vector<LimitlessHostInfo> all_hosts = QueryRouters(monitor_dbc);
-    std::vector<LimitlessHostInfo> round_robin_sorted = SortedRoundRobin(all_hosts);
-    std::string expected_host = round_robin_sorted[0].host_name;
+    std::vector<LimitlessHostInfo> round_robin_hosts = SortedRoundRobin(all_hosts);
+    ASSERT_FALSE(round_robin_hosts.empty());
+    std::string expected_host = round_robin_hosts[0].host_name;
 
     SQLHDBC second_dbc = SQL_NULL_HDBC;
     SQLAllocHandle(SQL_HANDLE_DBC, env, &second_dbc);
@@ -236,6 +238,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
 TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
     std::vector<LimitlessHostInfo> limitless_hosts = QueryRouters(monitor_dbc);
     std::vector<LimitlessHostInfo> round_robin_hosts = SortedRoundRobin(limitless_hosts);
+    ASSERT_FALSE(round_robin_hosts.empty());
     std::string initial_host = round_robin_hosts[0].host_name;
 
     auto load_conn_string = ConnectionStringBuilder(test_dsn, initial_host, test_port)
