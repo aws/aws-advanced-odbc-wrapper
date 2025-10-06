@@ -322,10 +322,12 @@ function delete_limitless_db_cluster {
         if [[ $last_code -eq 0 ]]; then
             echo "Successfully called deletion command"
             deleteShardsSuccessful=$true
+            break
         else
             if $(echo "$output" | grep -q "already being deleted"); then
                 echo "Shard already in deletion phase"
                 deleteShardsSuccessful=$true
+                break
             else
                 deleteShardsSuccessful=$false
             fi
@@ -360,6 +362,7 @@ function delete_limitless_db_cluster {
             deleteClusterSuccessful=$false
         else
             deleteClusterSuccessful=$true
+            break
         fi
         ((attempt++))
 
