@@ -33,6 +33,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     std::vector<unsigned short> empty_vec = ConvertUTF8ToUTF16("");
     unsigned short *empty = empty_vec.data();
     std::vector<unsigned short> odbc_ini_vec = ConvertUTF8ToUTF16(ODBC_INI);
+    odbc_ini_vec.push_back(0);
     unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
@@ -44,7 +45,6 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
         entries_vec.push_back(ConvertUTF16ToUTF8(buffer_utf16_ptr));
         buffer_utf16_ptr += entries_vec.back().size() + 1;
     }
-    //std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
     char* p = buffer;
     for (std::string s : entries_vec) { 
@@ -54,7 +54,6 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
         p += 1;
     }
     *p = '\0';
-    //std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
 #else
     RDS_CHAR buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
@@ -107,12 +106,12 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     unsigned short *dsn_key_ushort = dsn_key_vec.data();
 
     std::vector<unsigned short> entry_key_vec = ConvertUTF8ToUTF16(entry_key);
-    entry_key_vec.push_back(0);
     unsigned short *entry_key_ushort = entry_key_vec.data();
 
     std::vector<unsigned short> empty_vec = ConvertUTF8ToUTF16("");
     unsigned short *empty = empty_vec.data();
     std::vector<unsigned short> odbc_ini_vec = ConvertUTF8ToUTF16(ODBC_INI);
+    odbc_ini_vec.push_back(0);
     unsigned short *odbc_ini = odbc_ini_vec.data();
 
     unsigned short buffer_utf16[MAX_VAL_SIZE];
@@ -122,6 +121,7 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     std::string buffer_utf8 = ConvertUTF16ToUTF8(buffer_utf16);
     char buffer[MAX_VAL_SIZE];
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
+    buffer[buffer_utf8.length()] = '\0';
 #else
     RDS_CHAR buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), entry_key.c_str(), EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);

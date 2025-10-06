@@ -64,6 +64,8 @@ inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
     unsigned short *ushort_string = (unsigned short *)(string_utf16.getTerminatedBuffer());
     size_t size = UShortStrlen(ushort_string);
     std::vector<unsigned short> ushort_vec(ushort_string, ushort_string + size);
+    // Insert null terminator because vector.data() returns NULL when empty
+    ushort_vec.push_back(0);
     return ushort_vec;
 }
 
