@@ -46,14 +46,14 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
         buffer_utf16_ptr += entries_vec.back().size() + 1;
     }
     char buffer[MAX_VAL_SIZE];
-    char* p = buffer;
+    char* buf_ptr = buffer;
     for (std::string s : entries_vec) { 
-        std::copy(s.begin(), s.end(), p);
-        p += strlen(s.c_str());
-        *p = '\0';
-        p += 1;
+        std::copy(s.begin(), s.end(), buf_ptr);
+        buf_ptr += strlen(s.c_str());
+        *buf_ptr = '\0';
+        buf_ptr += 1;
     }
-    *p = '\0';
+    *buf_ptr = '\0';
 #else
     RDS_CHAR buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
