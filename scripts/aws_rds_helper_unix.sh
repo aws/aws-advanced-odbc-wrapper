@@ -318,15 +318,17 @@ function delete_limitless_db_cluster {
     while [[ $attempt -lt $maxRetries && $deleteShardsSuccessful -eq $false ]]
     do
         output=$(delete_dbshards $ShardId 2>&1)
-        if [ $? -ne 0 ]; then
-            if echo "$output" | grep -q "already being deleted"; then
-                echo "Shard is already being deleted. Treating as success."
+        last_code=$?
+        if [[ $last_code -eq 0 ]]; then
+            echo "Successfully called deletion command"
+            deleteShardsSuccessful=$true
+        else
+            if $(echo "$output" | grep -q "already being deleted"); then
+                echo "Shard already in deletion phase"
                 deleteShardsSuccessful=$true
             else
                 deleteShardsSuccessful=$false
             fi
-        else
-            deleteShardsSuccessful=$true
         fi
         ((attempt++))
 
@@ -353,7 +355,8 @@ function delete_limitless_db_cluster {
     while [[ $attempt -lt $maxRetries && $deleteClusterSuccessful -eq $false ]]
     do
         delete_dbcluster $ClusterId
-        if [ $? -ne 0]; then
+        last_code=$?
+        if [[ $last_code -ne 0 ]]; then
             deleteClusterSuccessful=$false
         else
             deleteClusterSuccessful=$true
@@ -372,9 +375,10 @@ function delete_limitless_db_cluster {
     if [ $deleteClusterSuccessful -ne $true ]; then
         echo "Failed to delete DB cluster $ClusterId after $maxRetries attempts."
         exit 1
-    else
-        echo "Successfully deleted DB cluster $ClusterId."
     fi
+
+    echo "Successfully deleted DB cluster $ClusterId."
+    exit 0
 } # delete_limitless_db_cluster
 export -f delete_limitless_db_cluster
 

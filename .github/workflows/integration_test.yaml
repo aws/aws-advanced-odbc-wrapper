@@ -140,7 +140,7 @@ jobs:
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "AURORA_CLUSTER_ID=ODBC-Win-${{github.run_id}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "AURORA_CLUSTER_ID=ODBC-Win-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Retrieve AWS SDK for C++ Cache
@@ -264,7 +264,7 @@ jobs:
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi `
-            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DBUILD_LIMITLESS=OFF
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
@@ -282,7 +282,7 @@ jobs:
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
       #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
       #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
       #   env:
@@ -342,7 +342,7 @@ jobs:
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "AURORA_CLUSTER_ID=ODBC-MacOS-Integ-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "AURORA_CLUSTER_ID=ODBC-MacOS-Integ-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
@@ -437,7 +437,8 @@ jobs:
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
-            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -466,7 +467,8 @@ jobs:
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
       #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
+      #       -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
       #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
       #       -DTEST_PORT="5432" \
       #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -530,7 +532,7 @@ jobs:
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "AURORA_CLUSTER_ID=ODBC-Linux-Integ-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "AURORA_CLUSTER_ID=ODBC-Linux-Integ-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
@@ -623,7 +625,8 @@ jobs:
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
-            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DBUILD_LIMITLESS=OFF \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -649,7 +652,8 @@ jobs:
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
       #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
+      #       -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
       #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
       #       -DTEST_PORT="5432" \
       #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
@@ -710,8 +714,8 @@ jobs:
     steps:
       - name: Setup Cluster ID and Shard ID Env Variables
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-PGODBC-Win-Limitless-${{github.run_id}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "LIMITLESS_SHARD_ID=AWS-PGODBC-Win-Shard-${{github.run_id}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Win-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Retrieve AWS SDK for C++ Cache
@@ -914,8 +918,8 @@ jobs:
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-PGODBC-Win-Limitless-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
-          echo "LIMITLESS_SHARD_ID=AWS-PGODBC-Win-Shard-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Win-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
@@ -1104,8 +1108,8 @@ jobs:
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-PGODBC-Win-Limitless-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
-          echo "LIMITLESS_SHARD_ID=AWS-PGODBC-Win-Shard-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Win-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
