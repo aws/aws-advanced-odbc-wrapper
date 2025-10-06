@@ -27,6 +27,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/odbc_api_test.cpp
 )
 
 set(TEST_RUNNER

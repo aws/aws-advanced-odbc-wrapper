@@ -197,6 +197,20 @@ jobs:
           TEST_PASSWORD: password
           TEST_BASE_DRIVER: C:\Program Files\psqlODBC\1700\bin\podbc30a.dll
           TEST_BASE_DSN: pg-dsn
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip3 install deepdiff
+          python test/compatibility/compare_results.py wrapper-dsn pg-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-windows
+          path: |
+            wrapper-dsn/
+            pg-dsn/
 
   test-macos-compat:
     name: MacOS - Compatibility Test
@@ -261,6 +275,20 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-dsn pg-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-macos
+          path: |
+            wrapper-dsn/
+            pg-dsn/
 
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
@@ -326,3 +354,17 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-dsn pg-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-linux
+          path: |
+            wrapper-dsn/
+            pg-dsn/
