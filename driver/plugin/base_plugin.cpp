@@ -76,7 +76,7 @@ SQLRETURN BasePlugin::Connect(
         if (!res.fn_result) {
             LOG(WARNING) << "Error setting connection attribute";
         }
-        has_conn_attr_errors != res.fn_result;
+        has_conn_attr_errors = res.fn_result == 0 ? has_conn_attr_errors : true;
     }
     dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
 
