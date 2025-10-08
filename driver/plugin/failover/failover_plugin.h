@@ -77,9 +77,9 @@ private:
     bool FailoverWriter(DBC *hdbc);
     bool ConnectToHost(DBC *hdbc, const std::string& host_string);
 
-    std::string InitClusterId(std::map<RDS_STR, RDS_STR> conn_info);
-    FailoverMode InitFailoverMode(std::map<RDS_STR, RDS_STR> conn_info);
-    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> conn_info);
+    std::string InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info);
+    FailoverMode InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_info);
+    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> &conn_info);
     std::shared_ptr<ClusterTopologyQueryHelper> InitQueryHelper(DBC* dbc);
     std::shared_ptr<ClusterTopologyMonitor> InitTopologyMonitor(DBC* dbc);
 
