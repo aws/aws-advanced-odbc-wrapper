@@ -35,7 +35,7 @@
 /* Common */
 #define RDS_STR_SQLAllocConnect AS_RDS_STR(TEXT("SQLAllocConnect"))
 #define RDS_STR_SQLAllocEnv AS_RDS_STR(TEXT("SQLAllocEnv"))
-#define RDS_STR_SQLAllocHandle AS_RDS_STR(TEXT("SQLAllocHandle"))
+#define RDS_STR_SQLAllocHandle "SQLAllocHandle"
 #define RDS_STR_SQLAllocStmt AS_RDS_STR(TEXT("SQLAllocStmt"))
 #define RDS_STR_SQLBindCol AS_RDS_STR(TEXT("SQLBindCol"))
 #define RDS_STR_SQLBindParameter AS_RDS_STR(TEXT("SQLBindParameter"))
@@ -85,7 +85,7 @@
 #define RDS_STR_SQLConnect AS_RDS_STR(TEXT("SQLConnectW"))
 #define RDS_STR_SQLDataSources AS_RDS_STR(TEXT("SQLDataSourcesW"))
 #define RDS_STR_SQLDescribeCol AS_RDS_STR(TEXT("SQLDescribeColW"))
-#define RDS_STR_SQLDriverConnect AS_RDS_STR(TEXT("SQLDriverConnectW"))
+#define RDS_STR_SQLDriverConnect "SQLDriverConnectW"
 #define RDS_STR_SQLDrivers AS_RDS_STR(TEXT("SQLDriversW"))
 #define RDS_STR_SQLError AS_RDS_STR(TEXT("SQLErrorW"))
 #define RDS_STR_SQLExecDirect AS_RDS_STR(TEXT("SQLExecDirectW"))

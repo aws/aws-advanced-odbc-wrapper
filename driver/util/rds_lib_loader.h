@@ -28,6 +28,12 @@
     #define FUNC_HANDLE FARPROC
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)
     #ifdef UNICODE
+        //#define RDS_LOAD_MODULE(module_name, load_flag)                                        \
+        //     do {                                                                              \
+        //          std::vector<unsigned short> mod_name_vec = ConvertUTF8ToUTF16(module_name);  \
+        //          unsigned short* mod_name_ushort = mod_name_vec.data();                       \
+        //          LoadLibraryEx((SQLWCHAR *)mod_name_ushort, NULL, load_flag)                  \
+        //     } while (0)
         #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(ConvertUTF8ToWString(module_name).c_str(), NULL, load_flag)
     #else
         #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name.c_str(), NULL, load_flag)

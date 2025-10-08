@@ -19,7 +19,10 @@
 RdsLibLoader::RdsLibLoader(RDS_STR library_path)
 {
     driver_path = library_path;
-    driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
+    std::vector<unsigned short> mod_name_vec = ConvertUTF8ToUTF16(driver_path);
+    unsigned short* mod_name_ushort = mod_name_vec.data();
+    driver_handle = LoadLibraryEx((SQLWCHAR*)mod_name_ushort, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+    //driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
 }
 
 RdsLibLoader::~RdsLibLoader()

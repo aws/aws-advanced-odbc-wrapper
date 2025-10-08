@@ -45,7 +45,7 @@ inline size_t UShortStrlen(const unsigned short* str) {
 }
 
 inline std::wstring ConvertUTF8ToWString(std::string input) {
-    icu::StringPiece string_piece(input);
+    icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
 
     int32_t size;
@@ -59,7 +59,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
 }
 
 inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
-    icu::StringPiece string_piece(input);
+    icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     unsigned short *ushort_string = (unsigned short *)(string_utf16.getTerminatedBuffer());
     size_t size = UShortStrlen(ushort_string);
