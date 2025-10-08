@@ -27,7 +27,6 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin) : 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> client) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "SECRETS_MANAGER";
-    AwsSdkHelper::Init();
 
     std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
@@ -56,6 +55,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
 
     secret_key = secret_id + "-" + region;
 
+    AwsSdkHelper::Init();
     if (client) {
         secrets_manager_client = client;
     } else {

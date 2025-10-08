@@ -1,0 +1,95 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <gtest/gtest.h>
+
+#ifdef WIN32
+#include <windows.h>
+#endif
+#include "connection_string_builder.h"
+
+class ConnectionStringBuilderTest : public testing::Test {};
+
+// All connection string fields are set in the builder.
+TEST_F(ConnectionStringBuilderTest, test_complete_string) {
+    ConnectionStringBuilder builder("testDSN", "testServer", 5432);
+    auto connection_string = builder.withUID("testUser")
+        .withPWD("testPwd")
+        .withDatabase("testDb")
+        .withEnableClusterFailover(true)
+        .withFailoverMode("STRICT_WRITER")
+        .withReaderHostSelectorStrategy("RANDOM")
+        .withIgnoreTopologyRequest(1)
+        .withTopologyHighRefreshRate(2)
+        .withTopologyRefreshRate(3)
+        .withFailoverTimeout(120000)
+        .withHostPattern("?.testDomain")
+        .withAuthMode("IAM")
+        .withAuthRegion("us-east-1")
+        .withAuthExpiration(123)
+        .withSecretId("secret")
+        .withLimitlessEnabled(true)
+        .withLimitlessMode("lazy")
+        .withLimitlessMonitorIntervalMs(234)
+        .withSslMode("prefer")
+        .getRdsString();
+
+    const std::string expected =
+        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;DATABASE=testDb;"
+        "ENABLE_CLUSTER_FAILOVER=1;FAILOVER_MODE=STRICT_WRITER;HOST_SELECTOR_STRATEGY=RANDOM;IGNORE_TOPOLOGY_REQUEST_MS=1;"
+        "TOPOLOGY_HIGH_REFRESH_RATE_MS=2;TOPOLOGY_REFRESH_RATE_MS=3;FAILOVER_TIMEOUT_MS=120000;HOST_PATTERN=?.testDomain;"
+        "RDS_AUTH_TYPE=IAM;REGION=us-east-1;TOKEN_EXPIRATION=123;SECRET_ID=secret;"
+        "ENABLE_LIMITLESS=1;LIMITLESS_MODE=lazy;LIMITLESS_MONITOR_INTERVAL_MS=234;"
+        "SSLMODE=prefer;";
+
+    EXPECT_EQ(expected, connection_string);
+}
+
+// No optional fields are set in the builder. Build will succeed. Connection string with required fields.
+TEST_F(ConnectionStringBuilderTest, test_only_required_fields) {
+    ConnectionStringBuilder builder("testDSN", "testServer", 5432);
+    auto connection_string = builder.getRdsString();
+
+    const std::string expected = "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;";
+
+    EXPECT_EQ(expected, connection_string);
+}
+
+// Some optional fields are set and others not set in the builder. Build will succeed.
+// Connection string with required fields and ONLY the fields that were set.
+TEST_F(ConnectionStringBuilderTest, test_some_optional) {
+    ConnectionStringBuilder builder("testDSN", "testServer", 5432);
+    auto connection_string = builder.withUID("testUser").withPWD("testPwd").getRdsString();
+
+    const std::string expected("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;");
+
+    EXPECT_EQ(expected, connection_string);
+}
+
+// Boolean values are set in the builder. Build will succeed. True will be marked as 1 in the string, false 0.
+TEST_F(ConnectionStringBuilderTest, test_setting_boolean_fields) {
+    ConnectionStringBuilder builder("testDSN", "testServer", 5432);
+    auto connection_string = builder.withUID("testUser")
+        .withPWD("testPwd")
+        .withEnableClusterFailover(true)
+        .withLimitlessEnabled(false)
+        .getRdsString();
+
+    const std::string expected(
+        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;"
+        "ENABLE_CLUSTER_FAILOVER=1;ENABLE_LIMITLESS=0;"
+    );
+
+    EXPECT_EQ(expected, connection_string);
+}

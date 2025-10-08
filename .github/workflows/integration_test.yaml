@@ -1,0 +1,697 @@
+name: Integration Tests
+run-name: AWS Advanced ODBC Wrapper Integration Tests - ${{ github.event.head_commit.message }}
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.jpg'
+      - '**/*.png'
+      - '**/README.*'
+      - '**/LICENSE.*'
+      - 'docs/**'
+      - 'ISSUE_TEMPLATE/**'
+
+env:
+  BUILD_CONFIG: Release
+  WIX_VERSION: 5.0.2
+
+  # Test configuration
+  TEST_DATABASE: 'postgres'
+  ENGINE: 'aurora-postgresql'
+  ENGINE_VERSION: 'latest'
+  NUM_INSTANCES: '5'
+  TEST_DSN_ANSI: 'AWS-ODBC-ANSI'
+  TEST_DSN_UNICODE: 'AWS-ODBC-UNICODE'
+  DRIVER_NAME_ANSI: 'AWS Advanced ODBC Wrapper Ansi'
+  DRIVER_NAME_UNICODE: 'AWS Advanced ODBC Wrapper Unicode'
+
+concurrency:
+  group: integration-test-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-win-psqlodbc:
+    name: Windows - Build psqlODBC
+    runs-on: windows-latest
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Download psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        run: |
+          mkdir psqlodbc
+          cd psqlodbc
+          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
+          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  build-macos-psqlodbc:
+    name: MacOS - Build psqlODBC
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-14
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Checkout psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        uses: actions/checkout@v4
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install gcc autoconf automake unixodbc libtool postgresql
+      - name: Build psqlodbc
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+
+  build-linux-psqlodbc:
+    name: Linux Ubuntu - Build psqlODBC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+      - name: Checkout psqlODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        uses: actions/checkout@v4
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        run: |
+          sudo apt update
+          sudo apt-get install autoconf automake libtool postgresql libpq-dev
+      - name: Download & Build unixODBC
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        run: |
+          curl -L https://www.unixodbc.org/unixODBC-2.3.12.tar.gz -o unixODBC.tar
+          tar xf unixODBC.tar
+          cd unixODBC-2.3.12
+          ./configure && make
+          sudo make install
+      - name: Build psqlodbc
+        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+
+  windows-integration-tests:
+    name: Windows - Integration Tests
+    needs: [build-win-psqlodbc]
+    runs-on: windows-latest
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-Win-${{github.run_id}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+      - name: Setup Dotnet for WiX
+        uses: actions/setup-dotnet@v4
+      - name: Install WiX
+        shell: cmd
+        run: |
+          dotnet tool install --global wix --version ${{env.WIX_VERSION}}
+          wix extension add --global WixToolset.UI.wixext/${{env.WIX_VERSION}}
+      - name: Run build installer script
+        shell: pwsh
+        run: |
+          ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
+      - name: Retrieve psqlODBC Cache
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Install psqlODBC Driver
+        shell: pwsh
+        working-directory: psqlodbc
+        run: |
+          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+      - name: Install driver
+        shell: pwsh
+        working-directory: installer
+        run:  Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-win-inte
+      - name: Create RDS Cluster
+        id: AuroraClusterSetup
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          Create-Aurora-RDS-Cluster `
+            -TestUsername ${{ secrets.TEST_USERNAME }} `
+            -TestPassword ${{ secrets.TEST_PASSWORD }} `
+            -TestDatabase ${{ env.TEST_DATABASE }} `
+            -ClusterId ${{ env.Aurora_CLUSTER_ID }} `
+            -NumInstances ${{ env.NUM_INSTANCES }}  `
+            -Engine ${{ env.ENGINE }} `
+            -EngineVersion ${{ env.ENGINE_VERSION }} `
+            -Region ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Get Aurora Cluster endpoint
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          $endpoint = (Get-Cluster-Endpoint -ClusterId ${{ env.AURORA_CLUSTER_ID }})
+          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Create Aurora Cluster Secrets
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+            . ".\aws_rds_helper_win.ps1"
+            $secrets = (Create-Db-Secrets `
+              -Username ${{ secrets.TEST_USERNAME }} `
+              -Password ${{ secrets.TEST_PASSWORD }} `
+              -Engine "postgres" `
+              -ClusterEndpoint ${{ env.AURORA_CLUSTER_ENDPOINT }})
+            echo "::add-mask::$secrets"
+            echo "AURORA_CLUSTER_SECRETS_ARN=$secrets" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Add PostgreSQL binaries to PATH
+        shell: bash
+        run: |
+          echo "$PGBIN" >> $GITHUB_PATH
+      - name: Create IAM DB User for PostgreSQL
+        shell: bash
+        run: |
+          psql postgresql://${{ secrets.TEST_USERNAME }}:${{secrets.TEST_PASSWORD}}@${{env.AURORA_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_DATABASE }} \
+            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
+            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
+            --command="\du"
+      - name: Manual Setup DSN
+        run: |
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
+          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
+      # - name: Install Ansi DSNs
+      #   shell: pwsh
+      #   run:  |
+      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+      #         -DsnType User `
+      #         -SetPropertyValue `
+      #         @("RDS_AUTH_TYPE=database", `
+      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+      #         "Port=5432", `
+      #         "SSLMode=prefer", `
+      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+      # - name: Install Unicode DSNs
+      #   shell: pwsh
+      #   run:  |
+      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
+      #         -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+      #         -DsnType User `
+      #         -SetPropertyValue `
+      #         @("RDS_AUTH_TYPE=database", `
+      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+      #         "Port=5432", `
+      #         "SSLMode=prefer", `
+      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+      - name: Build and Run Ansi Integration Tests
+        shell: pwsh
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_ansi -DBUILD_UNICODE=OFF
+          cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
+          .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+        env:
+          TEST_DSN: ${{ env.TEST_DSN_ANSI }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: '5432'
+      # - name: Build and Run Unicode Integration Tests
+      #   shell: pwsh
+      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+      #   run: |
+      #     cmake -S test/integration -B build_unicode -DBUILD_UNICODE=ON
+      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
+      #   env:
+      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
+      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+      #     TEST_PORT: '5432'
+      - name: Delete Aurora RDS Cluster
+        if: always()
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          Delete-Aurora-Db-Cluster -ClusterId ${{ env.AURORA_CLUSTER_ID }} -Region ${{ secrets.AWS_DEFAULT_REGION }} -NumInstances 5
+      - name: Delete Aurora Db Secrets
+        if: always()
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          Delete-Secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      # Make sure IP is always deleted
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        uses: haythem/public-ip@v1.3
+      - name: Remove Github Action IP
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress `
+            --group-name default `
+            --protocol tcp `
+            --port 5432 `
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
+           *> $null;
+      # - name: Copy Driver Logs
+      #   shell: pwsh
+      #   run: |
+      #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
+      - name: Archive log results
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'windows-integration-test-logs'
+          path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
+          retention-days: 3
+
+  macos-integration-tests:
+    name: MacOS - Integration Tests
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-macos-psqlodbc]
+    runs-on: macos-14
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-MacOS-Integ-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc postgresql curl openssl zlib
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-macos-inte
+      - name: Create RDS Cluster
+        id: AuroraClusterSetup
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          create_aurora_rds_cluster \
+            ${{ secrets.TEST_USERNAME }} \
+            ${{ secrets.TEST_PASSWORD }} \
+            ${{ env.TEST_DATABASE }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ env.NUM_INSTANCES }} \
+            ${{ env.ENGINE }} \
+            ${{ env.ENGINE_VERSION }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Get Aurora Cluster endpoint
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          endpoint=$(get_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }})
+          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
+      - name: Create Aurora Cluster Secrets
+        shell: bash
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            secretsArn=$(create_db_secrets \
+                ${{ secrets.TEST_USERNAME }} \
+                ${{ secrets.TEST_PASSWORD }} \
+                ${{ env.ENGINE }} \
+                ${{ env.AURORA_CLUSTER_ENDPOINT }})
+            echo "::add-mask::$secretsArn"
+            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
+      - name: Install PostgreSQL on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install postgresql@16
+          # --overwrite: Overwrite pre-installed GitHub Actions PostgreSQL binaries
+          brew link --overwrite postgresql@16
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        run: |
+          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+      - name: Add IP to Allowlist
+        run: |
+          . "scripts/aws_rds_helper_unix.sh"
+          add_ip_to_db_sg \
+            ${{ steps.ip.outputs.ipv4 }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create IAM DB User for PostgreSQL
+        shell: bash
+        run: |
+          psql postgresql://${{ secrets.TEST_USERNAME }}:${{secrets.TEST_PASSWORD}}@${{env.AURORA_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_DATABASE }} \
+            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
+            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
+            --command="\du"
+      - name: Build and Run Ansi Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_ansi \
+            -DBUILD_UNICODE=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -DTEST_PORT="5432" \
+            -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -DTEST_DSN="${{ env.TEST_DSN_ANSI }}" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
+            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+          cmake --build build_ansi
+          ./build_ansi/integration-test
+        env:
+          TEST_DSN: ${{ env.TEST_DSN_ANSI }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: '5432'
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Get log location
+        id: log_location
+        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+      # - name: Build and Run Unicode Integration Tests
+      #   shell: pwsh
+      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+      #   run: |
+      #     cmake -S test/integration -B build_unicode \
+      #       -DBUILD_UNICODE=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+      #       -DTEST_PORT="5432" \
+      #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     ./build_unicode/integration-test
+      #   env:
+      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
+      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+      #     TEST_PORT: '5432'
+      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Delete Aurora RDS Cluster
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_aurora_db_cluster ${{ env.AURORA_CLUSTER_ID }} ${{ secrets.AWS_DEFAULT_REGION }} ${{ env.NUM_INSTANCES }}
+      - name: Delete Aurora Db Secrets
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      - name: Debug - Get Github Action IP
+        if: always()
+        uses: haythem/public-ip@v1.3
+      # Make sure IP is always deleted
+      - name: Remove Github Action IP
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          remove_ip_from_db_sg \
+            ${{ steps.ip.outputs.ipv4 }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      # - name: Copy Driver Logs
+      #   shell: bash
+      #   run: |
+      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
+      - name: Archive log results
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'mac-integration-test-logs'
+          path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
+          retention-days: 3
+
+  linux-integration-tests:
+    name: Linux Ubuntu - Integration Tests
+    needs: [build-linux-psqlodbc]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-Linux-Integ-${{github.run_id}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v4
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          fail-on-cache-miss: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-linux-inte
+      - name: Create RDS Cluster
+        id: AuroraClusterSetup
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          create_aurora_rds_cluster \
+            ${{ secrets.TEST_USERNAME }} \
+            ${{ secrets.TEST_PASSWORD }} \
+            ${{ env.TEST_DATABASE }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ env.NUM_INSTANCES }} \
+            ${{ env.ENGINE }} \
+            ${{ env.ENGINE_VERSION }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Get Aurora Cluster endpoint
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          endpoint=$(get_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }})
+          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
+      - name: Create Aurora Cluster Secrets
+        shell: bash
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            secretsArn=$(create_db_secrets \
+                ${{ secrets.TEST_USERNAME }} \
+                ${{ secrets.TEST_PASSWORD }} \
+                ${{ env.ENGINE }} \
+                ${{ env.AURORA_CLUSTER_ENDPOINT }})
+            echo "::add-mask::$secretsArn"
+            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
+      - name: Add PostgreSQL binaries to PATH
+        shell: bash
+        run: |
+          echo "$(pg_config --bindir)" >> $GITHUB_PATH
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        run: |
+          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+      - name: Add IP to Allowlist
+        run: |
+          . "scripts/aws_rds_helper_unix.sh"
+          add_ip_to_db_sg \
+            ${{ steps.ip.outputs.ipv4 }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create IAM DB User for PostgreSQL
+        shell: bash
+        run: |
+          psql postgresql://${{ secrets.TEST_USERNAME }}:${{secrets.TEST_PASSWORD}}@${{env.AURORA_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_DATABASE }} \
+            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
+            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
+            --command="\du"
+      - name: Build and Run Ansi Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_ansi \
+            -DBUILD_UNICODE=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -DTEST_PORT="5432" \
+            -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -DTEST_DSN="${{ env.TEST_DSN_ANSI }}" \
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
+            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+          cmake --build build_ansi
+          ./build_ansi/integration-test
+        env:
+          TEST_DSN: ${{ env.TEST_DSN_ANSI }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: '5432'
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      # - name: Build and Run Unicode Integration Tests
+      #   shell: pwsh
+      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+      #   run: |
+      #     cmake -S test/integration -B build_unicode \
+      #       -DBUILD_UNICODE=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+      #       -DTEST_PORT="5432" \
+      #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     ./build_unicode/integration-test
+      #   env:
+      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
+      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+      #     TEST_PORT: '5432'
+      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Delete Aurora RDS Cluster
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_aurora_db_cluster ${{ env.AURORA_CLUSTER_ID }} ${{ secrets.AWS_DEFAULT_REGION }} ${{ env.NUM_INSTANCES }}
+      - name: Delete Aurora Db Secrets
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+      # Make sure IP is always deleted
+      - name: Remove Github Action IP
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          remove_ip_from_db_sg \
+            ${{ steps.ip.outputs.ipv4 }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ secrets.AWS_DEFAULT_REGION }}
+      # - name: Copy Driver Logs
+      #   shell: bash
+      #   run: |
+      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
+      - name: Archive log results
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'linux-integration-test-logs'
+          path: /tmp/aws-odbc-wrapper/
+          retention-days: 3

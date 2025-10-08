@@ -20,6 +20,9 @@ on:
 env:
   BUILD_CONFIG: Release
 
+permissions:
+  contents: read
+
 jobs:
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
