@@ -30,12 +30,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
-          ls ./build/driver/${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@v4
       - name: Install WiX
@@ -78,7 +77,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    runs-on: macos-14
+    runs-on: macos-15
     outputs:
       macos_arm64_ansi: ${{ steps.macos-arm64-ansi.outputs.hash }}
       macos_arm64_unicode: ${{ steps.macos-arm64-unicode.outputs.hash }}
@@ -94,10 +93,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
@@ -122,7 +122,7 @@ jobs:
           ls -l ${{ github.workspace }}/build/driver/
       - name: Package Drivers as Zip
         run:
-          zip -rj "aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip" ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib
+          zip -ryj "aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip" ${{ github.workspace }}/build/driver/*.dylib
       - name: Upload the ANSI & Unicode driver
         uses: actions/upload-artifact@v4
         with:
@@ -149,7 +149,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -178,7 +178,9 @@ jobs:
       - name: Package Drivers as Tar
         shell: bash
         run:
-          tar -chf "aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz" --gzip -C ${{ github.workspace }}/build/driver/ aws-advanced-odbc-wrapper-a.so aws-advanced-odbc-wrapper-w.so
+          mkdir stage
+          cp ${{ github.workspace }}/build/driver/ *.so stage
+          tar -chf "aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz" --gzip -C stage .
       - name: Upload the ANSI & Unicode driver
         uses: actions/upload-artifact@v4
         with:

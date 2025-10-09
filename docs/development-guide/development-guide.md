@@ -32,7 +32,7 @@
 #### Build Wrapper
 ```
 # In Repository Root
-cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF>
+cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build --config <Release/Debug>
 ```
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 CONFIGURATION=$1    # Debug/Release
-PLATFORM_SDK=$2
 
 export ROOT_REPO_PATH=$(cd "$(dirname "$0")/.."; pwd -P)
 
@@ -36,9 +35,8 @@ cmake -S ${SRC_DIR} \
     -D BUILD_ONLY="rds;secretsmanager;sts" \
     -D ENABLE_TESTING="OFF" \
     -D CPP_STANDARD="20" \
-    -D BUILD_SHARED_LIBS="OFF" \
-    -D FORCE_SHARED_CRT="ON" \
-    -D CMAKE_OSX_SYSROOT=${PLATFORM_SDK}
+    -D BUILD_SHARED_LIBS="ON" \
+    -D ENABLE_UNITY_BUILD="ON"
 
 cmake --build . --config=${CONFIGURATION}
 cmake --install . --config=${CONFIGURATION}
