@@ -97,7 +97,7 @@
 #define RDS_STR_SQLGetDescRec AS_RDS_STR(TEXT("SQLGetDescRecW"))
 #define RDS_STR_SQLGetDiagField AS_RDS_STR(TEXT("SQLGetDiagFieldW"))
 #define RDS_STR_SQLGetDiagRec AS_RDS_STR(TEXT("SQLGetDiagRecW"))
-#define RDS_STR_SQLGetInfo AS_RDS_STR(TEXT("SQLGetInfoW"))
+#define RDS_STR_SQLGetInfo "SQLGetInfoW"
 #define RDS_STR_SQLGetStmtAttr AS_RDS_STR(TEXT("SQLGetStmtAttrW"))
 #define RDS_STR_SQLGetTypeInfo AS_RDS_STR(TEXT("SQLGetTypeInfoW"))
 #define RDS_STR_SQLNativeSql AS_RDS_STR(TEXT("SQLNativeSqlW"))
@@ -135,7 +135,7 @@
 #define RDS_STR_SQLGetDescRec AS_RDS_STR(TEXT("SQLGetDescRec"))
 #define RDS_STR_SQLGetDiagField AS_RDS_STR(TEXT("SQLGetDiagField"))
 #define RDS_STR_SQLGetDiagRec AS_RDS_STR(TEXT("SQLGetDiagRec"))
-#define RDS_STR_SQLGetInfo AS_RDS_STR(TEXT("SQLGetInfo"))
+#define RDS_STR_SQLGetInfo "SQLGetInfo"
 #define RDS_STR_SQLGetStmtAttr AS_RDS_STR(TEXT("SQLGetStmtAttr"))
 #define RDS_STR_SQLGetTypeInfo AS_RDS_STR(TEXT("SQLGetTypeInfo"))
 #define RDS_STR_SQLNativeSql AS_RDS_STR(TEXT("SQLNativeSql"))
