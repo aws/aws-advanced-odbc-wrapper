@@ -70,7 +70,7 @@ inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
 }
 
 inline void CopyUTF16StringToBuffer(std::vector<unsigned short> vec, size_t buf_len, unsigned short *buf) {
-    size_t end = min(buf_len, vec.size());
+    size_t end = buf_len < vec.size() ? buf_len : vec.size();
     std::copy(vec.begin(), vec.begin() + end, buf);
     if (end > 0) {
         buf[end - 1] = 0;
