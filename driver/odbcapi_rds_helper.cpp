@@ -1316,7 +1316,11 @@ SQLRETURN RDS_SQLGetDiagRec(
 
         ret = SQL_SUCCESS;
         if (SQLState) {
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer(err->sqlstate, MAX_SQL_STATE_LEN, (unsigned short*)SQLState);
+#else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+#endif
         }
         SQLLEN err_len = strlen(err->error_msg);
         if (TextLengthPtr) {
@@ -1416,10 +1420,7 @@ SQLRETURN RDS_SQLGetInfo(
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
 #ifdef UNICODE
-            std::vector<unsigned short> char_value_vec = ConvertUTF8ToUTF16(char_value);
-            size_t last_idx = BufferLength / sizeof(unsigned short) - 1;
-            std::copy(char_value_vec.begin(), char_value_vec.begin() + last_idx, (SQLTCHAR*)InfoValuePtr);
-            ((SQLTCHAR *)InfoValuePtr)[last_idx] = 0;
+            CopyUTF8ToUTF16Buffer(char_value, BufferLength / sizeof(unsigned short), (unsigned short*)InfoValuePtr);
 #else
             RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value)); 
 #endif
