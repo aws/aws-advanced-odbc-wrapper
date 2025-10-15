@@ -315,7 +315,7 @@ SQLRETURN SQL_API SQLGetConnectAttr(
 
 SQLRETURN SQL_API SQLGetConnectOption(
     SQLHDBC        ConnectionHandle,
-    SQLINTEGER     Attribute,
+    SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr)
 {
     return RDS_SQLGetConnectOption(
@@ -579,8 +579,8 @@ SQLRETURN SQL_API SQLSetConnectAttr(
 
 SQLRETURN SQL_API SQLSetConnectOption(
     SQLHDBC        ConnectionHandle,
-    SQLSMALLINT    Option,
-    SQLPOINTER     Param)
+    SQLUSMALLINT   Option,
+    SQLULEN        Param)
 {
     return RDS_SQLSetConnectOption(
         ConnectionHandle,
@@ -633,15 +633,15 @@ SQLRETURN SQL_API SQLSetStmtAttr(
 
 SQLRETURN SQL_API SQLSpecialColumns(
     SQLHSTMT       StatementHandle,
-    SQLSMALLINT    IdentifierType,
+    SQLUSMALLINT   IdentifierType,
     SQLCHAR *      CatalogName,
     SQLSMALLINT    NameLength1,
     SQLCHAR *      SchemaName,
     SQLSMALLINT    NameLength2,
     SQLCHAR *      TableName,
     SQLSMALLINT    NameLength3,
-    SQLSMALLINT    Scope,
-    SQLSMALLINT    Nullable)
+    SQLUSMALLINT   Scope,
+    SQLUSMALLINT   Nullable)
 {
     return RDS_SQLSpecialColumns(
         StatementHandle,

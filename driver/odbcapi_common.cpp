@@ -127,7 +127,7 @@ SQLRETURN SQL_API SQLBindParameter(
 
 SQLRETURN SQL_API SQLBulkOperations(
     SQLHSTMT       StatementHandle,
-    SQLUSMALLINT   Operation)
+    SQLSMALLINT    Operation)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT *stmt = (STMT*) StatementHandle;
@@ -571,7 +571,7 @@ SQLRETURN SQL_API SQLGetFunctions(
 
 SQLRETURN SQL_API SQLGetStmtOption(
     SQLHSTMT       StatementHandle,
-    SQLINTEGER     Attribute,
+    SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
@@ -665,8 +665,8 @@ SQLRETURN SQL_API SQLParamData(
 
 SQLRETURN SQL_API SQLParamOptions(
     SQLHSTMT       StatementHandle,
-    SQLINTEGER     Crow,
-    SQLINTEGER *   FetchOffsetPtr)
+    SQLULEN        Crow,
+    SQLULEN *      FetchOffsetPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT *stmt = (STMT*) StatementHandle;

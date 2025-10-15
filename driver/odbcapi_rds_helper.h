@@ -211,7 +211,7 @@ SQLRETURN RDS_SQLGetConnectAttr(
 
 SQLRETURN RDS_SQLGetConnectOption(
     SQLHDBC        ConnectionHandle,
-    SQLINTEGER     Attribute,
+    SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr);
 
 SQLRETURN RDS_SQLGetCursorName(
@@ -328,8 +328,8 @@ SQLRETURN RDS_SQLSetConnectAttr(
 
 SQLRETURN RDS_SQLSetConnectOption(
     SQLHDBC        ConnectionHandle,
-    SQLSMALLINT    Option,
-    SQLPOINTER     Param);
+    SQLUSMALLINT   Option,
+    SQLULEN        Param);
 
 SQLRETURN RDS_SQLSetCursorName(
     SQLHSTMT       StatementHandle,
@@ -351,15 +351,15 @@ SQLRETURN RDS_SQLSetStmtAttr(
 
 SQLRETURN RDS_SQLSpecialColumns(
     SQLHSTMT       StatementHandle,
-    SQLSMALLINT    IdentifierType,
+    SQLUSMALLINT   IdentifierType,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
     SQLTCHAR *     SchemaName,
     SQLSMALLINT    NameLength2,
     SQLTCHAR *     TableName,
     SQLSMALLINT    NameLength3,
-    SQLSMALLINT    Scope,
-    SQLSMALLINT    Nullable);
+    SQLUSMALLINT   Scope,
+    SQLUSMALLINT   Nullable);
 
 SQLRETURN RDS_SQLStatistics(
     SQLHSTMT       StatementHandle,

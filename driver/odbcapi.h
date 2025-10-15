@@ -201,7 +201,7 @@ typedef SQLRETURN (*RDS_FP_SQLBrowseConnect)(
 
 typedef SQLRETURN (*RDS_FP_SQLBulkOperations)(
     SQLHSTMT       StatementHandle,
-    SQLUSMALLINT   Operation);
+    SQLSMALLINT    Operation);
 
 typedef SQLRETURN (*RDS_FP_SQLCancel)(
     SQLHSTMT       StatementHandle);
@@ -399,7 +399,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetConnectAttr)(
 
 typedef SQLRETURN (*RDS_FP_SQLGetConnectOption)(
     SQLHDBC        ConnectionHandle,
-    SQLINTEGER     Attribute,
+    SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr);
 
 typedef SQLRETURN (*RDS_FP_SQLGetCursorName)(
@@ -484,7 +484,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetStmtAttr)(
 
 typedef SQLRETURN (*RDS_FP_SQLGetStmtOption)(
     SQLHSTMT       StatementHandle,
-    SQLINTEGER     Attribute,
+    SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr);
 
 typedef SQLRETURN (*RDS_FP_SQLGetTypeInfo)(
@@ -516,8 +516,8 @@ typedef SQLRETURN (*RDS_FP_SQLParamData)(
 
 typedef SQLRETURN (*RDS_FP_SQLParamOptions)(
     SQLHSTMT       StatementHandle,
-    SQLINTEGER     Crow,
-    SQLINTEGER *   FetchOffsetPtr);
+    SQLULEN        Crow,
+    SQLULEN *      FetchOffsetPtr);
 
 typedef SQLRETURN (*RDS_FP_SQLPrepare)(
     SQLHSTMT       StatementHandle,
@@ -570,8 +570,8 @@ typedef SQLRETURN (*RDS_FP_SQLSetConnectAttr)(
 
 typedef SQLRETURN (*RDS_FP_SQLSetConnectOption)(
     SQLHDBC        ConnectionHandle,
-    SQLSMALLINT    Option,
-    SQLPOINTER     Param);
+    SQLUSMALLINT   Option,
+    SQLULEN        Param);
 
 typedef SQLRETURN (*RDS_FP_SQLSetCursorName)(
     SQLHSTMT       StatementHandle,
