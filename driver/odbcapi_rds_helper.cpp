@@ -1332,7 +1332,11 @@ SQLRETURN RDS_SQLGetDiagRec(
             }
         }
         if (MessageText && (BufferLength > 0)) {
-            SQLLEN written = RDS_sprintf((RDS_CHAR *) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#ifdef UNICODE
+            SQLLEN written = CopyUTF8ToUTF16Buffer(err->error_msg, (size_t)BufferLength / sizeof(SQLTCHAR), (unsigned short*)MessageText);
+#else
+            SQLLEN written = RDS_sprintf((RDS_CHAR*)MessageText, (size_t)BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1348,10 +1352,18 @@ SQLRETURN RDS_SQLGetDiagRec(
         // No Data from wrapper or underlying driver
         //  Set states and clear buffers
         if (SQLState) {
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer(NO_DATA_SQL_STATE, MAX_SQL_STATE_LEN, (unsigned short*)SQLState);
+#else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+#endif
         }
         if (MessageText) {
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer(NO_DATA_SQL_STATE, 0, (unsigned short*)MessageText);
+#else
             RDS_sprintf((RDS_CHAR *) MessageText, 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+#endif
         }
         if (NativeErrorPtr) {
             *((SQLINTEGER *) NativeErrorPtr) = (SQLINTEGER) NO_DATA_NATIVE_ERR;
