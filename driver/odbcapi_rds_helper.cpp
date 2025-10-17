@@ -1924,5 +1924,5 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         dbc->plugin_head = plugin_head;
     }
 
-    return SQL_SUCCESS;
+    return ret;
 }
