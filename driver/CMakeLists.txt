@@ -19,6 +19,7 @@ project("aws-advanced-odbc-wrapper")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
+set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(INC
@@ -210,6 +211,16 @@ IF(BUILD_ANSI OR NOT BUILD_UNICODE)
         target_compile_definitions(${COMPILE_FILE_NAME_ANSI} PRIVATE
             ${COMPILE_DEFINITIONS_ANSI}
         )
+    endif()
+endif()
+
+if(USE_ASAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+
+    if(WIN32)
+        add_compile_definitions(_DISABLE_STRING_ANNOTATION=1)
+        add_compile_definitions(_DISABLE_VECTOR_ANNOTATION=1)
     endif()
 endif()
 

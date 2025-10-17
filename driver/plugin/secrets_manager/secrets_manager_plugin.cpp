@@ -108,7 +108,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     if (request_outcome.IsSuccess()) {
         const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
-            delete dbc->err;
+            CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }

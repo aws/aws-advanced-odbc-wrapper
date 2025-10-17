@@ -82,7 +82,7 @@ SQLRETURN IamAuthPlugin::Connect(
         std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 0) > 0 : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
-        delete dbc->err;
+        CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
