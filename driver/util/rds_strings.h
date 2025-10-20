@@ -69,6 +69,20 @@ inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
     return ushort_vec;
 }
 
+// Assumes that the passed in vec is null terminated and was produced by ConvertUTF8ToUTF16
+inline int CopyUTF16StringToBuffer(unsigned short* buf, size_t buf_len, std::vector<unsigned short> vec) {
+    size_t end = buf_len < vec.size() ? buf_len : vec.size();
+    std::copy(vec.begin(), vec.begin() + end, buf);
+    if (end > 0) {
+        buf[end - 1] = 0;
+    }
+    return vec.size() - 1;
+}
+
+inline int CopyUTF8ToUTF16Buffer(unsigned short* buf, size_t buf_len, std::string str) {
+    return CopyUTF16StringToBuffer(buf, buf_len, ConvertUTF8ToUTF16(str));
+}
+
 // The input string buffer is assumed to be null terminated
 inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
     icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));

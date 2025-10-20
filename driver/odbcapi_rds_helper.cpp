@@ -1316,7 +1316,11 @@ SQLRETURN RDS_SQLGetDiagRec(
 
         ret = SQL_SUCCESS;
         if (SQLState) {
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, err->sqlstate);
+#else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+#endif
         }
         SQLLEN err_len = strlen(err->error_msg);
         if (TextLengthPtr) {
@@ -1328,7 +1332,11 @@ SQLRETURN RDS_SQLGetDiagRec(
             }
         }
         if (MessageText && (BufferLength > 0)) {
-            SQLLEN written = RDS_sprintf((RDS_CHAR *) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#ifdef UNICODE
+            SQLLEN written = CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, (size_t) BufferLength / sizeof(unsigned short), err->error_msg);
+#else
+            SQLLEN written = RDS_sprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1344,10 +1352,14 @@ SQLRETURN RDS_SQLGetDiagRec(
         // No Data from wrapper or underlying driver
         //  Set states and clear buffers
         if (SQLState) {
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
+#else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+#endif
         }
         if (MessageText) {
-            RDS_sprintf((RDS_CHAR *) MessageText, 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            MessageText[0] = '\0';
         }
         if (NativeErrorPtr) {
             *((SQLINTEGER *) NativeErrorPtr) = (SQLINTEGER) NO_DATA_NATIVE_ERR;
@@ -1415,7 +1427,11 @@ SQLRETURN RDS_SQLGetInfo(
     if (char_value) {
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
-            RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value));
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*)InfoValuePtr, BufferLength / sizeof(unsigned short), char_value);
+#else
+            RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value)); 
+#endif
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1904,5 +1920,5 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         dbc->plugin_head = plugin_head;
     }
 
-    return SQL_SUCCESS;
+    return ret;
 }
