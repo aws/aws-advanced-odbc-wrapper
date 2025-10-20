@@ -33,9 +33,9 @@ std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
     std::string retval;
     DLOG(INFO) << "Before HTML escape modification: " << html;
     int i = 0;
-    int length = html.length();
+    const int length = html.length();
     while (i < length) {
-        char c = html[i];
+        const char c = html[i];
         if (c != '&') {
             retval.append(1, c);
             i++;

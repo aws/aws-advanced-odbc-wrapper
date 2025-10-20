@@ -24,8 +24,8 @@
 #include "../../util/rds_strings.h"
 
 ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
-    std::shared_ptr<RdsLibLoader> lib_loader,
-    int port,
+    const std::shared_ptr<RdsLibLoader> &lib_loader,
+    const int port,
     std::string endpoint_template,
     RDS_STR topology_query,
     RDS_STR writer_id_query,
@@ -133,12 +133,12 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 
 HostInfo ClusterTopologyQueryHelper::CreateHost(
     SQLTCHAR* node_id,
-    bool is_writer,
-    SQLREAL cpu_usage,
-    SQLREAL replica_lag_ms)
+    const bool is_writer,
+    const SQLREAL cpu_usage,
+    const SQLREAL replica_lag_ms)
 {
-    uint64_t weight = (std::round(replica_lag_ms) * SCALE_TO_PERCENT) + std::round(cpu_usage);
-    std::string endpoint_url = GetEndpoint(node_id);
+    const uint64_t weight = (std::round(replica_lag_ms) * SCALE_TO_PERCENT) + std::round(cpu_usage);
+    const std::string endpoint_url = GetEndpoint(node_id);
     HostInfo hi = HostInfo(endpoint_url, port, UP, is_writer, weight);
     return hi;
 }
@@ -146,10 +146,9 @@ HostInfo ClusterTopologyQueryHelper::CreateHost(
 std::string ClusterTopologyQueryHelper::GetEndpoint(SQLTCHAR* node_id)
 {
     std::string res(endpoint_template_);
-    std::string node_id_str = ToStr(AS_RDS_CHAR(node_id));
+    const std::string node_id_str = ToStr(AS_RDS_CHAR(node_id));
 
-    size_t pos = res.find(REPLACE_CHAR);
-    if (pos != std::string::npos) {
+    if (const size_t pos = res.find(REPLACE_CHAR); pos != std::string::npos) {
         res.replace(pos, 1, node_id_str);
     }
     return res;

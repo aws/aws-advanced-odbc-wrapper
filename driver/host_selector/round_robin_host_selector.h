@@ -27,7 +27,7 @@ class RoundRobinHostSelector: public HostSelector {
 public:
     HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer,
         std::unordered_map<std::string, std::string> properties) override;
-    static void SetRoundRobinWeight(std::vector<HostInfo> hosts,
+    static void SetRoundRobinWeight(const std::vector<HostInfo> &hosts,
         std::unordered_map<std::string, std::string>& properties);
     static void ClearCache();
 

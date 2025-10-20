@@ -15,6 +15,8 @@
 #ifndef DIALECT_AURORA_POSTGRES_H
 #define DIALECT_AURORA_POSTGRES_H
 
+#include <algorithm>
+
 #include "dialect.h"
 
 #include <vector>
@@ -31,18 +33,16 @@ public:
 
     bool IsSqlStateAccessError(RDS_CHAR* sql_state) override {
         RDS_STR state(sql_state);
-        for (RDS_STR prefix : ACCESS_ERRORS) {
-            if (state.rfind(prefix, 0) == 0) return true;
-        }
-        return false;
+        return std::ranges::any_of(ACCESS_ERRORS, [&state](const RDS_STR &prefix) {
+            return state.rfind(prefix, 0) == 0;
+        });
     };
 
     bool IsSqlStateNetworkError(RDS_CHAR* sql_state) override {
         RDS_STR state(sql_state);
-        for (RDS_STR prefix : NETWORK_ERRORS) {
-            if (state.rfind(prefix, 0) == 0) return true;
-        }
-        return false;
+        return std::ranges::any_of(NETWORK_ERRORS, [&state](const RDS_STR &prefix) {
+            return state.rfind(prefix, 0) == 0;
+        });
     };
 
 private:

@@ -23,13 +23,13 @@
 
 class AdfsSamlUtil : public SamlUtil {
 public:
-    AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes);
-    AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, std::shared_ptr<Aws::Http::HttpClient> http_client, std::shared_ptr<Aws::STS::STSClient> sts_client);
+    AdfsSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes);
+    AdfsSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
 private:
     std::map<std::string, std::string> GetParameterFromBody(std::string& body);
-    std::string GetFormActionBody(std::string& url, std::map<std::string, std::string>& params);
+    std::string GetFormActionBody(const std::string& url, const std::map<std::string, std::string>& params);
     bool ValidateUrl(const std::string& url);
     std::vector<std::string> GetInputTagsFromBody(const std::string& body);
     std::string GetValueByKey(const std::string& input, const std::string& key);
@@ -46,7 +46,7 @@ class AdfsAuthPlugin : public BasePlugin {
 public:
     AdfsAuthPlugin(DBC* dbc);
     AdfsAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider);
+    AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     ~AdfsAuthPlugin() override;
 
     SQLRETURN Connect(

@@ -32,7 +32,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
         ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
     std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_REGION)) : "";
-    std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
+    const std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ENDPOINT)) : "";
 
     std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
@@ -40,8 +40,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
     expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : DEFAULT_EXPIRATION_MS;
 
-    std::smatch matches;
-    if (std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && matches.length() > 0) {
+    if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && matches.length() > 0) {
         region = matches[1];
     }
 
@@ -89,7 +88,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
         std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
         if (secrets_cache.contains(secret_key)) {
             std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
-            Secret cached_secret = secrets_cache.at(secret_key);
+            const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(cached_secret.password));
@@ -128,12 +127,12 @@ SQLRETURN SecretsManagerPlugin::Connect(
     }
 }
 
-Secret SecretsManagerPlugin::ParseSecret(std::string secret_string, std::chrono::milliseconds expiration) {
-    std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::chrono::milliseconds expiration) {
+    const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
 
     Aws::String json_string(secret_string);
-    Aws::Utils::Json::JsonValue json_value(json_string);
-    Aws::Utils::Json::JsonView view = json_value.View();
+    const Aws::Utils::Json::JsonValue json_value(json_string);
+    const Aws::Utils::Json::JsonView view = json_value.View();
 
     if (view.ValueExists(SECRET_USERNAME_KEY) && view.ValueExists(SECRET_PASSWORD_KEY)) {
         return Secret{view.GetString(SECRET_USERNAME_KEY).c_str(), view.GetString(SECRET_PASSWORD_KEY).c_str(), curr_time + expiration};
