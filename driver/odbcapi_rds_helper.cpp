@@ -1317,7 +1317,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         ret = SQL_SUCCESS;
         if (SQLState) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(err->sqlstate, MAX_SQL_STATE_LEN, (unsigned short*)SQLState);
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, err->sqlstate);
 #else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
 #endif
@@ -1333,9 +1333,9 @@ SQLRETURN RDS_SQLGetDiagRec(
         }
         if (MessageText && (BufferLength > 0)) {
 #ifdef UNICODE
-            SQLLEN written = CopyUTF8ToUTF16Buffer(err->error_msg, (size_t)BufferLength / sizeof(SQLTCHAR), (unsigned short*)MessageText);
+            SQLLEN written = CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, (size_t) BufferLength / sizeof(unsigned short), err->error_msg);
 #else
-            SQLLEN written = RDS_sprintf((RDS_CHAR*)MessageText, (size_t)BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+            SQLLEN written = RDS_sprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
 #endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
@@ -1353,14 +1353,14 @@ SQLRETURN RDS_SQLGetDiagRec(
         //  Set states and clear buffers
         if (SQLState) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(NO_DATA_SQL_STATE, MAX_SQL_STATE_LEN, (unsigned short*)SQLState);
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
 #else
             RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
 #endif
         }
         if (MessageText) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(NO_DATA_SQL_STATE, 0, (unsigned short*)MessageText);
+            CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, 0, NO_DATA_SQL_STATE);
 #else
             RDS_sprintf((RDS_CHAR *) MessageText, 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
 #endif
@@ -1432,7 +1432,7 @@ SQLRETURN RDS_SQLGetInfo(
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(char_value, BufferLength / sizeof(unsigned short), (unsigned short*)InfoValuePtr);
+            CopyUTF8ToUTF16Buffer((unsigned short*)InfoValuePtr, BufferLength / sizeof(unsigned short), char_value);
 #else
             RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value)); 
 #endif
