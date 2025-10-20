@@ -104,12 +104,13 @@ elseif(WIN32)
     set(ICU_ROOT ${CMAKE_BINARY_DIR}/external/icu)
 endif()
 
-find_package(ICU COMPONENTS i18n io uc)
+find_package(ICU REQUIRED COMPONENTS i18n io uc)
 list(APPEND EXTERNAL_LIBRARIES
     ICU::i18n
     ICU::io
     ICU::uc
 )
+
 # Build Driver -----------------------------------------------------------------------------------------------
 add_subdirectory(driver)
 

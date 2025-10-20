@@ -42,10 +42,8 @@
         <!-- Driver Installation -->
         <ComponentGroup Id="WrapperBinaries" Directory="INSTALLFOLDER">
             <!-- Binaries -->
-            <Component Id="RegisterWrapper" Guid="$(WRAPPER_BINARY_GUID)" KeyPath="yes">
-                <File Id="DriverFileAnsi" Source="../build/driver/$(CONFIG)/aws-advanced-odbc-wrapper-a.dll" />
-                <File Id="DriverFileUnicode" Source="../build/driver/$(CONFIG)/aws-advanced-odbc-wrapper-w.dll" />
-            </Component>
+            <Files Include="../build/driver/$(CONFIG)/*.dll">
+            </Files>
             <!-- Registry Entries -->
             <Component Id="ODBCRegistration" Guid="$(WRAPPER_REGISTRY_GUID)" KeyPath="yes">
                 <!-- Driver Location -->
@@ -66,4 +64,3 @@
         </ComponentGroup>
     </Fragment>
 </Wix>
-
