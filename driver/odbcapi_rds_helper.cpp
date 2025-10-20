@@ -1359,11 +1359,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #endif
         }
         if (MessageText) {
-#ifdef UNICODE
-            CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, 0, NO_DATA_SQL_STATE);
-#else
-            RDS_sprintf((RDS_CHAR *) MessageText, 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
-#endif
+            MessageText[0] = '\0';
         }
         if (NativeErrorPtr) {
             *((SQLINTEGER *) NativeErrorPtr) = (SQLINTEGER) NO_DATA_NATIVE_ERR;
