@@ -96,12 +96,11 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    SQLRETURN ret = SQL_ERROR;
     RdsLibResult res;
     STMT* stmt = (STMT*) StatementHandle;
     DBC* dbc = stmt->dbc;
     ENV* env = dbc->env;
-    RDS_STR query = AS_RDS_STR(StatementText);
+    RDS_STR query = StatementText ? AS_RDS_STR(StatementText) : AS_RDS_STR("");
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
