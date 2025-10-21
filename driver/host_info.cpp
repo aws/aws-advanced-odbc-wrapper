@@ -60,7 +60,7 @@ uint64_t HostInfo::GetWeight() const
  */
 std::string HostInfo::GetHostPortPair() const
 {
-    return GetHost() + host_port_separator + std::to_string(GetPort());
+    return host + host_port_separator + std::to_string(port);
 }
 
 bool HostInfo::EqualHostPortPair(const HostInfo& hi) const

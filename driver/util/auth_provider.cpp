@@ -95,8 +95,14 @@ void AuthProvider::UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, co
 
 std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
     DLOG(INFO) << "Additional URL Encode: " << url_str;
-    std::string result;
-    result = std::regex_replace(url_str, std::regex("%"), "%25");
+    std::string result = url_str;
+    size_t pos = 0;
+    const std::string replacement = "%25";
+    // Replace all instances of "%" in the url_str with "%25".
+    while ((pos = result.find('%', pos)) != std::string::npos) {
+        result.replace(pos, 1, replacement);
+        pos += replacement.length();
+    }
     DLOG(INFO) << "URL Encoded: " << result;
     return result;
 }

@@ -214,7 +214,7 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
         body += key + "=" + value;
         body += "&";
     }
-    body.pop_back();
+    if (!body.empty()) body.pop_back();
 
     const std::shared_ptr<Aws::StringStream> string_stream = std::make_shared<Aws::StringStream>();
     *string_stream << body;
