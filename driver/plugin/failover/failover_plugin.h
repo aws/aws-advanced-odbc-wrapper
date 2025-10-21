@@ -40,7 +40,7 @@ static std::map<RDS_STR, FailoverMode> const failover_mode_table = {
 class FailoverPlugin : public BasePlugin {
 public:
     FailoverPlugin() = default;
-    FailoverPlugin(DBC* dbc);
+    explicit FailoverPlugin(DBC* dbc);
     FailoverPlugin(DBC* dbc, BasePlugin* next_plugin);
     FailoverPlugin(
         DBC* dbc,
@@ -50,7 +50,7 @@ public:
         std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper,
         std::shared_ptr<ClusterTopologyMonitor> topology_monitor
     );
-    virtual ~FailoverPlugin();
+    ~FailoverPlugin() override;
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
@@ -66,8 +66,8 @@ public:
         SQLINTEGER     TextLength) override;
 
 private:
-    static const int MAX_STATE_LENGTH = 32;
-    static const int MAX_MSG_LENGTH = 1024;
+    static constexpr int MAX_STATE_LENGTH = 32;
+    static constexpr int MAX_MSG_LENGTH = 1024;
     static inline const std::chrono::milliseconds
         DEFAULT_FAILOVER_TIMEOUT_MS = std::chrono::seconds(30);
 

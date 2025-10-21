@@ -22,9 +22,9 @@ LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<Dialect> dialect, std::shared_ptr<LimitlessRouterService> limitless_router_service) : BasePlugin(dbc, next_plugin)
+LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<Dialect> dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service) : BasePlugin(dbc, next_plugin)
 {
-    std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
+    const std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
     this->plugin_name = "LIMITLESS";
     this->dialect_ = dialect ? dialect : InitDialect(conn_info);
     this->limitless_router_service_ = limitless_router_service;
@@ -50,7 +50,7 @@ SQLRETURN LimitlessPlugin::Connect(
         return SQL_ERROR;
     }
 
-    bool limitless_enabled =
+    const bool limitless_enabled =
         dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS) &&
         dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE;
 

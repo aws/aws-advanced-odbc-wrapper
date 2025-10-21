@@ -55,23 +55,23 @@ SQLRETURN IamAuthPlugin::Connect(
 {
     DBC* dbc = (DBC*) ConnectionHandle;
 
-    std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
+    const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
-    std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
+    const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
         ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
-    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
+    const std::string region = dbc->conn_attr.contains(KEY_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_REGION)) :
         dbc->conn_attr.contains(KEY_SERVER) ?
             RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
             Aws::Region::US_EAST_1;
-    std::string port = dbc->conn_attr.contains(KEY_PORT) ?
+    const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
-    std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
+    const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
-    std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
+    const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
 
-    bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
+    const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10) : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {

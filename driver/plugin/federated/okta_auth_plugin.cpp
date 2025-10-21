@@ -28,7 +28,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : OktaAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider) : BasePlugin(dbc, next_plugin)
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "OKTA";
 
@@ -109,13 +109,13 @@ SQLRETURN OktaAuthPlugin::Connect(
     return ret;
 }
 
-OktaSamlUtil::OktaSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
+OktaSamlUtil::OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes)
     : OktaSamlUtil(connection_attributes, nullptr, nullptr) {}
 
 OktaSamlUtil::OktaSamlUtil(
-    std::map<RDS_STR, RDS_STR> connection_attributes,
-    std::shared_ptr<Aws::Http::HttpClient> http_client,
-    std::shared_ptr<Aws::STS::STSClient> sts_client)
+    const std::map<RDS_STR, RDS_STR> &connection_attributes,
+    const std::shared_ptr<Aws::Http::HttpClient> &http_client,
+    const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
     std::string app_id = connection_attributes.contains(KEY_APP_ID) ?
@@ -150,11 +150,10 @@ std::string OktaSamlUtil::GetSamlAssertion()
         return retval;
     }
 
-    std::istreambuf_iterator<char> eos;
-    std::string body(std::istreambuf_iterator<char>(response->GetResponseBody().rdbuf()), eos);
+    const std::istreambuf_iterator<char> eos;
+    const std::string body(std::istreambuf_iterator<char>(response->GetResponseBody().rdbuf()), eos);
 
-    std::smatch matches;
-    if (std::regex_search(body, matches, std::regex(SAML_RESPONSE_PATTERN))) {
+    if (std::smatch matches; std::regex_search(body, matches, std::regex(SAML_RESPONSE_PATTERN))) {
         return HtmlUtil::EscapeHtmlEntity(matches.str(1));
     }
     LOG(WARNING) << "No SAML response found in response";
@@ -165,17 +164,17 @@ std::string OktaSamlUtil::GetSessionToken()
 {
     // Send request for session token
     LOG(INFO) << "Got OKTA Session Token URL: " << session_token_url;
-    std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
+    const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
         session_token_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
     Aws::Utils::Json::JsonValue json_body;
     json_body.WithString("username", idp_username)
         .WithString("password", idp_password);
     Aws::String json_str = json_body.View().WriteReadable();
-    Aws::String json_len = Aws::Utils::StringUtils::to_string(json_str.size());
+    const Aws::String json_len = Aws::Utils::StringUtils::to_string(json_str.size());
     req->SetContentType("application/json");
     req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
     req->SetContentLength(json_len);
-    std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
 
     // Check resp status
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
@@ -187,7 +186,7 @@ std::string OktaSamlUtil::GetSessionToken()
     }
 
     // Get response session token
-    Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
+    const Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
     if (!json_val.WasParseSuccessful()) {
         LOG(WARNING) << "Unable to parse JSON from response";
         return "";

@@ -48,7 +48,7 @@ public:
     ClusterTopologyMonitor(DBC* dbc,
         const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
         const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
-        std::shared_ptr<Dialect> dialect_);
+        const std::shared_ptr<Dialect> &dialect_);
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
@@ -63,12 +63,12 @@ protected:
     void DelayMainThread(bool use_high_refresh_rate);
     std::vector<HostInfo> FetchTopologyUpdateCache(SQLHDBC hdbc);
     void UpdateTopologyCache(const std::vector<HostInfo>& hosts);
-    RDS_STR ConnForHost(const std::string& new_host);
+    RDS_STR ConnForHost(const std::string& new_host) const;
 
 private:
     class NodeMonitoringThread;
     std::shared_ptr<ClusterTopologyQueryHelper> query_helper_;
-    bool InPanicMode();
+    bool InPanicMode() const;
     std::vector<HostInfo> OpenAnyConnGetHosts();
     void CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc);
 

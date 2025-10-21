@@ -24,7 +24,7 @@ HostInfo RandomHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer
     std::vector<HostInfo> selection;
     selection.reserve(hosts.size());
 
-    std::copy_if(hosts.begin(), hosts.end(), std::back_inserter(selection), [&is_writer](const HostInfo& host) {
+    std::ranges::copy_if(hosts, std::back_inserter(selection), [&is_writer](const HostInfo& host) {
         return host.IsHostUp() && (is_writer ? host.IsHostWriter() : true);
     });
 
@@ -36,6 +36,6 @@ HostInfo RandomHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, selection.size() - 1);
 
-    int rand_idx = dis(gen);
+    const int rand_idx = dis(gen);
     return selection[rand_idx];
 }

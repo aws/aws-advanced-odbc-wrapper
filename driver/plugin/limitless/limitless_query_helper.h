@@ -34,7 +34,7 @@ public:
     static const int MAX_WEIGHT = 10;
     static const int MIN_WEIGHT = 1;
 
-    static std::vector<HostInfo> QueryForLimitlessRouters(SQLHDBC conn, int host_port_to_map, std::shared_ptr<DialectLimitless> dialect);
+    static std::vector<HostInfo> QueryForLimitlessRouters(SQLHDBC conn, int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect);
 
 private:
     static HostInfo create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, int host_port_to_map);

@@ -24,7 +24,7 @@
 
 class LimitlessRouterService {
 public:
-    LimitlessRouterService(std::shared_ptr<DialectLimitless> dialect, const std::map<RDS_STR, RDS_STR> &conn_attr);
+    LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<RDS_STR, RDS_STR> &conn_attr);
     ~LimitlessRouterService();
     RoundRobinHostSelector round_robin_;
     HighestWeightHostSelector highest_weight_;

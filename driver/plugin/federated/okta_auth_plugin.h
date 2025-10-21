@@ -23,8 +23,8 @@
 
 class OktaSamlUtil : public SamlUtil {
 public:
-    OktaSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes);
-    OktaSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, std::shared_ptr<Aws::Http::HttpClient> http_client, std::shared_ptr<Aws::STS::STSClient> sts_client);
+    OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes);
+    OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
 private:
@@ -40,7 +40,7 @@ class OktaAuthPlugin : public BasePlugin {
 public:
     OktaAuthPlugin(DBC* dbc);
     OktaAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider);
+    OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     ~OktaAuthPlugin() override;
 
     SQLRETURN Connect(

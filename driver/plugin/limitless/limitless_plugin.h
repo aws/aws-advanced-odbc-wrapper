@@ -23,7 +23,7 @@ class LimitlessPlugin : public BasePlugin {
 public:
     LimitlessPlugin(DBC* dbc);
     LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin);
-    LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin, std::shared_ptr<Dialect> dialect, std::shared_ptr<LimitlessRouterService> limitless_router_service_);
+    LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin, std::shared_ptr<Dialect> dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service_);
     ~LimitlessPlugin() override;
 
     SQLRETURN Connect(

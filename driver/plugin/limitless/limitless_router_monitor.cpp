@@ -30,7 +30,7 @@
 #include "../../util/logger_wrapper.h"
 #include "../../util/odbc_helper.h"
 
-LimitlessRouterMonitor::LimitlessRouterMonitor(BasePlugin* plugin_head, std::shared_ptr<DialectLimitless> dialect) {
+LimitlessRouterMonitor::LimitlessRouterMonitor(BasePlugin* plugin_head, const std::shared_ptr<DialectLimitless> &dialect) {
     this->plugin_head_ = plugin_head;
     this->dialect_ = dialect;
 }
@@ -42,9 +42,9 @@ LimitlessRouterMonitor::~LimitlessRouterMonitor() {
 
 void LimitlessRouterMonitor::Open(
     DBC* dbc,
-    bool block_and_query_immediately,
+    const bool block_and_query_immediately,
     int host_port,
-    unsigned int interval_ms
+    const unsigned int interval_ms
 ) {
     this->interval_ms_ = interval_ms;
     this->limitless_routers_ = std::make_shared<std::vector<HostInfo>>();
@@ -70,7 +70,7 @@ void LimitlessRouterMonitor::Open(
 
         local_dbc->conn_attr = dbc->conn_attr;
 
-        SQLRETURN rc = plugin_head_->Connect(
+        const SQLRETURN rc = plugin_head_->Connect(
             local_hdbc,
             nullptr,
             nullptr,
@@ -78,7 +78,7 @@ void LimitlessRouterMonitor::Open(
             nullptr,
             SQL_DRIVER_NOPROMPT);
         if (SQL_SUCCEEDED(rc)) {
-            std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port, dialect_);
+            const std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port, dialect_);
             std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         } else {
@@ -136,7 +136,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
             dbc = (DBC*) conn;
             dbc->conn_attr = conn_attr;
 
-            SQLRETURN rc = plugin_head_->Connect(
+            const SQLRETURN rc = plugin_head_->Connect(
                 conn,
                 nullptr,
                 nullptr,

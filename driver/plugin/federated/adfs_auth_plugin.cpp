@@ -28,7 +28,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc) : AdfsAuthPlugin(dbc, nullptr) {}
 
 AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : AdfsAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<SamlUtil> saml_util, std::shared_ptr<AuthProvider> auth_provider) : BasePlugin(dbc, next_plugin)
+AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "ADFS";
 
@@ -46,7 +46,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_pt
             dbc->conn_attr.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
                 Aws::Region::US_EAST_1;
-        std::string saml_assertion = this->saml_util->GetSamlAssertion();
+        const std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
 }
@@ -94,13 +94,13 @@ SQLRETURN AdfsAuthPlugin::Connect(
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
-    //  Skip cache and generate a new token to retry
+    // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         // Update AWS Credentials
         std::string saml_assertion = saml_util->GetSamlAssertion();
         Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
-        //  and retry without cache
+        // and retry without cache
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
@@ -109,13 +109,13 @@ SQLRETURN AdfsAuthPlugin::Connect(
     return ret;
 }
 
-AdfsSamlUtil::AdfsSamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
+AdfsSamlUtil::AdfsSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes)
     : AdfsSamlUtil(connection_attributes, nullptr, nullptr) {}
 
 AdfsSamlUtil::AdfsSamlUtil(
-    std::map<RDS_STR, RDS_STR> connection_attributes,
-    std::shared_ptr<Aws::Http::HttpClient> http_client,
-    std::shared_ptr<Aws::STS::STSClient> sts_client)
+    const std::map<RDS_STR, RDS_STR> &connection_attributes,
+    const std::shared_ptr<Aws::Http::HttpClient> &http_client,
+    const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
     std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
@@ -126,8 +126,8 @@ AdfsSamlUtil::AdfsSamlUtil(
 std::string AdfsSamlUtil::GetSamlAssertion()
 {
     std::string url = sign_in_url;
-    std::shared_ptr<Aws::Http::HttpRequest> http_request = Aws::Http::CreateHttpRequest(url, Aws::Http::HttpMethod::HTTP_GET, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
-    std::shared_ptr<Aws::Http::HttpResponse> http_response = http_client->MakeRequest(http_request);
+    const std::shared_ptr<Aws::Http::HttpRequest> http_request = Aws::Http::CreateHttpRequest(url, Aws::Http::HttpMethod::HTTP_GET, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
+    const std::shared_ptr<Aws::Http::HttpResponse> http_response = http_client->MakeRequest(http_request);
 
     std::string retval;
     if (Aws::Http::HttpResponseCode::OK != http_response->GetResponseCode()) {
@@ -135,7 +135,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
         return retval;
     }
 
-    std::istreambuf_iterator<char> eos;
+    const std::istreambuf_iterator<char> eos;
     std::string body(std::istreambuf_iterator<char>(http_response->GetResponseBody().rdbuf()), eos);
 
     // Retrieve SAMLResponse value
@@ -158,12 +158,12 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     DLOG(INFO) << "Updated URL [" << url << "] using Action [" << action << "]";
 
     std::map<std::string, std::string> sign_in_parameters = GetParameterFromBody(body);
-    std::string sign_in_content = GetFormActionBody(url, sign_in_parameters);
 
-    if (std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
+    if (const std::string sign_in_content = GetFormActionBody(url, sign_in_parameters);
+        std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
         return matches.str(1);
     }
-    LOG(WARNING) << "Failed SAML Asesertion";
+    LOG(WARNING) << "Failed SAML Assertion";
     return retval;
 }
 
@@ -175,7 +175,7 @@ std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::strin
         std::string value = GetValueByKey(input_tag, std::string("value"));
         DLOG(INFO) << "Input Tag [" << input_tag << "], Name [" << name << "], Value [" << value << "]";
         std::string name_lower(name);
-        std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), [](unsigned char c) {
+        std::ranges::transform(name_lower, name_lower.begin(), [](unsigned char c) {
             return std::tolower(c);
         });
 
@@ -193,14 +193,14 @@ std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::strin
     }
 
     DLOG(INFO) << "parameters size: " << parameters.size();
-    for (auto& itr : parameters) {
-        DLOG(INFO) << "Parameter Key [" << itr.first << "], Value Size [" << itr.second.size() << "]";
+    for (auto&[key, value] : parameters) {
+        DLOG(INFO) << "Parameter Key [" << key << "], Value Size [" << value.size() << "]";
     }
 
     return parameters;
 }
 
-std::string AdfsSamlUtil::GetFormActionBody(std::string &url, std::map<std::string, std::string> &params)
+std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::map<std::string, std::string> &params)
 {
     if (!ValidateUrl(url)) {
         return "";
@@ -210,13 +210,13 @@ std::string AdfsSamlUtil::GetFormActionBody(std::string &url, std::map<std::stri
 
     // Set content
     std::string body;
-    for (auto& itr : params) {
-        body += itr.first + "=" + itr.second;
+    for (const auto&[key, value] : params) {
+        body += key + "=" + value;
         body += "&";
     }
     body.pop_back();
 
-    std::shared_ptr<Aws::StringStream> string_stream = std::make_shared<Aws::StringStream>();
+    const std::shared_ptr<Aws::StringStream> string_stream = std::make_shared<Aws::StringStream>();
     *string_stream << body;
 
     req->AddContentBody(string_stream);
@@ -254,13 +254,13 @@ std::vector<std::string> AdfsSamlUtil::GetInputTagsFromBody(const std::string &b
     std::vector<std::string> retval;
 
     std::smatch matches;
-    std::regex pattern(INPUT_TAG_PATTERN);
+    const std::regex pattern(INPUT_TAG_PATTERN);
     std::string source = body;
-    while (std::regex_search(source,matches,pattern)) {
+    while (std::regex_search(source,matches, pattern)) {
         std::string tag = matches.str(0);
         std::string tag_name = GetValueByKey(tag, std::string("name"));
         DLOG(INFO) << "Tag [" << tag << "], Tag Name [" << tag_name << "]";
-        std::transform(tag_name.begin(), tag_name.end(), tag_name.begin(), [](unsigned char c) {
+        std::ranges::transform(tag_name, tag_name.begin(), [](const unsigned char c) {
             return std::tolower(c);
         });
         if (!tag_name.empty() && !hash_set.contains(tag_name)) {
@@ -282,8 +282,7 @@ std::string AdfsSamlUtil::GetValueByKey(const std::string &input, const std::str
     pattern += key;
     pattern += ")\\s*=\\s*\"(.*?)\"";
 
-    std::smatch matches;
-    if (std::regex_search(input, matches, std::regex(pattern))) {
+    if (std::smatch matches; std::regex_search(input, matches, std::regex(pattern))) {
         return HtmlUtil::EscapeHtmlEntity(matches.str(2));
     }
     return "";

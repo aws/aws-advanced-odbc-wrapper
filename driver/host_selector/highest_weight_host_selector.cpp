@@ -21,7 +21,7 @@ HostInfo HighestWeightHostSelector::GetHost(std::vector<HostInfo> hosts, bool is
     std::vector<HostInfo> eligible_hosts;
     eligible_hosts.reserve(hosts.size());
 
-    std::copy_if(hosts.begin(), hosts.end(), std::back_inserter(eligible_hosts), [&is_writer](const HostInfo& host) {
+    std::ranges::copy_if(hosts, std::back_inserter(eligible_hosts), [&is_writer](const HostInfo& host) {
         return host.IsHostUp() && is_writer == host.IsHostWriter();
     });
 
@@ -29,10 +29,9 @@ HostInfo HighestWeightHostSelector::GetHost(std::vector<HostInfo> hosts, bool is
         throw std::runtime_error("No eligible hosts found in list");
     }
 
-    auto highest_weight_host = std::max_element(
-        eligible_hosts.begin(),
-        eligible_hosts.end(),
-        [](const HostInfo& a, const HostInfo& b) {
+    const auto highest_weight_host = std::ranges::max_element(
+        eligible_hosts,
+        [](const HostInfo &a, const HostInfo &b) {
             return a.GetWeight() < b.GetWeight();
         }
     );

@@ -29,7 +29,7 @@
 std::mutex LimitlessRouterService::limitless_router_monitors_mutex_;
 SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> LimitlessRouterService::limitless_router_monitors;
 
-LimitlessRouterService::LimitlessRouterService(std::shared_ptr<DialectLimitless> dialect, const std::map<RDS_STR, RDS_STR> &conn_attr) {
+LimitlessRouterService::LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<RDS_STR, RDS_STR> &conn_attr) {
     this->dialect_ = dialect;
     this->limitless_monitor_interval_ms_ = conn_attr.contains(KEY_LIMITLESS_MONITOR_INTERVAL_MS) ?
         std::strtol(ToStr(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS)).c_str(), nullptr, 10) :
@@ -212,8 +212,8 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
     BasePlugin* plugin_head= dbc->plugin_head;
-    std::map<RDS_STR, RDS_STR> conn_attr = dbc->conn_attr;
-    std::string host = ToStr(conn_attr.at(KEY_SERVER));
+    const std::map<RDS_STR, RDS_STR> conn_attr = dbc->conn_attr;
+    const std::string host = ToStr(conn_attr.at(KEY_SERVER));
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);

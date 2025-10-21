@@ -28,8 +28,8 @@
 #include "../../util/logger_wrapper.h"
 #include "../../host_info.h"
 
-std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(SQLHDBC conn, int host_port_to_map, std::shared_ptr<DialectLimitless> dialect) {
-    RDS_STR limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
+std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHDBC conn, const int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect) {
+    const RDS_STR limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
 
     DBC* dbc = (DBC*) conn;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
@@ -73,7 +73,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(SQLHDBC con
 }
 
 HostInfo LimitlessQueryHelper::create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
-    double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
+    const double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
     int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
 
     if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {

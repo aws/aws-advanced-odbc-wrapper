@@ -32,7 +32,7 @@
 
 class LimitlessRouterMonitor {
 public:
-    LimitlessRouterMonitor(BasePlugin* plugin_head, std::shared_ptr<DialectLimitless> dialect);
+    LimitlessRouterMonitor(BasePlugin* plugin_head, const std::shared_ptr<DialectLimitless> &dialect);
     ~LimitlessRouterMonitor();
 
     void Close();

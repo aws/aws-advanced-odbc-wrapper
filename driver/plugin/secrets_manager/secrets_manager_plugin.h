@@ -56,7 +56,7 @@ private:
     std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> secrets_manager_client;
     Aws::SecretsManager::Model::GetSecretValueRequest secret_request;
     std::chrono::milliseconds expiration_ms;
-    Secret ParseSecret(std::string secret_string, std::chrono::milliseconds expiration);
+    Secret ParseSecret(const std::string &secret_string, std::chrono::milliseconds expiration);
 };
 
 #endif // SECRETS_MANAGER_PLUGIN_H_
