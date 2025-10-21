@@ -31,6 +31,10 @@
 #include "../../host_selector/random_host_selector.h"
 #include "../../host_selector/round_robin_host_selector.h"
 
+// Initialize static members
+std::mutex FailoverPlugin::topology_monitors_mutex_;
+SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> FailoverPlugin::topology_monitors_;
+
 FailoverPlugin::FailoverPlugin(DBC *dbc) : FailoverPlugin(dbc, nullptr) {}
 
 FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr) {}
@@ -53,7 +57,13 @@ FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode f
 
 FailoverPlugin::~FailoverPlugin()
 {
-    topology_monitor_.reset();
+    std::lock_guard lock_guard(topology_monitors_mutex_);
+    std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
+    if (pair.first == 1) {
+        topology_monitors_.Delete(this->cluster_id_);
+    } else {
+        pair.first--;
+    }
 }
 
 SQLRETURN FailoverPlugin::Connect(
@@ -413,8 +423,17 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC 
 
 std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC *dbc)
 {
-    std::shared_ptr<ClusterTopologyMonitor> topology_monitor = std::make_shared<ClusterTopologyMonitor>(
-        dbc, topology_map_, topology_query_helper_, dialect_
-    );
-    return topology_monitor;
+    std::lock_guard lock_guard(topology_monitors_mutex_);
+    if (!topology_monitors_.Find(this->cluster_id_)) {
+        std::shared_ptr<ClusterTopologyMonitor> monitor = std::make_shared<ClusterTopologyMonitor>(
+            dbc, topology_map_, topology_query_helper_, dialect_
+        );
+        topology_monitors_.Put(this->cluster_id_, {1, monitor});
+        return monitor;
+    }
+
+    std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
+    // If the monitor exists, increment the reference count.
+    pair.first++;
+    return pair.second;
 }

@@ -19,6 +19,7 @@
 
 #include "../host_selector/round_robin_host_selector.h"
 #include "../host_info.h"
+#include "../plugin/failover/cluster_topology_monitor.h"
 #include "../plugin/limitless/limitless_router_monitor.h"
 
 template <typename K, typename V>
@@ -123,3 +124,4 @@ template class SlidingCacheMap<std::string, std::shared_ptr<round_robin_property
 template class SlidingCacheMap<std::string, std::string>;
 template class SlidingCacheMap<std::string, std::vector<HostInfo>>;
 template class SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>>;
+template class SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>>;

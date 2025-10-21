@@ -51,7 +51,7 @@ LimitlessRouterService::~LimitlessRouterService() {
     if (pair.first == 1) {
         limitless_router_monitors.Delete(router_monitor_key_);
     } else {
-        limitless_router_monitors.Put(router_monitor_key_, {pair.first - 1, pair.second});
+        pair.first--;
     }
 }
 
@@ -219,14 +219,13 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
     }
 
+    std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
     if (!limitless_router_monitors.Find(router_monitor_key_)) {
         std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
-        std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
         limitless_router_monitors.Put(router_monitor_key_, {1, monitor});
     } else {
-        std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
         // If the monitor exists, increment the reference count.
-        limitless_router_monitors.Put(router_monitor_key_, {pair.first + 1, pair.second});
+        pair.first++;
     }
 }
