@@ -48,19 +48,19 @@ public:
 private:
     const int DEFAULT_POSTGRES_PORT = 5432;
     const RDS_STR TOPOLOGY_QUERY = AS_RDS_STR(TEXT(
-        "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, \
+        "SELECT SERVER_ID, CASE WHEN SESSION_ID operator(pg_catalog.=) 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, \
         CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0) \
-        FROM aurora_replica_status() \
-        WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' \
+        FROM pg_catalog.aurora_replica_status() \
+        WHERE EXTRACT(EPOCH FROM(pg_catalog.NOW() operator(pg_catalog.-) LAST_UPDATE_TIMESTAMP)) operator(pg_catalog.<=) 300 OR SESSION_ID operator(pg_catalog.=) 'MASTER_SESSION_ID' \
         OR LAST_UPDATE_TIMESTAMP IS NULL"));
 
     const RDS_STR WRITER_ID_QUERY = AS_RDS_STR(TEXT(
-        "SELECT SERVER_ID FROM aurora_replica_status() WHERE SESSION_ID = 'MASTER_SESSION_ID' \
-        AND SERVER_ID = aurora_db_instance_identifier()"));
+        "SELECT SERVER_ID FROM pg_catalog.aurora_replica_status() WHERE SESSION_ID operator(pg_catalog.=) 'MASTER_SESSION_ID' \
+        AND SERVER_ID operator(pg_catalog.=) pg_catalog.aurora_db_instance_identifier()"));
 
-    const RDS_STR NODE_ID_QUERY = AS_RDS_STR(TEXT("SELECT aurora_db_instance_identifier()"));
+    const RDS_STR NODE_ID_QUERY = AS_RDS_STR(TEXT("SELECT pg_catalog.aurora_db_instance_identifier()"));
 
-    const RDS_STR IS_READER_QUERY = AS_RDS_STR(TEXT("SELECT pg_is_in_recovery()"));
+    const RDS_STR IS_READER_QUERY = AS_RDS_STR(TEXT("SELECT pg_catalog.pg_is_in_recovery()"));
 
     const std::vector<RDS_STR> ACCESS_ERRORS = {
         AS_RDS_STR(TEXT("28P01")),
@@ -85,7 +85,7 @@ public:
     RDS_STR GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
 
 private:
-    const RDS_STR LIMITLESS_ROUTER_ENDPOINT_QUERY = AS_RDS_STR(TEXT("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints()"));
+    const RDS_STR LIMITLESS_ROUTER_ENDPOINT_QUERY = AS_RDS_STR(TEXT("SELECT router_endpoint, load FROM pg_catalog.aurora_limitless_router_endpoints()"));
 };
 
 #endif  // DIALECT_AURORA_POSTGRES_H
