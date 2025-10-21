@@ -21,9 +21,6 @@
 
 void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map)
 {
-    std::locale old;
-    std::locale::global(std::locale("en_US.UTF-8"));
-
     std::regex pattern("([^;=]+)=([^;]+)");
     std::smatch match;
     std::string conn_str_itr = conn_str;
@@ -36,8 +33,6 @@ void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::ma
         conn_map.insert_or_assign(RDS_STR_UPPER(key), val);
         conn_str_itr = match.suffix().str();
     }
-
-    std::locale::global(old);
 }
 
 RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)

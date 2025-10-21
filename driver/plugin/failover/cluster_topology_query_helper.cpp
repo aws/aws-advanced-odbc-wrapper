@@ -27,9 +27,9 @@ ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
     std::shared_ptr<RdsLibLoader> lib_loader,
     int port,
     std::string endpoint_template,
-    RDS_STR topology_query,
-    RDS_STR writer_id_query,
-    RDS_STR node_id_query)
+    std::string topology_query,
+    std::string writer_id_query,
+    std::string node_id_query)
     : lib_loader_{ lib_loader },
       port{ port },
       endpoint_template_{ std::move(endpoint_template) },
@@ -72,7 +72,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
         );
     }
 
-    return AS_RDS_CHAR(writer_id);
+    return AS_UTF8_CSTR(writer_id);
 }
 
 std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
@@ -146,7 +146,7 @@ HostInfo ClusterTopologyQueryHelper::CreateHost(
 std::string ClusterTopologyQueryHelper::GetEndpoint(SQLTCHAR* node_id)
 {
     std::string res(endpoint_template_);
-    std::string node_id_str = AS_RDS_CHAR(node_id);
+    std::string node_id_str = AS_UTF8_CSTR(node_id);
 
     size_t pos = res.find(REPLACE_CHAR);
     if (pos != std::string::npos) {

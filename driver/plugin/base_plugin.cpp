@@ -110,7 +110,7 @@ SQLRETURN BasePlugin::Execute(
     STMT* stmt = (STMT*) StatementHandle;
     DBC* dbc = stmt->dbc;
     ENV* env = dbc->env;
-    RDS_STR query = AS_RDS_STR(StatementText);
+    RDS_STR query = AS_UTF8_CSTR(StatementText);
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {

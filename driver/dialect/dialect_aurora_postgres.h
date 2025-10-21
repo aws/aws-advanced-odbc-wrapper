@@ -24,22 +24,22 @@
 class DialectAuroraPostgres : virtual public Dialect {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
-    RDS_STR GetTopologyQuery() override { return TOPOLOGY_QUERY; };
-    RDS_STR GetWriterIdQuery() override { return WRITER_ID_QUERY; };
-    RDS_STR GetNodeIdQuery() override { return NODE_ID_QUERY; };
-    RDS_STR GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
+    std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
+    std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
+    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
 
-    bool IsSqlStateAccessError(RDS_CHAR* sql_state) override {
-        RDS_STR state(sql_state);
-        for (RDS_STR prefix : ACCESS_ERRORS) {
+    bool IsSqlStateAccessError(const char* sql_state) override {
+        std::string state(sql_state);
+        for (std::string prefix : ACCESS_ERRORS) {
             if (state.rfind(prefix, 0) == 0) return true;
         }
         return false;
     };
 
-    bool IsSqlStateNetworkError(RDS_CHAR* sql_state) override {
-        RDS_STR state(sql_state);
-        for (RDS_STR prefix : NETWORK_ERRORS) {
+    bool IsSqlStateNetworkError(const char* sql_state) override {
+        std::string state(sql_state);
+        for (std::string prefix : NETWORK_ERRORS) {
             if (state.rfind(prefix, 0) == 0) return true;
         }
         return false;
@@ -47,45 +47,46 @@ public:
 
 private:
     const int DEFAULT_POSTGRES_PORT = 5432;
-    const RDS_STR TOPOLOGY_QUERY = AS_RDS_STR(TEXT(
+    const std::string TOPOLOGY_QUERY =
         "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, \
         CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0) \
         FROM aurora_replica_status() \
         WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' \
-        OR LAST_UPDATE_TIMESTAMP IS NULL"));
+        OR LAST_UPDATE_TIMESTAMP IS NULL";
 
-    const RDS_STR WRITER_ID_QUERY = AS_RDS_STR(TEXT(
+    const std::string WRITER_ID_QUERY =
         "SELECT SERVER_ID FROM aurora_replica_status() WHERE SESSION_ID = 'MASTER_SESSION_ID' \
-        AND SERVER_ID = aurora_db_instance_identifier()"));
+        AND SERVER_ID = aurora_db_instance_identifier()";
 
-    const RDS_STR NODE_ID_QUERY = AS_RDS_STR(TEXT("SELECT aurora_db_instance_identifier()"));
+    const std::string NODE_ID_QUERY = "SELECT aurora_db_instance_identifier()";
 
-    const RDS_STR IS_READER_QUERY = AS_RDS_STR(TEXT("SELECT pg_is_in_recovery()"));
+    const std::string IS_READER_QUERY = "SELECT pg_is_in_recovery()";
 
-    const std::vector<RDS_STR> ACCESS_ERRORS = {
-        AS_RDS_STR(TEXT("28P01")),
-        AS_RDS_STR(TEXT("28000"))   // PAM authentication errors
+    const std::vector<std::string> ACCESS_ERRORS = {
+        "28P01",
+        "28000"   // PAM authentication errors
     };
 
-    const std::vector<RDS_STR> NETWORK_ERRORS = {
-        AS_RDS_STR(TEXT("53")),       // insufficient resources
-        AS_RDS_STR(TEXT("57P01")),    // admin shutdown
-        AS_RDS_STR(TEXT("57P02")),    // crash shutdown
-        AS_RDS_STR(TEXT("57P03")),    // cannot connect now
-        AS_RDS_STR(TEXT("58")),       // system error (backend)
-        AS_RDS_STR(TEXT("08")),       // connection error
-        AS_RDS_STR(TEXT("99")),       // unexpected error
-        AS_RDS_STR(TEXT("F0")),       // configuration file error (backend)
-        AS_RDS_STR(TEXT("XX"))        // internal error (backend)
+    const std::vector<std::string> NETWORK_ERRORS = {
+        "53",       // insufficient resources
+        "57P01",    // admin shutdown
+        "57P02",    // crash shutdown
+        "57P03",    // cannot connect now
+        "58",       // system error (backend)
+        "08",       // connection error
+        "99",       // unexpected error
+        "F0",       // configuration file error (backend)
+        "XX"        // internal error (backend)
     };
 };
 
 class DialectAuroraPostgresLimitless : public DialectLimitless, public DialectAuroraPostgres {
 public:
-    RDS_STR GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
+    std::string GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
 
 private:
-    const RDS_STR LIMITLESS_ROUTER_ENDPOINT_QUERY = AS_RDS_STR(TEXT("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints()"));
+    const std::string LIMITLESS_ROUTER_ENDPOINT_QUERY =
+        "SELECT router_endpoint, load FROM aurora_limitless_router_endpoints()";
 };
 
 #endif  // DIALECT_AURORA_POSTGRES_H

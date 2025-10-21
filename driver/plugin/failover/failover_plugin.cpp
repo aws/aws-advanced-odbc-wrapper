@@ -93,7 +93,7 @@ SQLRETURN FailoverPlugin::Execute(
     SQLINTEGER native_error;
     SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 }, message[MAX_MSG_LENGTH] = { 0 };
     RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
-    if (!CheckShouldFailover(AS_RDS_CHAR(sql_state))) {
+    if (!CheckShouldFailover(AS_UTF8_CSTR(sql_state))) {
         return ret;
     }
 
@@ -101,7 +101,7 @@ SQLRETURN FailoverPlugin::Execute(
     for (STMT* stmt : dbc->stmt_list) {
         stmt->wrapped_stmt = nullptr;
         delete stmt->err;
-        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);;
+        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
     }
     // and descriptors
     for (DESC* desc : dbc->desc_list) {
@@ -141,7 +141,7 @@ SQLRETURN FailoverPlugin::Execute(
     return ret;
 }
 
-bool FailoverPlugin::CheckShouldFailover(RDS_CHAR* sql_state)
+bool FailoverPlugin::CheckShouldFailover(const RDS_CHAR* sql_state)
 {
     // Check if the SQL State is related to a communication error
     bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);

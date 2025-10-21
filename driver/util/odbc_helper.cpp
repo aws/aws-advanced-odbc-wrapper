@@ -59,5 +59,5 @@ std::string GetNodeId(SQLHDBC hdbc, std::shared_ptr<Dialect> dialect) {
         );
     }
 
-    return AS_RDS_CHAR(node_id);
+    return AS_UTF8_CSTR(node_id);
 }

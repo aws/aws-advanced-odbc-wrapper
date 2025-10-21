@@ -92,7 +92,14 @@ inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
 }
 #endif
 
-#define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
+#ifdef UNICODE
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(ConvertUTF8ToUTF16(str).data()))
+    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<unsigned short *>(str)).c_str()
+#else
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
+    #define AS_UTF8_CSTR(str) reinterpret_cast<const char *>(str)
+#endif
+
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
