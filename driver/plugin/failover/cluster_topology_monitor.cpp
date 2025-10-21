@@ -159,6 +159,7 @@ void ClusterTopologyMonitor::Run() {
             }
         }
         LOG(INFO) << "Stop cluster topology monitoring thread for " << cluster_id_;
+        is_running_.store(false);
     } catch (const std::exception& ex) {
         LOG(ERROR) << "Cluster Topology Main Monitor encountered error: " << ex.what();
     }
@@ -213,7 +214,7 @@ void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
         request_update_topology_cv_.wait_for(request_lock, TOPOLOGY_REQUEST_WAIT_MS);
         curr_time = std::chrono::steady_clock::now();
     } while (!request_update_topology_.load() &&
-        curr_time < end && !is_running_.load()
+        curr_time < end && is_running_.load()
     );
 }
 
