@@ -1372,7 +1372,7 @@ SQLRETURN RDS_SQLGetInfo(
     DBC* dbc = (DBC*) ConnectionHandle;
 
     if (dbc == nullptr) {
-        return ret;
+        return SQL_INVALID_HANDLE;
     }
 
     {

@@ -549,7 +549,7 @@ SQLRETURN SQL_API SQLGetFunctions(
     SQLRETURN ret = SQL_ERROR;
 
     if (dbc == nullptr) {
-        return ret;
+        return SQL_INVALID_HANDLE;
     }
 
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
