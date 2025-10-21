@@ -241,7 +241,7 @@ SQLRETURN RDS_SQLEndTran(
             break;
     }
 
-    if (SQL_SUCCEEDED(ret)) {
+    if (SQL_SUCCEEDED(ret) && dbc) {
         dbc->transaction_status = TRANSACTION_CLOSED;
     }
     return ret;
@@ -1371,9 +1371,13 @@ SQLRETURN RDS_SQLGetInfo(
     // Query underlying driver if connection is established
     DBC* dbc = (DBC*) ConnectionHandle;
 
+    if (dbc == nullptr) {
+        return SQL_INVALID_HANDLE;
+    }
+
     {
         std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-        if (dbc && dbc->wrapped_dbc) {
+        if (dbc->wrapped_dbc) {
             ENV* env = (ENV*) dbc->env;
             CLEAR_DBC_ERROR(dbc);
             RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,

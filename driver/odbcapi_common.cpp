@@ -548,11 +548,15 @@ SQLRETURN SQL_API SQLGetFunctions(
     DBC *dbc = (DBC*) ConnectionHandle;
     SQLRETURN ret = SQL_ERROR;
 
+    if (dbc == nullptr) {
+        return SQL_INVALID_HANDLE;
+    }
+
     std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     // Query underlying driver if connection is established
-    if (dbc && dbc->wrapped_dbc) {
+    if (dbc->wrapped_dbc) {
         ENV* env = (ENV*) dbc->env;
         RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetFunctions, RDS_STR_SQLGetFunctions,
             dbc->wrapped_dbc, FunctionId, SupportedPtr
