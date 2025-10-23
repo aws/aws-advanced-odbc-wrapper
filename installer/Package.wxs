@@ -8,7 +8,7 @@
     <Package
         Name="AWS Advanced ODBC Wrapper"
         Manufacturer="Amazon Web Services (AWS)"
-        Version="1.0.0.0"
+        Version="1.0.0"
         UpgradeCode="194e58ff-da59-4ea5-8b19-091bf719db25"
     >
         <MajorUpgrade DowngradeErrorMessage="!(loc.DowngradeError)" />
@@ -66,4 +66,3 @@
         </ComponentGroup>
     </Fragment>
 </Wix>
-

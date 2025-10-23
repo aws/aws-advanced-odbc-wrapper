@@ -19,6 +19,34 @@
     #define ODBCVER 0x0380
 #endif
 
+#define DRIVER_VERSION "1.0.0"
+
+#if WIN32
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dll"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dll"
+     #endif
+#elif __APPLE__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dylib"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dylib"
+     #endif
+#elif __linux__ || __unix__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.so"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.so"
+     #endif
+#else
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a"
+     #endif
+#endif
+
 #ifdef WIN32
     #include <windows.h>
 #endif
