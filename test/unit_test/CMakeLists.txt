@@ -29,6 +29,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/attribute_validator_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/failover_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp

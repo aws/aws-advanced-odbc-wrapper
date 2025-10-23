@@ -63,6 +63,7 @@ FailoverPlugin::~FailoverPlugin()
         topology_monitors_.Delete(this->cluster_id_);
     } else {
         pair.first--;
+        topology_monitors_.Put(this->cluster_id_, pair);
     }
 }
 
@@ -435,5 +436,11 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC 
     std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
     // If the monitor exists, increment the reference count.
     pair.first++;
+    topology_monitors_.Put(this->cluster_id_, pair);
     return pair.second;
+}
+
+unsigned int FailoverPlugin::get_topology_monitors_count() {
+    std::lock_guard lock_guard(topology_monitors_mutex_);
+    return topology_monitors_.Size();
 }

@@ -400,10 +400,8 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
     }
 
     if (!hosts.empty() && !is_writer_connection_.load()) {
-        auto end = node_monitoring_threads_.end();
         for (const HostInfo& hi : hosts) {
-            std::string host_id = hi.GetHost();
-            if (node_monitoring_threads_.find(host_id) == end) {
+            if (std::string host_id = hi.GetHost(); !node_monitoring_threads_.contains(host_id)) {
                 node_monitoring_threads_[host_id] =
                     std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_);
             }
@@ -489,8 +487,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     local_dbc->conn_attr = conn_info_;
 
     try {
-        bool should_stop = main_monitor_->node_threads_stop_.load();
-        while (!should_stop) {
+        while (!main_monitor_->node_threads_stop_.load()) {
             if (GetNodeId(hdbc_, main_monitor_->dialect_).empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
@@ -508,7 +505,6 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
                 }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_SLEEP_MS_));
-            should_stop = main_monitor_->node_threads_stop_.load();
         }
     } catch (const std::exception& ex) {
         LOG(ERROR) << "Exception while node monitoring for: " << thread_host << ex.what();
@@ -586,13 +582,15 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
     if (reader_update_topology_) {
         ReaderThreadFetchTopology();
     } else {
-        std::lock_guard<std::mutex> reader_hdbc_lock(main_monitor_->node_threads_reader_hdbc_mutex_);
-        if (!main_monitor_->node_threads_reader_hdbc_) {
-            main_monitor_->node_threads_reader_hdbc_ = std::make_shared<SQLHDBC>(hdbc_);
-            reader_update_topology_ = true;
-            hdbc_ = SQL_NULL_HDBC;
-            ReaderThreadFetchTopology();
+        {
+            std::lock_guard<std::mutex> reader_hdbc_lock(main_monitor_->node_threads_reader_hdbc_mutex_);
+            if (!main_monitor_->node_threads_reader_hdbc_) {
+                main_monitor_->node_threads_reader_hdbc_ = std::make_shared<SQLHDBC>(hdbc_);
+                hdbc_ = SQL_NULL_HDBC;
+            }
         }
+        reader_update_topology_ = true;
+        ReaderThreadFetchTopology();
     }
 }
 
@@ -619,7 +617,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
 
     // Check if writer changed
     for (const HostInfo& hi : hosts) {
-        if (hi.IsHostWriter() && (!writer_host_info_ || hi.GetHostPortPair() == writer_host_info_->GetHostPortPair())) {
+        if (hi.IsHostWriter() && !(!writer_host_info_ || hi.GetHostPortPair() == writer_host_info_->GetHostPortPair())) {
             writer_changed_ = true;
             main_monitor_->UpdateTopologyCache(hosts);
             break;
