@@ -24,7 +24,6 @@
 #include "../../driver/plugin/failover/cluster_topology_monitor.h"
 #include "../../driver/plugin/failover/failover_plugin.h"
 
-
 class MockDialect : public Dialect {};
 
 SQLRETURN MockFunction() {
