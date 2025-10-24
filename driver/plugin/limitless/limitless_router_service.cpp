@@ -52,6 +52,7 @@ LimitlessRouterService::~LimitlessRouterService() {
         limitless_router_monitors.Delete(router_monitor_key_);
     } else {
         pair.first--;
+        limitless_router_monitors.Put(router_monitor_key_, pair);
     }
 }
 
@@ -89,6 +90,10 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 
 SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
 {
+    if (dbc == nullptr) {
+        return SQL_INVALID_HANDLE;
+    }
+
     std::shared_ptr<LimitlessRouterMonitor> monitor;
     std::vector<HostInfo> limitless_routers;
     {
@@ -140,9 +145,9 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
                 limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port_, dialect_);
             }
 
-            if (dbc->wrapped_dbc) {
+            if (local_dbc->wrapped_dbc) {
                 NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    dbc->wrapped_dbc
+                    local_dbc->wrapped_dbc
                 );
             }
             RDS_FreeConnect(local_hdbc);
@@ -227,5 +232,6 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
         // If the monitor exists, increment the reference count.
         pair.first++;
+        limitless_router_monitors.Put(router_monitor_key_, pair);
     }
 }
