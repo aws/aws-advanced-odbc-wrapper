@@ -45,7 +45,6 @@ void RoundRobinHostSelector::ClearCache() {
 HostInfo RoundRobinHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer,
     const std::unordered_map<std::string, std::string> properties) {
 
-    std::lock_guard<std::mutex> lock(cache_mutex);
 
     std::vector<HostInfo> selection;
     selection.reserve(hosts.size());
@@ -64,6 +63,8 @@ HostInfo RoundRobinHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_wr
         }
     } host_name_sort;
     std::ranges::sort(selection, host_name_sort);
+
+    std::lock_guard<std::mutex> lock(cache_mutex);
 
     create_cache_entries(selection, properties);
     std::string cluster_id_key = selection.at(0).GetHost();
@@ -184,7 +185,7 @@ void RoundRobinHostSelector::update_props_default_weight(
         } catch (const std::exception& e) {
             throw std::runtime_error("Default host weight not parsable as an integer.");
         }
-        info->last_default_weight_str = itr->first;
+        info->last_default_weight_str = itr->second;
     }
     info->default_weight = set_weight;
 }
