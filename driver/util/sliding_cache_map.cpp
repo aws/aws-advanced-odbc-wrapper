@@ -101,7 +101,7 @@ unsigned int SlidingCacheMap<K, V>::Size() {
         if (itr->second.expiry < now) {
             itr = cache.erase(itr);
         } else {
-            itr++;
+            ++itr;
         }
     }
     return cache.size();

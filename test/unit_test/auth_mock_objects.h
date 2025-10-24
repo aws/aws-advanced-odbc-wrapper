@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MOCK_OBJECTS_H_
-#define MOCK_OBJECTS_H_
+#ifndef AUTH_MOCK_OBJECTS_H_
+#define AUTH_MOCK_OBJECTS_H_
 
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/Aws.h>
@@ -119,4 +119,4 @@ public:
     MOCK_METHOD(bool, SupportsChunkedTransferEncoding, (), (const));
 };
 
-#endif // MOCK_OBJECTS_H_
+#endif // AUTH_MOCK_OBJECTS_H_

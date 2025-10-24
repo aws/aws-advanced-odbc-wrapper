@@ -52,12 +52,13 @@ struct RdsLibResult {
 
 class RdsLibLoader {
 public:
+    RdsLibLoader() = default;
     RdsLibLoader(RDS_STR library_path);
     ~RdsLibLoader();
 
     template<typename RDS_Func, typename... Args>
     RdsLibResult CallFunction(RDS_STR func_name, Args... args);
-    FUNC_HANDLE GetFunction(RDS_STR function_name);
+    virtual FUNC_HANDLE GetFunction(RDS_STR function_name);
     RDS_STR GetDriverPath();
 
 protected:
@@ -70,7 +71,7 @@ private:
 };
 
 template <typename RDS_Func, typename... Args>
-inline RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
+RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
 {
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache

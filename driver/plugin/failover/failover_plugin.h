@@ -65,6 +65,7 @@ public:
         SQLTCHAR *     StatementText,
         SQLINTEGER     TextLength) override;
 
+    static unsigned int GetTopologyMonitorCount(const std::string& cluster_id);
 private:
     static constexpr int MAX_STATE_LENGTH = 32;
     static constexpr int MAX_MSG_LENGTH = 1024;
