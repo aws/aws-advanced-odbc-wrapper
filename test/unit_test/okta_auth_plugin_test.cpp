@@ -15,7 +15,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "mock_objects.h"
+#include "auth_mock_objects.h"
 
 #include "../../driver/plugin/federated/okta_auth_plugin.h"
 #include "../../driver/util/aws_sdk_helper.h"

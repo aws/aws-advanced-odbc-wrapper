@@ -20,7 +20,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/auth_mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/failover_mock_objects.h
 )
 
 set(TEST_SUITE
@@ -128,3 +129,5 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${WRAPPER_NAME}-static
     ${EXTERNAL_LIBRARIES}
 )
+
+gtest_discover_tests(${PROJECT_NAME})

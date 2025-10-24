@@ -440,7 +440,8 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC 
     return pair.second;
 }
 
-unsigned int FailoverPlugin::get_topology_monitors_count() {
+unsigned int FailoverPlugin::GetTopologyMonitorCount(const std::string& cluster_id) {
     std::lock_guard lock_guard(topology_monitors_mutex_);
-    return topology_monitors_.Size();
+    auto [count, monitor] = topology_monitors_.Get(cluster_id);
+    return count;
 }
