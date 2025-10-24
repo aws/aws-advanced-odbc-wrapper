@@ -119,4 +119,4 @@ public:
     MOCK_METHOD(bool, SupportsChunkedTransferEncoding, (), (const));
 };
 
-#endif // AUTH_OCK_OBJECTS_H_
+#endif // AUTH_MOCK_OBJECTS_H_
