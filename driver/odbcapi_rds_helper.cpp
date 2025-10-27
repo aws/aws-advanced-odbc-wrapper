@@ -17,6 +17,8 @@
 #include "odbcapi_rds_helper.h"
 
 #include <unordered_set>
+#include <stdio.h>
+#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
@@ -403,7 +405,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
             *((SQLUINTEGER *) ValuePtr) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            RDS_sprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, value_pair.first);
+            snprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, value_pair.first);
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -669,10 +671,15 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLUSMALLINT   DriverCompletion)
 {
     std::string conn_str_utf8;
+#ifdef UNICODE
+    wchar_t conn_str[MAX_KEY_SIZE] = { 0 };
+    wchar_t out_conn_str[MAX_KEY_SIZE] = { 0 };
+#else
     char conn_str[MAX_KEY_SIZE] = {0};
     char out_conn_str[MAX_KEY_SIZE] = {0};
+#endif
     if (DriverCompletion && WindowHandle) {
-#if !defined(UNICODE) && defined(_WIN32)
+#if defined(_WIN32)
         bool complete_required = true;
         std::tuple<std::string, std::string, bool> dialog_result; // conn_str, out_conn_str, dialog_box_cancelled
 
@@ -682,8 +689,13 @@ SQLRETURN RDS_SQLDriverConnect(
                 complete_required = false;
             case SQL_DRIVER_COMPLETE_REQUIRED:
                 dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
-                RDS_sprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, std::get<0>(dialog_result).c_str());
-                RDS_sprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, std::get<1>(dialog_result).c_str());
+#ifdef UNICODE
+                swprintf(conn_str, sizeof(conn_str)/sizeof(wchar_t), RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), RDS_TSTR(std::get<0>(dialog_result)).c_str());
+                swprintf(out_conn_str, sizeof(out_conn_str)/sizeof(wchar_t), RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), RDS_TSTR(std::get<1>(dialog_result)).c_str());
+#else
+                snprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, std::get<0>(dialog_result).c_str());
+                snprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, std::get<1>(dialog_result).c_str());
+#endif
                 break;
             case SQL_DRIVER_NOPROMPT:
             default:
@@ -695,7 +707,7 @@ SQLRETURN RDS_SQLDriverConnect(
             return SQL_NO_DATA_FOUND;
         }
 
-        conn_str_utf8 = conn_str;
+        conn_str_utf8 = AS_UTF8_CSTR(conn_str);
 #endif
     } else {
 #ifdef UNICODE
@@ -738,16 +750,23 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Update OutConnectionString with parsed values
-#ifndef UNICODE
     if (OutConnectionString && StringLength2Ptr) {
+#ifdef UNICODE
+        SQLULEN len = wcslen(out_conn_str);
+#if defined(_WIN32)
+        SQLULEN written = swprintf(OutConnectionString, MAX_KEY_SIZE, RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), out_conn_str);
+#else
+        SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, std::string(AS_UTF8_CSTR(out_conn_str)));
+#endif
+#else
         SQLULEN len = RDS_STR_LEN(out_conn_str);
-        SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+        SQLULEN written = snprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+#endif
         if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
             ret = SQL_SUCCESS_WITH_INFO;
         }
         *StringLength2Ptr = (SQLSMALLINT) written;
     }
-#endif
 
     return ret;
 }
@@ -908,7 +927,7 @@ SQLRETURN RDS_SQLGetCursorName(
         RDS_STR name = stmt->cursor_name;
         SQLULEN len = name.length();
         if (CursorName) {
-            RDS_sprintf((RDS_CHAR *) CursorName, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
+            snprintf((RDS_CHAR *) CursorName, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1190,7 +1209,7 @@ SQLRETURN RDS_SQLGetDiagField(
             if (char_value) {
                 len = RDS_STR_LEN(char_value);
                 if (DiagInfoPtr) {
-                    RDS_sprintf((RDS_CHAR *) DiagInfoPtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+                    snprintf((RDS_CHAR *) DiagInfoPtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
                     if (len >= BufferLength) {
                         ret = SQL_SUCCESS_WITH_INFO;
                     }
@@ -1324,7 +1343,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, err->sqlstate);
 #else
-            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+            snprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
 #endif
         }
         SQLLEN err_len = strlen(err->error_msg);
@@ -1340,7 +1359,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             SQLLEN written = CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, (size_t) BufferLength / sizeof(unsigned short), err->error_msg);
 #else
-            SQLLEN written = RDS_sprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+            SQLLEN written = snprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
 #endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
@@ -1360,7 +1379,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
 #else
-            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            snprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
 #endif
         }
         if (MessageText) {
@@ -1423,7 +1442,7 @@ SQLRETURN RDS_SQLGetInfo(
         // Get info for shell driver
         switch (InfoType) {
             case SQL_DRIVER_ODBC_VER:
-                RDS_sprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
+                snprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
                 char_value = odbcver;
                 break;
             case SQL_MAX_CONCURRENT_ACTIVITIES:
@@ -1451,7 +1470,7 @@ SQLRETURN RDS_SQLGetInfo(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer((unsigned short*)InfoValuePtr, BufferLength / sizeof(unsigned short), char_value);
 #else
-            RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+            snprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
 #endif
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;

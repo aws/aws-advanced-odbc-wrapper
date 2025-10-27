@@ -18,6 +18,7 @@
     #include <CommCtrl.h>
 #endif
 
+#include <stdio.h>
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
@@ -57,7 +58,12 @@ enum AuthModeSelection {
 
 static const std::regex SPECIAL_CHAR = std::regex(R"([\\\[\]\{\},;?\*=!@]+)");
 
-#if !defined(UNICODE) && defined(_WIN32)
+#if defined(_WIN32)
+
+#define RDS_SQLGetPrivateProfileString(app_name, key_name, default_val, buff, file_name) \
+    SQLGetPrivateProfileString(RDS_TSTR(app_name).c_str(), RDS_TSTR(key_name).c_str(), RDS_TSTR(default_val).c_str(), buff, sizeof(buff)/sizeof(TCHAR), _T(file_name))
+#define RDS_SQLReadFileDSN(file_name, app_name, key_name, buff, out_bytes) \
+    SQLReadFileDSN(RDS_TSTR(file_name).c_str(), _T(app_name), RDS_TSTR(key_name).c_str(), buff, sizeof(buff)/sizeof(wchar_t), out_bytes)
 
 const std::map<std::string, std::pair<int, ControlType>> MAIN_KEYS = {
     {KEY_DSN, {IDC_DSN_NAME, EDIT_TEXT}},
@@ -120,7 +126,7 @@ const std::map<std::string, std::pair<int, ControlType>> LIMITLESS_KEYS = {
     {KEY_ROUTER_MAX_RETRIES, {IDC_ROUTER_RETRIES, EDIT_TEXT}}
 };
 
-const std::vector<std::pair<const char*, const char*>> AWS_AUTH_MODES = {
+const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
     {"Secrets Manager", VALUE_AUTH_SECRETS},
@@ -128,21 +134,21 @@ const std::vector<std::pair<const char*, const char*>> AWS_AUTH_MODES = {
     {"OKTA", VALUE_AUTH_OKTA}
 };
 
-const std::vector<std::pair<const char*, const char*>> FAILOVER_MODES = {
+const std::vector<std::pair<std::string, std::string>> FAILOVER_MODES = {
     {"", ""},
     {"Strict Writer", VALUE_FAILOVER_MODE_STRICT_WRITER},
     {"Strict Reader", VALUE_FAILOVER_MODE_STRICT_READER},
     {"Reader or Writer", VALUE_FAILOVER_MODE_READER_OR_WRITER}
 };
 
-const std::vector<std::pair<const char*, const char*>> READER_SELECTION_MODES = {
+const std::vector<std::pair<std::string, std::string>> READER_SELECTION_MODES = {
     {"", ""},
     {"Random", VALUE_RANDOM_HOST_SELECTOR},
     {"Round Robin", VALUE_ROUND_ROBIN_HOST_SELECTOR },
     {"Highest Weight", VALUE_HIGHEST_WEIGHT_HOST_SELECTOR}
 };
 
-const std::vector<std::pair<const char*, const char*>> LIMITLESS_MODES = {
+const std::vector<std::pair<std::string, std::string>> LIMITLESS_MODES = {
     {"", ""},
     {"Lazy", VALUE_LIMITLESS_MODE_LAZY},
     {"Immediate", VALUE_LIMITLESS_MODE_IMMEDIATE}
@@ -163,11 +169,6 @@ bool dialog_box_cancelled = false;
 bool driver_connect = false;
 bool disable_optional = false;
 
-template<typename T>
-T CastConst(const char* value) {
-    return const_cast<TCHAR*>(reinterpret_cast<const TCHAR*>(value));
-}
-
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
 	ghInstance = hModule;
@@ -187,10 +188,10 @@ void ChooseFile(HWND parent, int ctrl_id)
     ZeroMemory(&szFile, sizeof(szFile));
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = NULL;
-    ofn.lpstrFilter = "Any File\0*.*\0";
+    ofn.lpstrFilter = _T("Any File\0*.*\0");
     ofn.lpstrFile = szFile;
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrTitle = "Select File";
+    ofn.lpstrTitle = _T("Select File");
     ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
     if (GetOpenFileName(&ofn)) {
@@ -198,11 +199,16 @@ void ChooseFile(HWND parent, int ctrl_id)
     }
 }
 
-void AddTabToTabControl(char* name, HWND tab_control, int index)
+void AddTabToTabControl(std::string name, HWND tab_control, int index)
 {
     TCITEM tie;
     tie.mask = TCIF_TEXT;
-    tie.pszText = const_cast<LPSTR>(name);
+#ifdef UNICODE
+    std::wstring str = ConvertUTF8ToWString(name);
+    tie.pszText = const_cast<LPWSTR>(str.c_str());
+#else
+    tie.pszText = const_cast<LPSTR>(name.c_str());
+#endif
     TabCtrl_InsertItem(tab_control, index, &tie);
 }
 
@@ -215,7 +221,11 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
         TCHAR buffer[MAX_KEY_SIZE] = {};
         if (control_type == EDIT_TEXT) {
             GetWindowText(control, buffer, MAX_KEY_SIZE);
+#ifdef UNICODE
+            return ConvertUTF16ToUTF8(reinterpret_cast<unsigned short*>(buffer));
+#else
             return buffer;
+#endif
         }
 
         if (control_type == COMBO) {
@@ -223,13 +233,13 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
             if (selection >= 0) {
                 switch (id) {
                     case IDC_AUTH_MODE:
-                        return CastConst<TCHAR*>(AWS_AUTH_MODES[selection].second);
+                        return AWS_AUTH_MODES[selection].second;
                     case IDC_FAILOVER_MODE:
-                        return CastConst<TCHAR*>(FAILOVER_MODES[selection].second);
+                        return FAILOVER_MODES[selection].second;
                     case IDC_READER_HOST:
-                        return CastConst<TCHAR*>(READER_SELECTION_MODES[selection].second);
+                        return READER_SELECTION_MODES[selection].second;
                     case IDC_LIMITLESS_MODE:
-                        return CastConst<TCHAR*>(LIMITLESS_MODES[selection].second);
+                        return LIMITLESS_MODES[selection].second;
                     default:
                         break;
                 }
@@ -239,81 +249,94 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
         if (control_type == CHECK) {
             LRESULT state = Button_GetCheck(control);
             if (state == BST_CHECKED) {
-                return CastConst<TCHAR*>(VALUE_BOOL_TRUE);
+                return VALUE_BOOL_TRUE;
             }
-            return CastConst<TCHAR*>(VALUE_BOOL_FALSE);
+            return VALUE_BOOL_FALSE;
         }
     }
-    return CastConst<TCHAR*>("");
+    return "";
 }
 
 void SetInitialCheckBoxValue(HWND hwnd, int id, std::string key)
 {
     HWND ctrl = GetDlgItem(hwnd, id);
-    char buff[MAX_KEY_SIZE] = {};
+    TCHAR buff[MAX_KEY_SIZE] = {};
     if (!current_dsn.empty()) {
         if (!driver_connect) {
-            SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, sizeof(buff), ODBC_INI);
+            RDS_SQLGetPrivateProfileString(current_dsn, key, std::string(""), buff, ODBC_INI);
         } else {
             WORD cbDriver;
-            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
+            RDS_SQLReadFileDSN(current_dsn, ODBC, key, buff, &cbDriver);
         }
     }
 
+#ifdef UNICODE
+    if (wcscmp(buff, RDS_TSTR(VALUE_BOOL_TRUE).c_str()) == 0) {
+#else
     if (strcmp(buff, VALUE_BOOL_TRUE) == 0) {
+#endif
+
         Button_SetCheck(ctrl, BST_CHECKED);
     } else {
         Button_SetCheck(ctrl, BST_UNCHECKED);
     }
 }
 
-void SetInitialComboBoxValue(HWND hwnd, int id, std::string key, std::vector<std::pair<const char*, const char*>> options)
+void SetInitialComboBoxValue(HWND hwnd, int id, std::string key, std::vector<std::pair<std::string, std::string>> options)
 {
     HWND ctrl = GetDlgItem(hwnd, id);
-    char buff[MAX_KEY_SIZE] = {};
+    TCHAR buff[MAX_KEY_SIZE] = {};
     if (!current_dsn.empty()) {
         if (!driver_connect) {
-            SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, sizeof(buff), ODBC_INI);
+            RDS_SQLGetPrivateProfileString(current_dsn, key, std::string(""), buff, ODBC_INI);
         } else {
             WORD cbDriver;
-            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
+            RDS_SQLReadFileDSN(current_dsn, ODBC, key, buff, &cbDriver);
         }
     }
     int index = 0;
     for (const auto& option : options) {
-        if (strcmp(buff, option.second) == 0) {
+#ifdef UNICODE
+        if (wcscmp(buff, ConvertUTF8ToWString(option.second).c_str()) == 0) {
+#else
+        if (strcmp(buff, option.second.c_str()) == 0) {
+#endif
             ComboBox_SetCurSel(ctrl, index);
         }
         index++;
     }
-
 }
 
 void SetInitialEditTextValue(HWND hwnd, int id, std::string key, std::string value)
 {
     HWND ctrl = GetDlgItem(hwnd, id);
-    std::string key_value;
 
+    std::string key_value;
     if (!current_dsn.empty()) {
-        char buff[MAX_KEY_SIZE] = {};
+        TCHAR buff[MAX_KEY_SIZE] = {};
         if (!driver_connect) {
             if (value.empty()) {
-                SQLGetPrivateProfileString(current_dsn.c_str(), key.c_str(), "", buff, MAX_KEY_SIZE, ODBC_INI);
+                RDS_SQLGetPrivateProfileString(current_dsn, key, std::string(""), buff, ODBC_INI);
             } else {
-                RDS_sprintf(buff, MAX_KEY_SIZE, RDS_CHAR_FORMAT, value.c_str());
+#ifdef UNICODE
+                swprintf(buff, MAX_KEY_SIZE, _T(RDS_WCHAR_FORMAT), RDS_TSTR(value).c_str());
+#else
+                snprintf(buff, MAX_KEY_SIZE, RDS_CHAR_FORMAT, value.c_str());
+#endif
             }
-            key_value = std::string(buff);
+            key_value = AS_UTF8_CSTR(buff);
         } else {
             WORD cbDriver;
-            SQLReadFileDSN(current_dsn.c_str(), ODBC, key.c_str(), buff, sizeof(buff), &cbDriver);
-            key_value = std::string(buff);
+            RDS_SQLReadFileDSN(current_dsn, ODBC, key, buff, &cbDriver);
+            key_value = AS_UTF8_CSTR(buff);
 
             // If the key value read from a file is enclosed in curly braces, do not display the braces in the dialog box.
             if (key_value.starts_with("{") && key_value.ends_with("}")) {
                 key_value = key_value.substr(1, key_value.length() - 2);
             }
         }
-        SetWindowText(ctrl, key_value.c_str());
+
+        SetWindowText(ctrl, RDS_TSTR(key_value).c_str());
     }
 }
 
@@ -411,7 +434,7 @@ void TestConnection(HWND hwnd)
     );
 
     if (SQL_SUCCEEDED(ret)) {
-        MessageBox(hwnd, "Connection success", "Test Connection", MB_OK);
+        MessageBox(hwnd, _T("Connection success"), _T("Test Connection"), MB_OK);
     } else {
         std::string fail_msg = "Connection Failed";
         SQLSMALLINT stmt_length;
@@ -420,9 +443,9 @@ void TestConnection(HWND hwnd)
         RDS_SQLError(henv, hdbc, nullptr, sql_state, &native_error, message, MAX_KEY_SIZE, &stmt_length);
         if (stmt_length > 1) {
             fail_msg += ": ";
-            fail_msg += (char*) message;
+            fail_msg += AS_UTF8_CSTR(message);
         }
-        MessageBox(hwnd, fail_msg.c_str(), "Test Connection", MB_OK);
+        MessageBox(hwnd, RDS_TSTR(fail_msg).c_str(), _T("Test Connection"), MB_OK);
     }
 
     if (((ENV*)henv)->driver_lib_loader && ((DBC*)hdbc)->wrapped_dbc) {
@@ -434,9 +457,9 @@ void TestConnection(HWND hwnd)
     RDS_FreeEnv(henv);
 }
 
-void SaveKey(LPCSTR profile, LPCSTR key, LPCSTR value)
+void SaveKey(std::string profile, std::string key, std::string value)
 {
-    bool success = SQLWritePrivateProfileString(profile, key, value, ODBC_INI);
+    bool success = SQLWritePrivateProfileString(RDS_TSTR(profile).c_str(), RDS_TSTR(key).c_str(), RDS_TSTR(value).c_str(), _T(ODBC_INI));
     if (!success) {
         throw std::runtime_error("Unable to save value to DSN");
     }
@@ -455,18 +478,18 @@ bool SaveDsn()
     if (current_dsn.empty()) {
         new_dsn = true;
     } else if (dsn != current_dsn) {
-        SQLRemoveDSNFromIni(current_dsn.c_str());
+        SQLRemoveDSNFromIni(RDS_TSTR(current_dsn).c_str());
         new_dsn = true;
     }
 
     if (!dsn.empty()) {
         if (new_dsn) {
-            SaveKey(ODBC_DATA_SOURCES, dsn.c_str(), driver.c_str());
+            SaveKey(ODBC_DATA_SOURCES, dsn, driver);
         }
-
-        char buff[MAX_KEY_SIZE] = {};
-        SQLGetPrivateProfileString(driver.c_str(), KEY_DRIVER, "", buff, sizeof(buff), ODBCINST_INI);
-        SaveKey(dsn.c_str(), KEY_DRIVER, buff);
+        
+        TCHAR buff[MAX_KEY_SIZE] = {};
+        RDS_SQLGetPrivateProfileString(driver, std::string(KEY_DRIVER), std::string(""), buff, ODBCINST_INI);
+        SaveKey(dsn.c_str(), KEY_DRIVER, AS_UTF8_CSTR(buff));
 
         std::map<std::string, std::pair<int, ControlType>> all_auth_keys = {};
         all_auth_keys.insert(AUTH_KEYS.begin(), AUTH_KEYS.end());
@@ -477,28 +500,28 @@ bool SaveDsn()
         try {
             for (const auto& keys : MAIN_KEYS) {
                 if (keys.first != KEY_DSN) {
-                    SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(main_win, keys.second).c_str()));
+                    SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(main_win, keys.second).c_str());
                 }
             }
             for (const auto& keys : all_auth_keys) {
-                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(aws_auth_tab, keys.second).c_str()));
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(aws_auth_tab, keys.second).c_str());
             }
             for (const auto& keys : FAILOVER_KEYS) {
-                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(failover_tab, keys.second).c_str()));
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(failover_tab, keys.second).c_str());
             }
             for (const auto& keys : LIMITLESS_KEYS) {
-                SaveKey(dsn.c_str(), keys.first.c_str(), CastConst<LPSTR>(GetControlValue(limitless_tab, keys.second).c_str()));
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(limitless_tab, keys.second).c_str());
             }
         } catch (const std::runtime_error e) {
-            MessageBox(main_win, "Failed to save DSN", "Save DSN", MB_OK);
+            MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
             if (new_dsn) {
-                SQLRemoveDSNFromIni(current_dsn.c_str());
+                SQLRemoveDSNFromIni(RDS_TSTR(current_dsn).c_str());
             }
         }
 
         return true;
     } else {
-        MessageBox(main_win, "Please provide a data source name", "Save DSN", MB_OK);
+        MessageBox(main_win, _T("Please provide a data source name"), _T("Save DSN"), MB_OK);
         return false;
     }
 }
@@ -534,7 +557,7 @@ BOOL LimitlessTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
     HWND limitless_mode = GetDlgItem(hwnd, IDC_LIMITLESS_MODE);
     for (int i = 0; i < LIMITLESS_MODES.size(); i++) {
-        ComboBox_InsertString(limitless_mode, i, LIMITLESS_MODES[i].first);
+        ComboBox_InsertString(limitless_mode, i, RDS_TSTR(LIMITLESS_MODES[i].first).c_str());
     }
 
     for (const auto& keys : LIMITLESS_KEYS) {
@@ -543,8 +566,7 @@ BOOL LimitlessTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         }
         else if (keys.second.second == COMBO) {
             SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, LIMITLESS_MODES);
-        }
-        else {
+        } else {
             SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
         }
     }
@@ -597,11 +619,11 @@ BOOL FailoverTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
     HWND failover_mode = GetDlgItem(hwnd, IDC_FAILOVER_MODE);
     for (int i = 0; i < FAILOVER_MODES.size(); i++) {
-        ComboBox_InsertString(failover_mode, i, FAILOVER_MODES[i].first);
+        ComboBox_InsertString(failover_mode, i, RDS_TSTR(FAILOVER_MODES[i].first).c_str());
     }
     HWND reader_select_strat = GetDlgItem(hwnd, IDC_READER_HOST);
     for (int i = 0; i < READER_SELECTION_MODES.size(); i++) {
-        ComboBox_InsertString(reader_select_strat, i, READER_SELECTION_MODES[i].first);
+        ComboBox_InsertString(reader_select_strat, i, RDS_TSTR(READER_SELECTION_MODES[i].first).c_str());
     }
 
     for (const auto& keys : FAILOVER_KEYS) {
@@ -711,7 +733,7 @@ BOOL AuthTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
     HWND auth_mode_box = GetDlgItem(hwnd, IDC_AUTH_MODE);
     for (int i = 0; i < AWS_AUTH_MODES.size(); i++) {
-        ComboBox_InsertString(auth_mode_box, i, AWS_AUTH_MODES[i].first);
+        ComboBox_InsertString(auth_mode_box, i, RDS_TSTR(AWS_AUTH_MODES[i].first).c_str());
     }
 
     SetInitialComboBoxValue(hwnd, IDC_AUTH_MODE, KEY_AUTH_TYPE, AWS_AUTH_MODES);
@@ -760,7 +782,7 @@ void HandleGuiInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
             if (codeNotify == BN_CLICKED) {
                 bool saved = SaveDsn();
                 if (saved) { // If SaveDsn fails, a message is created within the function.
-                    MessageBox(main_win, "DSN saved successfully", "Save DSN", MB_OK);
+                    MessageBox(main_win, _T("DSN saved successfully"), _T("Save DSN"), MB_OK);
                 }
             }
             break;
@@ -791,7 +813,9 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
+        HWND save_btn = GetDlgItem(hwnd, IDC_SAVE);
         EnableWindow(dsn_text, SW_HIDE);
+        EnableWindow(save_btn, SW_HIDE);
     }
 
     for (const auto& keys : MAIN_KEYS) {
@@ -802,9 +826,9 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         }
     }
 
-    AddTabToTabControl((char*)"Authentication", tab_control, AWS_AUTH);
-    AddTabToTabControl((char*)"Failover Settings", tab_control, FAILOVER);
-    AddTabToTabControl((char*)"Limitless", tab_control, LIMITLESS);
+    AddTabToTabControl("Authentication", tab_control, AWS_AUTH);
+    AddTabToTabControl("Failover Settings", tab_control, FAILOVER);
+    AddTabToTabControl("Limitless", tab_control, LIMITLESS);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);
@@ -884,9 +908,14 @@ std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND h
     out_connection_str = "";
     driver_connect = true;
     disable_optional = complete_required;
-    std::string converted_str = reinterpret_cast<char*>(InConnectionString);
+    std::string converted_str;
 
     // Check if SAVEFILE is specified.
+#ifdef UNICODE
+    converted_str = ConvertUTF16ToUTF8(reinterpret_cast<unsigned short*>(InConnectionString));
+#else
+    converted_str = reinterpret_cast<char*>(InConnectionString);
+#endif
     GetSaveFileFromConnectionString(converted_str, hwnd);
     GetDriverFromConnectionString(converted_str, hwnd);
 
@@ -921,54 +950,50 @@ std::string ConvertNullSeparatedToSemicolon(LPCSTR lpszAttributes) {
 }
 
 BOOL ConfigDSN(HWND hwndParent, WORD fRequest, LPCSTR lpszDriver, LPCSTR lpszAttributes) {
-#ifndef UNICODE
     driver = lpszDriver;
     const std::string conn_str = ConvertNullSeparatedToSemicolon(lpszAttributes);
     GetDsnFromConnectionString(conn_str, hwndParent);
 
     switch (fRequest) {
-        case ODBC_ADD_DSN:
-        case ODBC_CONFIG_DSN:
+       case ODBC_ADD_DSN:
+       case ODBC_CONFIG_DSN:
 
-            if (hwndParent) {
-                main_win = hwndParent;
-                DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwndParent, (DLGPROC)FormMainDlgProc);
-                break;
-            }
+           if (hwndParent) {
+               main_win = hwndParent;
+               DialogBox(ghInstance, MAKEINTRESOURCE(IDD_DIALOG_MAIN), hwndParent, (DLGPROC)FormMainDlgProc);
+               break;
+           }
 
-            // Handle the case where hwndParent is NULL.
-            // This can happen if ConfigDSN is called from a non-GUI context, like the command line.
+           // Handle the case where hwndParent is NULL.
+           // This can happen if ConfigDSN is called from a non-GUI context, like the command line.
 
-            if (!conn_str.empty() && !current_dsn.empty()) {
-                SQLWritePrivateProfileString(ODBC_DATA_SOURCES, current_dsn.c_str(), driver.c_str(), ODBC_INI);
+           if (!conn_str.empty() && !current_dsn.empty()) {
+               SQLWritePrivateProfileString(_T(ODBC_DATA_SOURCES), RDS_TSTR(current_dsn).c_str(), RDS_TSTR(driver).c_str(), _T(ODBC_INI));
+               TCHAR driver_path[MAX_KEY_SIZE] = {};
+               RDS_SQLGetPrivateProfileString(driver, std::string(KEY_DRIVER), std::string(""), driver_path, ODBCINST_INI);
+               SQLWritePrivateProfileString(RDS_TSTR(current_dsn).c_str(), _T(KEY_DRIVER), driver_path, _T(ODBC_INI));
 
-                char driver_path[MAX_KEY_SIZE] = {};
-                SQLGetPrivateProfileString(driver.c_str(), KEY_DRIVER, "", driver_path, sizeof(driver_path), ODBCINST_INI);
-                SQLWritePrivateProfileString(current_dsn.c_str(), KEY_DRIVER, driver_path, ODBC_INI);
+               // Parse key-value pair like so: Server=test;Port=1234
+               const std::regex kv_pattern(R"(([^=;]+)=([^;]*)(;|$))");
+               std::sregex_iterator iter(conn_str.begin(), conn_str.end(), kv_pattern);
 
-                // Parse key-value pair like so: Server=test;Port=1234
-                const std::regex kv_pattern(R"(([^=;]+)=([^;]*)(;|$))");
-                std::sregex_iterator iter(conn_str.begin(), conn_str.end(), kv_pattern);
+               for (const std::sregex_iterator end; iter != end; ++iter) {
+                   std::string key = (*iter)[1].str();
+                   std::string value = (*iter)[2].str();
 
-                for (const std::sregex_iterator end; iter != end; ++iter) {
-                    std::string key = (*iter)[1].str();
-                    std::string value = (*iter)[2].str();
+                   if (key != "DSN") {
+                       SQLWritePrivateProfileString(RDS_TSTR(current_dsn).c_str(), RDS_TSTR(key).c_str(), RDS_TSTR(value).c_str(), _T(ODBC_INI));
+                   }
+               }
+           }
+           break;
 
-                    if (key != "DSN") {
-                        SQLWritePrivateProfileString(current_dsn.c_str(), key.c_str(), value.c_str(), ODBC_INI);
-                    }
-                }
-            }
-            break;
-
-        case ODBC_REMOVE_DSN:
-            SQLRemoveDSNFromIni(current_dsn.c_str());
-            break;
-        default:
-            break;
+       case ODBC_REMOVE_DSN:
+           SQLRemoveDSNFromIni(RDS_TSTR(current_dsn).c_str());
+           break;
+       default:
+           break;
     }
-#endif
-
     return true;
 }
 
