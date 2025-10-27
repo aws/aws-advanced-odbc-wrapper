@@ -32,9 +32,9 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) :
+            dbc->conn_attr.at(KEY_REGION) :
             dbc->conn_attr.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+                RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER)) :
                 Aws::Region::US_EAST_1;
         this->auth_provider = std::make_shared<AuthProvider>(region);
     }
@@ -56,23 +56,23 @@ SQLRETURN IamAuthPlugin::Connect(
     DBC* dbc = (DBC*) ConnectionHandle;
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
-        ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
+        dbc->conn_attr.at(KEY_SERVER) : "";
     const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
-        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
+        dbc->conn_attr.at(KEY_IAM_HOST) : server;
     const std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) :
+        dbc->conn_attr.at(KEY_REGION) :
         dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER)) :
             Aws::Region::US_EAST_1;
     const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
-        ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
+        dbc->conn_attr.at(KEY_PORT) : "";
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
-        ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
+        dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+        std::chrono::milliseconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
 
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
-        std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10) : false;
+        std::strtol(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE).c_str(), nullptr, 10) : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         delete dbc->err;
@@ -84,14 +84,14 @@ SQLRETURN IamAuthPlugin::Connect(
 
     SQLRETURN ret = SQL_ERROR;
 
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 

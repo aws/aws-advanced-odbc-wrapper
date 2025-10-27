@@ -72,7 +72,7 @@ private:
     static inline const std::chrono::milliseconds
         DEFAULT_FAILOVER_TIMEOUT_MS = std::chrono::seconds(30);
 
-    bool CheckShouldFailover(RDS_CHAR* sql_state);
+    bool CheckShouldFailover(const RDS_CHAR* sql_state);
     void RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates);
     bool FailoverReader(DBC *hdbc);
     bool FailoverWriter(DBC *hdbc);

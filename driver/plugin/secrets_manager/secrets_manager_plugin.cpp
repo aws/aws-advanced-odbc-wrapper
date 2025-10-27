@@ -29,16 +29,16 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
     this->plugin_name = "SECRETS_MANAGER";
 
     std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
-        ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
+        dbc->conn_attr.at(KEY_SECRET_ID) : "";
     std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_SECRET_REGION)) : "";
+        dbc->conn_attr.at(KEY_SECRET_REGION) : "";
     const std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
-        ToStr(dbc->conn_attr.at(KEY_SECRET_ENDPOINT)) : "";
+        dbc->conn_attr.at(KEY_SECRET_ENDPOINT) : "";
 
     std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)) : "";
+        dbc->conn_attr.at(KEY_TOKEN_EXPIRATION) : "";
     expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : DEFAULT_EXPIRATION_MS;
+        std::chrono::milliseconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : DEFAULT_EXPIRATION_MS;
 
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && matches.length() > 0) {
         region = matches[1];
@@ -90,8 +90,8 @@ SQLRETURN SecretsManagerPlugin::Connect(
             std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
             const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
-                dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
-                dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(cached_secret.password));
+                dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
+                dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, cached_secret.password);
                 ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 secrets_cache.erase(secret_key);
@@ -117,8 +117,8 @@ SQLRETURN SecretsManagerPlugin::Connect(
             secrets_cache.insert_or_assign(secret_key, secret);
         }
 
-        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(secret.username));
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(secret.password));
+        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     } else {
         delete dbc->err;

@@ -29,7 +29,7 @@
 
 class ClusterTopologyQueryHelper {
 public:
-    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, RDS_STR topology_query, RDS_STR writer_id_query, RDS_STR node_id_query);
+    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, std::string topology_query, std::string writer_id_query, std::string node_id_query);
     virtual std::string GetWriterId(SQLHDBC hdbc);
     virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc);
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLREAL replica_lag_ms);
@@ -43,11 +43,11 @@ private:
     // ?.cluster-<Cluster-ID>.<Region>.rds.amazonaws.com
     std::string endpoint_template_;
     // SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, CPU, COALESCE(REPLICA_LAG_IN_MSEC, 0) FROM aurora_replica_status() WHERE EXTRACT(EPOCH FROM(NOW() - LAST_UPDATE_TIMESTAMP)) <= 300 OR SESSION_ID = 'MASTER_SESSION_ID' OR LAST_UPDATE_TIMESTAMP IS NULL
-    RDS_STR topology_query_;
+    std::string topology_query_;
     // SELECT SERVER_ID FROM aurora_replica_status() WHERE SESSION_ID = 'MASTER_SESSION_ID' AND SERVER_ID = aurora_db_instance_identifier()
-    RDS_STR writer_id_query_;
+    std::string writer_id_query_;
     // SELECT aurora_db_instance_identifier()
-    RDS_STR node_id_query_;
+    std::string node_id_query_;
 
     static constexpr char REPLACE_CHAR = '?';
 

@@ -27,19 +27,23 @@
     #define MODULE_HANDLE HINSTANCE
     #define FUNC_HANDLE FARPROC
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)
-    #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name, NULL, load_flag)
+    #ifdef UNICODE
+inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
+    std::vector<unsigned short> mod_name_vec = ConvertUTF8ToUTF16(module_name);
+    unsigned short* mod_name_ushort = mod_name_vec.data();
+    return LoadLibraryEx((SQLWCHAR*)mod_name_ushort, NULL, load_flag);
+}
+    #else
+        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name.c_str(), NULL, load_flag)
+    #endif // UNICODE
     #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
     #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
 #else // Unix (Linux / MacOS)
     #include <dlfcn.h>
     #define MODULE_HANDLE void*
     #define FUNC_HANDLE void*
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, RTLD_LAZY | RTLD_LOCAL)
-#ifdef UNICODE
-    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(ToStr(module_name).c_str(), load_flag)
-#else
+    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name.c_str(), RTLD_LAZY | RTLD_LOCAL)
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
-#endif
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
 #endif

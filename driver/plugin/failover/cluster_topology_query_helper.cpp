@@ -27,9 +27,9 @@ ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
     const std::shared_ptr<RdsLibLoader> &lib_loader,
     const int port,
     std::string endpoint_template,
-    RDS_STR topology_query,
-    RDS_STR writer_id_query,
-    RDS_STR node_id_query)
+    std::string topology_query,
+    std::string writer_id_query,
+    std::string node_id_query)
     : lib_loader_{ lib_loader },
       port{ port },
       endpoint_template_{ std::move(endpoint_template) },
@@ -56,7 +56,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(writer_id_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(writer_id_query_), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
@@ -72,7 +72,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
         );
     }
 
-    return ToStr(AS_RDS_CHAR(writer_id));
+    return AS_UTF8_CSTR(writer_id);
 }
 
 std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
@@ -97,7 +97,7 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(topology_query_.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(topology_query_), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
@@ -146,7 +146,7 @@ HostInfo ClusterTopologyQueryHelper::CreateHost(
 std::string ClusterTopologyQueryHelper::GetEndpoint(SQLTCHAR* node_id)
 {
     std::string res(endpoint_template_);
-    const std::string node_id_str = ToStr(AS_RDS_CHAR(node_id));
+    const std::string node_id_str = AS_UTF8_CSTR(node_id);
 
     if (const size_t pos = res.find(REPLACE_CHAR); pos != std::string::npos) {
         res.replace(pos, 1, node_id_str);

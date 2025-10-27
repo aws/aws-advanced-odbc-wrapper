@@ -58,10 +58,20 @@ SQLRETURN BasePlugin::Connect(
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
-    RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
-    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
+    std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
+    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
+
+    SQLTCHAR *conn_in_sqltchar;
+#if UNICODE
+    std::vector<unsigned short> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
+    unsigned short *conn_in_ushort = conn_in_vec.data();
+
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));
+#else
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
+#endif
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
-        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
     if (res.fn_load_success) {
@@ -100,7 +110,7 @@ SQLRETURN BasePlugin::Execute(
     STMT* stmt = (STMT*) StatementHandle;
     DBC* dbc = stmt->dbc;
     ENV* env = dbc->env;
-    RDS_STR query = StatementText ? AS_RDS_STR(StatementText) : AS_RDS_STR("");
+    RDS_STR query = StatementText ? AS_UTF8_CSTR(StatementText) : "";
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
@@ -121,7 +131,7 @@ SQLRETURN BasePlugin::Execute(
         // Cursor Name
         RDS_STR cursor_name = stmt->cursor_name;
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
-            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name.c_str()), cursor_name.length()
+            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );
     }
 

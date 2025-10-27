@@ -45,7 +45,7 @@ FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode f
     std::map<RDS_STR, RDS_STR> &conn_info = dbc->conn_attr;
 
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
-        std::chrono::milliseconds(std::strtol(ToStr(conn_info.at(KEY_FAILOVER_TIMEOUT)).c_str(), nullptr, 10))
+        std::chrono::milliseconds(std::strtol(conn_info.at(KEY_FAILOVER_TIMEOUT).c_str(), nullptr, 10))
         : DEFAULT_FAILOVER_TIMEOUT_MS;
     this->cluster_id_ = InitClusterId(conn_info);
     this->failover_mode_ = failover_mode != FailoverMode::UNKNOWN_FAILOVER_MODE ? failover_mode : InitFailoverMode(conn_info);
@@ -104,7 +104,7 @@ SQLRETURN FailoverPlugin::Execute(
     SQLINTEGER native_error;
     SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 }, message[MAX_MSG_LENGTH] = { 0 };
     RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
-    if (!CheckShouldFailover(AS_RDS_CHAR(sql_state))) {
+    if (!CheckShouldFailover(AS_UTF8_CSTR(sql_state))) {
         return ret;
     }
 
@@ -112,7 +112,7 @@ SQLRETURN FailoverPlugin::Execute(
     for (STMT* stmt : dbc->stmt_list) {
         stmt->wrapped_stmt = nullptr;
         delete stmt->err;
-        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);;
+        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
     }
     // and descriptors
     for (DESC* desc : dbc->desc_list) {
@@ -151,7 +151,7 @@ SQLRETURN FailoverPlugin::Execute(
     return ret;
 }
 
-bool FailoverPlugin::CheckShouldFailover(RDS_CHAR* sql_state)
+bool FailoverPlugin::CheckShouldFailover(const RDS_CHAR* sql_state)
 {
     // Check if the SQL State is related to a communication error
     bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);
@@ -343,7 +343,7 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
         dbc->wrapped_dbc
     );
     LOG(INFO) << "Attempting to connect to host: " << host_string;
-    dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_string));
+    dbc->conn_attr.insert_or_assign(KEY_SERVER, host_string);
 
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
@@ -352,14 +352,14 @@ std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info)
 {
     std::string generated_id;
     if (conn_info.contains(KEY_CLUSTER_ID)) {
-        generated_id = ToStr(conn_info.at(KEY_CLUSTER_ID));
+        generated_id = conn_info.at(KEY_CLUSTER_ID);
     } else {
-        generated_id = RdsUtils::GetRdsClusterId(ToStr(conn_info.at(KEY_SERVER)));
+        generated_id = RdsUtils::GetRdsClusterId(conn_info.at(KEY_SERVER));
         if (generated_id.empty()) {
             generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         }
         LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        conn_info.insert_or_assign(KEY_CLUSTER_ID, ToRdsStr(generated_id));
+        conn_info.insert_or_assign(KEY_CLUSTER_ID, generated_id);
     }
     return generated_id;
 }
@@ -369,14 +369,14 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_i
     FailoverMode mode = UNKNOWN_FAILOVER_MODE;
     if (conn_info.contains(KEY_FAILOVER_MODE)) {
         RDS_STR local_str = conn_info.at(KEY_FAILOVER_MODE);
-        RDS_STR_UPPER(local_str);
-        if (failover_mode_table.contains(local_str)) {
-            mode = failover_mode_table.at(local_str);
+        std::string local_str_upper = RDS_STR_UPPER(local_str);
+        if (failover_mode_table.contains(local_str_upper)) {
+            mode = failover_mode_table.at(local_str_upper);
         }
     }
 
     if (mode == UNKNOWN_FAILOVER_MODE) {
-        std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
+        std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
         mode = RdsUtils::IsRdsReaderClusterDns(host) ? READER_OR_WRITER : STRICT_WRITER;
     }
 
@@ -406,14 +406,14 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC 
 {
     std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
 
-    std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? ToStr(conn_info.at(KEY_ENDPOINT_TEMPLATE)) : "";
-    std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
+    std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? conn_info.at(KEY_ENDPOINT_TEMPLATE) : "";
+    std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
     if (endpoint_template.empty()) {
         endpoint_template = RdsUtils::GetRdsInstanceHostPattern(host);
     }
 
     int port = conn_info.contains(KEY_PORT) ?
-        std::strtol(ToStr(conn_info.at(KEY_PORT)).c_str(), nullptr, 10) :
+        std::strtol(conn_info.at(KEY_PORT).c_str(), nullptr, 10) :
         dialect_->GetDefaultPort();
 
     return std::make_shared<ClusterTopologyQueryHelper>(

@@ -42,9 +42,9 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) :
+            dbc->conn_attr.at(KEY_REGION) :
             dbc->conn_attr.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+                RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER)) :
                 Aws::Region::US_EAST_1;
         std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
@@ -68,20 +68,20 @@ SQLRETURN OktaAuthPlugin::Connect(
     DBC* dbc = (DBC*) ConnectionHandle;
 
     std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
-        ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
+        dbc->conn_attr.at(KEY_SERVER) : "";
     std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
-        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
+        dbc->conn_attr.at(KEY_IAM_HOST) : server;
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) :
+        dbc->conn_attr.at(KEY_REGION) :
         dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
+            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER)) :
             Aws::Region::US_EAST_1;
     std::string port = dbc->conn_attr.contains(KEY_PORT) ?
-        ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
+        dbc->conn_attr.at(KEY_PORT) : "";
     std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
-        ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
+        dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+        std::chrono::milliseconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
     bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
@@ -90,7 +90,7 @@ SQLRETURN OktaAuthPlugin::Connect(
 
     SQLRETURN ret = SQL_ERROR;
 
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
@@ -102,7 +102,7 @@ SQLRETURN OktaAuthPlugin::Connect(
         auth_provider->UpdateAwsCredential(credentials);
         //  and retry without cache
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
@@ -119,7 +119,7 @@ OktaSamlUtil::OktaSamlUtil(
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
     std::string app_id = connection_attributes.contains(KEY_APP_ID) ?
-        ToStr(connection_attributes.at(KEY_APP_ID)) : "";
+        connection_attributes.at(KEY_APP_ID) : "";
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
     session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
 }

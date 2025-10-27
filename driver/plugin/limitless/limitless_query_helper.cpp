@@ -55,7 +55,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     );
 
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-        stmt, AS_SQLTCHAR(limitless_router_endpoint_query.c_str()), SQL_NTS
+        stmt, AS_SQLTCHAR(limitless_router_endpoint_query), SQL_NTS
     );
 
     std::vector<HostInfo> limitless_routers;
@@ -73,15 +73,15 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
 }
 
 HostInfo LimitlessQueryHelper::create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
-    const double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
+    const double load_num = std::strtod(AS_UTF8_CSTR(load), nullptr);
     int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
 
     if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
         weight = MIN_WEIGHT;
-        LOG(WARNING) << "Invalid router load of " << reinterpret_cast<char *>(load) << " for " << reinterpret_cast<char *>(router_endpoint);
+        LOG(WARNING) << "Invalid router load of " << AS_UTF8_CSTR(load) << " for " << AS_UTF8_CSTR(router_endpoint);
     }
 
-    std::string router_endpoint_str(reinterpret_cast<const char *>(router_endpoint));
+    std::string router_endpoint_str(AS_UTF8_CSTR(router_endpoint));
 
     return HostInfo(
         router_endpoint_str,

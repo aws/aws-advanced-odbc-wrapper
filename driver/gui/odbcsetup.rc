@@ -39,18 +39,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include ""winres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "\r\n"
     "\0"
@@ -65,8 +65,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION 1,0,0
+ PRODUCTVERSION 1,0,0
  FILEFLAGSMASK 0x3L
 #ifdef _DEBUG
  FILEFLAGS 0x9L
@@ -84,13 +84,13 @@ BEGIN
             VALUE "Comments", "AWS Advanced ODBC Wrapper"
             VALUE "CompanyName", "Amazon.com Inc. or affiliates."
             VALUE "FileDescription", "AWS Advanced ODBC Wrapper"
-            VALUE "FileVersion", "1.0.0.0"
+            VALUE "FileVersion", "1.0.0"
             VALUE "InternalName", "aws-advanced-odbc-wrapper-a"
             VALUE "LegalCopyright", "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "aws-advanced-odbc-wrapper-a.dll"
             VALUE "ProductName", "AWS Advanced ODBC Wrapper"
-            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "ProductVersion", "1.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -319,4 +319,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
