@@ -19,7 +19,7 @@ $CURRENT_DIR = (Get-Location).Path
 # Build Driver
 Set-Location ${PSScriptRoot}/.. # Project Root
 Write-Host "Building Driver"
-cmake -S . -B build -DBUILD_ANSI=ON -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF
+cmake -S . -B build -DBUILD_ANSI=ON -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE="$CONFIGURATION"
 cmake --build build --config $CONFIGURATION
 Write-Host "Built Driver"
 

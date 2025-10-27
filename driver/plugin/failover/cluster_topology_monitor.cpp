@@ -36,27 +36,27 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
       dialect_{ dialect }
 {
     if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
-        cluster_id_ = ToStr(connection_attributes_.at(KEY_CLUSTER_ID));
+        cluster_id_ = connection_attributes_.at(KEY_CLUSTER_ID);
     } else {
-        std::string generated_id = RdsUtils::GetRdsClusterId(ToStr(connection_attributes_.at(KEY_SERVER)));
+        std::string generated_id = RdsUtils::GetRdsClusterId(connection_attributes_.at(KEY_SERVER));
         if (generated_id.empty()) {
             generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         }
         LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, ToRdsStr(generated_id));
+        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, generated_id);
         cluster_id_ = generated_id;
     }
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST).c_str(), nullptr, 0));
     }
     if (connection_attributes_.contains(KEY_HIGH_REFRESH_RATE)) {
         high_refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_HIGH_REFRESH_RATE)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_HIGH_REFRESH_RATE).c_str(), nullptr, 0));
     }
     if (connection_attributes_.contains(KEY_REFRESH_RATE)) {
         refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_REFRESH_RATE)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_REFRESH_RATE).c_str(), nullptr, 0));
     }
 
     // Create ENV local to cluster topology monitor
@@ -246,10 +246,9 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     request_update_topology_cv_.notify_one();
 }
 
-RDS_STR ClusterTopologyMonitor::ConnForHost(const std::string& new_host) const {
-    const RDS_STR new_host_str = ToRdsStr(new_host);
-    std::map<RDS_STR, RDS_STR> conn_map(connection_attributes_);
-    conn_map.insert_or_assign(KEY_SERVER, new_host_str);
+std::string ClusterTopologyMonitor::ConnForHost(const std::string& new_host) const {
+    std::map<std::string, std::string> conn_map(connection_attributes_);
+    conn_map.insert_or_assign(KEY_SERVER, new_host);
     return ConnectionStringHelper::BuildFullConnectionString(conn_map);
 }
 
@@ -290,7 +289,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
                 const std::lock_guard host_info_lock(node_threads_writer_hdbc_mutex_);
-                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id.c_str()), true, 0, 0));
+                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id), true, 0, 0));
             }
         } else {
             // Connection already set, close local HDBC

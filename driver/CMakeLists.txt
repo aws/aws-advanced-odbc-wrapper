@@ -235,3 +235,16 @@ foreach(target ${COMPILE_FILE_NAME_UNICODE} ${COMPILE_FILE_NAME_ANSI})
         target_link_libraries(${target}-static PRIVATE ${EXTERNAL_LIBRARIES})
     endif()
 endforeach()
+
+# Copy ICU for Windows Builds ------------------------------------------------------------------------------------
+if(WIN32)
+    string(REGEX MATCH "^[0-9]+" ICU_MAJOR ${ICU_VERSION})
+    set(THIRD_PARTY_DLL
+        ${ICU_ROOT}/bin64/icuuc${ICU_MAJOR}.dll
+        ${ICU_ROOT}/bin64/icudt${ICU_MAJOR}.dll
+    )
+    foreach(dll_path IN LISTS THIRD_PARTY_DLL)
+        message("Copying File ${dll_path}")
+        file(COPY ${dll_path} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    endforeach()
+endif()

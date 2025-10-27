@@ -26,7 +26,7 @@ typedef enum {
     UNKNOWN_DIALECT
 } DatabaseDialectType;
 
-static std::map<RDS_STR, DatabaseDialectType> const database_dialect_table = {
+static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL,    DatabaseDialectType::AURORA_POSTGRESQL},
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,    DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS}
 };
@@ -34,19 +34,19 @@ static std::map<RDS_STR, DatabaseDialectType> const database_dialect_table = {
 class Dialect {
 public:
     virtual int GetDefaultPort() { return 0; };
-    virtual RDS_STR GetTopologyQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetWriterIdQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetNodeIdQuery() { return AS_RDS_STR(TEXT("")); };
-    virtual RDS_STR GetIsReaderQuery() { return AS_RDS_STR(TEXT("")); };
+    virtual std::string GetTopologyQuery() { return ""; };
+    virtual std::string GetWriterIdQuery() { return ""; };
+    virtual std::string GetNodeIdQuery() { return ""; };
+    virtual std::string GetIsReaderQuery() { return ""; };
 
-    virtual bool IsSqlStateAccessError(RDS_CHAR* sql_state) { return false; };
-    virtual bool IsSqlStateNetworkError(RDS_CHAR* sql_state) { return false; };
+    virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
+    virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
-    static DatabaseDialectType DatabaseDialectFromString(const RDS_STR &database_dialect) {
-        RDS_STR local_str = database_dialect;
-        RDS_STR_UPPER(local_str);
-        if (database_dialect_table.contains(local_str)) {
-            return database_dialect_table.at(local_str);
+    static DatabaseDialectType DatabaseDialectFromString(const std::string &database_dialect) {
+        std::string local_str = database_dialect;
+        std::string upper_local_str = RDS_STR_UPPER(local_str);
+        if (database_dialect_table.contains(upper_local_str)) {
+            return database_dialect_table.at(upper_local_str);
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }
@@ -54,7 +54,7 @@ public:
 
 class DialectLimitless : virtual public Dialect {
 public:
-    virtual RDS_STR GetLimitlessRouterEndpointQuery() { return AS_RDS_STR(TEXT("")); };
+    virtual std::string GetLimitlessRouterEndpointQuery() { return ""; };
 };
 
 #endif // DIALECT_H
