@@ -16,20 +16,21 @@
 
 #include "connection_string_keys.h"
 #include "odbc_dsn_helper.h"
+#include "unicode/ucasemap.h"
+#include "unicode/utypes.h"
 
-void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map)
+void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map)
 {
-    const RDS_REGEX pattern(TEXT("([^;=]+)=([^;]+)"));
+    const RDS_REGEX pattern("([^;=]+)=([^;]+)");
     RDS_MATCH match;
     RDS_STR conn_str_itr = conn_str;
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
         RDS_STR key = match[1].str();
-        RDS_STR_UPPER(key);
         const RDS_STR val = match[2].str();
 
         // Connection String takes precedence
-        conn_map.insert_or_assign(key, val);
+        conn_map.insert_or_assign(RDS_STR_UPPER(key), val);
         conn_str_itr = match.suffix().str();
     }
 }
@@ -40,25 +41,25 @@ RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_
     for (const auto& e : conn_map) {
         if (!IsAwsOdbcKey(e.first)) {
             if (conn_stream.tellp() > 0) {
-                conn_stream << TEXT(";");
+                conn_stream << ";";
             }
 
-            conn_stream << e.first << TEXT("=") << e.second;
+            conn_stream << e.first << "=" << e.second;
         }
     }
 
     return conn_stream.str();
 }
 
-RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)
+std::string ConnectionStringHelper::BuildFullConnectionString(const std::map<std::string, std::string> &conn_map)
 {
-    RDS_STR_STREAM conn_stream;
+    std::ostringstream conn_stream;
     for (const auto& e : conn_map) {
         if (conn_stream.tellp() > 0) {
-            conn_stream << TEXT(";");
+            conn_stream << ";";
         }
 
-        conn_stream << e.first << TEXT("=") << e.second;
+        conn_stream << e.first << "=" << e.second;
     }
     return conn_stream.str();
 }
@@ -67,8 +68,8 @@ RDS_STR ConnectionStringHelper::MaskSensitiveInformation(const RDS_STR &conn_str
 {
     RDS_STR result(conn_str);
     for (const RDS_STR& key : sensitive_key_set) {
-        const RDS_REGEX pattern(TEXT("(") + key + TEXT("=)([^;]+)"));
-        result = std::regex_replace(result, pattern, TEXT("$1[REDACTED]"));
+        const RDS_REGEX pattern("(" + key + "=)([^;]+)");
+        result = std::regex_replace(result, pattern, "$1[REDACTED]");
     }
     return result;
 }

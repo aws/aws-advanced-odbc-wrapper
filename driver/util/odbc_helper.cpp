@@ -45,7 +45,7 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(node_id_query.c_str()), SQL_NTS
+            stmt, AS_SQLTCHAR(node_id_query), SQL_NTS
         );
 
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
@@ -61,5 +61,5 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
         );
     }
 
-    return ToStr(AS_RDS_CHAR(node_id));
+    return AS_UTF8_CSTR(node_id);
 }

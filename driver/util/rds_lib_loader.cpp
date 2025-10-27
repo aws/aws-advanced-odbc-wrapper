@@ -36,7 +36,7 @@ RDS_STR RdsLibLoader::GetDriverPath()
 
 FUNC_HANDLE RdsLibLoader::GetFunction(const RDS_STR &func_name)
 {
-    const std::string converted_function_name = ToStr(func_name);
+    const std::string converted_function_name = func_name;
     const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, converted_function_name.c_str());
     if (driver_function) {
         const std::unique_lock lock(cache_lock);

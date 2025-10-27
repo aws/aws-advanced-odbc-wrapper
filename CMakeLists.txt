@@ -72,9 +72,6 @@ else(WIN32)
                 ODBC_ROOT
             REQUIRED
         )
-        add_compile_definitions(
-            SQL_WCHART_CONVERT # Use `wchar_t` instead of `unsigned short`
-        )
     endif()
     list(APPEND EXTERNAL_LIBRARIES ${ODBC_INST_LIB})
 endif()
@@ -90,6 +87,29 @@ set(BUILD_EXAMPLES OFF)
 set(BUILD_SHARED_LIBS OFF)
 FetchContent_MakeAvailable(ng-log)
 list(APPEND EXTERNAL_LIBRARIES ng-log::ng-log)
+
+# ICU
+if(APPLE)
+    set(ICU_ROOT /opt/homebrew/opt/icu4c)
+elseif(WIN32)
+    file(DOWNLOAD
+        https://github.com/unicode-org/icu/releases/download/release-77-1/icu4c-77_1-Win64-MSVC2022.zip
+        ${CMAKE_BINARY_DIR}/download/icu.zip
+        EXPECTED_MD5    3CF24C1FD6B6B8931A6020EB8AF3E724
+        SHOW_PROGRESS
+    )
+    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/download/icu.zip
+        DESTINATION ${CMAKE_BINARY_DIR}/external/icu
+    )
+    set(ICU_ROOT ${CMAKE_BINARY_DIR}/external/icu)
+endif()
+
+find_package(ICU REQUIRED COMPONENTS i18n io uc)
+list(APPEND EXTERNAL_LIBRARIES
+    ICU::i18n
+    ICU::io
+    ICU::uc
+)
 
 # Build Driver -----------------------------------------------------------------------------------------------
 add_subdirectory(driver)

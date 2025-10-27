@@ -63,7 +63,7 @@ protected:
     void DelayMainThread(bool use_high_refresh_rate);
     std::vector<HostInfo> FetchTopologyUpdateCache(SQLHDBC hdbc);
     void UpdateTopologyCache(const std::vector<HostInfo>& hosts);
-    RDS_STR ConnForHost(const std::string& new_host) const;
+    std::string ConnForHost(const std::string& new_host) const;
 
 private:
     class NodeMonitoringThread;

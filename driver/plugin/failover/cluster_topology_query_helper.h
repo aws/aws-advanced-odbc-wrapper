@@ -29,7 +29,7 @@
 
 class ClusterTopologyQueryHelper {
 public:
-    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, RDS_STR topology_query, RDS_STR writer_id_query, RDS_STR node_id_query);
+    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, std::string topology_query, std::string writer_id_query, std::string node_id_query);
     virtual std::string GetWriterId(SQLHDBC hdbc);
     virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc);
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLINTEGER replica_lag_ms);
@@ -40,9 +40,9 @@ private:
     const int port;
 
     std::string endpoint_template_;
-    RDS_STR topology_query_;
-    RDS_STR writer_id_query_;
-    RDS_STR node_id_query_;
+    std::string topology_query_;
+    std::string writer_id_query_;
+    std::string node_id_query_;
 
     static constexpr char REPLACE_CHAR = '?';
 

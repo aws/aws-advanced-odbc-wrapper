@@ -402,7 +402,7 @@ void TestConnection(HWND hwnd)
     SQLRETURN ret = RDS_SQLDriverConnect(
         hdbc,
         nullptr,
-        AS_SQLTCHAR(test_conn_str.c_str()),
+        AS_SQLTCHAR(test_conn_str),
         RDS_STR_LEN(test_conn_str.c_str()),
         0,
         MAX_KEY_SIZE,

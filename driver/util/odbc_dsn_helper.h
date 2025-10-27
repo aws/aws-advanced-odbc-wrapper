@@ -21,8 +21,8 @@
 
 #define MAX_KEY_SIZE 8192
 #define MAX_VAL_SIZE 8192
-#define ODBC_INI TEXT("ODBC.INI")
-#define ODBCINST_INI TEXT("ODBCINST.INI")
+#define ODBC_INI "ODBC.INI"
+#define ODBCINST_INI "ODBCINST.INI"
 
 namespace OdbcDsnHelper {
     void LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map);

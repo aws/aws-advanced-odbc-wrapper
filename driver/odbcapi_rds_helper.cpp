@@ -44,36 +44,40 @@ SQLRETURN RDS_ProcessLibRes(
     const RdsLibResult& LibResult)
 {
     if (!LibResult.fn_load_success) {
+        ERR_INFO* new_err = new ERR_INFO(
+            ("Underlying driver failed to load/execute: " + LibResult.fn_name).c_str(),
+            ERR_NO_UNDER_LYING_FUNCTION);
         switch (HandleType) {
             case SQL_HANDLE_ENV:
                 {
                     ENV *env = static_cast<ENV*>(InputHandle);
                     delete env->err;
-                    env->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
+                    env->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DBC:
                 {
                     DBC *dbc = static_cast<DBC*>(InputHandle);
                     delete dbc->err;
-                    dbc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
+                    dbc->err = new_err;
                     break;
                 }
             case SQL_HANDLE_STMT:
                 {
                     STMT *stmt = static_cast<STMT*>(InputHandle);
                     delete stmt->err;
-                    stmt->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
+                    stmt->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DESC:
                 {
                     DESC *desc = static_cast<DESC*>(InputHandle);
                     delete desc->err;
-                    desc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
+                    desc->err = new_err;
                     break;
                 }
             default:
+                delete new_err;
                 return SQL_INVALID_HANDLE;
                 break;
         }
@@ -408,7 +412,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
             *(static_cast<SQLUINTEGER*>(ValuePtr)) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            RDS_sprintf(static_cast<RDS_CHAR*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(value_pair.first));
+            RDS_sprintf(static_cast<RDS_CHAR*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, value_pair.first);
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -672,6 +676,7 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
+    std::string conn_str_utf8;
     char conn_str[MAX_KEY_SIZE] = {0};
     char out_conn_str[MAX_KEY_SIZE] = {0};
     if (DriverCompletion && WindowHandle) {
@@ -698,10 +703,15 @@ SQLRETURN RDS_SQLDriverConnect(
             return SQL_NO_DATA_FOUND;
         }
 
+        conn_str_utf8 = conn_str;
 #endif
     } else {
-        RDS_sprintf(reinterpret_cast<RDS_CHAR*>(conn_str), MAX_KEY_SIZE, RDS_CHAR_FORMAT, reinterpret_cast<RDS_CHAR*>(InConnectionString));
-        RDS_sprintf(reinterpret_cast<RDS_CHAR*>(out_conn_str), MAX_KEY_SIZE, RDS_CHAR_FORMAT, reinterpret_cast<RDS_CHAR*>(InConnectionString));
+#ifdef UNICODE
+        icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
+        unicode_str.toUTF8String(conn_str_utf8);
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
+#endif
     }
 
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
@@ -720,8 +730,7 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    const size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(conn_str)) : StringLength1;
-    ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(conn_str, load_len), dbc->conn_attr);
+    ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {
@@ -729,13 +738,13 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     ret = RDS_InitializeConnection(dbc);
-
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
 
+    // Update OutConnectionString with parsed values
 #ifndef UNICODE
     if (OutConnectionString && StringLength2Ptr) {
         const SQLULEN len = RDS_STR_LEN(out_conn_str);
@@ -901,7 +910,7 @@ SQLRETURN RDS_SQLGetCursorName(
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     } else {
         if (stmt->cursor_name.empty()) {
-            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR(TEXT("CUR_")), stmt->dbc->unnamed_cursor_count++);
+            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR("CUR_"), stmt->dbc->unnamed_cursor_count++);
         }
         const RDS_STR name = stmt->cursor_name;
         const SQLULEN len = name.length();
@@ -1095,10 +1104,10 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        if (err->sqlstate != nullptr && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M') {
-                            char_value = TEXT("ODBC 3.0");
-                        } else {
-                            char_value = TEXT("ISO 9075");
+                        if (err->sqlstate != nullptr && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
+                            char_value = "ODBC 3.0";
+                        else {
+                            char_value = "ISO 9075";
                         }
                     }
                     break;
@@ -1168,9 +1177,9 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     }
                     if (err->is_odbc3_subclass) {
-                        char_value = TEXT("ODBC 3.0");
+                        char_value = "ODBC 3.0";
                     } else {
-                        char_value = TEXT("ISO 9075");
+                        char_value = "ISO 9075";
                     }
                     break;
                 }
@@ -1313,7 +1322,11 @@ SQLRETURN RDS_SQLGetDiagRec(
 
         ret = SQL_SUCCESS;
         if (SQLState) {
-            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, err->sqlstate);
+#else
+            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+#endif
         }
         const SQLLEN err_len = err->error_msg != nullptr ? static_cast<SQLLEN>(strlen(err->error_msg)) : 0;
         if (TextLengthPtr) {
@@ -1325,7 +1338,11 @@ SQLRETURN RDS_SQLGetDiagRec(
             }
         }
         if (MessageText && (BufferLength > 0)) {
-            const SQLLEN written = RDS_sprintf(reinterpret_cast<RDS_CHAR*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#ifdef UNICODE
+            const SQLLEN written = CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, (size_t) BufferLength / sizeof(unsigned short), err->error_msg);
+#else
+            const SQLLEN written = RDS_sprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+#endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1341,10 +1358,14 @@ SQLRETURN RDS_SQLGetDiagRec(
         // No Data from wrapper or underlying driver
         //  Set states and clear buffers
         if (SQLState) {
-            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
+#else
+            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+#endif
         }
         if (MessageText) {
-            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(MessageText), 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            MessageText[0] = '\0';
         }
         if (NativeErrorPtr) {
             *NativeErrorPtr = static_cast<SQLINTEGER>(NO_DATA_NATIVE_ERR);
@@ -1368,7 +1389,7 @@ SQLRETURN RDS_SQLGetInfo(
     SQLRETURN ret = SQL_ERROR;
     SQLULEN len = sizeof(SQLSMALLINT);
     SQLULEN value = 0;
-    RDS_CHAR* char_value = nullptr;
+    const RDS_CHAR* char_value = nullptr;
     RDS_CHAR odbcver[ODBC_VER_SiZE];
 
     // Query underlying driver if connection is established
@@ -1378,38 +1399,50 @@ SQLRETURN RDS_SQLGetInfo(
         return SQL_INVALID_HANDLE;
     }
 
-    {
-        const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-        if (dbc->wrapped_dbc) {
-            const ENV* env = dbc->env;
-            CLEAR_DBC_ERROR(dbc);
-            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
-                dbc->wrapped_dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr
-            );
-            return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-        }
+    // Naming and version for Wrapper
+    switch (InfoType) {
+        case SQL_DRIVER_NAME:
+            char_value = DRIVER_NAME;
+            break;
+        case SQL_DRIVER_VER:
+            char_value = DRIVER_VERSION;
+            break;
     }
 
-    // Get info for shell driver
-    switch (InfoType) {
-        case SQL_DRIVER_ODBC_VER:
-            RDS_sprintf(odbcver, ODBC_VER_SiZE, TEXT("%02x.%02x"), ODBCVER / 256, ODBCVER % 256);
-            char_value = odbcver;
-            break;
-        case SQL_MAX_CONCURRENT_ACTIVITIES:
-            value = 1;
-            break;
-        case SQL_ASYNC_DBC_FUNCTIONS:
-        case SQL_ASYNC_NOTIFICATION:
-            value = 0; // Not supported. These are from ODBC 3.8+
-            break;
-        // TODO - Add other cases as needed
-        default:
-            LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
+    if (!char_value) {
+        {
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-            CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-            NOT_IMPLEMENTED;
+            if (dbc->wrapped_dbc) {
+                ENV* env = (ENV*) dbc->env;
+                CLEAR_DBC_ERROR(dbc);
+                const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
+                    dbc->wrapped_dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr
+                );
+                return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+            }
+        }
+
+        // Get info for shell driver
+        switch (InfoType) {
+            case SQL_DRIVER_ODBC_VER:
+                RDS_sprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
+                char_value = odbcver;
+                break;
+            case SQL_MAX_CONCURRENT_ACTIVITIES:
+                value = 0; // No Limit
+                break;
+            case SQL_ASYNC_DBC_FUNCTIONS:
+            case SQL_ASYNC_NOTIFICATION:
+                value = 1; // "Supported"
+                break;
+            // TODO - Add other cases as needed
+            default:
+                LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
+                std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                CLEAR_DBC_ERROR(dbc);
+                dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+                NOT_IMPLEMENTED;
+        }
     }
     ret = SQL_SUCCESS;
 
@@ -1417,7 +1450,11 @@ SQLRETURN RDS_SQLGetInfo(
     if (char_value) {
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
-            RDS_sprintf(static_cast<RDS_CHAR*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value));
+#ifdef UNICODE
+            CopyUTF8ToUTF16Buffer((unsigned short*)InfoValuePtr, BufferLength / sizeof(unsigned short), char_value);
+#else
+            RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+#endif
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1808,7 +1845,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         CLEAR_DBC_ERROR(dbc);
         std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
         for (const RDS_STR& msg : invalid_params) {
-            invalid_message += ToStr(msg);
+            invalid_message += msg;
             invalid_message += "\n\t";
         }
         dbc->err = new ERR_INFO(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);

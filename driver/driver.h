@@ -19,6 +19,34 @@
     #define ODBCVER 0x0380
 #endif
 
+#define DRIVER_VERSION "1.0.0"
+
+#if WIN32
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dll"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dll"
+     #endif
+#elif __APPLE__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dylib"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dylib"
+     #endif
+#elif __linux__ || __unix__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.so"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.so"
+     #endif
+#else
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a"
+     #endif
+#endif
+
 #ifdef WIN32
     #include <windows.h>
 #endif
@@ -40,7 +68,7 @@
 #include "util/rds_strings.h"
 
 /* Const Lengths */
-#define NO_DATA_SQL_STATE     TEXT("00000")
+#define NO_DATA_SQL_STATE     "00000"
 #define NO_DATA_NATIVE_ERR    0
 #define MAX_SQL_STATE_LEN     6
 #define ODBC_VER_SiZE         16
@@ -98,7 +126,7 @@ struct DBC {
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
-    std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
+    std::map<std::string, std::string>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head;
     ERR_INFO*                   err;
     char                        sql_error_called = 0;
