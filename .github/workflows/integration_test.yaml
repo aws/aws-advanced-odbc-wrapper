@@ -235,30 +235,30 @@ jobs:
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Install Ansi DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
-      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
-      # - name: Install Unicode DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
-      #         -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+       - name: Install Ansi DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+               -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+       - name: Install Unicode DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
+               -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -277,24 +277,24 @@ jobs:
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: '5432'
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: pwsh
@@ -462,33 +462,33 @@ jobs:
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
-      #       -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-      #       -DTEST_PORT="5432" \
-      #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
-      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
-      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     ./build_unicode/integration-test
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
-      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
+             -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+             -DTEST_PORT="5432" \
+             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           ./build_unicode/integration-test
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
+           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash
@@ -647,33 +647,33 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
-      #       -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-      #       -DTEST_PORT="5432" \
-      #       -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
-      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
-      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     ./build_unicode/integration-test
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
-      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
+             -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+             -DTEST_PORT="5432" \
+             -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
+             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           ./build_unicode/integration-test
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
+           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash
@@ -811,30 +811,30 @@ jobs:
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Install Ansi DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
-      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
-      # - name: Install Unicode DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
-      #         -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+       - name: Install Ansi DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+               -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+       - name: Install Unicode DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
+               -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -853,24 +853,24 @@ jobs:
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
           TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
           TEST_PORT: '5432'
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: pwsh
@@ -1039,32 +1039,32 @@ jobs:
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-      #       -DTEST_PORT="5432" \
-      #       -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
-      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     ./build_unicode/integration-test
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
-      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+             -DTEST_PORT="5432" \
+             -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
+             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           ./build_unicode/integration-test
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
+           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash
@@ -1224,32 +1224,32 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-      #       -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-      #       -DTEST_PORT="5432" \
-      #       -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-      #       -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-      #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
-      #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     ./build_unicode/integration-test
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
-      #     ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-      #     ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+       - name: Build and Run Unicode Integration Tests
+         shell: pwsh
+         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+         run: |
+           cmake -S test/integration -B build_unicode \
+             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+             -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+             -DTEST_PORT="5432" \
+             -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
+             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
+             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+           ./build_unicode/integration-test
+         env:
+           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
+           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+           TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
+           TEST_PORT: '5432'
+           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash
