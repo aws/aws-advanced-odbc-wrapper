@@ -235,30 +235,30 @@ jobs:
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
           reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Install Ansi DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
-      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
-      # - name: Install Unicode DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
-      #         -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+       - name: Install Ansi DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+               -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+       - name: Install Unicode DSNs
+         shell: pwsh
+         run: |
+             Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
+               -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+               -DsnType User `
+               -SetPropertyValue `
+               @("RDS_AUTH_TYPE=database", `
+               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+               "Port=5432", `
+               "SSLMode=prefer", `
+               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
