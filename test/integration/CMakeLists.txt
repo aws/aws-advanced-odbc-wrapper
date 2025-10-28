@@ -34,6 +34,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transactions_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
 )
 
