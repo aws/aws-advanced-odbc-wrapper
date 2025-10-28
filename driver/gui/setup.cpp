@@ -886,6 +886,13 @@ std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND h
     disable_optional = complete_required;
     std::string converted_str = reinterpret_cast<char*>(InConnectionString);
 
+    // Check if current_dsn or driver has already been set.
+    // This could happen if another connection has already been established.
+    if (!current_dsn.empty()) {
+        return { converted_str, converted_str, false };
+    }
+
+    // This is the initial connection.
     // Check if SAVEFILE is specified.
     GetSaveFileFromConnectionString(converted_str, hwnd);
     GetDriverFromConnectionString(converted_str, hwnd);
