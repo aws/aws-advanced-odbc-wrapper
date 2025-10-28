@@ -906,7 +906,7 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'windows-integration-test-logs'
+          name: 'windows-limitless-integration-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
           retention-days: 3
 
@@ -1097,7 +1097,7 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'mac-integration-test-logs'
+          name: 'mac-limitless-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 3
 
@@ -1279,6 +1279,6 @@ jobs:
       - name: Archive log results
         uses: actions/upload-artifact@v4
         with:
-          name: 'linux-integration-test-logs'
+          name: 'linux-limitless-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
           retention-days: 3

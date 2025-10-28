@@ -208,9 +208,12 @@ SQLRETURN RDS_SQLEndTran(
 
                 CHECK_WRAPPED_DBC(dbc);
                 res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLEndTran, RDS_STR_SQLEndTran,
-                    HandleType, env->wrapped_env, CompletionType
+                    HandleType, dbc->wrapped_dbc, CompletionType
                 );
                 ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                if (SQL_SUCCEEDED(ret) && dbc) {
+                    dbc->transaction_status = TRANSACTION_CLOSED;
+                }
             }
             break;
         case SQL_HANDLE_ENV:
@@ -231,18 +234,22 @@ SQLRETURN RDS_SQLEndTran(
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLEndTran, RDS_STR_SQLEndTran,
                         SQL_HANDLE_DBC, dbc->wrapped_dbc, CompletionType
                     );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                    if (SQL_SUCCEEDED(ret) && dbc) {
+                        dbc->transaction_status = TRANSACTION_CLOSED;
+                    }
                 }
+
+                res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLEndTran, RDS_STR_SQLEndTran,
+                    HandleType, env->wrapped_env, CompletionType
+                );
+                ret = RDS_ProcessLibRes(HandleType, env, res);
             }
             break;
         default:
             // TODO - Set error
             ret = SQL_ERROR;
             break;
-    }
-
-    if (SQL_SUCCEEDED(ret) && dbc) {
-        dbc->transaction_status = TRANSACTION_CLOSED;
     }
     return ret;
 }
@@ -1394,11 +1401,11 @@ SQLRETURN RDS_SQLGetInfo(
             char_value = odbcver;
             break;
         case SQL_MAX_CONCURRENT_ACTIVITIES:
-            value = 0; // No Limit
+            value = 1;
             break;
         case SQL_ASYNC_DBC_FUNCTIONS:
         case SQL_ASYNC_NOTIFICATION:
-            value = 1; // "Supported"
+            value = 0; // Not supported. These are from ODBC 3.8+
             break;
         // TODO - Add other cases as needed
         default:
