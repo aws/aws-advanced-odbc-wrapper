@@ -24,10 +24,7 @@
 #include <atomic>
 #include <chrono>
 #include <future>
-#include <iostream>
 #include <string>
-#include <thread>
-#include <vector>
 
 #include "../common/connection_string_builder.h"
 #include "integration_test_utils.h"
