@@ -107,7 +107,7 @@ class ConcurrentTransactionsTest: public testing::Test {
             }
         }
 
-        int get_row_count() {
+        int GetRowCount() {
             SQLHDBC verify_dbc;
             SQLAllocHandle(SQL_HANDLE_DBC, env, &verify_dbc);
             SQLDriverConnect(verify_dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
@@ -150,13 +150,13 @@ TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
     ASSERT_TRUE(SQL_SUCCEEDED(ret));
 
     // Verify the table is still empty.
-    ASSERT_EQ(0, get_row_count());
+    ASSERT_EQ(0, GetRowCount());
 
     ret = SQLEndTran(SQL_HANDLE_DBC, dbc, SQL_COMMIT);
     ASSERT_TRUE(SQL_SUCCEEDED(ret));
 
     // Verify the row was inserted
-    ASSERT_EQ(1, get_row_count());
+    ASSERT_EQ(1, GetRowCount());
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
     SQLDisconnect(dbc);
@@ -189,13 +189,13 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     }
 
     // Verify the table is still empty.
-    ASSERT_EQ(0, get_row_count());
+    ASSERT_EQ(0, GetRowCount());
 
     SQLRETURN commit_ret = SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
     ASSERT_TRUE(SQL_SUCCEEDED(commit_ret));
 
     // Verify all rows were inserted
-    ASSERT_EQ(NUM_CONNECTIONS, get_row_count());
+    ASSERT_EQ(NUM_CONNECTIONS, GetRowCount());
 
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
         SQLFreeHandle(SQL_HANDLE_STMT, stmt[i]);
