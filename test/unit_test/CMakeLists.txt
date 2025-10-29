@@ -89,6 +89,7 @@ find_package(ODBC REQUIRED)
 list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
 
 # Build Executable ------------------------------------------------------------------------------------------
+set(BUILD_SHARED_LIBS OFF)
 if(WIN32)
     add_compile_definitions(${PROJECT_NAME} PRIVATE
         WIN32_LEAN_AND_MEAN # Exclude rarely-used stuff from Windows headers
@@ -129,5 +130,18 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${WRAPPER_NAME}-static
     ${EXTERNAL_LIBRARIES}
 )
+
+# Copy 3rd Party Libs for Windows Builds --------------------------------------------------------------------
+if(WIN32)
+    string(REGEX MATCH "^[0-9]+" ICU_MAJOR ${ICU_VERSION})
+    set(THIRD_PARTY_DLL
+        ${ICU_ROOT}/bin64/icuuc${ICU_MAJOR}.dll
+        ${ICU_ROOT}/bin64/icudt${ICU_MAJOR}.dll
+    )
+    foreach(dll_path IN LISTS THIRD_PARTY_DLL)
+        message("Copying File ${dll_path}")
+        file(COPY ${dll_path} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    endforeach()
+endif()
 
 gtest_discover_tests(${PROJECT_NAME})
