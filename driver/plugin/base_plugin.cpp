@@ -60,6 +60,7 @@ SQLRETURN BasePlugin::Connect(
     // and a new connection string should be built without DSN & Driver
     const RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
+    LOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
@@ -74,7 +75,11 @@ SQLRETURN BasePlugin::Connect(
             dbc->wrapped_dbc, key, val.first, val.second
         );
         if (!res.fn_result) {
-            LOG(WARNING) << "Error setting connection attribute";
+            if (!key && !val.first) {
+                LOG(WARNING) << "Error setting connection attribute" << (dbc ? " dbc: " + std::to_string(reinterpret_cast<uintptr_t>(dbc)) : "") << (env ? " env: " + std::to_string(reinterpret_cast<uintptr_t>(env)) : "") << (dbc->wrapped_dbc ? " wrapped_dbc: " + std::to_string(reinterpret_cast<uintptr_t>(dbc->wrapped_dbc)) : "") << " val.second: " << val.second;
+            } else {
+                LOG(WARNING) << "Error setting connection attribute" << (key ? " key: " + std::to_string(key) : "") << (val.first ? " val: " + std::to_string(reinterpret_cast<uintptr_t>(val.first)) : "");
+            }
         }
         has_conn_attr_errors = res.fn_result == 0 ? has_conn_attr_errors : true;
     }

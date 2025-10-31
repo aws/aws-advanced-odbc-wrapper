@@ -259,6 +259,8 @@ jobs:
       #         "Port=5432", `
       #         "SSLMode=prefer", `
       #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -328,10 +330,18 @@ jobs:
       #   run: |
       #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'windows-integration-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'windows-limitless-psql-logs'
+          path: logs
           retention-days: 3
 
   macos-integration-tests:
@@ -432,6 +442,8 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -520,10 +532,18 @@ jobs:
       #   run: |
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'mac-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'mac-psql-logs'
+          path: logs
           retention-days: 3
 
   linux-integration-tests:
@@ -621,6 +641,8 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -698,15 +720,19 @@ jobs:
             ${{ steps.ip.outputs.ipv4 }} \
             ${{ env.AURORA_CLUSTER_ID }} \
             ${{ secrets.AWS_DEFAULT_REGION }}
-      # - name: Copy Driver Logs
-      #   shell: bash
-      #   run: |
-      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'linux-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'linux-psql-logs'
+          path: logs/
           retention-days: 3
 
   windows-limitless-integration-tests:
@@ -837,6 +863,8 @@ jobs:
       #         "Port=5432", `
       #         "SSLMode=prefer", `
       #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -906,10 +934,18 @@ jobs:
       #   run: |
       #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'windows-limitless-integration-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'windows-limitless-psql-logs'
+          path: logs
           retention-days: 3
 
   macos-limitless-integration-tests:
@@ -1012,6 +1048,8 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -1098,10 +1136,18 @@ jobs:
       #   run: |
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'mac-limitless-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'mac-limitless-psql-logs'
+          path: logs/
           retention-days: 3
 
   linux-limitless-integration-tests:
@@ -1201,6 +1247,8 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
+      - name: Create logs folder
+        run: mkdir logs
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -1281,8 +1329,16 @@ jobs:
       #   run: |
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 'linux-limitless-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
+          retention-days: 3
+      - name: Archive psql logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 'linux-limitless-psql-logs'
+          path: logs
           retention-days: 3

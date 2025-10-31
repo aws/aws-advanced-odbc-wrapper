@@ -46,7 +46,7 @@ TEST_F(ConnectionStringBuilderTest, test_complete_string) {
         .getRdsString();
 
     const std::string expected =
-        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;DATABASE=testDb;"
+        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;DATABASE=testDb;"
         "ENABLE_CLUSTER_FAILOVER=1;FAILOVER_MODE=STRICT_WRITER;HOST_SELECTOR_STRATEGY=RANDOM;IGNORE_TOPOLOGY_REQUEST_MS=1;"
         "TOPOLOGY_HIGH_REFRESH_RATE_MS=2;TOPOLOGY_REFRESH_RATE_MS=3;FAILOVER_TIMEOUT_MS=120000;HOST_PATTERN=?.testDomain;"
         "RDS_AUTH_TYPE=IAM;REGION=us-east-1;TOKEN_EXPIRATION=123;SECRET_ID=secret;"
@@ -61,7 +61,7 @@ TEST_F(ConnectionStringBuilderTest, test_only_required_fields) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
     auto connection_string = builder.getRdsString();
 
-    const std::string expected = "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;";
+    const std::string expected = "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;";
 
     EXPECT_EQ(expected, connection_string);
 }
@@ -72,7 +72,7 @@ TEST_F(ConnectionStringBuilderTest, test_some_optional) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
     auto connection_string = builder.withUID("testUser").withPWD("testPwd").getRdsString();
 
-    const std::string expected("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;");
+    const std::string expected("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;");
 
     EXPECT_EQ(expected, connection_string);
 }
@@ -87,7 +87,7 @@ TEST_F(ConnectionStringBuilderTest, test_setting_boolean_fields) {
         .getRdsString();
 
     const std::string expected(
-        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;"
+        "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;"
         "ENABLE_CLUSTER_FAILOVER=1;ENABLE_LIMITLESS=0;"
     );
 
