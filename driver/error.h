@@ -194,11 +194,11 @@ const std::string ODBC_3_SUBCLASS[] = {
 };
 
 struct ERR_INFO {
-    SQLRETURN   ret_code;
-    char*       error_msg;
-    int         native_err;
-    char*       sqlstate;
-    bool        is_odbc3_subclass;
+    SQLRETURN   ret_code            = SQL_SUCCESS;
+    char*       error_msg           = nullptr;
+    int         native_err          = 0;
+    char*       sqlstate            = nullptr;
+    bool        is_odbc3_subclass   = false;
 
     ERR_INFO(const char *msg, SQL_STATE_CODE sql_state) {
         if (msg) {
@@ -221,15 +221,23 @@ struct ERR_INFO {
     }
 
     ERR_INFO(const ERR_INFO &source) {
-        if (source.error_msg) error_msg = strdup(source.error_msg);
-        if (source.sqlstate) sqlstate = strdup(source.sqlstate);
+        if (source.error_msg) {
+            error_msg = strdup(source.error_msg);
+        }
+        if (source.sqlstate) {
+            sqlstate = strdup(source.sqlstate);
+        }
         native_err = source.native_err;
         ret_code = source.ret_code;
     }
 
     ~ERR_INFO() {
-        delete error_msg;
-        delete sqlstate;
+        if (error_msg != nullptr) {
+            free(error_msg);
+        }
+        if (sqlstate != nullptr) {
+            free(sqlstate);
+        }
     }
 
     bool IsOdbc3Subclass(std::string str_sql_state) {

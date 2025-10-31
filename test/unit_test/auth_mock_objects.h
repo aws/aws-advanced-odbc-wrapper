@@ -45,7 +45,7 @@ public:
         const std::string &port, const std::string &username, bool use_cache, bool extra_url_encode,
         std::chrono::milliseconds time_to_expire_ms), ());
 
-    MOCK_METHOD(void, UpdateAwsCredential, (Aws::Auth::AWSCredentials credentials, const std::string &region), ());
+    MOCK_METHOD(void, UpdateAwsCredential, (const Aws::Auth::AWSCredentials &credentials, const std::string &region), ());
 };
 
 class MOCK_RDS_CLIENT : public Aws::RDS::RDSClient {

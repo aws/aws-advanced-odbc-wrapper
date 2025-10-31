@@ -19,13 +19,13 @@
 #include "logger_wrapper.h"
 
 #include "../driver.h"
-#include "../util/connection_string_keys.h"
 #include "../util/connection_string_helper.h"
+#include "../util/connection_string_keys.h"
 
 void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)
 {
     RDS_CHAR buffer[MAX_VAL_SIZE];
-    RDS_CHAR *entries = buffer;
+    const RDS_CHAR* entries = buffer;
     int size = 0;
     // Check DSN if it is valid and contains entries
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
@@ -46,7 +46,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
 
         // Insert if value exists
         if (!val.empty()) {
-            if (key.compare(KEY_BASE_CONN) == 0) {
+            if (key == KEY_BASE_CONN) {
                 std::map<RDS_STR, RDS_STR> base_conn_map;
                 ConnectionStringHelper::ParseConnectionString(val, base_conn_map);
                 for (const auto& pair : base_conn_map) {
@@ -75,7 +75,7 @@ RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
     if (size < 0) {
         // No entries
         LOG(WARNING) << "No value found for DSN entry key: " << ToStr(dsn_key) << ", " << ToStr(entry_key);
-        return RDS_STR();
+        return {};
     }
-    return RDS_STR(buffer);
+    return { buffer };
 }

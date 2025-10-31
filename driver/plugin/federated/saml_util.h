@@ -26,7 +26,7 @@ class SamlUtil {
 public:
     SamlUtil() = default;
     SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes);
-    SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, std::shared_ptr<Aws::Http::HttpClient> http_client, std::shared_ptr<Aws::STS::STSClient> sts_client);
+    SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, const std::shared_ptr<Aws::Http::HttpClient>& http_client, const std::shared_ptr<Aws::STS::STSClient>& sts_client);
     virtual ~SamlUtil();
 
     virtual Aws::Auth::AWSCredentials GetAwsCredentials(const std::string &assertion);

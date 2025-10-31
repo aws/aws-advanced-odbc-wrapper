@@ -45,10 +45,10 @@ public:
     FailoverPlugin(
         DBC* dbc,
         BasePlugin* next_plugin,
-        FailoverMode failover_mode, std::shared_ptr<Dialect> dialect,
-        std::shared_ptr<HostSelector> host_selector,
-        std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper,
-        std::shared_ptr<ClusterTopologyMonitor> topology_monitor
+        FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect,
+        const std::shared_ptr<HostSelector>& host_selector,
+        const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
+        const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor
     );
     ~FailoverPlugin() override;
 
@@ -73,14 +73,14 @@ private:
         DEFAULT_FAILOVER_TIMEOUT_MS = std::chrono::seconds(30);
 
     bool CheckShouldFailover(RDS_CHAR* sql_state);
-    void RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates);
-    bool FailoverReader(DBC *hdbc);
-    bool FailoverWriter(DBC *hdbc);
-    bool ConnectToHost(DBC *hdbc, const std::string& host_string);
+    static void RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates);
+    bool FailoverReader(DBC* hdbc);
+    bool FailoverWriter(DBC* hdbc);
+    static bool ConnectToHost(DBC* hdbc, const std::string& host_string);
 
-    std::string InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info);
-    FailoverMode InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_info);
-    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> &conn_info);
+    static std::string InitClusterId(std::map<RDS_STR, RDS_STR>& conn_info);
+    static FailoverMode InitFailoverMode(std::map<RDS_STR, RDS_STR>& conn_info);
+    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR>& conn_info);
     std::shared_ptr<ClusterTopologyQueryHelper> InitQueryHelper(DBC* dbc);
     std::shared_ptr<ClusterTopologyMonitor> InitTopologyMonitor(DBC* dbc);
 

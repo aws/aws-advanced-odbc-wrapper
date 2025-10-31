@@ -44,8 +44,8 @@ SQLRETURN BasePlugin::Connect(
 {
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
-    DBC* dbc = (DBC*) ConnectionHandle;
-    ENV* env = dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
 
     // TODO - Should a new connect use a new underlying DBC?
     // Create Wrapped DBC if not already allocated
@@ -58,7 +58,7 @@ SQLRETURN BasePlugin::Connect(
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
-    RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
+    const RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
         dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
@@ -97,10 +97,10 @@ SQLRETURN BasePlugin::Execute(
     SQLINTEGER     TextLength)
 {
     RdsLibResult res;
-    STMT* stmt = (STMT*) StatementHandle;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
-    ENV* env = dbc->env;
-    RDS_STR query = StatementText ? AS_RDS_STR(StatementText) : AS_RDS_STR("");
+    const ENV* env = dbc->env;
+    const RDS_STR query = StatementText ? AS_RDS_STR(StatementText) : AS_RDS_STR("");
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
@@ -119,7 +119,7 @@ SQLRETURN BasePlugin::Execute(
             );
         }
         // Cursor Name
-        RDS_STR cursor_name = stmt->cursor_name;
+        const RDS_STR cursor_name = stmt->cursor_name;
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
             stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name.c_str()), cursor_name.length()
         );
@@ -148,9 +148,9 @@ SQLRETURN BasePlugin::Execute(
         if (SqlQueryAnalyzer::IsStatementSettingAutoCommit(query)) {
             dbc->auto_commit = SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(query);
             NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
-                dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) dbc->auto_commit, 0
+                dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0
             );
-            dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair((SQLPOINTER) dbc->auto_commit, 0));
+            dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair(reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0));
         }
     }
 

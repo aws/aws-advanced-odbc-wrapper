@@ -38,7 +38,7 @@ void RoundRobinHostSelector::SetRoundRobinWeight(const std::vector<HostInfo> &ho
 }
 
 void RoundRobinHostSelector::ClearCache() {
-    std::lock_guard<std::mutex> lock(cache_mutex);
+    const std::lock_guard<std::mutex> lock(cache_mutex);
     round_robin_cache.Clear();
 }
 
@@ -61,16 +61,16 @@ HostInfo RoundRobinHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_wr
         bool operator()(const HostInfo& a, const HostInfo& b) const {
             return a.GetHost() < b.GetHost();
         }
-    } host_name_sort;
-    std::ranges::sort(selection, host_name_sort);
+    } HOST_NAME_SORT;
+    std::ranges::sort(selection, HOST_NAME_SORT);
 
-    std::lock_guard<std::mutex> lock(cache_mutex);
+    const std::lock_guard<std::mutex> lock(cache_mutex);
 
     create_cache_entries(selection, properties);
-    std::string cluster_id_key = selection.at(0).GetHost();
-    std::shared_ptr<round_robin_property::RoundRobinClusterInfo> cluster_info = round_robin_cache.Get(cluster_id_key);
+    const std::string cluster_id_key = selection.at(0).GetHost();
+    const std::shared_ptr<round_robin_property::RoundRobinClusterInfo> cluster_info = round_robin_cache.Get(cluster_id_key);
 
-    std::shared_ptr<HostInfo> last_host = cluster_info->last_host;
+    const std::shared_ptr<HostInfo> last_host = cluster_info->last_host;
     int last_host_idx = NO_HOST_IDX;
     if (last_host) {
         for (int i = 0; i < selection.size(); i++) {
@@ -140,7 +140,7 @@ void RoundRobinHostSelector::create_cache_entries(const std::vector<HostInfo>& h
 
     // Update cache entries, else create new cache
     if (hosts_with_cached_entry.empty()) {
-        std::shared_ptr<round_robin_property::RoundRobinClusterInfo> cluster_info = std::make_shared<round_robin_property::RoundRobinClusterInfo>();
+        const std::shared_ptr<round_robin_property::RoundRobinClusterInfo> cluster_info = std::make_shared<round_robin_property::RoundRobinClusterInfo>();
         update_props_default_weight(cluster_info, props);
         update_props_host_weight(cluster_info, props);
         update_cache(hosts, cluster_info);
@@ -195,7 +195,7 @@ void RoundRobinHostSelector::update_props_host_weight(
     const std::unordered_map<std::string, std::string>& props) {
 
     if (auto itr = props.find(round_robin_property::HOST_WEIGHT_KEY); itr != props.end()) {
-        std::string host_weights_str = itr->second;
+        const std::string host_weights_str = itr->second;
         if (host_weights_str.empty()) {
             info->cluster_weight_map.clear();
             info->last_host_weight_str = "";
@@ -219,14 +219,14 @@ void RoundRobinHostSelector::update_props_host_weight(
                 throw std::runtime_error("Invalid format for host weight pair.");
             }
 
-            std::string host_name = host_weight_split.at(0);
-            std::string host_weight = host_weight_split.at(1);
+            const std::string host_name = host_weight_split.at(0);
+            const std::string host_weight = host_weight_split.at(1);
             if (host_name.empty() || host_weight.empty()) {
                 throw std::runtime_error("Host Name and/or host weight missing.");
             }
 
             try {
-                int set_weight = convert_to_int(host_weight);
+                const int set_weight = convert_to_int(host_weight);
                 if (set_weight < DEFAULT_WEIGHT) {
                     throw std::runtime_error("Invalid host weight.");
                 }

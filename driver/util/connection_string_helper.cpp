@@ -19,14 +19,14 @@
 
 void ConnectionStringHelper::ParseConnectionString(const RDS_STR &conn_str, std::map<RDS_STR, RDS_STR> &conn_map)
 {
-    RDS_REGEX pattern(TEXT("([^;=]+)=([^;]+)"));
+    const RDS_REGEX pattern(TEXT("([^;=]+)=([^;]+)"));
     RDS_MATCH match;
     RDS_STR conn_str_itr = conn_str;
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
         RDS_STR key = match[1].str();
         RDS_STR_UPPER(key);
-        RDS_STR val = match[2].str();
+        const RDS_STR val = match[2].str();
 
         // Connection String takes precedence
         conn_map.insert_or_assign(key, val);
@@ -66,8 +66,8 @@ RDS_STR ConnectionStringHelper::BuildFullConnectionString(const std::map<RDS_STR
 RDS_STR ConnectionStringHelper::MaskSensitiveInformation(const RDS_STR &conn_str)
 {
     RDS_STR result(conn_str);
-    for (RDS_STR key : sensitive_key_set) {
-        RDS_REGEX pattern(TEXT("(") + key + TEXT("=)([^;]+)"));
+    for (const RDS_STR& key : sensitive_key_set) {
+        const RDS_REGEX pattern(TEXT("(") + key + TEXT("=)([^;]+)"));
         result = std::regex_replace(result, pattern, TEXT("$1[REDACTED]"));
     }
     return result;

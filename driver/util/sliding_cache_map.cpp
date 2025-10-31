@@ -17,8 +17,8 @@
 #include <chrono>
 #include <mutex>
 
-#include "../host_selector/round_robin_host_selector.h"
 #include "../host_info.h"
+#include "../host_selector/round_robin_host_selector.h"
 #include "../plugin/failover/cluster_topology_monitor.h"
 #include "../plugin/limitless/limitless_router_monitor.h"
 
@@ -29,8 +29,8 @@ void SlidingCacheMap<K, V>::Put(const K& key, const V& value) {
 
 template <typename K, typename V>
 void SlidingCacheMap<K, V>::Put(const K& key, const V& value, std::chrono::milliseconds ms_ttl) {
-    std::lock_guard<std::mutex> lock(cache_lock);
-    std::chrono::steady_clock::time_point expiry_time =
+    const std::lock_guard<std::mutex> lock(cache_lock);
+    const std::chrono::steady_clock::time_point expiry_time =
         std::chrono::steady_clock::now() + ms_ttl;
     cache[key] = CacheEntry{value, expiry_time, ms_ttl};
 }
@@ -42,8 +42,8 @@ void SlidingCacheMap<K, V>::PutIfAbsent(const K &key, const V &value) {
 
 template <typename K, typename V>
 void SlidingCacheMap<K, V>::PutIfAbsent(const K &key, const V &value, std::chrono::milliseconds ms_ttl) {
-    std::lock_guard<std::mutex> lock(cache_lock);
-    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    const std::lock_guard<std::mutex> lock(cache_lock);
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     if (auto itr = cache.find(key); itr != cache.end()) {
         CacheEntry& entry = itr->second;
         // Already in cache & is not expired
@@ -54,15 +54,15 @@ void SlidingCacheMap<K, V>::PutIfAbsent(const K &key, const V &value, std::chron
         }
     }
     // Either not in cache or is expired, put new into cache
-    std::chrono::steady_clock::time_point expiry_time =
+    const std::chrono::steady_clock::time_point expiry_time =
         std::chrono::steady_clock::now() + ms_ttl;
     cache[key] = CacheEntry{value, expiry_time, ms_ttl};
 }
 
 template <typename K, typename V>
 V SlidingCacheMap<K, V>::Get(const K& key) {
-    std::lock_guard<std::mutex> lock(cache_lock);
-    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    const std::lock_guard<std::mutex> lock(cache_lock);
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     if (auto itr = cache.find(key); itr != cache.end()) {
         CacheEntry& entry = itr->second;
         if (entry.expiry > now) {
@@ -78,8 +78,8 @@ V SlidingCacheMap<K, V>::Get(const K& key) {
 
 template <typename K, typename V>
 bool SlidingCacheMap<K, V>::Find(const K& key) {
-    std::lock_guard<std::mutex> lock(cache_lock);
-    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    const std::lock_guard<std::mutex> lock(cache_lock);
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     if (auto itr = cache.find(key); itr != cache.end()) {
         CacheEntry& entry = itr->second;
         if (entry.expiry > now) {
@@ -95,8 +95,8 @@ bool SlidingCacheMap<K, V>::Find(const K& key) {
 
 template <typename K, typename V>
 unsigned int SlidingCacheMap<K, V>::Size() {
-    std::lock_guard<std::mutex> lock(cache_lock);
-    std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+    const std::lock_guard<std::mutex> lock(cache_lock);
+    const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     for (auto itr = cache.begin(); itr != cache.end();) {
         if (itr->second.expiry < now) {
             itr = cache.erase(itr);
@@ -109,13 +109,13 @@ unsigned int SlidingCacheMap<K, V>::Size() {
 
 template <typename K, typename V>
 void SlidingCacheMap<K, V>::Clear() {
-    std::lock_guard<std::mutex> lock(cache_lock);
+    const std::lock_guard<std::mutex> lock(cache_lock);
     cache.clear();
 }
 
 template <typename K, typename V>
 void SlidingCacheMap<K, V>::Delete(const K& key) {
-    std::lock_guard<std::mutex> lock(cache_lock);
+    const std::lock_guard<std::mutex> lock(cache_lock);
     cache.erase(key);
 }
 

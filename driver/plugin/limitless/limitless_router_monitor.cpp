@@ -23,14 +23,14 @@
 #include <chrono>
 #include <regex>
 
-#include "limitless_query_helper.h"
 #include "../../host_info.h"
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/odbc_helper.h"
+#include "limitless_query_helper.h"
 
-LimitlessRouterMonitor::LimitlessRouterMonitor(BasePlugin* plugin_head, const std::shared_ptr<DialectLimitless> &dialect) {
+LimitlessRouterMonitor::LimitlessRouterMonitor(BasePlugin* plugin_head, const std::shared_ptr<DialectLimitless>& dialect) {
     this->plugin_head_ = plugin_head;
     this->dialect_ = dialect;
 }
@@ -66,7 +66,7 @@ void LimitlessRouterMonitor::Open(
 
     if (block_and_query_immediately) {
         RDS_AllocDbc(henv, &local_hdbc);
-        DBC *local_dbc = (DBC *) local_hdbc;
+        DBC* local_dbc = static_cast<DBC*>(local_hdbc);
 
         local_dbc->conn_attr = dbc->conn_attr;
 
@@ -79,11 +79,11 @@ void LimitlessRouterMonitor::Open(
             SQL_DRIVER_NOPROMPT);
         if (SQL_SUCCEEDED(rc)) {
             const std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port, dialect_);
-            std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
+            const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         } else {
             // Not successful, ensure limitless routers is empty.
-            std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
+            const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             this->limitless_routers_->clear();
         }
     }
@@ -110,8 +110,8 @@ void LimitlessRouterMonitor::Close() {
     }
 }
 
-void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_STR, RDS_STR> &conn_attr, int host_port) {
-    DBC* dbc = (DBC*) conn;
+void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_STR, RDS_STR>& conn_attr, int host_port) {
+    DBC* dbc = static_cast<DBC*>(conn);
     do {
         std::unique_lock lock(monitor_loop_mutex_);
         monitor_loop_cv_.wait_for(lock, std::chrono::milliseconds(this->interval_ms_));
@@ -133,7 +133,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
             }
 
             RDS_AllocDbc(henv, &conn);
-            dbc = (DBC*) conn;
+            dbc = static_cast<DBC*>(conn);
             dbc->conn_attr = conn_attr;
 
             const SQLRETURN rc = plugin_head_->Connect(
@@ -157,11 +157,11 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
             } // else, connection was successful, proceed below
         }
 
-        std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(conn, host_port, dialect_);
+        const std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(conn, host_port, dialect_);
         // LimitlessQueryHelper::QueryForLimitlessRouters will return an empty vector on an error
         // if it was a connection error, then the next loop will catch it and attempt to reconnect
         if (!new_limitless_routers.empty()) {
-            std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
+            const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         }
     } while (!this->stopped_);

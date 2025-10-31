@@ -29,7 +29,7 @@ void LoggerWrapper::Initialize(int threshold)
 
 void LoggerWrapper::Initialize(RDS_STR log_location)
 {
-    Initialize(log_location, logger_config::DEFAULT_LOG_THRESHOLD);
+    Initialize(std::move(log_location), logger_config::DEFAULT_LOG_THRESHOLD);
 }
 
 void LoggerWrapper::Initialize(RDS_STR log_location, int threshold)
@@ -57,7 +57,7 @@ void LoggerWrapper::Shutdown()
 
 void LoggerWrapper::SetLogDirectory(const RDS_STR &directory_path)
 {
-    std::filesystem::path log_dir(directory_path);
+    const std::filesystem::path log_dir(directory_path);
     if (!std::filesystem::exists(log_dir)) {
         std::filesystem::create_directories(log_dir);
     }

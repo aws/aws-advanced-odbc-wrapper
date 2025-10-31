@@ -25,7 +25,7 @@ RDS_STR SqlQueryAnalyzer::GetFirstSqlStatement(const RDS_STR &statement)
     RDS_STR first_statement = query_list.front();
     RDS_STR_UPPER(first_statement);
     // Remove spaces and comments (/* */)
-    RDS_REGEX space_comment_pattern(TEXT(R"(\s*/\*(.*?)\*/\s*)"));
+    const RDS_REGEX space_comment_pattern(TEXT(R"(\s*/\*(.*?)\*/\s*)"));
     first_statement = std::regex_replace(first_statement, space_comment_pattern, TEXT(" "));
     first_statement = TrimStr(first_statement);
 
@@ -36,13 +36,13 @@ std::vector<RDS_STR> SqlQueryAnalyzer::ParseMultiStatement(const RDS_STR &statem
 {
     RDS_STR local_statement(statement);
     if (local_statement.empty()) {
-        return std::vector<RDS_STR>();
+        return {};
     }
 
     // Remove spaces
     local_statement = TrimStr(local_statement);
     if (local_statement.empty()) {
-        return std::vector<RDS_STR>();
+        return {};
     }
 
     RDS_STR delimiter = AS_RDS_STR(";");
@@ -51,7 +51,7 @@ std::vector<RDS_STR> SqlQueryAnalyzer::ParseMultiStatement(const RDS_STR &statem
 
 bool SqlQueryAnalyzer::DoesOpenTransaction(const RDS_STR &statement)
 {
-    RDS_STR first_statement = GetFirstSqlStatement(statement);
+    const RDS_STR first_statement = GetFirstSqlStatement(statement);
     return IsStatementStartingTransaction(first_statement);
 }
 
@@ -61,7 +61,7 @@ bool SqlQueryAnalyzer::DoesCloseTransaction(DBC* dbc, const RDS_STR &statement)
         return true;
     }
 
-    RDS_STR first_statement = GetFirstSqlStatement(statement);
+    const RDS_STR first_statement = GetFirstSqlStatement(statement);
     return IsStatementClosingTransaction(first_statement);
 }
 
@@ -81,14 +81,14 @@ bool SqlQueryAnalyzer::IsStatementClosingTransaction(const RDS_STR &statement)
 
 bool SqlQueryAnalyzer::IsStatementSettingAutoCommit(const RDS_STR &statement)
 {
-    RDS_STR first_statement = GetFirstSqlStatement(statement);
+    const RDS_STR first_statement = GetFirstSqlStatement(statement);
     return std::string::npos != first_statement.find(TEXT("SET AUTOCOMMIT"));
 }
 
 bool SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(DBC* dbc, const RDS_STR &statement)
 {
-    bool last_auto_commit = dbc->auto_commit;
-    bool new_auto_commit = IsStatementSettingAutoCommit(statement)
+    const bool last_auto_commit = dbc->auto_commit;
+    const bool new_auto_commit = IsStatementSettingAutoCommit(statement)
         ? GetAutoCommitValueFromSqlStatement(statement) : false;
     return !last_auto_commit && new_auto_commit;
 }
@@ -96,7 +96,7 @@ bool SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(DBC* dbc, const RDS_STR &st
 bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &statement)
 {
     RDS_STR first_statement = GetFirstSqlStatement(statement);
-    size_t separator_index = first_statement.find(TEXT("="));
+    size_t separator_index = first_statement.find(TEXT('='));
     size_t value_index;
     if (std::string::npos != separator_index) {
         value_index = separator_index + 1;
@@ -109,18 +109,14 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &stateme
     }
 
     first_statement = first_statement.substr(value_index);
-    separator_index = first_statement.find(TEXT(";"));
+    separator_index = first_statement.find(TEXT(';'));
     if (std::string::npos != separator_index) {
         first_statement = first_statement.substr(separator_index);
     }
 
     first_statement = TrimStr(first_statement);
-    if (std::string::npos != first_statement.find(TEXT("TRUE"))
-        || std::string::npos != first_statement.find(TEXT("1"))
-        || std::string::npos != first_statement.find(TEXT("ON"))
-    ) {
-        return true;
-    }
-
-    return false;
+    return
+        std::string::npos != first_statement.find(TEXT("TRUE"))
+        || std::string::npos != first_statement.find(TEXT('1'))
+        || std::string::npos != first_statement.find(TEXT("ON"));
 }

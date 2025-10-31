@@ -180,6 +180,10 @@ SQLRETURN RDS_SQLSetConnectAttr(
 
 #define NULL_CHECK_HANDLE(h)                           \
     if (h == NULL) return SQL_INVALID_HANDLE
+#define NULL_CHECK_ENV(h)                              \
+     if (h == NULL                                     \
+          || ((ENV*) h)== NULL)                  \
+          return SQL_INVALID_HANDLE
 #define NULL_CHECK_ENV_ACCESS_DBC(h)                   \
     if (h == NULL                                      \
          || ((DBC*) h)->env == NULL)                   \

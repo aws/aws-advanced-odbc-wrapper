@@ -25,20 +25,20 @@
 #include <string>
 
 #include "../../driver.h"
-#include "../../util/logger_wrapper.h"
 #include "../../host_info.h"
+#include "../../util/logger_wrapper.h"
 
 std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHDBC conn, const int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect) {
     const RDS_STR limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
 
-    DBC* dbc = (DBC*) conn;
+    const DBC* dbc = static_cast<DBC*>(conn);
     SQLHSTMT stmt = SQL_NULL_HANDLE;
 
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
-        return std::vector<HostInfo>();
+        return {};
     }
 
     SQLTCHAR router_endpoint_value[ROUTER_ENDPOINT_LENGTH] = {};
@@ -61,7 +61,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     std::vector<HostInfo> limitless_routers;
 
     while (SQL_SUCCEEDED((NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch, stmt)).fn_result)) {
-        HostInfo host_info = create_host(load_value, router_endpoint_value, host_port_to_map);
+        const HostInfo host_info = create_host(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
 
@@ -74,20 +74,20 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
 
 HostInfo LimitlessQueryHelper::create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
     const double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
-    int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
+    uint64_t weight = static_cast<uint64_t>(WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING));
 
     if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
         weight = MIN_WEIGHT;
         LOG(WARNING) << "Invalid router load of " << reinterpret_cast<char *>(load) << " for " << reinterpret_cast<char *>(router_endpoint);
     }
 
-    std::string router_endpoint_str(reinterpret_cast<const char *>(router_endpoint));
+    const std::string router_endpoint_str(reinterpret_cast<const char *>(router_endpoint));
 
-    return HostInfo(
+    return {
         router_endpoint_str,
         host_port_to_map,
         UP,
         true,
         weight
-    );
+    };
 }

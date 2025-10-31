@@ -20,9 +20,13 @@
 #endif
 
 #include <sql.h>
+
 #include <string>
+#include <memory>
+
+#include "../dialect/dialect.h"
 
 static const int MAX_HOST_SIZE = 1024;
-std::string GetNodeId(SQLHDBC hdbc, std::shared_ptr<Dialect> dialect);
+std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect);
 
 #endif //ODBC_HELPER_H

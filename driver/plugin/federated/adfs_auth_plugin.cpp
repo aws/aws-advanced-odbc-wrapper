@@ -42,10 +42,12 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) :
-            dbc->conn_attr.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
-                Aws::Region::US_EAST_1;
+            ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+        if (region.empty()) {
+            region = dbc->conn_attr.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+                : Aws::Region::US_EAST_1;
+        }
         const std::string saml_assertion = this->saml_util->GetSamlAssertion();
         this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
     }
@@ -53,8 +55,12 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
 
 AdfsAuthPlugin::~AdfsAuthPlugin()
 {
-    if (auth_provider) auth_provider.reset();
-    if (saml_util) saml_util.reset();
+    if (auth_provider) {
+        auth_provider.reset();
+    }
+    if (saml_util) {
+        saml_util.reset();
+    }
 }
 
 SQLRETURN AdfsAuthPlugin::Connect(
@@ -65,24 +71,26 @@ SQLRETURN AdfsAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    DBC* dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
+    const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
-    std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
+    const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
         ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) :
-        dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
-            Aws::Region::US_EAST_1;
-    std::string port = dbc->conn_attr.contains(KEY_PORT) ?
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+    if (region.empty()) {
+        region = dbc->conn_attr.contains(KEY_SERVER) ?
+            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+            : Aws::Region::US_EAST_1;
+    }
+    const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
-    std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
+    const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
-    std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
-    bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
+    const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
+        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+    const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     // TODO - Proper error handling for missing parameters
@@ -97,8 +105,8 @@ SQLRETURN AdfsAuthPlugin::Connect(
     // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         // Update AWS Credentials
-        std::string saml_assertion = saml_util->GetSamlAssertion();
-        Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
+        const std::string saml_assertion = saml_util->GetSamlAssertion();
+        const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
         // and retry without cache
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
@@ -118,7 +126,7 @@ AdfsSamlUtil::AdfsSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
-    std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
+    const std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
         ToStr(connection_attributes.at(KEY_RELAY_PARTY_ID)) : "";
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
 }
@@ -157,7 +165,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     }
     DLOG(INFO) << "Updated URL [" << url << "] using Action [" << action << "]";
 
-    std::map<std::string, std::string> sign_in_parameters = GetParameterFromBody(body);
+    const std::map<std::string, std::string> sign_in_parameters = GetParameterFromBody(body);
 
     if (const std::string sign_in_content = GetFormActionBody(url, sign_in_parameters);
         std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
@@ -171,8 +179,8 @@ std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::strin
 {
     std::map<std::string, std::string> parameters;
     for (auto& input_tag : GetInputTagsFromBody(body)) {
-        std::string name = GetValueByKey(input_tag, std::string("name"));
-        std::string value = GetValueByKey(input_tag, std::string("value"));
+        const std::string name = GetValueByKey(input_tag, std::string("name"));
+        const std::string value = GetValueByKey(input_tag, std::string("value"));
         DLOG(INFO) << "Input Tag [" << input_tag << "], Name [" << name << "], Value [" << value << "]";
         std::string name_lower(name);
         std::ranges::transform(name_lower, name_lower.begin(), [](unsigned char c) {
@@ -206,15 +214,19 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
         return "";
     }
 
-    std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
+    const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
 
     // Set content
     std::string body;
     for (const auto&[key, value] : params) {
-        body += key + "=" + value;
+        body += key;
+        body += "=";
+        body += value;
         body += "&";
     }
-    if (!body.empty()) body.pop_back();
+    if (!body.empty()) {
+        body.pop_back();
+    }
 
     const std::shared_ptr<Aws::StringStream> string_stream = std::make_shared<Aws::StringStream>();
     *string_stream << body;
@@ -223,7 +235,7 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
     req->SetContentLength(std::to_string(body.size()));
 
     // Check response code
-    std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
         LOG(WARNING) << "ADFS request returned bad HTTP response code: " << response->GetResponseCode();
         if (response->HasClientError()) {
@@ -232,14 +244,14 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
         return "";
     }
 
-    std::istreambuf_iterator<char> eos;
+    const std::istreambuf_iterator<char> eos;
     std::string resp_body(std::istreambuf_iterator<char>(response->GetResponseBody().rdbuf()), eos);
     return resp_body;
 }
 
 bool AdfsSamlUtil::ValidateUrl(const std::string &url)
 {
-    std::regex pattern(URL_PATTERN);
+    const std::regex pattern(URL_PATTERN);
 
     if (!regex_match(url, pattern)) {
         LOG(WARNING) << "Invalid URL, failed to match ADFS URL pattern";
@@ -257,7 +269,7 @@ std::vector<std::string> AdfsSamlUtil::GetInputTagsFromBody(const std::string &b
     const std::regex pattern(INPUT_TAG_PATTERN);
     std::string source = body;
     while (std::regex_search(source,matches, pattern)) {
-        std::string tag = matches.str(0);
+        const std::string tag = matches.str(0);
         std::string tag_name = GetValueByKey(tag, std::string("name"));
         DLOG(INFO) << "Tag [" << tag << "], Tag Name [" << tag_name << "]";
         std::ranges::transform(tag_name, tag_name.begin(), [](const unsigned char c) {

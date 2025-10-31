@@ -30,9 +30,9 @@ public:
 private:
     std::map<std::string, std::string> GetParameterFromBody(std::string& body);
     std::string GetFormActionBody(const std::string& url, const std::map<std::string, std::string>& params);
-    bool ValidateUrl(const std::string& url);
-    std::vector<std::string> GetInputTagsFromBody(const std::string& body);
-    std::string GetValueByKey(const std::string& input, const std::string& key);
+    static bool ValidateUrl(const std::string& url);
+    static std::vector<std::string> GetInputTagsFromBody(const std::string& body);
+    static std::string GetValueByKey(const std::string& input, const std::string& key);
 
     std::string sign_in_url;
 

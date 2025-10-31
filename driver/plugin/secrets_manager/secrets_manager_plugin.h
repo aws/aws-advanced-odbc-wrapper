@@ -31,7 +31,7 @@ class SecretsManagerPlugin : public BasePlugin {
 public:
     SecretsManagerPlugin(DBC* dbc);
     SecretsManagerPlugin(DBC* dbc, BasePlugin* next_plugin);
-    SecretsManagerPlugin(DBC* dbc, BasePlugin* next_plugin, std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> client);
+    SecretsManagerPlugin(DBC* dbc, BasePlugin* next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client);
     ~SecretsManagerPlugin() override;
 
     SQLRETURN Connect(
@@ -41,8 +41,8 @@ public:
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion) override;
-    int GetSecretsCacheSize();
-    void ClearSecretsCache();
+    static size_t GetSecretsCacheSize();
+    static void ClearSecretsCache();
 
 private:
     static inline const std::string SECRET_USERNAME_KEY = "username";
@@ -56,7 +56,7 @@ private:
     std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> secrets_manager_client;
     Aws::SecretsManager::Model::GetSecretValueRequest secret_request;
     std::chrono::milliseconds expiration_ms;
-    Secret ParseSecret(const std::string &secret_string, std::chrono::milliseconds expiration);
+    static Secret ParseSecret(const std::string &secret_string, std::chrono::milliseconds expiration);
 };
 
 #endif // SECRETS_MANAGER_PLUGIN_H_

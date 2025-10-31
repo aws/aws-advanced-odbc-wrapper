@@ -20,7 +20,7 @@ std::mutex AwsSdkHelper::sdk_mutex;
 
 void AwsSdkHelper::Init()
 {
-    std::lock_guard<std::mutex> lock(sdk_mutex);
+    const std::lock_guard<std::mutex> lock(sdk_mutex);
     if (1 == ++sdk_reference_count) {
         Aws::InitAPI(sdk_options);
     }
@@ -28,7 +28,7 @@ void AwsSdkHelper::Init()
 
 void AwsSdkHelper::Shutdown()
 {
-    std::lock_guard<std::mutex> lock(sdk_mutex);
+    const std::lock_guard<std::mutex> lock(sdk_mutex);
     if (0 == --sdk_reference_count) {
         Aws::ShutdownAPI(sdk_options);
     }

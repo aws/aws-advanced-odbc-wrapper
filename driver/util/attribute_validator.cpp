@@ -14,14 +14,14 @@
 
 #include "attribute_validator.h"
 
-#include <unordered_set>
 #include <map>
+#include <unordered_set>
 
 #include "connection_string_keys.h"
 #include "rds_strings.h"
 
 bool AttributeValidator::ShouldKeyBeInt(const RDS_STR& key) {
-    static const std::unordered_set<RDS_STR> int_keys = {
+    static const std::unordered_set<RDS_STR> INTEGER_KEYS = {
         KEY_PORT,
         KEY_TOKEN_EXPIRATION,
         KEY_IAM_PORT,
@@ -36,18 +36,21 @@ bool AttributeValidator::ShouldKeyBeInt(const RDS_STR& key) {
         KEY_ROUTER_MAX_RETRIES,
         KEY_LIMITLESS_MAX_RETRIES
     };
-    return int_keys.contains(key);
+    return INTEGER_KEYS.contains(key);
 }
 
 bool AttributeValidator::IsValueInt(const RDS_STR& value) {
-    if (value.empty()) return false;
+    if (value.empty()) {
+        return false;
+    }
+
     try {
         std::size_t pos{};
         std::stoi(value, &pos);
         return pos == value.length();
-    } catch (std::invalid_argument) {
+    } catch (const std::invalid_argument&) {
         return false;
-    } catch (std::out_of_range) {
+    } catch (const std::out_of_range&) {
         return false;
     }
 }
@@ -55,8 +58,8 @@ bool AttributeValidator::IsValueInt(const RDS_STR& value) {
 std::unordered_set<RDS_STR> AttributeValidator::ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr) {
     std::unordered_set<RDS_STR> invalid_keys;
     for (const auto& e : conn_attr) {
-        RDS_STR key = e.first;
-        RDS_STR value = e.second;
+        const RDS_STR key = e.first;
+        const RDS_STR value = e.second;
 
         if (ShouldKeyBeInt(key) && !IsValueInt(value)) {
             invalid_keys.insert(key);

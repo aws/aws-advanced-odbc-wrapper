@@ -84,15 +84,15 @@ SQLRETURN SQL_API SQLBindCol(
     SQLLEN *       StrLen_or_IndPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
         stmt->wrapped_stmt, ColumnNumber, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -111,15 +111,15 @@ SQLRETURN SQL_API SQLBindParameter(
     SQLLEN *       StrLen_or_IndPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter,
         stmt->wrapped_stmt, ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -130,15 +130,15 @@ SQLRETURN SQL_API SQLBulkOperations(
     SQLSMALLINT    Operation)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBulkOperations, RDS_STR_SQLBulkOperations,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBulkOperations, RDS_STR_SQLBulkOperations,
         stmt->wrapped_stmt, Operation
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -148,14 +148,14 @@ SQLRETURN SQL_API SQLCancel(
     SQLHSTMT       StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCancel, RDS_STR_SQLCancel,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCancel, RDS_STR_SQLCancel,
         stmt->wrapped_stmt
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -165,21 +165,21 @@ SQLRETURN SQL_API SQLCancelHandle(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle)
 {
-    DESC *desc;
-    STMT *stmt;
-    DBC *dbc;
-    ENV *env;
+    DESC* desc;
+    STMT* stmt;
+    DBC* dbc;
+    ENV* env;
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
     switch (HandleType) {
         case SQL_HANDLE_STMT:
             NULL_CHECK_ENV_ACCESS_STMT(Handle);
             {
-                stmt = (STMT*) Handle;
-                dbc = (DBC*) stmt->dbc;
-                env = (ENV*) dbc->env;
+                stmt = static_cast<STMT*>(Handle);
+                dbc = stmt->dbc;
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
                 CHECK_WRAPPED_STMT(stmt);
                 res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCancel, RDS_STR_SQLCancel,
@@ -191,8 +191,8 @@ SQLRETURN SQL_API SQLCancelHandle(
         case SQL_HANDLE_ENV:
         {
             NULL_CHECK_HANDLE(Handle);
-            env = (ENV*) Handle;
-            std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+            env = static_cast<ENV*>(Handle);
+            const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
             CLEAR_ENV_ERROR(env);
             env->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
@@ -200,8 +200,8 @@ SQLRETURN SQL_API SQLCancelHandle(
         case SQL_HANDLE_DBC:
         {
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
-            dbc = (DBC*) Handle;
-            std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+            dbc = static_cast<DBC*>(Handle);
+            const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
@@ -209,8 +209,8 @@ SQLRETURN SQL_API SQLCancelHandle(
         case SQL_HANDLE_DESC:
         {
             NULL_CHECK_ENV_ACCESS_DESC(Handle);
-            desc = (DESC*) Handle;
-            std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+            desc = static_cast<DESC*>(Handle);
+            const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
             CLEAR_DESC_ERROR(desc);
             desc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
@@ -228,16 +228,16 @@ SQLRETURN SQL_API SQLCloseCursor(
     SQLHSTMT       StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (stmt->wrapped_stmt) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
             stmt->wrapped_stmt
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -257,8 +257,8 @@ SQLRETURN SQL_API SQLCompleteAsync(
         case SQL_HANDLE_DBC:
         {
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
-            DBC *dbc = (DBC*) Handle;
-            std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+            DBC* dbc = static_cast<DBC*>(Handle);
+            const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
@@ -267,8 +267,8 @@ SQLRETURN SQL_API SQLCompleteAsync(
         case SQL_HANDLE_STMT:
         {
             NULL_CHECK_ENV_ACCESS_STMT(Handle);
-            STMT *stmt = (STMT*) Handle;
-            std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+            STMT* stmt = static_cast<STMT*>(Handle);
+            const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
             CLEAR_DBC_ERROR(stmt);
             stmt->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
@@ -284,19 +284,20 @@ SQLRETURN SQL_API SQLCopyDesc(
     SQLHDESC       TargetDescHandle)
 {
     NULL_CHECK_ENV_ACCESS_DESC(SourceDescHandle);
-    DESC* src_desc = (DESC*) SourceDescHandle;
-    DESC* dst_desc = TargetDescHandle ? (DESC*) TargetDescHandle : new DESC();
-    DBC* src_dbc = (DBC*) src_desc->dbc;
-    ENV* src_env = (ENV*) src_dbc->env;
-
-    std::lock_guard<std::recursive_mutex> lock_guard_src(src_desc->lock);
-    std::lock_guard<std::recursive_mutex> lock_guard_dst(dst_desc->lock);
-
+    DESC* src_desc = static_cast<DESC*>(SourceDescHandle);
     CHECK_WRAPPED_DESC(src_desc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(src_env->driver_lib_loader, RDS_FP_SQLCopyDesc, RDS_STR_SQLCopyDesc,
+
+    DESC* dst_desc = TargetDescHandle ? static_cast<DESC*>(TargetDescHandle) : new DESC();
+    DBC* src_dbc = src_desc->dbc;
+    const ENV* src_env = src_dbc->env;
+
+    const std::lock_guard<std::recursive_mutex> lock_guard_src(src_desc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard_dst(dst_desc->lock);
+
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(src_env->driver_lib_loader, RDS_FP_SQLCopyDesc, RDS_STR_SQLCopyDesc,
         src_desc->wrapped_desc, dst_desc->wrapped_desc
     );
-    SQLRETURN ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, dst_desc, res);
+    const SQLRETURN ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, dst_desc, res);
 
     // Move to use new DBC
     if (dst_desc->dbc) {
@@ -317,15 +318,15 @@ SQLRETURN SQL_API SQLDescribeParam(
     SQLSMALLINT * NullablePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeParam, RDS_STR_SQLDescribeParam,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeParam, RDS_STR_SQLDescribeParam,
         stmt->wrapped_stmt, ParameterNumber, DataTypePtr, ParameterSizePtr, DecimalDigitsPtr, NullablePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -336,14 +337,14 @@ SQLRETURN SQL_API SQLDisconnect(
 {
     SQLRETURN ret = SQL_ERROR;
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     CHECK_WRAPPED_DBC(dbc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -365,10 +366,10 @@ SQLRETURN SQL_API SQLExecute(
     SQLHSTMT       StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    DBC* dbc = stmt->dbc;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (dbc->plugin_head) {
@@ -387,15 +388,15 @@ SQLRETURN SQL_API SQLExtendedFetch(
     SQLUSMALLINT * RowStatusArray)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExtendedFetch, RDS_STR_SQLExtendedFetch,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExtendedFetch, RDS_STR_SQLExtendedFetch,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset, RowCountPtr, RowStatusArray
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -405,15 +406,15 @@ SQLRETURN SQL_API SQLFetch(
     SQLHSTMT        StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         stmt->wrapped_stmt
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -425,15 +426,15 @@ SQLRETURN SQL_API SQLFetchScroll(
     SQLLEN         FetchOffset)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetchScroll, RDS_STR_SQLFetchScroll,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetchScroll, RDS_STR_SQLFetchScroll,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -492,15 +493,15 @@ SQLRETURN SQL_API SQLGetData(
     SQLLEN *      StrLen_or_IndPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
         stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -514,18 +515,18 @@ SQLRETURN SQL_API SQLGetEnvAttr(
     SQLINTEGER *   StringLengthPtr)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV *env = (ENV*) EnvironmentHandle;
+    ENV* env = static_cast<ENV*>(EnvironmentHandle);
 
-    std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
     if (env->attr_map.contains(Attribute)) {
-        std::pair<SQLPOINTER, SQLINTEGER> value_pair = env->attr_map.at(Attribute);
+        const std::pair<SQLPOINTER, SQLINTEGER> value_pair = env->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
-            *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLUSMALLINT>(reinterpret_cast<uintptr_t>(value_pair.first));
+            *(static_cast<SQLUSMALLINT*>(ValuePtr)) = static_cast<SQLUSMALLINT>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
-            *((SQLUINTEGER *) ValuePtr) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
+            *(static_cast<SQLUINTEGER*>(ValuePtr)) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            snprintf((char *) ValuePtr, (size_t) BufferLength, "%s", (char *) value_pair.first);
+            snprintf(static_cast<char*>(ValuePtr), static_cast<size_t>(BufferLength), "%s", static_cast<char*>(value_pair.first));
             if (value_pair.second >= BufferLength) {
                 return SQL_SUCCESS_WITH_INFO;
             }
@@ -545,20 +546,20 @@ SQLRETURN SQL_API SQLGetFunctions(
     SQLUSMALLINT   FunctionId,
     SQLUSMALLINT * SupportedPtr)
 {
-    DBC *dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     SQLRETURN ret = SQL_ERROR;
 
     if (dbc == nullptr) {
         return SQL_INVALID_HANDLE;
     }
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     // Query underlying driver if connection is established
     if (dbc->wrapped_dbc) {
-        ENV* env = (ENV*) dbc->env;
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetFunctions, RDS_STR_SQLGetFunctions,
+        const ENV* env = dbc->env;
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetFunctions, RDS_STR_SQLGetFunctions,
             dbc->wrapped_dbc, FunctionId, SupportedPtr
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -579,14 +580,14 @@ SQLRETURN SQL_API SQLGetStmtOption(
     SQLPOINTER     ValuePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtOption, RDS_STR_SQLGetStmtOption,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtOption, RDS_STR_SQLGetStmtOption,
         stmt->wrapped_stmt, Attribute, ValuePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -596,15 +597,15 @@ SQLRETURN SQL_API SQLMoreResults(
     SQLHSTMT       StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLMoreResults, RDS_STR_SQLMoreResults,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLMoreResults, RDS_STR_SQLMoreResults,
         stmt->wrapped_stmt
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -615,15 +616,15 @@ SQLRETURN SQL_API SQLNumParams(
     SQLSMALLINT *  ParameterCountPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumParams, RDS_STR_SQLNumParams,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumParams, RDS_STR_SQLNumParams,
         stmt->wrapped_stmt, ParameterCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -634,15 +635,15 @@ SQLRETURN SQL_API SQLNumResultCols(
     SQLSMALLINT *  ColumnCountPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumResultCols, RDS_STR_SQLNumResultCols,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumResultCols, RDS_STR_SQLNumResultCols,
         stmt->wrapped_stmt, ColumnCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -653,15 +654,15 @@ SQLRETURN SQL_API SQLParamData(
     SQLPOINTER *   ValuePtrPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamData, RDS_STR_SQLParamData,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamData, RDS_STR_SQLParamData,
         stmt->wrapped_stmt, ValuePtrPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -673,14 +674,14 @@ SQLRETURN SQL_API SQLParamOptions(
     SQLULEN *      FetchOffsetPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamOptions, RDS_STR_SQLParamOptions,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamOptions, RDS_STR_SQLParamOptions,
         stmt->wrapped_stmt, Crow, FetchOffsetPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -692,15 +693,15 @@ SQLRETURN SQL_API SQLPutData(
     SQLLEN         StrLen_or_Ind)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData,
         stmt->wrapped_stmt, DataPtr, StrLen_or_Ind
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -711,15 +712,15 @@ SQLRETURN SQL_API SQLRowCount(
     SQLLEN *       RowCountPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLRowCount, RDS_STR_SQLRowCount,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLRowCount, RDS_STR_SQLRowCount,
         stmt->wrapped_stmt, RowCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -738,14 +739,14 @@ SQLRETURN SQL_API SQLSetDescRec(
     SQLLEN *      IndicatorPtr)
 {
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
-    DESC *desc = (DESC*) DescriptorHandle;
-    DBC *dbc = (DBC*) desc->dbc;
-    ENV *env = (ENV*) dbc->env;
+    DESC* desc = static_cast<DESC*>(DescriptorHandle);
+    const DBC* dbc = desc->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescRec, RDS_STR_SQLSetDescRec,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescRec, RDS_STR_SQLSetDescRec,
         desc->wrapped_desc, RecNumber, Type, SubType, Length, Precision, Scale, DataPtr, StringLengthPtr, IndicatorPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -771,15 +772,15 @@ SQLRETURN SQL_API SQLSetParam(
     SQLLEN *       StrLen_or_IndPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetParam, RDS_STR_SQLSetParam,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetParam, RDS_STR_SQLSetParam,
         stmt->wrapped_stmt, ParameterNumber, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -792,15 +793,15 @@ SQLRETURN SQL_API SQLSetPos(
     SQLUSMALLINT   LockType)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetPos, RDS_STR_SQLSetPos,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetPos, RDS_STR_SQLSetPos,
         stmt->wrapped_stmt, RowNumber, Operation, LockType
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -813,14 +814,14 @@ SQLRETURN SQL_API SQLSetScrollOptions(
     SQLUSMALLINT   RowsetSize)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetScrollOptions, RDS_STR_SQLSetScrollOptions,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetScrollOptions, RDS_STR_SQLSetScrollOptions,
         stmt->wrapped_stmt, Concurrency, KeysetSize, RowsetSize
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -832,14 +833,14 @@ SQLRETURN SQL_API SQLSetStmtOption(
     SQLULEN        Param)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtOption, RDS_STR_SQLSetStmtOption,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtOption, RDS_STR_SQLSetStmtOption,
         stmt->wrapped_stmt, Option, Param
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -857,6 +858,6 @@ SQLRETURN SQL_API SQLTransact(
     return RDS_SQLEndTran(
         ConnectionHandle ? SQL_HANDLE_DBC : SQL_HANDLE_ENV,
         ConnectionHandle ? ConnectionHandle : EnvironmentHandle,
-        CompletionType
+        static_cast<SQLSMALLINT>(CompletionType)
     );
 }

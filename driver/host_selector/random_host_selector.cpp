@@ -19,7 +19,7 @@
 #include <stdexcept>
 
 HostInfo RandomHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer,
-    std::unordered_map<std::string, std::string>) {
+    std::unordered_map<std::string, std::string> properties) {
 
     std::vector<HostInfo> selection;
     selection.reserve(hosts.size());
@@ -34,7 +34,7 @@ HostInfo RandomHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, selection.size() - 1);
+    std::uniform_int_distribution<> dis(0, static_cast<int>(selection.size()) - 1);
 
     const int rand_idx = dis(gen);
     return selection[rand_idx];
