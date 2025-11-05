@@ -26,7 +26,7 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
 
     DBC* dbc = new DBC();
     dbc->env = &env;
-    dbc->conn_attr[KEY_CLUSTER_ID] = ToRdsStr(cluster_id);
+    dbc.conn_attr[KEY_CLUSTER_ID] = AS_RDS_STR(cluster_id.c_str());
 
     auto mock_dialect = std::make_shared<MockDialect>();
     auto mock_host_selector = std::make_shared<MockHostSelector>();
@@ -34,7 +34,7 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
 
     {
         FailoverPlugin plugin1(dbc, nullptr, FailoverMode::STRICT_WRITER,
-                              mock_dialect, mock_host_selector, 
+                              mock_dialect, mock_host_selector,
                               mock_topology_query_helper, nullptr);
 
         EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 1);

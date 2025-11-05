@@ -52,6 +52,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     UErrorCode error = U_ZERO_ERROR;
     u_strToWCS(nullptr, 0, &size, string_utf16.getBuffer(), string_utf16.length(), &error);
 
+    error = U_ZERO_ERROR; // Reset error
     std::wstring wstr(size, 0);
     u_strToWCS(wstr.data(), wstr.size(), nullptr, string_utf16.getBuffer(), string_utf16.length(), &error);
 
@@ -95,9 +96,11 @@ inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
 #ifdef UNICODE
     #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(ConvertUTF8ToUTF16(str).data()))
     #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<unsigned short *>(str)).c_str()
+    #define RDS_TSTR(str) ConvertUTF8ToWString(str)
 #else
     #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
     #define AS_UTF8_CSTR(str) reinterpret_cast<const char *>(str)
+    #define RDS_TSTR(str) str
 #endif
 
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
@@ -118,8 +121,8 @@ typedef char RDS_CHAR;
 #define RDS_STR_LEN(str) strlen(str)
 typedef std::regex RDS_REGEX;
 typedef std::smatch RDS_MATCH;
-#define RDS_sprintf(buffer, max_length, format, ...) snprintf(buffer, max_length, format, __VA_ARGS__)
 #define RDS_CHAR_FORMAT "%s"
+#define RDS_WCHAR_FORMAT "%ls"
 #define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
 
 inline std::string RDS_STR_UPPER(std::string str) {
