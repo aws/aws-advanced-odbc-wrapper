@@ -21,6 +21,8 @@
 
 #include <cstdio>
 #include <unordered_set>
+#include <stdio.h>
+#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
