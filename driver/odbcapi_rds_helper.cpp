@@ -57,28 +57,28 @@ SQLRETURN RDS_ProcessLibRes(
             case SQL_HANDLE_ENV:
                 {
                     ENV *env = static_cast<ENV*>(InputHandle);
-                    delete env->err;
+                    CLEAR_ENV_ERROR(env);
                     env->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DBC:
                 {
                     DBC *dbc = static_cast<DBC*>(InputHandle);
-                    delete dbc->err;
+                    CLEAR_DBC_ERROR(dbc);
                     dbc->err = new_err;
                     break;
                 }
             case SQL_HANDLE_STMT:
                 {
                     STMT *stmt = static_cast<STMT*>(InputHandle);
-                    delete stmt->err;
+                    CLEAR_STMT_ERROR(stmt);
                     stmt->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DESC:
                 {
                     DESC *desc = static_cast<DESC*>(InputHandle);
-                    delete desc->err;
+                    CLEAR_DESC_ERROR(desc);
                     desc->err = new_err;
                     break;
                 }
@@ -299,7 +299,7 @@ SQLRETURN RDS_FreeConnect(
     }
 
     delete dbc->plugin_head;
-    delete dbc->err;
+    CLEAR_DBC_ERROR(dbc);
     delete dbc;
     return SQL_SUCCESS;
 }
@@ -324,7 +324,7 @@ SQLRETURN RDS_FreeDesc(
         desc->wrapped_desc = nullptr;
     }
 
-    delete desc->err;
+    CLEAR_DESC_ERROR(desc);
     delete desc;
     return SQL_SUCCESS;
 }
@@ -354,7 +354,7 @@ SQLRETURN RDS_FreeEnv(
         env->driver_lib_loader.reset();
     }
 
-    delete env->err;
+    CLEAR_ENV_ERROR(env);
     delete env;
     LoggerWrapper::Shutdown();
     return SQL_SUCCESS;
@@ -380,8 +380,7 @@ SQLRETURN RDS_FreeStmt(
         stmt->wrapped_stmt = nullptr;
     }
 
-    delete stmt->err;
-
+    CLEAR_STMT_ERROR(stmt);
     delete stmt;
     return SQL_SUCCESS;
 }

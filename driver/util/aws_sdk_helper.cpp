@@ -14,6 +14,8 @@
 
 #include "aws_sdk_helper.h"
 
+#include "logger_wrapper.h"
+
 Aws::SDKOptions AwsSdkHelper::sdk_options;
 std::atomic<int> AwsSdkHelper::sdk_reference_count{0};
 std::mutex AwsSdkHelper::sdk_mutex;
@@ -23,7 +25,9 @@ void AwsSdkHelper::Init()
     const std::lock_guard<std::mutex> lock(sdk_mutex);
     if (1 == ++sdk_reference_count) {
         Aws::InitAPI(sdk_options);
+        DLOG(INFO) << "Created AWS SDK Instance";
     }
+    DLOG(INFO) << "Incremented AWS SDK Instance: " << sdk_reference_count
 }
 
 void AwsSdkHelper::Shutdown()
@@ -31,5 +35,7 @@ void AwsSdkHelper::Shutdown()
     const std::lock_guard<std::mutex> lock(sdk_mutex);
     if (0 == --sdk_reference_count) {
         Aws::ShutdownAPI(sdk_options);
+        DLOG(INFO) << "Shut down AWS SDK Instance";
     }
+    DLOG(INFO) << "Decremented AWS SDK Instance: " << sdk_reference_count
 }

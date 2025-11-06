@@ -81,7 +81,8 @@ SQLRETURN IamAuthPlugin::Connect(
         std::strtol(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE).c_str(), nullptr, 0) > 0 : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
-        delete dbc->err;
+        LOG(ERROR) << "Missing required parameters for IAM Authentication.";
+        CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
@@ -96,10 +97,12 @@ SQLRETURN IamAuthPlugin::Connect(
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
+        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token.";
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
+    LOG(INFO) << "Exiting: " << ret;
     return ret;
 }
