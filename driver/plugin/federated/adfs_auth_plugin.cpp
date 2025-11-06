@@ -71,6 +71,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
@@ -120,7 +121,6 @@ SQLRETURN AdfsAuthPlugin::Connect(
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
-    LOG(INFO) << "Exiting: " << ret;
     return ret;
 }
 

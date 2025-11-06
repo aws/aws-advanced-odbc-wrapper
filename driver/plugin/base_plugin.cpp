@@ -42,6 +42,7 @@ SQLRETURN BasePlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -109,6 +110,7 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering Connect";
     RdsLibResult res;
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;

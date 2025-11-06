@@ -81,6 +81,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     SQLRETURN ret = SQL_ERROR;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 

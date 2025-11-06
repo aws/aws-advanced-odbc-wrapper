@@ -12,8 +12,7 @@
 ; See the License for the specific language governing permissions and
 ; limitations under the License.
 
-LIBRARY
-    @COMPILE_FILE_NAME@
+LIBRARY "@COMPILE_FILE_NAME@"
 
 EXPORTS
 ; Setup GUI

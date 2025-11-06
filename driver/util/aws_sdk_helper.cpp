@@ -27,7 +27,7 @@ void AwsSdkHelper::Init()
         Aws::InitAPI(sdk_options);
         DLOG(INFO) << "Created AWS SDK Instance";
     }
-    DLOG(INFO) << "Incremented AWS SDK Instance: " << sdk_reference_count
+    DLOG(INFO) << "Incremented AWS SDK Instance: " << sdk_reference_count;
 }
 
 void AwsSdkHelper::Shutdown()
@@ -37,5 +37,5 @@ void AwsSdkHelper::Shutdown()
         Aws::ShutdownAPI(sdk_options);
         DLOG(INFO) << "Shut down AWS SDK Instance";
     }
-    DLOG(INFO) << "Decremented AWS SDK Instance: " << sdk_reference_count
+    DLOG(INFO) << "Decremented AWS SDK Instance: " << sdk_reference_count;
 }

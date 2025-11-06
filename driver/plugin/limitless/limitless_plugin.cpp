@@ -43,6 +43,7 @@ SQLRETURN LimitlessPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     const std::shared_ptr<DialectLimitless> limitless_dialect = std::dynamic_pointer_cast<DialectLimitless>(this->dialect_);
     if (!limitless_dialect) {

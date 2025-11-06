@@ -75,6 +75,7 @@ SQLRETURN FailoverPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     topology_monitor_->StartMonitor(dbc->plugin_head);
     return next_plugin->Connect(
@@ -92,6 +93,7 @@ SQLRETURN FailoverPlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering Execute";
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
     const SQLRETURN ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
