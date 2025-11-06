@@ -110,8 +110,9 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             SQL_HANDLE_ENV, nullptr, &env->wrapped_env
         );
         if (!SQL_SUCCEEDED(res.fn_result)) {
+            LOG(ERROR) << "Limitless Router failed to allocate ENV Handle.";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Failed to allocate ENV handle", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+            dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
         NULL_CHECK_CALL_LIB_FUNC(monitor->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
@@ -159,6 +160,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     }
 
     if (limitless_routers.empty()) {
+        LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers.";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
@@ -173,7 +175,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
         dbc->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
         rc = next_plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     } catch (std::runtime_error& error) {
-        LOG(INFO) << "Got runtime error while getting round robin host for limitless (trying for highest weight host next): " << error.what();
+        LOG(WARNING) << "Got runtime error while getting round robin host for limitless (trying for highest weight host next): " << error.what();
         // Proceed and attempt to connect to highest weight host.
     }
 
@@ -202,11 +204,12 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             }
         } catch (std::runtime_error &error) {
             // No more hosts.
-            LOG(INFO) << "Got runtime error while getting highest weight host for limitless (no host found): " << error.what();
+            LOG(WARNING) << "Got runtime error while getting highest weight host for limitless (no host found): " << error.what();
             break;
         }
     }
 
+    LOG(ERROR) << "The limitless connection plugin was unable to establish a connection.";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;

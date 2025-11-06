@@ -122,6 +122,7 @@ SQLRETURN BasePlugin::Execute(
                 SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
             );
         } else {
+            LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
             stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }

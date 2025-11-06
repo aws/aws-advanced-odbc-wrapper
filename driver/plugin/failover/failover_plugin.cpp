@@ -131,6 +131,7 @@ SQLRETURN FailoverPlugin::Execute(
     }
 
     if (failover_result) {
+        LOG(INFO) << "Successfully triggered failover.";
         ERR_INFO* err_info;
         if (TRANSACTION_OPEN == original_transaction_status) {
             err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);

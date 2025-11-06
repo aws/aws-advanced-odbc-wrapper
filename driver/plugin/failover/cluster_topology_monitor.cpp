@@ -66,6 +66,7 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
         SQL_HANDLE_ENV, nullptr, &henv->wrapped_env
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(ERROR) << "Cluster Topology Monitor failed to create new Underlying Environment.";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Cluster Topology Monitor failed to create new Underlying Environment", ERR_NO_UNDER_LYING_FUNCTION);
     }
