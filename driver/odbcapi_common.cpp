@@ -20,6 +20,7 @@
 
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
+#include "util/logger_wrapper.h"
 #include "util/odbc_dsn_helper.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
@@ -34,12 +35,14 @@ SQLRETURN SQL_API SQLAllocConnect(
     SQLHENV        EnvironmentHandle,
     SQLHDBC *      ConnectionHandle)
 {
+    LOG(INFO) << "Entering";
     return RDS_AllocDbc(EnvironmentHandle, ConnectionHandle);
 };
 
 SQLRETURN SQL_API SQLAllocEnv(
     SQLHENV *      EnvironmentHandle)
 {
+    LOG(INFO) << "Entering";
     return RDS_AllocEnv(EnvironmentHandle);
 }
 
@@ -48,6 +51,7 @@ SQLRETURN SQL_API SQLAllocHandle(
     SQLHANDLE      InputHandle,
     SQLHANDLE *    OutputHandlePtr)
 {
+    LOG(INFO) << "Entering";
     SQLRETURN ret = SQL_ERROR;
     switch (HandleType) {
         case SQL_HANDLE_ENV:
@@ -72,6 +76,7 @@ SQLRETURN SQL_API SQLAllocStmt(
     SQLHDBC        ConnectionHandle,
     SQLHSTMT *     StatementHandle)
 {
+    LOG(INFO) << "Entering";
     return RDS_AllocStmt(ConnectionHandle, StatementHandle);
 }
 
@@ -83,6 +88,7 @@ SQLRETURN SQL_API SQLBindCol(
     SQLLEN         BufferLength,
     SQLLEN *       StrLen_or_IndPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -110,6 +116,7 @@ SQLRETURN SQL_API SQLBindParameter(
     SQLLEN         BufferLength,
     SQLLEN *       StrLen_or_IndPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -129,6 +136,7 @@ SQLRETURN SQL_API SQLBulkOperations(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    Operation)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -147,6 +155,7 @@ SQLRETURN SQL_API SQLBulkOperations(
 SQLRETURN SQL_API SQLCancel(
     SQLHSTMT       StatementHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -165,6 +174,7 @@ SQLRETURN SQL_API SQLCancelHandle(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle)
 {
+    LOG(INFO) << "Entering";
     DESC* desc;
     STMT* stmt;
     DBC* dbc;
@@ -227,6 +237,7 @@ SQLRETURN SQL_API SQLCancelHandle(
 SQLRETURN SQL_API SQLCloseCursor(
     SQLHSTMT       StatementHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -253,6 +264,7 @@ SQLRETURN SQL_API SQLCompleteAsync(
     SQLHANDLE     Handle,
     RETCODE *     AsyncRetCodePtr)
 {
+    LOG(INFO) << "Entering";
     switch (HandleType) {
         case SQL_HANDLE_DBC:
         {
@@ -283,6 +295,7 @@ SQLRETURN SQL_API SQLCopyDesc(
     SQLHDESC       SourceDescHandle,
     SQLHDESC       TargetDescHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_DESC(SourceDescHandle);
     DESC* src_desc = static_cast<DESC*>(SourceDescHandle);
     CHECK_WRAPPED_DESC(src_desc);
@@ -317,6 +330,7 @@ SQLRETURN SQL_API SQLDescribeParam(
     SQLSMALLINT * DecimalDigitsPtr,
     SQLSMALLINT * NullablePtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -335,6 +349,7 @@ SQLRETURN SQL_API SQLDescribeParam(
 SQLRETURN SQL_API SQLDisconnect(
     SQLHDBC        ConnectionHandle)
 {
+    LOG(INFO) << "Entering";
     SQLRETURN ret = SQL_ERROR;
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -359,12 +374,14 @@ SQLRETURN SQL_API SQLEndTran(
     SQLHANDLE      Handle,
     SQLSMALLINT    CompletionType)
 {
+    LOG(INFO) << "Entering";
     return RDS_SQLEndTran(HandleType, Handle, CompletionType);
 }
 
 SQLRETURN SQL_API SQLExecute(
     SQLHSTMT       StatementHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
@@ -387,6 +404,7 @@ SQLRETURN SQL_API SQLExtendedFetch(
     SQLULEN *      RowCountPtr,
     SQLUSMALLINT * RowStatusArray)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -405,6 +423,7 @@ SQLRETURN SQL_API SQLExtendedFetch(
 SQLRETURN SQL_API SQLFetch(
     SQLHSTMT        StatementHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -425,6 +444,7 @@ SQLRETURN SQL_API SQLFetchScroll(
     SQLSMALLINT    FetchOrientation,
     SQLLEN         FetchOffset)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -443,12 +463,14 @@ SQLRETURN SQL_API SQLFetchScroll(
 SQLRETURN SQL_API SQLFreeConnect(
     SQLHDBC        ConnectionHandle)
 {
+    LOG(INFO) << "Entering";
     return RDS_FreeConnect(ConnectionHandle);
 }
 
 SQLRETURN SQL_API SQLFreeEnv(
     SQLHENV        EnvironmentHandle)
 {
+    LOG(INFO) << "Entering";
     return RDS_FreeEnv(EnvironmentHandle);
 }
 
@@ -456,6 +478,7 @@ SQLRETURN SQL_API SQLFreeHandle(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle)
 {
+    LOG(INFO) << "Entering";
     SQLRETURN ret = SQL_ERROR;
     switch (HandleType) {
         case SQL_HANDLE_DBC:
@@ -481,6 +504,7 @@ SQLRETURN SQL_API SQLFreeStmt(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Option)
 {
+    LOG(INFO) << "Entering";
     return RDS_FreeStmt(StatementHandle);
 }
 
@@ -492,6 +516,7 @@ SQLRETURN SQL_API SQLGetData(
     SQLLEN        BufferLength,
     SQLLEN *      StrLen_or_IndPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -514,6 +539,7 @@ SQLRETURN SQL_API SQLGetEnvAttr(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV* env = static_cast<ENV*>(EnvironmentHandle);
 
@@ -546,6 +572,7 @@ SQLRETURN SQL_API SQLGetFunctions(
     SQLUSMALLINT   FunctionId,
     SQLUSMALLINT * SupportedPtr)
 {
+    LOG(INFO) << "Entering";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     SQLRETURN ret = SQL_ERROR;
 
@@ -579,6 +606,7 @@ SQLRETURN SQL_API SQLGetStmtOption(
     SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -596,6 +624,7 @@ SQLRETURN SQL_API SQLGetStmtOption(
 SQLRETURN SQL_API SQLMoreResults(
     SQLHSTMT       StatementHandle)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -615,6 +644,7 @@ SQLRETURN SQL_API SQLNumParams(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT *  ParameterCountPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -634,6 +664,7 @@ SQLRETURN SQL_API SQLNumResultCols(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT *  ColumnCountPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -653,6 +684,7 @@ SQLRETURN SQL_API SQLParamData(
     SQLHSTMT       StatementHandle,
     SQLPOINTER *   ValuePtrPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -673,6 +705,7 @@ SQLRETURN SQL_API SQLParamOptions(
     SQLULEN        Crow,
     SQLULEN *      FetchOffsetPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -692,6 +725,7 @@ SQLRETURN SQL_API SQLPutData(
     SQLPOINTER     DataPtr,
     SQLLEN         StrLen_or_Ind)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -711,6 +745,7 @@ SQLRETURN SQL_API SQLRowCount(
     SQLHSTMT       StatementHandle,
     SQLLEN *       RowCountPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -738,6 +773,7 @@ SQLRETURN SQL_API SQLSetDescRec(
     SQLLEN *      StringLengthPtr,
     SQLLEN *      IndicatorPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
     DESC* desc = static_cast<DESC*>(DescriptorHandle);
     const DBC* dbc = desc->dbc;
@@ -758,6 +794,7 @@ SQLRETURN SQL_API SQLSetEnvAttr(
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength)
 {
+    LOG(INFO) << "Entering";
     return RDS_SQLSetEnvAttr(EnvironmentHandle, Attribute, ValuePtr, StringLength);
 }
 
@@ -771,6 +808,7 @@ SQLRETURN SQL_API SQLSetParam(
     SQLPOINTER     ParameterValuePtr,
     SQLLEN *       StrLen_or_IndPtr)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -792,6 +830,7 @@ SQLRETURN SQL_API SQLSetPos(
     SQLUSMALLINT   Operation,
     SQLUSMALLINT   LockType)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -813,6 +852,7 @@ SQLRETURN SQL_API SQLSetScrollOptions(
     SQLLEN         KeysetSize,
     SQLUSMALLINT   RowsetSize)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -832,6 +872,7 @@ SQLRETURN SQL_API SQLSetStmtOption(
     SQLUSMALLINT   Option,
     SQLULEN        Param)
 {
+    LOG(INFO) << "Entering";
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
@@ -851,6 +892,7 @@ SQLRETURN SQL_API SQLTransact(
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   CompletionType)
 {
+    LOG(INFO) << "Entering";
     if (nullptr == EnvironmentHandle && nullptr == ConnectionHandle) {
         return SQL_INVALID_HANDLE;
     }
