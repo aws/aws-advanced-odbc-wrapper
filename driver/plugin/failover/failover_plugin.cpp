@@ -61,9 +61,11 @@ FailoverPlugin::~FailoverPlugin()
     std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
     if (pair.first == 1) {
         topology_monitors_.Delete(this->cluster_id_);
+        LOG(INFO) << "Shut down Topology Monitor for: " <<  this->cluster_id_;
     } else {
         pair.first--;
         topology_monitors_.Put(this->cluster_id_, pair);
+        LOG(INFO) << "Decremented Topology Monitor for: " << this->cluster_id_ << ", to: " << pair.first;
     }
 }
 
@@ -267,6 +269,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
                     dbc->wrapped_dbc
                 );
+                LOG(WARNING) << "[Failover Service] Reconnection to original writer failed.";
                 continue;
             }
             if (!topology_query_helper_->GetWriterId(dbc).empty()) {
@@ -433,6 +436,7 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC*
             dbc, topology_map_, topology_query_helper_, dialect_
         );
         topology_monitors_.Put(this->cluster_id_, {1, monitor});
+        LOG(INFO) << "Created Topology Monitor for: " << this->cluster_id_;
         return monitor;
     }
 
@@ -440,6 +444,7 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC*
     // If the monitor exists, increment the reference count.
     pair.first++;
     topology_monitors_.Put(this->cluster_id_, pair);
+    LOG(INFO) << "Incremented Topology Monitor for: " << this->cluster_id_ << ", to: " << pair.first;
     return pair.second;
 }
 

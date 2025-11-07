@@ -460,6 +460,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(ClusterTopolo
     this->writer_host_info_ = writer_host_info;
     RDS_AllocDbc(monitor->henv_, &hdbc_);
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
+    LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 
 ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
@@ -484,6 +485,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
         }
         RDS_FreeConnect(hdbc_);
     }
+    LOG(INFO) << "Finished node monitoring for: " << this->host_info_->GetHost();
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::Run() {

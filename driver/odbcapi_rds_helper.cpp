@@ -1887,13 +1887,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         if (!env->driver_lib_loader) {
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            LOG(ERROR) << "Attempted to load different drivers to the same environment";
+            LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.", ERR_DIFF_ENV_UNDERLYING_DRIVER);
             return SQL_ERROR;
         }
     } else {
-        LOG(ERROR) << "No driver loaded or found in Connection String / DSN";
+        LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
         return SQL_ERROR;

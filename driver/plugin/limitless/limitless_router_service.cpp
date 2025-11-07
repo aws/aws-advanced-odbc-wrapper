@@ -48,9 +48,11 @@ LimitlessRouterService::~LimitlessRouterService() {
     std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
     if (pair.first == 1) {
         limitless_router_monitors.Delete(router_monitor_key_);
+        LOG(INFO) << "Shut down Limitless Monitor for: " << router_monitor_key_;
     } else {
         pair.first--;
         limitless_router_monitors.Put(router_monitor_key_, pair);
+        LOG(INFO) << "Decremented Limitless Monitor for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }
 
@@ -89,6 +91,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
 {
     if (dbc == nullptr) {
+        LOG(ERROR) << "Null DBC passed to EstablishConnection.";
         return SQL_INVALID_HANDLE;
     }
 
@@ -217,22 +220,25 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
-    BasePlugin* plugin_head= dbc->plugin_head;
+    BasePlugin* plugin_head = dbc->plugin_head;
     const std::map<RDS_STR, RDS_STR> conn_attr = dbc->conn_attr;
     const std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
     }
+    LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
     if (!limitless_router_monitors.Find(router_monitor_key_)) {
         const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
         limitless_router_monitors.Put(router_monitor_key_, {1, monitor});
+        LOG(INFO) << "Created Limitless Monitor for: " << router_monitor_key_;
     } else {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
         // If the monitor exists, increment the reference count.
         pair.first++;
         limitless_router_monitors.Put(router_monitor_key_, pair);
+        LOG(INFO) << "Incremented Limitless Monitor for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }
