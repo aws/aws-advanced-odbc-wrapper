@@ -22,7 +22,7 @@ RDS_STR SqlQueryAnalyzer::GetFirstSqlStatement(const RDS_STR &statement)
     if (query_list.empty()) {
         return statement;
     }
-    RDS_STR first_statement = query_list.front();
+    const RDS_STR& first_statement = query_list.front();
     std::string first_statement_upper = RDS_STR_UPPER(first_statement);
     // Remove spaces and comments (/* */)
     const RDS_REGEX space_comment_pattern(R"(\s*/\*(.*?)\*/\s*)");
@@ -96,7 +96,7 @@ bool SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(DBC* dbc, const RDS_STR &st
 bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &statement)
 {
     RDS_STR first_statement = GetFirstSqlStatement(statement);
-    size_t separator_index = first_statement.find("=");
+    size_t separator_index = first_statement.find('=');
     size_t value_index;
     if (std::string::npos != separator_index) {
         value_index = separator_index + 1;
@@ -109,7 +109,7 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const RDS_STR &stateme
     }
 
     first_statement = first_statement.substr(value_index);
-    separator_index = first_statement.find(";");
+    separator_index = first_statement.find(';');
     if (std::string::npos != separator_index) {
         first_statement = first_statement.substr(separator_index);
     }

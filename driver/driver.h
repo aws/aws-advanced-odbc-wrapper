@@ -19,6 +19,8 @@
     #define ODBCVER 0x0380
 #endif
 
+#define ODBCVER_BITS 256
+
 #define DRIVER_VERSION "1.0.0"
 
 #if WIN32
@@ -115,7 +117,7 @@ struct DBC {
     std::recursive_mutex        lock;
     ENV*                        env;
     std::list<STMT*>            stmt_list;
-    unsigned short              unnamed_cursor_count;
+    uint16_t                    unnamed_cursor_count;
     std::list<DESC*>            desc_list;
     SQLHDBC                     wrapped_dbc;
     CONN_STATUS                 conn_status;

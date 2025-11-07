@@ -36,7 +36,7 @@
 
 #ifdef UNICODE
 #include "unicode/unistr.h"
-inline size_t UShortStrlen(const unsigned short* str) {
+inline size_t UShortStrlen(const uint16_t* str) {
     size_t length = 0;
     while (str[length] != 0) {
         length++;
@@ -59,19 +59,19 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     return wstr;
 }
 
-inline std::vector<unsigned short> ConvertUTF8ToUTF16(std::string input) {
+inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
-    unsigned short *ushort_string = (unsigned short *)(string_utf16.getTerminatedBuffer());
+    uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
     size_t size = UShortStrlen(ushort_string);
-    std::vector<unsigned short> ushort_vec(ushort_string, ushort_string + size);
+    std::vector<uint16_t> ushort_vec(ushort_string, ushort_string + size);
     // Insert null terminator because vector.data() returns NULL when empty
     ushort_vec.push_back(0);
     return ushort_vec;
 }
 
 // Assumes that the passed in vec is null terminated and was produced by ConvertUTF8ToUTF16
-inline int CopyUTF16StringToBuffer(unsigned short* buf, size_t buf_len, std::vector<unsigned short> vec) {
+inline int CopyUTF16StringToBuffer(uint16_t* buf, size_t buf_len, std::vector<uint16_t> vec) {
     size_t end = buf_len < vec.size() ? buf_len : vec.size();
     std::copy(vec.begin(), vec.begin() + end, buf);
     if (end > 0) {
@@ -80,12 +80,12 @@ inline int CopyUTF16StringToBuffer(unsigned short* buf, size_t buf_len, std::vec
     return vec.size() - 1;
 }
 
-inline int CopyUTF8ToUTF16Buffer(unsigned short* buf, size_t buf_len, std::string str) {
+inline int CopyUTF8ToUTF16Buffer(uint16_t* buf, size_t buf_len, std::string str) {
     return CopyUTF16StringToBuffer(buf, buf_len, ConvertUTF8ToUTF16(str));
 }
 
 // The input string buffer is assumed to be null terminated
-inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
+inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
     icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
     std::string buffer_utf8;
     unicode_str.toUTF8String(buffer_utf8);
@@ -95,7 +95,7 @@ inline std::string ConvertUTF16ToUTF8(unsigned short *buffer_utf16) {
 
 #ifdef UNICODE
     #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(ConvertUTF8ToUTF16(str).data()))
-    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<unsigned short *>(str)).c_str()
+    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<uint16_t *>(str)).c_str()
     #define RDS_TSTR(str) ConvertUTF8ToWString(str)
 #else
     #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
@@ -132,12 +132,14 @@ inline std::string RDS_STR_UPPER(std::string str) {
     UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
     if (U_FAILURE(ucasemap_status)) {
        LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
+       delete[] buf;
        return str;
     }
     UErrorCode upper_status = U_ZERO_ERROR;
     ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
     if (U_FAILURE(upper_status)) {
        LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status));
+       delete[] buf;
        return str;
     }
     std::string upper(buf);

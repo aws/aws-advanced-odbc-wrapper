@@ -105,8 +105,7 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
 }
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR &auth_type) {
-    RDS_STR local_str = auth_type;
-    std::string local_str_upper = RDS_STR_UPPER(local_str);
+    const std::string local_str_upper = RDS_STR_UPPER(auth_type);
     if (auth_table.contains(local_str_upper)) {
         return auth_table.at(local_str_upper);
     }

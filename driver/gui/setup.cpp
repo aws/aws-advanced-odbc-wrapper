@@ -222,7 +222,7 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
         if (control_type == EDIT_TEXT) {
             GetWindowText(control, buffer, MAX_KEY_SIZE);
 #ifdef UNICODE
-            return ConvertUTF16ToUTF8(reinterpret_cast<unsigned short*>(buffer));
+            return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(buffer));
 #else
             return buffer;
 #endif
@@ -448,9 +448,9 @@ void TestConnection(HWND hwnd)
         MessageBox(hwnd, RDS_TSTR(fail_msg).c_str(), _T("Test Connection"), MB_OK);
     }
 
-    if (((ENV*)henv)->driver_lib_loader && ((DBC*)hdbc)->wrapped_dbc) {
-        NULL_CHECK_CALL_LIB_FUNC(((ENV*)henv)->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-            ((DBC*)hdbc)->wrapped_dbc
+    if (static_cast<ENV*>(henv)->driver_lib_loader && static_cast<DBC*>(hdbc)->wrapped_dbc) {
+        NULL_CHECK_CALL_LIB_FUNC(static_cast<ENV*>(henv)->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+            static_cast<DBC*>(hdbc)->wrapped_dbc
         );
     }
     RDS_FreeConnect(hdbc);
@@ -486,7 +486,7 @@ bool SaveDsn()
         if (new_dsn) {
             SaveKey(ODBC_DATA_SOURCES, dsn, driver);
         }
-        
+
         TCHAR buff[MAX_KEY_SIZE] = {};
         RDS_SQLGetPrivateProfileString(driver, std::string(KEY_DRIVER), std::string(""), buff, ODBCINST_INI);
         SaveKey(dsn.c_str(), KEY_DRIVER, AS_UTF8_CSTR(buff));
@@ -919,7 +919,7 @@ std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND h
     // This is the initial connection.
     // Check if SAVEFILE is specified.
 #ifdef UNICODE
-    converted_str = ConvertUTF16ToUTF8(reinterpret_cast<unsigned short*>(InConnectionString));
+    converted_str = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(InConnectionString));
 #else
     converted_str = reinterpret_cast<char*>(InConnectionString);
 #endif

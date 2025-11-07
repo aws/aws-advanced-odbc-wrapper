@@ -23,10 +23,10 @@ void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::ma
 {
     const RDS_REGEX pattern("([^;=]+)=([^;]+)");
     RDS_MATCH match;
-    RDS_STR conn_str_itr = conn_str;
+    RDS_STR conn_str_itr = std::move(conn_str);
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
-        RDS_STR key = match[1].str();
+        const RDS_STR key = match[1].str();
         const RDS_STR val = match[2].str();
 
         // Connection String takes precedence

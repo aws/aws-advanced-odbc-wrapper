@@ -63,8 +63,8 @@ SQLRETURN BasePlugin::Connect(
 
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE
-    std::vector<unsigned short> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
-    unsigned short *conn_in_ushort = conn_in_vec.data();
+    const std::vector<uint16_t> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
+    const uint16_t* conn_in_ushort = conn_in_vec.data();
 
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));
 #else
@@ -76,6 +76,9 @@ SQLRETURN BasePlugin::Connect(
 
     if (res.fn_load_success) {
         ret = res.fn_result;
+        if (!SQL_SUCCEEDED(ret)) {
+            return ret;
+        }
     }
 
     // Apply Tracked Connection Attributes
