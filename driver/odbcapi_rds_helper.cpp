@@ -16,9 +16,17 @@
 
 #include "odbcapi_rds_helper.h"
 
+
+#include <cwchar>
+
+// #ifdef WIN32
+//     #include <wchar>
+// #else
+
+// #endif
+
+#include <cstdio>
 #include <unordered_set>
-#include <stdio.h>
-#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
@@ -680,15 +688,10 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLUSMALLINT   DriverCompletion)
 {
     std::string conn_str_utf8;
-#ifdef UNICODE
-    wchar_t conn_str[MAX_KEY_SIZE] = { 0 };
-    wchar_t out_conn_str[MAX_KEY_SIZE] = { 0 };
-#else
-    char conn_str[MAX_KEY_SIZE] = {0};
-    char out_conn_str[MAX_KEY_SIZE] = {0};
-#endif
+    std::string conn_out_str_utf8;
+
     if (DriverCompletion && WindowHandle) {
-#if defined(_WIN32)
+#if _WIN32
         bool complete_required = true;
         std::tuple<std::string, std::string, bool> dialog_result; // conn_str, out_conn_str, dialog_box_cancelled
 
@@ -698,13 +701,6 @@ SQLRETURN RDS_SQLDriverConnect(
                 complete_required = false;
             case SQL_DRIVER_COMPLETE_REQUIRED:
                 dialog_result = StartDialogForSqlDriverConnect(WindowHandle, InConnectionString, OutConnectionString, complete_required);
-#ifdef UNICODE
-                swprintf(conn_str, sizeof(conn_str)/sizeof(wchar_t), RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), RDS_TSTR(std::get<0>(dialog_result)).c_str());
-                swprintf(out_conn_str, sizeof(out_conn_str)/sizeof(wchar_t), RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), RDS_TSTR(std::get<1>(dialog_result)).c_str());
-#else
-                snprintf(conn_str, sizeof(conn_str), RDS_CHAR_FORMAT, std::get<0>(dialog_result).c_str());
-                snprintf(out_conn_str, sizeof(out_conn_str), RDS_CHAR_FORMAT, std::get<1>(dialog_result).c_str());
-#endif
                 break;
             case SQL_DRIVER_NOPROMPT:
             default:
@@ -716,11 +712,12 @@ SQLRETURN RDS_SQLDriverConnect(
             return SQL_NO_DATA_FOUND;
         }
 
-        conn_str_utf8 = AS_UTF8_CSTR(conn_str);
+        conn_str_utf8 = std::get<0>(dialog_result);
+        conn_out_str_utf8 = std::get<1>(dialog_result);
 #endif
     } else {
 #ifdef UNICODE
-        icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
+        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
         unicode_str.toUTF8String(conn_str_utf8);
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
@@ -750,6 +747,12 @@ SQLRETURN RDS_SQLDriverConnect(
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_DSN), dbc->conn_attr);
     }
 
+    // Construct Out Connection String if not built by dialog prompt
+    // Build without loading base DSN information, connection string is to be used for wrapper
+    if (conn_out_str_utf8.empty()) {
+        conn_out_str_utf8 = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
+    }
+
     ret = RDS_InitializeConnection(dbc);
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
@@ -759,16 +762,15 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Update OutConnectionString with parsed values
     if (OutConnectionString && StringLength2Ptr) {
+        const SQLULEN len = conn_out_str_utf8.length();
 #ifdef UNICODE
-        const SQLULEN len = wcslen(out_conn_str);
-#if defined(_WIN32)
-        const SQLULEN written = swprintf(OutConnectionString, MAX_KEY_SIZE, RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), out_conn_str);
+    #if _WIN32
+        const SQLULEN written = swprintf(OutConnectionString, MAX_KEY_SIZE, RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), ConvertUTF8ToWString(conn_out_str_utf8).c_str());
+    #else
+        const SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, conn_out_str_utf8);
+    #endif
 #else
-        const SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, std::string(AS_UTF8_CSTR(out_conn_str)));
-#endif
-#else
-        const SQLULEN len = RDS_STR_LEN(out_conn_str);
-        const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+        const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, conn_out_str_utf8.c_str());
 #endif
         if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
             ret = SQL_SUCCESS_WITH_INFO;
@@ -1124,9 +1126,9 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        if (err->sqlstate != nullptr && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
+                        if (err->sqlstate != nullptr && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M') {
                             char_value = "ODBC 3.0";
-                        else {
+                        } else {
                             char_value = "ISO 9075";
                         }
                     }
@@ -1258,7 +1260,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 
                 const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
-                if (env->err) {
+                if (env->err && env->err->sqlstate && env->err->error_msg) {
                     err = new ERR_INFO(*env->err);
                 } else if (env->wrapped_env) {
                     has_underlying_data = true;
@@ -1277,7 +1279,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
 
-                if (dbc->err) {
+                if (dbc->err && dbc->err->sqlstate && dbc->err->error_msg) {
                     err = new ERR_INFO(*dbc->err);
                 } else if (dbc->wrapped_dbc) {
                     has_underlying_data = true;
@@ -1297,7 +1299,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 
                 const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
-                if (stmt->err) {
+                if (stmt->err && stmt->err->sqlstate && stmt->err->error_msg) {
                     err = new ERR_INFO(*stmt->err);
                 } else if (stmt->wrapped_stmt) {
                     has_underlying_data = true;
@@ -1317,7 +1319,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 
                 const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
-                if (desc->err) {
+                if (desc->err && desc->err->sqlstate && desc->err->error_msg) {
                     err = new ERR_INFO(*desc->err);
                 } else if (desc->wrapped_desc) {
                     has_underlying_data = true;
@@ -1343,9 +1345,9 @@ SQLRETURN RDS_SQLGetDiagRec(
         ret = SQL_SUCCESS;
         if (SQLState) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, err->sqlstate);
+            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate);
 #else
-            snprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+            snprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
 #endif
         }
         const SQLLEN err_len = err->error_msg != nullptr ? static_cast<SQLLEN>(strlen(err->error_msg)) : 0;
@@ -1357,11 +1359,11 @@ SQLRETURN RDS_SQLGetDiagRec(
                 *TextLengthPtr = static_cast<SQLSMALLINT>((err_len - 1) * sizeof(SQLTCHAR));
             }
         }
-        if (MessageText && (BufferLength > 0)) {
+        if (MessageText && (BufferLength > 0) && err->error_msg) {
 #ifdef UNICODE
-            const SQLLEN written = CopyUTF8ToUTF16Buffer((unsigned short*) MessageText, (size_t) BufferLength / sizeof(unsigned short), err->error_msg);
+            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(uint16_t), err->error_msg);
 #else
-            const SQLLEN written = snprintf((RDS_CHAR*) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+            const SQLLEN written = snprintf(reinterpret_cast<RDS_CHAR*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
 #endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
@@ -1379,9 +1381,9 @@ SQLRETURN RDS_SQLGetDiagRec(
         //  Set states and clear buffers
         if (SQLState) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer((unsigned short*) SQLState, MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
+            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
 #else
-            snprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            snprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
 #endif
         }
         if (MessageText) {
@@ -1427,13 +1429,15 @@ SQLRETURN RDS_SQLGetInfo(
         case SQL_DRIVER_VER:
             char_value = DRIVER_VERSION;
             break;
+        default:
+            break;
     }
 
     if (!char_value) {
         {
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             if (dbc->wrapped_dbc) {
-                ENV* env = (ENV*) dbc->env;
+                const ENV* env = dbc->env;
                 CLEAR_DBC_ERROR(dbc);
                 const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
                     dbc->wrapped_dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr
@@ -1445,7 +1449,7 @@ SQLRETURN RDS_SQLGetInfo(
         // Get info for shell driver
         switch (InfoType) {
             case SQL_DRIVER_ODBC_VER:
-                snprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / 256, ODBCVER % 256);
+                snprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / ODBCVER_BITS, ODBCVER % ODBCVER_BITS);
                 char_value = odbcver;
                 break;
             case SQL_MAX_CONCURRENT_ACTIVITIES:
@@ -1458,7 +1462,7 @@ SQLRETURN RDS_SQLGetInfo(
             // TODO - Add other cases as needed
             default:
                 LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
-                std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 CLEAR_DBC_ERROR(dbc);
                 dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
                 NOT_IMPLEMENTED;
@@ -1471,9 +1475,9 @@ SQLRETURN RDS_SQLGetInfo(
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer((unsigned short*)InfoValuePtr, BufferLength / sizeof(unsigned short), char_value);
+            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(InfoValuePtr), BufferLength / sizeof(uint16_t), char_value);
 #else
-            snprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+            snprintf(static_cast<RDS_CHAR*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
 #endif
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;

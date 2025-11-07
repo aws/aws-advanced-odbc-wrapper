@@ -74,7 +74,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     const std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ?
         conn_attr.at(KEY_LIMITLESS_MODE) : VALUE_LIMITLESS_MODE_IMMEDIATE;
     const std::string upper_local_str = RDS_STR_UPPER(limitless_mode);
-    if (upper_local_str == ToStr(VALUE_LIMITLESS_MODE_LAZY)) {
+    if (upper_local_str == VALUE_LIMITLESS_MODE_LAZY) {
         block_and_query_immediately = false;
     }
 

@@ -61,7 +61,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     std::vector<HostInfo> limitless_routers;
 
     while (SQL_SUCCEEDED((NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch, stmt)).fn_result)) {
-        const HostInfo host_info = create_host(load_value, router_endpoint_value, host_port_to_map);
+        const HostInfo host_info = CreateHost(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
 
@@ -72,8 +72,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     return limitless_routers;
 }
 
-HostInfo LimitlessQueryHelper::create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
-    uint64_t weight = static_cast<uint64_t>(WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING));
+HostInfo LimitlessQueryHelper::CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
     const double load_num = std::strtod(AS_UTF8_CSTR(load), nullptr);
     uint64_t weight = static_cast<uint64_t>(WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING));
 

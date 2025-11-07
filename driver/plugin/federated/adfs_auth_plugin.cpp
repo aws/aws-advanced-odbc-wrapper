@@ -81,7 +81,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
         dbc->conn_attr.at(KEY_REGION) : "";
     if (region.empty()) {
         region = dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
     const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
