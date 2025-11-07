@@ -18,8 +18,8 @@
 
 RdsLibLoader::RdsLibLoader(RDS_STR library_path)
 {
-    driver_path = library_path;
-    driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path.c_str());
+    driver_path = std::move(library_path);
+    driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
 }
 
 RdsLibLoader::~RdsLibLoader()
@@ -34,13 +34,13 @@ RDS_STR RdsLibLoader::GetDriverPath()
     return driver_path;
 }
 
-FUNC_HANDLE RdsLibLoader::GetFunction(RDS_STR func_name)
+FUNC_HANDLE RdsLibLoader::GetFunction(const RDS_STR &func_name)
 {
-    std::string converted_function_name = ToStr(func_name);
-    FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, converted_function_name.c_str());
+    const std::string converted_function_name = ToStr(func_name);
+    const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, converted_function_name.c_str());
     if (driver_function) {
-        std::unique_lock lock(cache_lock);
-        function_cache.insert_or_assign(func_name, driver_function);
+        const std::unique_lock lock(cache_lock);
+        function_cache.insert_or_assign(func_name, const_cast<FUNC_HANDLE>(driver_function));
     }
-    return driver_function;
+    return const_cast<FUNC_HANDLE>(driver_function);
 }

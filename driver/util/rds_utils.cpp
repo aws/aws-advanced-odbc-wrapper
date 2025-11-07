@@ -19,8 +19,8 @@
 #include <regex>
 #include <string>
 
-#include "rds_utils.h"
 #include "rds_strings.h"
+#include "rds_utils.h"
 
 namespace {
     const std::regex AURORA_DNS_PATTERN(
@@ -55,7 +55,7 @@ namespace {
         R"#(^(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){1}(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){2}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)#");
     const std::regex IPV6_PATTERN(R"#(^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$)#");
     const std::regex IPV6_COMPRESSED_PATTERN(R"#(^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$)#");
-}
+} // anonymous namespace
 
 bool RdsUtils::IsDnsPatternValid(const std::string& host) {
     return ( host.find('?') != std::string::npos);
@@ -93,9 +93,9 @@ std::string RdsUtils::GetRdsClusterHostUrl(const std::string& host) {
     auto f = [ host ](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 1) {
-            std::string gr1 = m.size() > 1 ? m.str(1) : std::string("");
-            std::string gr2 = m.size() > 2 ? m.str(2) : std::string("");
-            std::string gr3 = m.size() > 3 ? m.str(3) : std::string("");
+            const std::string gr1 = m.size() > 1 ? m.str(1) : std::string("");
+            const std::string gr2 = m.size() > 2 ? m.str(2) : std::string("");
+            const std::string gr3 = m.size() > 3 ? m.str(3) : std::string("");
             if (!gr1.empty() && !gr3.empty() &&
                 (STR_ICMP(gr2.c_str(), "cluster-") == 0 || STR_ICMP(gr2.c_str(), "cluster-ro-") == 0)) {
                 std::string result;

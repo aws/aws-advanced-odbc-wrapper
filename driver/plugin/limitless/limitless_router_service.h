@@ -22,6 +22,11 @@
 #include "../../util/sliding_cache_map.h"
 #include "../../dialect/dialect.h"
 
+typedef enum {
+    MONITOR_INTERVAL_MS = 7500,
+    CONNECT_RETRY_ATTEMPTS = 5
+} LimitlessDefault;
+
 class LimitlessRouterService {
 public:
     LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<RDS_STR, RDS_STR> &conn_attr);
@@ -33,7 +38,7 @@ public:
         const std::map<RDS_STR, RDS_STR>& conn_attr,
         BasePlugin* plugin_head,
         DBC* dbc,
-        std::shared_ptr<DialectLimitless> dialect);
+        const std::shared_ptr<DialectLimitless>& dialect) const;
     SQLRETURN EstablishConnection(BasePlugin* plugin_head, DBC* dbc);
     void StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect);
     static SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> limitless_router_monitors;
@@ -42,10 +47,10 @@ private:
     static std::mutex limitless_router_monitors_mutex_;
     std::string router_monitor_key_;
     std::shared_ptr<DialectLimitless> dialect_;
-    unsigned int limitless_monitor_interval_ms_;
-    unsigned int max_router_retries_;
-    unsigned int max_connect_retries_;
-    unsigned int host_port_;
+    int limitless_monitor_interval_ms_;
+    int max_router_retries_;
+    int max_connect_retries_;
+    int host_port_;
 };
 
 #endif // LIMITLESS_ROUTER_SERVICE_H_

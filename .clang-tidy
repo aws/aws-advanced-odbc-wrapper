@@ -1,0 +1,52 @@
+Checks: ">
+  -*,
+  bugprone-*,
+  google-*,
+  misc-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  llvm-include-order,
+  -bugprone-easily-swappable-parameters,
+  -clang-analyzer-optin.cplusplus.VirtualCall,
+  -clang-diagnostic-unused-parameter,
+  -google-default-arguments,
+  -google-readability-todo,
+  -misc-header-include-cycle,
+  -misc-include-cleaner,
+  -misc-unused-parameters,
+  -misc-use-internal-linkage,
+  -modernize-avoid-c-arrays,
+  -modernize-use-auto,
+  -modernize-use-integer-sign-comparison,
+  -modernize-use-ranges,
+  -modernize-use-scoped-lock,
+  -modernize-use-trailing-return-type,
+  -optin.cplusplus.VirtualCall,
+  -performance-no-int-to-ptr,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-inconsistent-declaration-parameter-name,
+"
+
+HeaderFilterRegex: "aws-advanced-odbc-wrapper/(build|src).*\\.(cpp|h)$"
+ExcludeHeaderFilterRegex: "(_deps|aws_sdk)"
+InheritParentConfig: false
+SystemHeaders: false
+
+CheckOptions:
+  - { key: readability-identifier-naming.NamespaceCase,                 value: lower_case }
+  - { key: readability-identifier-naming.ClassCase,                     value: CamelCase  }
+  - { key: readability-identifier-naming.StructCase,                    value: CamelCase  }
+  - { key: readability-identifier-naming.TemplateParameterCase,         value: CamelCase  }
+  - { key: readability-identifier-naming.FunctionCase,                  value: CamelCase  }
+  - { key: readability-identifier-naming.VariableCase,                  value: lower_case }
+  - { key: readability-identifier-naming.ClassMemberCase,               value: lower_case }
+  - { key: readability-identifier-naming.EnumConstantCase,              value: UPPER_CASE }
+  - { key: readability-identifier-naming.ConstexprVariableCase,         value: UPPER_CASE }
+  - { key: readability-identifier-naming.GlobalConstantCase,            value: UPPER_CASE }
+  - { key: readability-identifier-naming.MemberConstantCase,            value: UPPER_CASE }
+  - { key: readability-identifier-naming.StaticConstantCase,            value: UPPER_CASE }
+  - { key: readability-implicit-bool-conversion.AllowIntegerConditions, value: 1          }
+  - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: 1          }

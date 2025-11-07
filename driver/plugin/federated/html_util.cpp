@@ -32,8 +32,8 @@ const std::unordered_map<std::string, char> HtmlUtil::HTML_DECODE_MAP = {
 std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
     std::string retval;
     DLOG(INFO) << "Before HTML escape modification: " << html;
-    int i = 0;
-    const int length = html.length();
+    size_t i = 0;
+    const size_t length = html.length();
     while (i < length) {
         const char c = html[i];
         if (c != '&') {
@@ -42,9 +42,9 @@ std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
             continue;
         }
 
-        size_t semicolon_idx = html.find(';', i);
+        const size_t semicolon_idx = html.find(';', i);
         if (semicolon_idx != std::string::npos) {
-            std::string html_code = html.substr(i, semicolon_idx - i + 1);
+            const std::string html_code = html.substr(i, semicolon_idx - i + 1);
             if (auto itr = HtmlUtil::HTML_DECODE_MAP.find(html_code); itr != HtmlUtil::HTML_DECODE_MAP.end()) {
                 retval.append(1, itr->second);
                 i = semicolon_idx + 1;

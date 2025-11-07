@@ -12,26 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "odbc_helper.h"
+
 #ifdef WIN32
     #include <windows.h>
 #endif
 
 #include <sql.h>
 #include <sqlext.h>
+
 #include "../dialect/dialect.h"
 #include "../driver.h"
 #include "../odbcapi.h"
 #include "rds_strings.h"
-#include "odbc_helper.h"
 
-std::string GetNodeId(SQLHDBC hdbc, std::shared_ptr<Dialect> dialect) {
-    RDS_STR node_id_query = dialect->GetNodeIdQuery();
+std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
+    const RDS_STR node_id_query = dialect->GetNodeIdQuery();
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR node_id[MAX_HOST_SIZE] = {};
     SQLLEN rt = 0;
     RdsLibResult res;
-    DBC* dbc = (DBC*) hdbc;
+    const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         return "";

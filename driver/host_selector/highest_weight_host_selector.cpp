@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-HostInfo HighestWeightHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer, std::unordered_map<std::string, std::string>) {
+HostInfo HighestWeightHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer, std::unordered_map<std::string, std::string> properties) {
     std::vector<HostInfo> eligible_hosts;
     eligible_hosts.reserve(hosts.size());
 

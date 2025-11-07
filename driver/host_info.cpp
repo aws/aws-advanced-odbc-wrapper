@@ -14,7 +14,7 @@
 
 #include "host_info.h"
 
-HostInfo::HostInfo(const std::string& host, int port, HOST_STATE state, bool is_writer, uint64_t weight) :
+HostInfo::HostInfo(std::string host, int port, HOST_STATE state, bool is_writer, uint64_t weight) :
     host { std::move(host) },
     port { port },
     host_state { state },

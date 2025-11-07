@@ -230,6 +230,7 @@ jobs:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
       - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
       - name: Build aws-advanced-odbc-wrapper

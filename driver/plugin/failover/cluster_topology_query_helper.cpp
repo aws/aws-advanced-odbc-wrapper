@@ -44,7 +44,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
     SQLTCHAR writer_id[BUFFER_SIZE] = {0};
     SQLLEN rt = 0;
     RdsLibResult res;
-    DBC* dbc = (DBC*) hdbc;
+    const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         return "";
@@ -79,13 +79,13 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR node_id[BUFFER_SIZE] = {0};
-    bool is_writer;
-    SQLREAL cpu_usage;
-    SQLINTEGER replica_lag_ms;
+    bool is_writer = false;
+    SQLREAL cpu_usage = 0;
+    SQLINTEGER replica_lag_ms = 0;
     SQLLEN rt = 0;
     RdsLibResult res;
     std::vector<HostInfo> hosts;
-    DBC* dbc = (DBC*) hdbc;
+    const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         return hosts;
@@ -117,7 +117,8 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
             stmt
         );
         while (SQL_SUCCEEDED(res.fn_result)) {
-            hosts.push_back(CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms));
+            const HostInfo new_host = CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms);
+            hosts.push_back(new_host);
             res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
                 stmt
             );
@@ -135,11 +136,11 @@ HostInfo ClusterTopologyQueryHelper::CreateHost(
     SQLTCHAR* node_id,
     const bool is_writer,
     const SQLREAL cpu_usage,
-    const SQLREAL replica_lag_ms)
+    const SQLINTEGER replica_lag_ms)
 {
-    const uint64_t weight = (std::round(replica_lag_ms) * SCALE_TO_PERCENT) + std::round(cpu_usage);
+    const uint64_t weight = static_cast<uint64_t>((static_cast<float>(replica_lag_ms) * SCALE_TO_PERCENT) + std::round(cpu_usage));
     const std::string endpoint_url = GetEndpoint(node_id);
-    HostInfo hi = HostInfo(endpoint_url, port, UP, is_writer, weight);
+    const HostInfo hi = HostInfo(endpoint_url, port, UP, is_writer, weight);
     return hi;
 }
 

@@ -24,23 +24,21 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc) : SecretsManagerPlugin(dbc,
 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin) : SecretsManagerPlugin(dbc, next_plugin, nullptr) {}
 
-SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> client) : BasePlugin(dbc, next_plugin)
+SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "SECRETS_MANAGER";
 
-    std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
+    const std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ID)) : "";
     std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_REGION)) : "";
     const std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
         ToStr(dbc->conn_attr.at(KEY_SECRET_ENDPOINT)) : "";
 
-    std::string expiration_ms_str = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)) : "";
     expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : DEFAULT_EXPIRATION_MS;
+        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 0)) : DEFAULT_EXPIRATION_MS;
 
-    if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && matches.length() > 0) {
+    if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
         region = matches[1];
     }
 
@@ -59,7 +57,9 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, st
         secrets_manager_client = client;
     } else {
         Aws::Client::ClientConfiguration client_config;
-        if (!endpoint.empty()) client_config.endpointOverride = endpoint;
+        if (!endpoint.empty()) {
+            client_config.endpointOverride = endpoint;
+        }
         client_config.region = region;
         secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(client_config);
     }
@@ -82,12 +82,12 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     SQLRETURN ret = SQL_ERROR;
-    DBC* dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     {
-        std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
+        const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
         if (secrets_cache.contains(secret_key)) {
-            std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+            const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
             const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(cached_secret.username));
@@ -106,41 +106,47 @@ SQLRETURN SecretsManagerPlugin::Connect(
     Aws::SecretsManager::Model::GetSecretValueOutcome request_outcome = secrets_manager_client->GetSecretValue(secret_request);
 
     if (request_outcome.IsSuccess()) {
-        Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
+        const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
             delete dbc->err;
             dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
         {
-            std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
+            const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
             secrets_cache.insert_or_assign(secret_key, secret);
         }
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, ToRdsStr(secret.username));
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(secret.password));
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-    } else {
-        delete dbc->err;
-        dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-        return SQL_ERROR;
     }
+    CLEAR_DBC_ERROR(dbc);
+    dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    return SQL_ERROR;
 }
 
 Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::chrono::milliseconds expiration) {
     const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
 
-    Aws::String json_string(secret_string);
-    const Aws::Utils::Json::JsonValue json_value(json_string);
+    const Aws::Utils::Json::JsonValue json_value(secret_string);
     const Aws::Utils::Json::JsonView view = json_value.View();
 
     if (view.ValueExists(SECRET_USERNAME_KEY) && view.ValueExists(SECRET_PASSWORD_KEY)) {
-        return Secret{view.GetString(SECRET_USERNAME_KEY).c_str(), view.GetString(SECRET_PASSWORD_KEY).c_str(), curr_time + expiration};
+        return Secret{
+            .username = view.GetString(SECRET_USERNAME_KEY),
+            .password = view.GetString(SECRET_PASSWORD_KEY),
+            .expiration_point = curr_time + expiration
+        };
     }
-    return Secret{"", "", curr_time + expiration};
+    return Secret{
+        .username = "",
+        .password = "",
+        .expiration_point = curr_time + expiration
+    };
 }
 
-int SecretsManagerPlugin::GetSecretsCacheSize() {
+size_t SecretsManagerPlugin::GetSecretsCacheSize() {
     return secrets_cache.size();
 }
 

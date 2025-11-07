@@ -29,7 +29,7 @@ std::shared_ptr<Dialect> InitDialect(std::map<RDS_STR, RDS_STR> conn_info)
     if (dialect == DatabaseDialectType::UNKNOWN_DIALECT) {
         // TODO - Dialect from host
         // For release, we are only supporting Aurora PostgreSQL and Aurora PostgreSQL Limitless
-        std::string host = ToStr(conn_info.at(KEY_SERVER));
+        const std::string host = ToStr(conn_info.at(KEY_SERVER));
 
         if (RdsUtils::IsLimitlessDbShardGroupDns(host)) {
             dialect = DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS;

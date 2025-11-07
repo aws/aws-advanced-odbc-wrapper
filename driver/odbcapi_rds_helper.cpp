@@ -39,36 +39,36 @@
 #endif
 
 SQLRETURN RDS_ProcessLibRes(
-    SQLSMALLINT    HandleType,
-    SQLHANDLE      InputHandle,
-    RdsLibResult   LibResult)
+    SQLSMALLINT         HandleType,
+    SQLHANDLE           InputHandle,
+    const RdsLibResult& LibResult)
 {
     if (!LibResult.fn_load_success) {
         switch (HandleType) {
             case SQL_HANDLE_ENV:
                 {
-                    ENV *env = (ENV*) InputHandle;
+                    ENV *env = static_cast<ENV*>(InputHandle);
                     delete env->err;
                     env->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_DBC:
                 {
-                    DBC *dbc = (DBC*) InputHandle;
+                    DBC *dbc = static_cast<DBC*>(InputHandle);
                     delete dbc->err;
                     dbc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_STMT:
                 {
-                    STMT *stmt = (STMT*) InputHandle;
+                    STMT *stmt = static_cast<STMT*>(InputHandle);
                     delete stmt->err;
                     stmt->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
                 }
             case SQL_HANDLE_DESC:
                 {
-                    DESC *desc = (DESC*) InputHandle;
+                    DESC *desc = static_cast<DESC*>(InputHandle);
                     delete desc->err;
                     desc->err = new ERR_INFO("Underlying driver failed to load/execute", ERR_NO_UNDER_LYING_FUNCTION);
                     break;
@@ -85,7 +85,7 @@ SQLRETURN RDS_AllocEnv(
     SQLHENV *      EnvironmentHandlePointer)
 {
     LoggerWrapper::Initialize();
-    ENV *env;
+    ENV* env;
 
     env = new ENV();
     *EnvironmentHandlePointer = env;
@@ -99,7 +99,7 @@ SQLRETURN RDS_AllocDbc(
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
     DBC *dbc;
-    ENV *env = (ENV*) EnvironmentHandle;
+    ENV *env = static_cast<ENV*>(EnvironmentHandle);
 
     dbc = new DBC();
     dbc->env = env;
@@ -115,15 +115,16 @@ SQLRETURN RDS_AllocStmt(
     SQLHSTMT *     StatementHandlePointer)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    STMT *stmt;
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV* env = (ENV*) dbc->env;
+    STMT* stmt;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
+
+    CHECK_WRAPPED_DBC(dbc);
 
     stmt = new STMT();
     stmt->dbc = dbc;
     // Create underlying driver's statement handle
-    CHECK_WRAPPED_DBC(dbc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
     );
     RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -139,15 +140,16 @@ SQLRETURN RDS_AllocDesc(
     SQLHANDLE *    DescriptorHandlePointer)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DESC *desc;
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV* env = (ENV*) dbc->env;
+    DESC* desc;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
+
+    CHECK_WRAPPED_DBC(dbc);
 
     desc = new DESC();
     desc->dbc = dbc;
     // Create underlying driver's descriptor handle
-    CHECK_WRAPPED_DBC(dbc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_DESC, dbc->wrapped_dbc, &desc->wrapped_desc
     );
     RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -165,10 +167,10 @@ SQLRETURN RDS_SQLSetEnvAttr(
     SQLINTEGER     StringLength)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV* env = (ENV*)EnvironmentHandle;
+    ENV* env = static_cast<ENV*>(EnvironmentHandle);
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
     // Track new value
     env->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
@@ -178,7 +180,7 @@ SQLRETURN RDS_SQLSetEnvAttr(
     //  this can be called prior to connecting
     if (env->driver_lib_loader && env->wrapped_env) {
         // Update existing connections environments
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
             env->wrapped_env, Attribute, ValuePtr, StringLength
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
@@ -200,10 +202,10 @@ SQLRETURN RDS_SQLEndTran(
         case SQL_HANDLE_DBC:
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
             {
-                dbc = (DBC*) Handle;
-                env = (ENV*) dbc->env;
+                dbc = static_cast<DBC*>(Handle);
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 CLEAR_DBC_ERROR(dbc);
 
                 CHECK_WRAPPED_DBC(dbc);
@@ -219,15 +221,15 @@ SQLRETURN RDS_SQLEndTran(
         case SQL_HANDLE_ENV:
             NULL_CHECK_HANDLE(Handle);
             {
-                env = (ENV*) Handle;
+                env = static_cast<ENV*>(Handle);
 
-                std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
                 CLEAR_ENV_ERROR(env);
 
                 for (DBC* dbc : env->dbc_list) {
                     // TODO - May need enhanced error handling due to multiple DBCs
                     //   Should error out on the first?
-                    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                     CLEAR_DBC_ERROR(dbc);
 
                     CHECK_WRAPPED_DBC(dbc);
@@ -258,20 +260,20 @@ SQLRETURN RDS_FreeConnect(
     SQLHDBC        ConnectionHandle)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    ENV* env = dbc->env;
 
     // Remove connection from environment
     env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
 
     // Cleanup tracked statements
-    std::list<STMT*> stmt_list = dbc->stmt_list;
+    const std::list<STMT*> stmt_list = dbc->stmt_list;
     for (STMT* stmt : stmt_list) {
         RDS_FreeStmt(stmt);
     }
     dbc->stmt_list.clear();
     // and descriptors
-    std::list<DESC*> desc_list = dbc->desc_list;
+    const std::list<DESC*> desc_list = dbc->desc_list;
     for (DESC* desc : desc_list) {
         RDS_FreeDesc(desc);
     }
@@ -279,7 +281,7 @@ SQLRETURN RDS_FreeConnect(
 
     // Clean up wrapped DBC
     if (dbc->wrapped_dbc) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
             SQL_HANDLE_DBC, dbc->wrapped_dbc
         );
         RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -296,16 +298,16 @@ SQLRETURN RDS_FreeDesc(
     SQLHDESC       DescriptorHandle)
 {
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
-    DESC* desc = (DESC*) DescriptorHandle;
+    DESC* desc = static_cast<DESC*>(DescriptorHandle);
     DBC* dbc = desc->dbc;
-    ENV* env = dbc->env;
+    const ENV* env = dbc->env;
 
     // Remove descriptor from connection
     dbc->desc_list.remove(desc);
 
     // Clean underlying Descriptors
     if (desc->wrapped_desc) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
             SQL_HANDLE_DESC, desc->wrapped_desc
         );
         RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -321,10 +323,10 @@ SQLRETURN RDS_FreeEnv(
     SQLHENV        EnvironmentHandle)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV* env = (ENV*) EnvironmentHandle;
+    ENV* env = static_cast<ENV*>(EnvironmentHandle);
 
     // Clean tracked connections
-    std::list<DBC*> dbc_list = env->dbc_list;
+    const std::list<DBC*> dbc_list = env->dbc_list;
     for (DBC* dbc : dbc_list) {
         RDS_FreeConnect(dbc);
     }
@@ -333,7 +335,7 @@ SQLRETURN RDS_FreeEnv(
     if (env->driver_lib_loader) {
         // Clean underlying Env
         if (env->wrapped_env) {
-            RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
                 SQL_HANDLE_ENV, env->wrapped_env
             );
             RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
@@ -352,16 +354,16 @@ SQLRETURN RDS_FreeStmt(
     SQLHSTMT       StatementHandle)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT* stmt = (STMT*) StatementHandle;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
-    ENV* env = dbc->env;
+    const ENV* env = dbc->env;
 
     // Remove statement from connection
     dbc->stmt_list.remove(stmt);
 
     // Clean underlying Statements
     if (stmt->wrapped_stmt) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
             SQL_HANDLE_STMT, stmt->wrapped_stmt
         );
         RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -382,17 +384,17 @@ SQLRETURN RDS_GetConnectAttr(
     SQLINTEGER *   StringLengthPtr)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     SQLRETURN ret = SQL_ERROR;
 
     // If already connected, query value from underlying DBC
     if (dbc->wrapped_dbc) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
             dbc->wrapped_dbc, Attribute, ValuePtr, BufferLength, StringLengthPtr
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -400,13 +402,13 @@ SQLRETURN RDS_GetConnectAttr(
     // Otherwise get from the DBC's attribute map
     else if (dbc->attr_map.contains(Attribute)) {
         ret = SQL_SUCCESS;
-        std::pair<SQLPOINTER, SQLINTEGER> value_pair = dbc->attr_map.at(Attribute);
+        const std::pair<SQLPOINTER, SQLINTEGER> value_pair = dbc->attr_map.at(Attribute);
         if (value_pair.second == sizeof(SQLSMALLINT)) {
-            *((SQLUSMALLINT *) ValuePtr) = static_cast<SQLSMALLINT>(reinterpret_cast<intptr_t>(value_pair.first));
+            *(static_cast<SQLUSMALLINT*>(ValuePtr)) = static_cast<SQLSMALLINT>(reinterpret_cast<intptr_t>(value_pair.first));
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
-            *((SQLUINTEGER *) ValuePtr) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
+            *(static_cast<SQLUINTEGER*>(ValuePtr)) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            RDS_sprintf((RDS_CHAR *) ValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(value_pair.first));
+            RDS_sprintf(static_cast<RDS_CHAR*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(value_pair.first));
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -422,17 +424,17 @@ SQLRETURN RDS_SQLSetConnectAttr(
     SQLINTEGER     StringLength)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
 
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     // If already connected, apply value to underlying DBC, otherwise track and apply on connect
     if (dbc->wrapped_dbc) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
             dbc->wrapped_dbc, Attribute, ValuePtr, StringLength
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -457,7 +459,7 @@ SQLRETURN RDS_SQLBrowseConnect(
     SQLSMALLINT *  StringLength2Ptr)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -473,15 +475,15 @@ SQLRETURN RDS_SQLColAttribute(
     SQLLEN *       NumericAttributePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColAttribute, RDS_STR_SQLColAttribute,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColAttribute, RDS_STR_SQLColAttribute,
         stmt->wrapped_stmt, ColumnNumber, FieldIdentifier, CharacterAttributePtr, BufferLength, StringLengthPtr, NumericAttributePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -497,14 +499,14 @@ SQLRETURN RDS_SQLColAttributes(
     SQLLEN *       NumericAttributePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColAttributes, RDS_STR_SQLColAttributes,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColAttributes, RDS_STR_SQLColAttributes,
         stmt->wrapped_stmt, ColumnNumber, FieldIdentifier, CharacterAttributePtr, BufferLength, StringLengthPtr, NumericAttributePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -522,15 +524,15 @@ SQLRETURN RDS_SQLColumnPrivileges(
     SQLSMALLINT    NameLength4)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumnPrivileges, RDS_STR_SQLColumnPrivileges,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumnPrivileges, RDS_STR_SQLColumnPrivileges,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, ColumnName, NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -548,15 +550,15 @@ SQLRETURN RDS_SQLColumns(
     SQLSMALLINT    NameLength4)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumns, RDS_STR_SQLColumns,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumns, RDS_STR_SQLColumns,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, ColumnName, NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -572,10 +574,9 @@ SQLRETURN RDS_SQLConnect(
     SQLSMALLINT    NameLength3)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC* dbc = (DBC*) ConnectionHandle;
-    ENV* env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     SQLRETURN ret = SQL_ERROR;
@@ -610,7 +611,7 @@ SQLRETURN RDS_SQLConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+        ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
     return ret;
@@ -629,7 +630,7 @@ SQLRETURN RDS_SQLDataSources(
     SQLSMALLINT *  NameLength2Ptr)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV *env = (ENV*) EnvironmentHandle;
+    ENV *env = static_cast<ENV*>(EnvironmentHandle);
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -647,15 +648,15 @@ SQLRETURN RDS_SQLDescribeCol(
     SQLSMALLINT *  NullablePtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeCol, RDS_STR_SQLDescribeCol,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeCol, RDS_STR_SQLDescribeCol,
         stmt->wrapped_stmt, ColumnNumber, ColumnName, BufferLength, NameLengthPtr, DataTypePtr, ColumnSizePtr, DecimalDigitsPtr, NullablePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -699,14 +700,14 @@ SQLRETURN RDS_SQLDriverConnect(
 
 #endif
     } else {
-        RDS_sprintf((RDS_CHAR*)conn_str, MAX_KEY_SIZE, RDS_CHAR_FORMAT, (RDS_CHAR*)InConnectionString);
+        RDS_sprintf(reinterpret_cast<RDS_CHAR*>(conn_str), MAX_KEY_SIZE, RDS_CHAR_FORMAT, reinterpret_cast<RDS_CHAR*>(InConnectionString));
+        RDS_sprintf(reinterpret_cast<RDS_CHAR*>(out_conn_str), MAX_KEY_SIZE, RDS_CHAR_FORMAT, reinterpret_cast<RDS_CHAR*>(InConnectionString));
     }
 
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     SQLRETURN ret = SQL_ERROR;
@@ -719,7 +720,7 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(conn_str)) : StringLength1;
+    const size_t load_len = StringLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(conn_str)) : StringLength1;
     ConnectionStringHelper::ParseConnectionString(AS_RDS_STR_MAX(conn_str, load_len), dbc->conn_attr);
 
     // Load DSN information into map
@@ -737,12 +738,12 @@ SQLRETURN RDS_SQLDriverConnect(
 
 #ifndef UNICODE
     if (OutConnectionString && StringLength2Ptr) {
-        SQLULEN len = RDS_STR_LEN(out_conn_str);
-        SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
+        const SQLULEN len = RDS_STR_LEN(out_conn_str);
+        const SQLULEN written = RDS_sprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, out_conn_str);
         if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
             ret = SQL_SUCCESS_WITH_INFO;
         }
-        *StringLength2Ptr = (SQLSMALLINT) written;
+        *StringLength2Ptr = static_cast<SQLSMALLINT>(written);
     }
 #endif
 
@@ -762,7 +763,7 @@ SQLRETURN RDS_SQLDrivers(
     SQLSMALLINT *  AttributesLengthPtr)
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
-    ENV *env = (ENV*) EnvironmentHandle;
+    ENV* env = static_cast<ENV*>(EnvironmentHandle);
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -810,10 +811,10 @@ SQLRETURN RDS_SQLExecDirect(
     SQLINTEGER     TextLength)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    DBC* dbc = stmt->dbc;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (dbc->plugin_head) {
@@ -840,15 +841,15 @@ SQLRETURN RDS_SQLForeignKeys(
     SQLSMALLINT    NameLength6)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLForeignKeys, RDS_STR_SQLForeignKeys,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLForeignKeys, RDS_STR_SQLForeignKeys,
         stmt->wrapped_stmt, PKCatalogName, NameLength1, PKSchemaName, NameLength2, PKTableName, NameLength3, FKCatalogName, NameLength4, FKSchemaName, NameLength5, FKTableName, NameLength6
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -874,7 +875,7 @@ SQLRETURN RDS_SQLGetConnectOption(
         Attribute,
         ValuePtr,
         ((Attribute == SQL_ATTR_CURRENT_CATALOG) ? SQL_MAX_OPTION_STRING_LENGTH : 0),
-        NULL
+        nullptr
     );
 }
 
@@ -885,16 +886,16 @@ SQLRETURN RDS_SQLGetCursorName(
     SQLSMALLINT *  NameLengthPtr)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (stmt->wrapped_stmt) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetCursorName, RDS_STR_SQLGetCursorName,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetCursorName, RDS_STR_SQLGetCursorName,
             stmt->wrapped_stmt, CursorName, BufferLength, NameLengthPtr
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -902,16 +903,16 @@ SQLRETURN RDS_SQLGetCursorName(
         if (stmt->cursor_name.empty()) {
             stmt->cursor_name = RDS_NUM_APPEND(RDS_STR(TEXT("CUR_")), stmt->dbc->unnamed_cursor_count++);
         }
-        RDS_STR name = stmt->cursor_name;
-        SQLULEN len = name.length();
+        const RDS_STR name = stmt->cursor_name;
+        const SQLULEN len = name.length();
         if (CursorName) {
-            RDS_sprintf((RDS_CHAR *) CursorName, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
+            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(CursorName), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
         }
         if (NameLengthPtr) {
-            *NameLengthPtr = (SQLSMALLINT) len * sizeof(SQLTCHAR);
+            *NameLengthPtr = static_cast<SQLSMALLINT>(len * sizeof(SQLTCHAR));
         }
     }
 
@@ -927,14 +928,14 @@ SQLRETURN RDS_SQLGetDescField(
     SQLINTEGER *   StringLengthPtr)
 {
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
-    DESC *desc = (DESC*) DescriptorHandle;
-    DBC *dbc = (DBC*) desc->dbc;
-    ENV *env = (ENV*) dbc->env;
+    DESC* desc = static_cast<DESC*>(DescriptorHandle);
+    const DBC* dbc = desc->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescField, RDS_STR_SQLGetDescField,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescField, RDS_STR_SQLGetDescField,
         desc->wrapped_desc, RecNumber, FieldIdentifier, ValuePtr, BufferLength, StringLengthPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -954,14 +955,14 @@ SQLRETURN RDS_SQLGetDescRec(
     SQLSMALLINT *  NullablePtr)
 {
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
-    DESC *desc = (DESC*) DescriptorHandle;
-    DBC *dbc = (DBC*) desc->dbc;
-    ENV *env = (ENV*) dbc->env;
+    DESC* desc = static_cast<DESC*>(DescriptorHandle);
+    const DBC* dbc = desc->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescRec, RDS_STR_SQLGetDescRec,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescRec, RDS_STR_SQLGetDescRec,
         desc->wrapped_desc, RecNumber, Name, BufferLength, StringLengthPtr, TypePtr, SubTypePtr, LengthPtr, PrecisionPtr, ScalePtr, NullablePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -976,24 +977,22 @@ SQLRETURN RDS_SQLGetDiagField(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr)
 {
-    DESC *desc = nullptr;
-    STMT *stmt = nullptr;
-    DBC *dbc = nullptr;
-    ENV *env = nullptr;
+    DESC* desc = nullptr;
+    STMT* stmt = nullptr;
+    DBC* dbc = nullptr;
+    ENV* env = nullptr;
 
-    ERR_INFO *err = nullptr;
+    const ERR_INFO* err = nullptr;
 
     RdsLibResult res;
     SQLRETURN ret = SQL_SUCCESS;
-    SQLULEN len = 0, value = 0;
+    SQLULEN len = 0;
 
     switch (HandleType) {
-        case SQL_HANDLE_ENV:
-            NULL_CHECK_HANDLE(Handle);
+            NULL_CHECK_ENV(Handle);
             {
-                std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
-
-                env = (ENV*) Handle;
+                env = static_cast<ENV*>(Handle);
+                const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
                 if (env->wrapped_env) {
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
                         HandleType, env->wrapped_env, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
@@ -1007,11 +1006,9 @@ SQLRETURN RDS_SQLGetDiagField(
         case SQL_HANDLE_DBC:
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
             {
-                dbc = (DBC*) Handle;
-                env = (ENV*) dbc->env;
-
-                std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-
+                dbc = static_cast<DBC*>(Handle);
+                env = dbc->env;
+                const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 if (dbc->wrapped_dbc) {
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
                         HandleType, dbc->wrapped_dbc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
@@ -1025,12 +1022,10 @@ SQLRETURN RDS_SQLGetDiagField(
         case SQL_HANDLE_STMT:
             NULL_CHECK_ENV_ACCESS_STMT(Handle);
             {
-                stmt = (STMT*) Handle;
-                dbc = (DBC*) stmt->dbc;
-                env = (ENV*) dbc->env;
-
-                std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
-
+                stmt = static_cast<STMT*>(Handle);
+                dbc = stmt->dbc;
+                env = dbc->env;
+                const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
                 if (stmt->wrapped_stmt) {
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
                         HandleType, stmt->wrapped_stmt, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
@@ -1044,11 +1039,11 @@ SQLRETURN RDS_SQLGetDiagField(
         case SQL_HANDLE_DESC:
             NULL_CHECK_ENV_ACCESS_DESC(Handle);
             {
-                desc = (DESC*) Handle;
-                dbc = (DBC*) desc->dbc;
-                env = (ENV*) dbc->env;
+                desc = static_cast<DESC*>(Handle);
+                dbc = desc->dbc;
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
                 if (desc->wrapped_desc) {
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
@@ -1069,7 +1064,7 @@ SQLRETURN RDS_SQLGetDiagField(
         if (RecNumber > 1) {
             ret = SQL_NO_DATA_FOUND;
         } else {
-            const RDS_CHAR *char_value = nullptr;
+            const RDS_CHAR* char_value = nullptr;
             ret = SQL_SUCCESS;
             switch (DiagIdentifier) {
                 // Header Fields
@@ -1087,11 +1082,11 @@ SQLRETURN RDS_SQLGetDiagField(
                 {
                     // No support for multi-error / list
                     //  at most 1 for our Wrapper Layer
-                    *(SQLINTEGER *) DiagInfoPtr = 1;
+                    *(static_cast<SQLINTEGER*>(DiagInfoPtr)) = 1;
                     break;
                 }
                 case SQL_DIAG_RETURNCODE:
-                    *(SQLRETURN *) DiagInfoPtr = err->ret_code;
+                    // Driver manager's response
                     break;
 
                 // Record Fields
@@ -1100,9 +1095,9 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        if (err->sqlstate && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M')
+                        if (err->sqlstate != nullptr && err->sqlstate[0] == 'I' && err->sqlstate[1] == 'M') {
                             char_value = TEXT("ODBC 3.0");
-                        else {
+                        } else {
                             char_value = TEXT("ISO 9075");
                         }
                     }
@@ -1113,7 +1108,7 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        *(SQLLEN *) DiagInfoPtr = SQL_ROW_NUMBER_UNKNOWN;
+                        *(static_cast<SQLLEN*>(DiagInfoPtr)) = SQL_ROW_NUMBER_UNKNOWN;
                     }
                     break;
                 }
@@ -1122,7 +1117,7 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (dbc && dbc->conn_attr.contains(KEY_DSN)) {
+                    if (dbc != nullptr && dbc->conn_attr.contains(KEY_DSN)) {
                         char_value = dbc->conn_attr.at(KEY_DSN).c_str();
                     }
                     break;
@@ -1132,14 +1127,14 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (err->error_msg) {
+                    if (err->error_msg != nullptr) {
                         char_value = AS_RDS_CHAR(err->error_msg);
                     }
                     break;
                 }
                 case SQL_DIAG_NATIVE:
                 {
-                    *(SQLINTEGER *) DiagInfoPtr = err->native_err;
+                    *(static_cast<SQLINTEGER*>(DiagInfoPtr)) = err->native_err;
                     break;
                 }
                 case SQL_DIAG_ROW_NUMBER:
@@ -1147,13 +1142,13 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        *(SQLLEN *) DiagInfoPtr = SQL_ROW_NUMBER_UNKNOWN;
+                        *(static_cast<SQLLEN*>(DiagInfoPtr)) = SQL_ROW_NUMBER_UNKNOWN;
                     }
                     break;
                 }
                 case SQL_DIAG_SERVER_NAME:
                 {
-                    if (dbc && dbc->conn_attr.contains(KEY_SERVER)) {
+                    if (dbc != nullptr && dbc->conn_attr.contains(KEY_SERVER)) {
                         char_value = dbc->conn_attr.at(KEY_SERVER).c_str();
                     }
                     break;
@@ -1162,7 +1157,7 @@ SQLRETURN RDS_SQLGetDiagField(
                 {
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
-                    } else if (err) {
+                    } else {
                         char_value = AS_RDS_CHAR(err->sqlstate);
                     }
                     break;
@@ -1187,7 +1182,7 @@ SQLRETURN RDS_SQLGetDiagField(
             if (char_value) {
                 len = RDS_STR_LEN(char_value);
                 if (DiagInfoPtr) {
-                    RDS_sprintf((RDS_CHAR *) DiagInfoPtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+                    RDS_sprintf(static_cast<RDS_CHAR*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
                     if (len >= BufferLength) {
                         ret = SQL_SUCCESS_WITH_INFO;
                     }
@@ -1195,10 +1190,11 @@ SQLRETURN RDS_SQLGetDiagField(
                     ret = SQL_SUCCESS_WITH_INFO;
                 }
                 if (StringLengthPtr) {
-                    *StringLengthPtr = (SQLSMALLINT) len * sizeof(SQLTCHAR);
+                    *StringLengthPtr = static_cast<SQLSMALLINT>(len * sizeof(SQLTCHAR));
                 }
             }
         }
+        delete err;
     }
 
     return ret;
@@ -1214,14 +1210,13 @@ SQLRETURN RDS_SQLGetDiagRec(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  TextLengthPtr)
 {
-    DESC *desc = nullptr;
-    STMT *stmt = nullptr;
-    DBC *dbc = nullptr;
-    ENV *env = nullptr;
+    DESC* desc = nullptr;
+    STMT* stmt = nullptr;
+    DBC* dbc = nullptr;
+    ENV* env = nullptr;
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
-    SQLULEN len = 0, value = 0;
-    ERR_INFO *err = nullptr;
+    const ERR_INFO* err = nullptr;
     bool has_underlying_data = false;
 
     // Use ERR from Wrapper if exist
@@ -1230,9 +1225,9 @@ SQLRETURN RDS_SQLGetDiagRec(
         case SQL_HANDLE_ENV:
             NULL_CHECK_HANDLE(Handle);
             {
-                env = (ENV*) Handle;
+                env = static_cast<ENV*>(Handle);
 
-                std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
 
                 if (env->err) {
                     err = new ERR_INFO(*env->err);
@@ -1248,10 +1243,10 @@ SQLRETURN RDS_SQLGetDiagRec(
         case SQL_HANDLE_DBC:
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
             {
-                dbc = (DBC*) Handle;
-                env = (ENV*) dbc->env;
+                dbc = static_cast<DBC*>(Handle);
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
 
                 if (dbc->err) {
                     err = new ERR_INFO(*dbc->err);
@@ -1267,11 +1262,11 @@ SQLRETURN RDS_SQLGetDiagRec(
         case SQL_HANDLE_STMT:
             NULL_CHECK_ENV_ACCESS_STMT(Handle);
             {
-                stmt = (STMT*) Handle;
-                dbc = (DBC*) stmt->dbc;
-                env = (ENV*) dbc->env;
+                stmt = static_cast<STMT*>(Handle);
+                dbc = stmt->dbc;
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
 
                 if (stmt->err) {
                     err = new ERR_INFO(*stmt->err);
@@ -1287,11 +1282,11 @@ SQLRETURN RDS_SQLGetDiagRec(
         case SQL_HANDLE_DESC:
             NULL_CHECK_ENV_ACCESS_DESC(Handle);
             {
-                desc = (DESC*) Handle;
-                dbc = (DBC*) desc->dbc;
-                env = (ENV*) dbc->env;
+                desc = static_cast<DESC*>(Handle);
+                dbc = desc->dbc;
+                env = dbc->env;
 
-                std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+                const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
                 if (desc->err) {
                     err = new ERR_INFO(*desc->err);
@@ -1318,44 +1313,44 @@ SQLRETURN RDS_SQLGetDiagRec(
 
         ret = SQL_SUCCESS;
         if (SQLState) {
-            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
         }
-        SQLLEN err_len = strlen(err->error_msg);
+        const SQLLEN err_len = err->error_msg != nullptr ? static_cast<SQLLEN>(strlen(err->error_msg)) : 0;
         if (TextLengthPtr) {
-            *((SQLSMALLINT *) TextLengthPtr) = (SQLSMALLINT) err_len * sizeof(SQLTCHAR);
+            *TextLengthPtr = static_cast<SQLSMALLINT>(err_len * sizeof(SQLTCHAR));
             if (BufferLength == 0) {
                 ret = SQL_SUCCESS_WITH_INFO;
             } else if (err_len >= BufferLength) {
-                *((SQLSMALLINT *) TextLengthPtr) = ((SQLSMALLINT) err_len - 1) * sizeof(SQLTCHAR);
+                *TextLengthPtr = static_cast<SQLSMALLINT>((err_len - 1) * sizeof(SQLTCHAR));
             }
         }
         if (MessageText && (BufferLength > 0)) {
-            SQLLEN written = RDS_sprintf((RDS_CHAR *) MessageText, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+            const SQLLEN written = RDS_sprintf(reinterpret_cast<RDS_CHAR*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
             if (TextLengthPtr) {
-                *((SQLSMALLINT *) TextLengthPtr) = (SQLSMALLINT) written * sizeof(SQLTCHAR);
+                *TextLengthPtr = static_cast<SQLSMALLINT>(written * sizeof(SQLTCHAR));
             }
         }
         if (NativeErrorPtr) {
-            *((SQLINTEGER *) NativeErrorPtr) = (SQLINTEGER) err->native_err;
+            *NativeErrorPtr = static_cast<SQLINTEGER>(err->native_err);
         }
         delete err;
     } else if (!has_underlying_data) {
         // No Data from wrapper or underlying driver
         //  Set states and clear buffers
         if (SQLState) {
-            RDS_sprintf((RDS_CHAR *) SQLState, MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
         }
         if (MessageText) {
-            RDS_sprintf((RDS_CHAR *) MessageText, 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            RDS_sprintf(reinterpret_cast<RDS_CHAR*>(MessageText), 0, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
         }
         if (NativeErrorPtr) {
-            *((SQLINTEGER *) NativeErrorPtr) = (SQLINTEGER) NO_DATA_NATIVE_ERR;
+            *NativeErrorPtr = static_cast<SQLINTEGER>(NO_DATA_NATIVE_ERR);
         }
         if (TextLengthPtr) {
-            *((SQLSMALLINT *) TextLengthPtr) = (SQLSMALLINT) NO_DATA_NATIVE_ERR;
+            *TextLengthPtr = static_cast<SQLSMALLINT>(NO_DATA_NATIVE_ERR);
         }
         ret = SQL_NO_DATA_FOUND;
     }
@@ -1371,23 +1366,24 @@ SQLRETURN RDS_SQLGetInfo(
     SQLSMALLINT *  StringLengthPtr)
 {
     SQLRETURN ret = SQL_ERROR;
-    SQLULEN len = sizeof(SQLSMALLINT), value = 0;
-    RDS_CHAR *char_value = nullptr;
+    SQLULEN len = sizeof(SQLSMALLINT);
+    SQLULEN value = 0;
+    RDS_CHAR* char_value = nullptr;
     RDS_CHAR odbcver[ODBC_VER_SiZE];
 
     // Query underlying driver if connection is established
-    DBC* dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     if (dbc == nullptr) {
         return SQL_INVALID_HANDLE;
     }
 
     {
-        std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
         if (dbc->wrapped_dbc) {
-            ENV* env = (ENV*) dbc->env;
+            const ENV* env = dbc->env;
             CLEAR_DBC_ERROR(dbc);
-            RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
                 dbc->wrapped_dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr
             );
             return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -1410,7 +1406,7 @@ SQLRETURN RDS_SQLGetInfo(
         // TODO - Add other cases as needed
         default:
             LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
-            std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+            const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
@@ -1421,20 +1417,22 @@ SQLRETURN RDS_SQLGetInfo(
     if (char_value) {
         len = RDS_STR_LEN(char_value);
         if (InfoValuePtr) {
-            RDS_sprintf((RDS_CHAR *) InfoValuePtr, (size_t) BufferLength / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value));
+            RDS_sprintf(static_cast<RDS_CHAR*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(char_value));
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
         }
         if (StringLengthPtr) {
-            *StringLengthPtr = (SQLSMALLINT) len * sizeof(SQLTCHAR);
+            *StringLengthPtr = static_cast<SQLSMALLINT>(len * sizeof(SQLTCHAR));
         }
     } else {
         if (InfoValuePtr) {
-            if (len == sizeof(SQLSMALLINT))
-                *((SQLUSMALLINT *) InfoValuePtr) = (SQLUSMALLINT) value;
-            else if (len == sizeof(SQLINTEGER))
-                *((SQLUINTEGER *) InfoValuePtr) = (SQLUINTEGER) value;
+            if (len == sizeof(SQLSMALLINT)) {
+                *(static_cast<SQLUSMALLINT*>(InfoValuePtr)) = static_cast<SQLUSMALLINT>(value);
+            }
+            else if (len == sizeof(SQLINTEGER)) {
+                *(static_cast<SQLUINTEGER*>(InfoValuePtr)) = static_cast<SQLUINTEGER>(value);
+            }
         }
     }
 
@@ -1448,15 +1446,15 @@ SQLRETURN RDS_SQLGetStmtAttr(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
         stmt->wrapped_stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1467,15 +1465,15 @@ SQLRETURN RDS_SQLGetTypeInfo(
     SQLSMALLINT    DataType)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetTypeInfo, RDS_STR_SQLGetTypeInfo,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetTypeInfo, RDS_STR_SQLGetTypeInfo,
         stmt->wrapped_stmt, DataType
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1490,14 +1488,14 @@ SQLRETURN RDS_SQLNativeSql(
     SQLINTEGER *   TextLength2Ptr)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC *dbc = (DBC*) ConnectionHandle;
-    ENV *env = (ENV*) dbc->env;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
     CHECK_WRAPPED_DBC(dbc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNativeSql, RDS_STR_SQLNativeSql,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNativeSql, RDS_STR_SQLNativeSql,
         dbc->wrapped_dbc, InStatementText, TextLength1, OutStatementText, BufferLength, TextLength2Ptr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -1509,15 +1507,15 @@ SQLRETURN RDS_SQLPrepare(
     SQLINTEGER     TextLength)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrepare, RDS_STR_SQLPrepare,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrepare, RDS_STR_SQLPrepare,
         stmt->wrapped_stmt, StatementText, TextLength
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1533,15 +1531,15 @@ SQLRETURN RDS_SQLPrimaryKeys(
     SQLSMALLINT    NameLength3)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrimaryKeys, RDS_STR_SQLPrimaryKeys,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrimaryKeys, RDS_STR_SQLPrimaryKeys,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1559,15 +1557,15 @@ SQLRETURN RDS_SQLProcedureColumns(
     SQLSMALLINT    NameLength4)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedureColumns, RDS_STR_SQLProcedureColumns,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedureColumns, RDS_STR_SQLProcedureColumns,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, ProcName, NameLength3, ColumnName, NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1583,15 +1581,15 @@ SQLRETURN RDS_SQLProcedures(
     SQLSMALLINT    NameLength3)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedures, RDS_STR_SQLProcedures,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedures, RDS_STR_SQLProcedures,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, ProcName, NameLength3
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1606,7 +1604,7 @@ SQLRETURN RDS_SQLSetConnectOption(
     if (Option == SQL_ATTR_CURRENT_CATALOG) {
         value_len = SQL_NTS;
     }
-    return RDS_SQLSetConnectAttr(ConnectionHandle, Option, (SQLPOINTER) Param, value_len);
+    return RDS_SQLSetConnectAttr(ConnectionHandle, Option, reinterpret_cast<SQLPOINTER>(Param), value_len);
 }
 
 SQLRETURN RDS_SQLSetCursorName(
@@ -1615,16 +1613,16 @@ SQLRETURN RDS_SQLSetCursorName(
     SQLSMALLINT    NameLength)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (stmt->wrapped_stmt) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
             stmt->wrapped_stmt, CursorName, NameLength
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1641,14 +1639,14 @@ SQLRETURN RDS_SQLSetDescField(
     SQLINTEGER     BufferLength)
 {
     NULL_CHECK_ENV_ACCESS_DESC(DescriptorHandle);
-    DESC *desc = (DESC*) DescriptorHandle;
-    DBC *dbc = (DBC*) desc->dbc;
-    ENV *env = (ENV*) dbc->env;
+    DESC* desc = static_cast<DESC*>(DescriptorHandle);
+    const DBC* dbc = desc->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescField, RDS_STR_SQLSetDescField,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescField, RDS_STR_SQLSetDescField,
         desc->wrapped_desc, RecNumber, FieldIdentifier, ValuePtr, BufferLength
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -1661,16 +1659,16 @@ SQLRETURN RDS_SQLSetStmtAttr(
     SQLINTEGER     StringLength)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
     SQLRETURN ret = SQL_SUCCESS;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     if (stmt->wrapped_stmt) {
-        RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
             stmt->wrapped_stmt, Attribute, ValuePtr, StringLength
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1693,15 +1691,15 @@ SQLRETURN RDS_SQLSpecialColumns(
     SQLUSMALLINT   Nullable)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSpecialColumns, RDS_STR_SQLSpecialColumns,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSpecialColumns, RDS_STR_SQLSpecialColumns,
         stmt->wrapped_stmt, IdentifierType, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, Scope, Nullable
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1719,15 +1717,15 @@ SQLRETURN RDS_SQLStatistics(
     SQLUSMALLINT   Reserved)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLStatistics, RDS_STR_SQLStatistics,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLStatistics, RDS_STR_SQLStatistics,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, Unique, Reserved
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1743,15 +1741,15 @@ SQLRETURN RDS_SQLTablePrivileges(
     SQLSMALLINT    NameLength3)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTablePrivileges, RDS_STR_SQLTablePrivileges,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTablePrivileges, RDS_STR_SQLTablePrivileges,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1769,15 +1767,15 @@ SQLRETURN RDS_SQLTables(
     SQLSMALLINT    NameLength4)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
-    STMT *stmt = (STMT*) StatementHandle;
-    DBC *dbc = (DBC*) stmt->dbc;
-    ENV *env = (ENV*) dbc->env;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
 
-    std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
+    const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTables, RDS_STR_SQLTables,
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTables, RDS_STR_SQLTables,
         stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, TableType, NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1786,8 +1784,6 @@ SQLRETURN RDS_SQLTables(
 SQLRETURN RDS_InitializeConnection(DBC* dbc)
 {
     ENV* env = dbc->env;
-
-    bool has_env_attr_errors = false;
 
     // Remove input Driver
     // We don't want the underlying connection
@@ -1807,11 +1803,11 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
     }
 
-    std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
+    const std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
     if (!invalid_params.empty()) {
         CLEAR_DBC_ERROR(dbc);
         std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
-        for (RDS_STR msg : invalid_params) {
+        for (const RDS_STR& msg : invalid_params) {
             invalid_message += ToStr(msg);
             invalid_message += "\n\t";
         }
@@ -1821,7 +1817,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     if (dbc->conn_attr.contains(KEY_DRIVER)) {
         // TODO - Need to ensure the paths (slashes) are correct per OS
-        RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
+        const RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
 
         // Load Module to Env if empty
         if (!env->driver_lib_loader) {
@@ -1854,7 +1850,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
                 env->wrapped_env, key, val.first, val.second
             );
-            ret |= RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+            ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res) == SQL_SUCCESS
+                ? ret : static_cast<SQLRETURN>(SQL_SUCCESS_WITH_INFO);
         }
     }
 
@@ -1866,7 +1863,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
             // Auth Plugins
             if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
-                AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
+                const AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
                 switch (type) {
                         case AuthType::IAM:
                             next_plugin = new IamAuthPlugin(dbc, plugin_head);
@@ -1916,5 +1913,5 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         return SQL_ERROR;
     }
 
-    return SQL_SUCCESS;
+    return ret;
 }

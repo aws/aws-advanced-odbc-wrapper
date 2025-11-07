@@ -26,7 +26,7 @@
     #include <windows.h>
     #define MODULE_HANDLE HINSTANCE
     #define FUNC_HANDLE FARPROC
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)
+    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name.c_str(), LOAD_WITH_ALTERED_SEARCH_PATH)
     #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name, NULL, load_flag)
     #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
     #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
@@ -38,7 +38,7 @@
 #ifdef UNICODE
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(ToStr(module_name).c_str(), load_flag)
 #else
-    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
+    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name.c_str(), load_flag)
 #endif
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
@@ -57,8 +57,8 @@ public:
     ~RdsLibLoader();
 
     template<typename RDS_Func, typename... Args>
-    RdsLibResult CallFunction(RDS_STR func_name, Args... args);
-    virtual FUNC_HANDLE GetFunction(RDS_STR function_name);
+    RdsLibResult CallFunction(const RDS_STR& func_name, Args... args);
+    virtual FUNC_HANDLE GetFunction(const RDS_STR& function_name);
     RDS_STR GetDriverPath();
 
 protected:
@@ -71,14 +71,19 @@ private:
 };
 
 template <typename RDS_Func, typename... Args>
-RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
+RdsLibResult RdsLibLoader::CallFunction(const RDS_STR& func_name, Args... args)
 {
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache
     {
         std::shared_lock lock(cache_lock);
         if (function_cache.contains(func_name)) {
-            driver_function = function_cache.at(func_name);
+            try {
+                driver_function = function_cache.at(func_name);
+            } catch (const std::out_of_range&) {
+                // Should not happen but done to satisfy clang-tidy
+                driver_function = nullptr;
+            }
         }
     }
     // Cache miss
@@ -88,14 +93,18 @@ RdsLibResult RdsLibLoader::CallFunction(RDS_STR func_name, Args... args)
 
     // Verify before function call
     SQLRETURN fn_ret = SQL_ERROR;
-    bool fn_load_success = false;
+    bool fn_load = false;
     if (driver_function) {
-        fn_load_success = true;
-        RDS_Func rds_func = reinterpret_cast<RDS_Func>(driver_function);
+        fn_load = true;
+        RDS_Func rds_func = reinterpret_cast<RDS_Func>(const_cast<FUNC_HANDLE>(driver_function));
         fn_ret = (*rds_func)(args...);
     }
 
-    return RdsLibResult{fn_load_success, fn_ret, func_name};
+    return {
+        .fn_load_success = fn_load,
+        .fn_result = fn_ret,
+        .fn_name = func_name
+    };
 }
 
 #endif // RDS_LIB_LOADER_H

@@ -14,17 +14,17 @@
 
 #include "failover_plugin.h"
 
-#include "../base_plugin.h"
 #include "../../odbcapi.h"
 #include "../../odbcapi_rds_helper.h"
+#include "../base_plugin.h"
 
 #include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
+#include "../../util/init_plugin_helper.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/odbc_helper.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
-#include "../../util/init_plugin_helper.h"
-#include "../../util/odbc_helper.h"
 
 #include "../../host_selector/highest_weight_host_selector.h"
 #include "../../host_selector/host_selector.h"
@@ -35,17 +35,17 @@
 std::mutex FailoverPlugin::topology_monitors_mutex_;
 SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> FailoverPlugin::topology_monitors_;
 
-FailoverPlugin::FailoverPlugin(DBC *dbc) : FailoverPlugin(dbc, nullptr) {}
+FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
-FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr) {}
+FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr) {}
 
-FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode failover_mode, std::shared_ptr<Dialect> dialect, std::shared_ptr<HostSelector> host_selector, std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper, std::shared_ptr<ClusterTopologyMonitor> topology_monitor) : BasePlugin(dbc, next_plugin)
+FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin, FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<HostSelector>& host_selector, const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper, const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
     std::map<RDS_STR, RDS_STR> &conn_info = dbc->conn_attr;
 
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
-        std::chrono::milliseconds(std::strtol(ToStr(conn_info.at(KEY_FAILOVER_TIMEOUT)).c_str(), nullptr, 10))
+        std::chrono::milliseconds(std::strtol(ToStr(conn_info.at(KEY_FAILOVER_TIMEOUT)).c_str(), nullptr, 0))
         : DEFAULT_FAILOVER_TIMEOUT_MS;
     this->cluster_id_ = InitClusterId(conn_info);
     this->failover_mode_ = failover_mode != FailoverMode::UNKNOWN_FAILOVER_MODE ? failover_mode : InitFailoverMode(conn_info);
@@ -57,7 +57,7 @@ FailoverPlugin::FailoverPlugin(DBC *dbc, BasePlugin *next_plugin, FailoverMode f
 
 FailoverPlugin::~FailoverPlugin()
 {
-    std::lock_guard lock_guard(topology_monitors_mutex_);
+    const std::lock_guard lock_guard(topology_monitors_mutex_);
     std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
     if (pair.first == 1) {
         topology_monitors_.Delete(this->cluster_id_);
@@ -68,14 +68,14 @@ FailoverPlugin::~FailoverPlugin()
 }
 
 SQLRETURN FailoverPlugin::Connect(
-    SQLHDBC ConnectionHandle,
-    SQLHWND WindowHandle,
-    SQLTCHAR *OutConnectionString,
-    SQLSMALLINT BufferLength,
-    SQLSMALLINT *StringLengthPtr,
-    SQLUSMALLINT DriverCompletion)
+    SQLHDBC        ConnectionHandle,
+    SQLHWND        WindowHandle,
+    SQLTCHAR *     OutConnectionString,
+    SQLSMALLINT    BufferLength,
+    SQLSMALLINT *  StringLengthPtr,
+    SQLUSMALLINT   DriverCompletion)
 {
-    DBC* dbc = (DBC*) ConnectionHandle;
+    const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     topology_monitor_->StartMonitor(dbc->plugin_head);
     return next_plugin->Connect(
         ConnectionHandle,
@@ -92,9 +92,9 @@ SQLRETURN FailoverPlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    STMT* stmt = (STMT*) StatementHandle;
+    STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
-    SQLRETURN ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    const SQLRETURN ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
 
     if (SQL_SUCCEEDED(ret)) {
         return ret;
@@ -102,7 +102,8 @@ SQLRETURN FailoverPlugin::Execute(
 
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
-    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 }, message[MAX_MSG_LENGTH] = { 0 };
+    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
+    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
     RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
     if (!CheckShouldFailover(AS_RDS_CHAR(sql_state))) {
         return ret;
@@ -122,7 +123,7 @@ SQLRETURN FailoverPlugin::Execute(
     }
 
     bool failover_result = false;
-    TRANSACTION_STATUS original_transaction_status = dbc->transaction_status;
+    const TRANSACTION_STATUS original_transaction_status = dbc->transaction_status;
     if (failover_mode_ == STRICT_WRITER) {
         failover_result = FailoverWriter(dbc);
     } else {
@@ -144,8 +145,9 @@ SQLRETURN FailoverPlugin::Execute(
         // and descriptors
         for (DESC* desc : dbc->desc_list) {
             delete desc->err;
-            stmt->err = new ERR_INFO(*err_info);
+            desc->err = new ERR_INFO(*err_info);
         }
+        delete err_info;
     }
 
     return ret;
@@ -154,18 +156,18 @@ SQLRETURN FailoverPlugin::Execute(
 bool FailoverPlugin::CheckShouldFailover(RDS_CHAR* sql_state)
 {
     // Check if the SQL State is related to a communication error
-    bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);
+    const bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);
     return should_failover;
 }
 
-void FailoverPlugin::RemoveHostCandidate(const std::string &host, std::vector<HostInfo> &candidates)
+void FailoverPlugin::RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates)
 {
     candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
         [host](HostInfo const& h) { return h.GetHost() == host; }),
         candidates.end());
 }
 
-bool FailoverPlugin::FailoverReader(DBC *dbc)
+bool FailoverPlugin::FailoverReader(DBC* dbc)
 {
     auto curr_time = std::chrono::steady_clock::now();
     auto end = curr_time + failover_timeout_ms_;
@@ -176,7 +178,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
     topology_monitor_->ForceRefresh(false, 0);
 
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
-    std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
+    const std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
     if (hosts.empty()) {
         LOG(INFO) << "No topology available.";
         return false;
@@ -213,7 +215,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
                 LOG(INFO) << "[Failover Service] no hosts in topology for: " << cluster_id_;
                 return false;
             }
-            bool is_connected = ConnectToHost(dbc, host_string);
+            const bool is_connected = ConnectToHost(dbc, host_string);
             if (!is_connected) {
                 LOG(INFO) << "[Failover Service] unable to connect to: " << host_string;
                 RemoveHostCandidate(host_string, remaining_readers);
@@ -221,7 +223,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
             }
 
             if (!GetNodeId(dbc, dialect_).empty()) {
-                bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
+                const bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "[Failover Service] connected to a new reader for: " << host_string;
                     curr_host_ = host;
@@ -256,7 +258,7 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
 
         // Try the original writer, which may have been demoted to a reader.
         host_string = original_writer.GetHost();
-        bool is_connected = ConnectToHost(dbc, host_string);
+        const bool is_connected = ConnectToHost(dbc, host_string);
         if (is_connected) {
             if (GetNodeId(dbc, dialect_).empty()) {
                 NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
@@ -274,10 +276,8 @@ bool FailoverPlugin::FailoverReader(DBC *dbc)
             LOG(INFO) << "[Failover Service] reader failover connected to writer instance for: " << host_string;
             curr_host_ = original_writer;
             return true;
-        } else {
-            LOG(INFO) << "[Failover Service] Failed to connect to host: " << original_writer;
         }
-
+        LOG(INFO) << "[Failover Service] Failed to connect to host: " << original_writer;
     } while (std::chrono::steady_clock::now() < end);
 
     // Timed out.
@@ -293,7 +293,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     topology_monitor_->ForceRefresh(true, failover_timeout_ms_.count());
 
     // Try connecting to a writer
-    std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
+    const std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
     std::unordered_map<std::string, std::string> properties;
     RoundRobinHostSelector::SetRoundRobinWeight(hosts, properties);
     HostInfo host;
@@ -303,10 +303,10 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         LOG(INFO) << "[Failover Service] no hosts in topology for: " << cluster_id_;
         return false;
     }
-    std::string host_string = host.GetHost();
+    const std::string host_string = host.GetHost();
     LOG(INFO) << "[Failover Service] writer failover connection to a new writer: " << host_string;
 
-    bool is_connected = ConnectToHost(dbc, host_string);
+    const bool is_connected = ConnectToHost(dbc, host_string);
     if (!is_connected) {
         LOG(INFO) << "[Failover Service] writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
@@ -327,7 +327,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     return false;
 }
 
-bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
+bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string)
 {
     if (TRANSACTION_OPEN == dbc->transaction_status) {
         // TODO - Need to revisit rolling back internally
@@ -348,7 +348,7 @@ bool FailoverPlugin::ConnectToHost(DBC *dbc, const std::string &host_string)
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
 
-std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info)
+std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR>& conn_info)
 {
     std::string generated_id;
     if (conn_info.contains(KEY_CLUSTER_ID)) {
@@ -364,7 +364,7 @@ std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR> &conn_info)
     return generated_id;
 }
 
-FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_info)
+FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR>& conn_info)
 {
     FailoverMode mode = UNKNOWN_FAILOVER_MODE;
     if (conn_info.contains(KEY_FAILOVER_MODE)) {
@@ -376,14 +376,14 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR> &conn_i
     }
 
     if (mode == UNKNOWN_FAILOVER_MODE) {
-        std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
+        const std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
         mode = RdsUtils::IsRdsReaderClusterDns(host) ? READER_OR_WRITER : STRICT_WRITER;
     }
 
     return mode;
 }
 
-std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR> &conn_info)
+std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR>& conn_info)
 {
     host_selector_strategy_ = RANDOM_HOST;
     if (conn_info.contains(KEY_HOST_SELECTOR_STRATEGY)) {
@@ -402,18 +402,18 @@ std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<
     }
 }
 
-std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC *dbc)
+std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC* dbc)
 {
     std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
 
     std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? ToStr(conn_info.at(KEY_ENDPOINT_TEMPLATE)) : "";
-    std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
+    const std::string host = conn_info.contains(KEY_SERVER) ? ToStr(conn_info.at(KEY_SERVER)) : "";
     if (endpoint_template.empty()) {
         endpoint_template = RdsUtils::GetRdsInstanceHostPattern(host);
     }
 
-    int port = conn_info.contains(KEY_PORT) ?
-        std::strtol(ToStr(conn_info.at(KEY_PORT)).c_str(), nullptr, 10) :
+    const int port = conn_info.contains(KEY_PORT) ?
+        static_cast<int>(std::strtol(ToStr(conn_info.at(KEY_PORT)).c_str(), nullptr, 0)) :
         dialect_->GetDefaultPort();
 
     return std::make_shared<ClusterTopologyQueryHelper>(
@@ -422,9 +422,9 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC 
     );
 }
 
-std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC *dbc)
+std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC* dbc)
 {
-    std::lock_guard lock_guard(topology_monitors_mutex_);
+    const std::lock_guard lock_guard(topology_monitors_mutex_);
     if (!topology_monitors_.Find(this->cluster_id_)) {
         std::shared_ptr<ClusterTopologyMonitor> monitor = std::make_shared<ClusterTopologyMonitor>(
             dbc, topology_map_, topology_query_helper_, dialect_
@@ -441,7 +441,7 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC 
 }
 
 unsigned int FailoverPlugin::GetTopologyMonitorCount(const std::string& cluster_id) {
-    std::lock_guard lock_guard(topology_monitors_mutex_);
+    const std::lock_guard lock_guard(topology_monitors_mutex_);
     auto [count, monitor] = topology_monitors_.Get(cluster_id);
     return count;
 }

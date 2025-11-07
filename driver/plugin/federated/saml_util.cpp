@@ -23,12 +23,12 @@
 #include "../../util/rds_utils.h"
 
 SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
-    : SamlUtil(connection_attributes, nullptr, nullptr) {}
+    : SamlUtil(std::move(connection_attributes), nullptr, nullptr) {}
 
 SamlUtil::SamlUtil(
     std::map<RDS_STR, RDS_STR> connection_attributes,
-    std::shared_ptr<Aws::Http::HttpClient> http_client,
-    std::shared_ptr<Aws::STS::STSClient> sts_client)
+    const std::shared_ptr<Aws::Http::HttpClient>& http_client,
+    const std::shared_ptr<Aws::STS::STSClient>& sts_client)
 {
     AwsSdkHelper::Init();
     ParseIdpConfig(connection_attributes);
@@ -38,13 +38,13 @@ SamlUtil::SamlUtil(
     } else {
         Aws::Client::ClientConfiguration http_client_config;
         if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
-            std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
-            int socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 10);
+            const std::string socket_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT));
+            const int64_t socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 0);
             http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
         }
         if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
-            std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
-            int connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 10);
+            const std::string connect_timeout_str = ToStr(connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT));
+            const int64_t connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 0);
             http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
         }
         http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
@@ -55,10 +55,12 @@ SamlUtil::SamlUtil(
         this->sts_client = sts_client;
     } else {
         std::string region = connection_attributes.contains(KEY_REGION) ?
-            ToStr(connection_attributes.at(KEY_REGION)) :
-            connection_attributes.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(connection_attributes.at(KEY_SERVER))) :
-                Aws::Region::US_EAST_1;
+            ToStr(connection_attributes.at(KEY_REGION)) : "";
+        if (region.empty()) {
+            region = connection_attributes.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(connection_attributes.at(KEY_SERVER)))
+                : Aws::Region::US_EAST_1;
+        }
         Aws::STS::STSClientConfiguration sts_client_config;
         sts_client_config.region = region;
         this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
@@ -67,8 +69,12 @@ SamlUtil::SamlUtil(
 
 SamlUtil::~SamlUtil()
 {
-    if (http_client) http_client.reset();
-    if (sts_client) sts_client.reset();
+    if (http_client) {
+        http_client.reset();
+    }
+    if (sts_client) {
+        sts_client.reset();
+    }
     AwsSdkHelper::Shutdown();
 }
 
@@ -84,7 +90,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
 
     if (!outcome.IsSuccess()) {
         LOG(ERROR) << "STS failed to assume role with assertion: " << outcome.GetError().GetMessage();
-        return Aws::Auth::AWSCredentials();
+        return {};
     }
 
     const Aws::STS::Model::AssumeRoleWithSAMLResult &result = outcome.GetResult();

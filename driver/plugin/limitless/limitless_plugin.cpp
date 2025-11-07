@@ -13,16 +13,17 @@
 // limitations under the License.
 
 #include "limitless_plugin.h"
+
 #include "../../dialect/dialect.h"
 #include "../../dialect/dialect_aurora_postgres.h"
-#include "../../util/init_plugin_helper.h"
 #include "../../util/connection_string_helper.h"
+#include "../../util/init_plugin_helper.h"
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<Dialect> dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service) : BasePlugin(dbc, next_plugin)
+LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service) : BasePlugin(dbc, next_plugin)
 {
     const std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
     this->plugin_name = "LIMITLESS";
@@ -42,8 +43,8 @@ SQLRETURN LimitlessPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    DBC* dbc = (DBC*) ConnectionHandle;
-    std::shared_ptr<DialectLimitless> limitless_dialect = std::dynamic_pointer_cast<DialectLimitless>(this->dialect_);
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const std::shared_ptr<DialectLimitless> limitless_dialect = std::dynamic_pointer_cast<DialectLimitless>(this->dialect_);
     if (!limitless_dialect) {
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("The limitless connection plugin does not support the current dialect or database.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);

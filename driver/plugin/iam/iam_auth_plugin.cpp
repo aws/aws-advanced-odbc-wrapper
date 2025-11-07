@@ -15,6 +15,7 @@
 #include "iam_auth_plugin.h"
 
 #include "../../util/auth_provider.h"
+
 #include "../../driver.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
@@ -24,7 +25,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 
 IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<AuthProvider> auth_provider) : BasePlugin(dbc, next_plugin)
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<AuthProvider>& auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "IAM";
 
@@ -32,17 +33,21 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, std::shared_ptr<
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) :
-            dbc->conn_attr.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
-                Aws::Region::US_EAST_1;
+            ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+        if (region.empty()) {
+            region = dbc->conn_attr.contains(KEY_SERVER) ?
+                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+                : Aws::Region::US_EAST_1;
+        }
         this->auth_provider = std::make_shared<AuthProvider>(region);
     }
 }
 
 IamAuthPlugin::~IamAuthPlugin()
 {
-    if (auth_provider) auth_provider.reset();
+    if (auth_provider) {
+        auth_provider.reset();
+    }
 }
 
 SQLRETURN IamAuthPlugin::Connect(
@@ -53,17 +58,19 @@ SQLRETURN IamAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    DBC* dbc = (DBC*) ConnectionHandle;
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
         ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
     const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
         ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
-    const std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) :
-        dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER))) :
-            Aws::Region::US_EAST_1;
+    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
+        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+    if (region.empty()) {
+        region = dbc->conn_attr.contains(KEY_SERVER) ?
+            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+            : Aws::Region::US_EAST_1;
+    }
     const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
         ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
@@ -72,7 +79,7 @@ SQLRETURN IamAuthPlugin::Connect(
         std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
 
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
-        std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 10) : false;
+        std::strtol(ToStr(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE)).c_str(), nullptr, 0) > 0 : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         delete dbc->err;

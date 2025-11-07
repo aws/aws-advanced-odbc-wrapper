@@ -32,7 +32,7 @@ SQLRETURN MockFunction() {
 
 class MockRdsLibLoader : public RdsLibLoader {
     public:
-        FUNC_HANDLE GetFunction(RDS_STR function_name) override {
+        FUNC_HANDLE GetFunction(const RDS_STR& function_name) override {
             return reinterpret_cast<FUNC_HANDLE>(&MockFunction);
         }
 };

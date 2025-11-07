@@ -18,9 +18,9 @@
 #include "driver.h"
 
 SQLRETURN RDS_ProcessLibRes(
-    SQLSMALLINT    HandleType,
-    SQLHANDLE      InputHandle,
-    RdsLibResult   LibResult);
+    SQLSMALLINT         HandleType,
+    SQLHANDLE           InputHandle,
+    const RdsLibResult& LibResult);
 
 SQLRETURN RDS_AllocEnv(
     SQLHENV *      EnvironmentHandlePointer);

@@ -61,8 +61,8 @@ class AuthProvider {
 public:
     AuthProvider() = default;
     AuthProvider(const std::string &region);
-    AuthProvider(const std::string &region, Aws::Auth::AWSCredentials credentials);
-    AuthProvider(std::shared_ptr<Aws::RDS::RDSClient> rds_client);
+    AuthProvider(const std::string &region, const Aws::Auth::AWSCredentials& credentials);
+    AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client);
     ~AuthProvider();
 
     virtual std::pair<std::string, bool> GetToken(
@@ -73,8 +73,8 @@ public:
         bool use_cache = true,
         bool extra_url_encode = false,
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
-    virtual void UpdateAwsCredential(Aws::Auth::AWSCredentials credentials, const std::string &region = "");
-    std::string ExtraUrlEncodeString(const std::string &url_str);
+    virtual void UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region = "");
+    static std::string ExtraUrlEncodeString(const std::string &url_str);
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
@@ -88,6 +88,7 @@ public:
 
 protected:
 private:
+    void SetUpRdsClient(const Aws::Auth::AWSCredentials& credentials, const std::string &region);
     static inline std::unordered_map<std::string, TokenInfo> token_cache;
     static inline std::recursive_mutex token_cache_mutex;
     std::shared_ptr<Aws::RDS::RDSClient> rds_client;

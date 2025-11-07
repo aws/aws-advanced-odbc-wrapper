@@ -33,7 +33,7 @@ public:
     HostInfo() = default;
 
     HostInfo(
-        const std::string& host,
+        std::string host,
         int port,
         HOST_STATE state,
         bool is_writer,
