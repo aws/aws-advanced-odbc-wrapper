@@ -40,14 +40,14 @@ class ConcurrentTransactionsTest: public testing::Test {
             INTEGRATION_TEST_UTILS::str_to_int(INTEGRATION_TEST_UTILS::get_env_var("TEST_PORT", (char *) "5432"));
         std::string test_server = std::getenv("TEST_SERVER");
 
-        std::string connection_string;
+        RDS_STR connection_string;
         SQLHENV env = nullptr;
 
-        SQLTCHAR *DROP_TABLE_QUERY = AS_SQLTCHAR("DROP TABLE IF EXISTS concurrent_test");
+        SQLTCHAR *DROP_TABLE_QUERY = AS_SQLTCHAR(TEXT("DROP TABLE IF EXISTS concurrent_test"));
         SQLTCHAR *CREATE_TABLE_QUERY =
-            AS_SQLTCHAR("CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data "
-                        "VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        SQLTCHAR *COUNT_QUERY = AS_SQLTCHAR("SELECT COUNT(*) FROM concurrent_test");
+            AS_SQLTCHAR(TEXT("CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data "
+                        "VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"));
+        SQLTCHAR *COUNT_QUERY = AS_SQLTCHAR(TEXT("SELECT COUNT(*) FROM concurrent_test"));
 
         void SetUp() override {
             connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
@@ -145,7 +145,7 @@ TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
 
     ret = SQLExecDirect(
         stmt,
-        AS_SQLTCHAR("INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'test')"),
+        AS_SQLTCHAR(TEXT("INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'test')")),
         SQL_NTS);
     ASSERT_TRUE(SQL_SUCCEEDED(ret));
 
@@ -161,6 +161,17 @@ TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
     SQLDisconnect(dbc);
     SQLFreeHandle(SQL_HANDLE_DBC, dbc);
+}
+
+RDS_STR ToRdsStr(std::string src) {
+#ifdef UNICODE
+    if (src.empty()) {
+        return std::wstring();
+    }
+    return std::wstring(src.begin(), src.end());
+#else
+    return src;
+#endif
 }
 
 TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
@@ -179,12 +190,13 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     }
 
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
-        SQLRETURN begin_ret = SQLExecDirect(stmt[i], AS_SQLTCHAR("BEGIN"), SQL_NTS);
+        SQLRETURN begin_ret = SQLExecDirect(stmt[i], AS_SQLTCHAR(TEXT("BEGIN")), SQL_NTS);
         ASSERT_TRUE(SQL_SUCCEEDED(begin_ret));
 
         std::string sql = "INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (" +
             std::to_string(i + 1) + ", 1, 'dbc" + std::to_string(i + 1) + "')";
-        SQLRETURN ret = SQLExecDirect(stmt[i], AS_SQLTCHAR(sql.c_str()), SQL_NTS);
+
+        SQLRETURN ret = SQLExecDirect(stmt[i], AS_SQLTCHAR(ToRdsStr(sql).c_str()), SQL_NTS);
         ASSERT_TRUE(SQL_SUCCEEDED(ret));
     }
 
