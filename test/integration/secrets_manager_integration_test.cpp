@@ -40,7 +40,7 @@ protected:
 
     std::string test_secret_arn = std::getenv("TEST_SECRET_ARN");
 
-    std::string connection_string = "";
+    RDS_STR connection_string = TEXT("");
 
     SQLHENV env = nullptr;
     SQLHDBC dbc = nullptr;
@@ -124,5 +124,5 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
     SQLINTEGER native_error = 0;
     SQLSMALLINT stmt_length;
     EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, sqlstate, &native_error, message, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
-    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, AS_CHAR(sqlstate));
+    EXPECT_STREQ(AS_SQLTCHAR(SQL_ERR_INVALID_PARAMETER), sqlstate);
 }

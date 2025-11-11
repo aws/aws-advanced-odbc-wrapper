@@ -45,13 +45,13 @@ TEST_F(ConnectionStringBuilderTest, test_complete_string) {
         .withSslMode("prefer")
         .getRdsString();
 
-    const std::string expected =
+    const RDS_STR expected = TEXT(
         "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;DATABASE=testDb;"
         "ENABLE_CLUSTER_FAILOVER=1;FAILOVER_MODE=STRICT_WRITER;HOST_SELECTOR_STRATEGY=RANDOM;IGNORE_TOPOLOGY_REQUEST_MS=1;"
         "TOPOLOGY_HIGH_REFRESH_RATE_MS=2;TOPOLOGY_REFRESH_RATE_MS=3;FAILOVER_TIMEOUT_MS=120000;HOST_PATTERN=?.testDomain;"
         "RDS_AUTH_TYPE=IAM;REGION=us-east-1;TOKEN_EXPIRATION=123;SECRET_ID=secret;"
         "ENABLE_LIMITLESS=1;LIMITLESS_MODE=lazy;LIMITLESS_MONITOR_INTERVAL_MS=234;"
-        "SSLMODE=prefer;";
+        "SSLMODE=prefer;");
 
     EXPECT_EQ(expected, connection_string);
 }
@@ -61,7 +61,7 @@ TEST_F(ConnectionStringBuilderTest, test_only_required_fields) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
     auto connection_string = builder.getRdsString();
 
-    const std::string expected = "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;";
+    const RDS_STR expected = TEXT("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;");
 
     EXPECT_EQ(expected, connection_string);
 }
@@ -72,7 +72,7 @@ TEST_F(ConnectionStringBuilderTest, test_some_optional) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
     auto connection_string = builder.withUID("testUser").withPWD("testPwd").getRdsString();
 
-    const std::string expected("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;");
+    const RDS_STR expected(TEXT("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;"));
 
     EXPECT_EQ(expected, connection_string);
 }
@@ -86,10 +86,10 @@ TEST_F(ConnectionStringBuilderTest, test_setting_boolean_fields) {
         .withLimitlessEnabled(false)
         .getRdsString();
 
-    const std::string expected(
+    const RDS_STR expected(TEXT(
         "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;UID=testUser;PWD=testPwd;"
         "ENABLE_CLUSTER_FAILOVER=1;ENABLE_LIMITLESS=0;"
-    );
+    ));
 
     EXPECT_EQ(expected, connection_string);
 }

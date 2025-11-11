@@ -22,10 +22,11 @@
 #endif
 
 #include <sqlext.h>
+#include "../common/string_helper.h"
 
 #define SQL_MAX_MESSAGE_LENGTH  512
-#define SQL_ERR_UNABLE_TO_CONNECT "08001"
-#define SQL_ERR_INVALID_PARAMETER "01S00"
+#define SQL_ERR_UNABLE_TO_CONNECT TEXT("08001")
+#define SQL_ERR_INVALID_PARAMETER TEXT("01S00")
 
 namespace INTEGRATION_TEST_UTILS {
     char* get_env_var(const char* key, char* default_value);

@@ -97,6 +97,15 @@ std::string INTEGRATION_TEST_UTILS::host_to_IP(std::string hostname) {
     return std::string(ipstr);
 }
 
+std::string ToString(const SQLTCHAR* src) {
+#ifdef UNICODE
+    std::wstring wstr = AS_CONST_WCHAR(src);
+    return std::string(wstr.begin(), wstr.end());
+#else
+    return std::string(AS_CONST_CHAR(src));
+#endif
+}
+
 void INTEGRATION_TEST_UTILS::print_errors(SQLHANDLE handle, int32_t handle_type) {
     SQLTCHAR    sqlstate[6];
     SQLTCHAR    message[1024];
@@ -112,7 +121,7 @@ void INTEGRATION_TEST_UTILS::print_errors(SQLHANDLE handle, int32_t handle_type)
         if (ret == SQL_INVALID_HANDLE) {
             std::cerr << "Invalid handle" << std::endl;
         } else if (SQL_SUCCEEDED(ret)) {
-            std::cerr << sqlstate << ": " << message << std::endl;
+            std::cerr << ToString(sqlstate) << ": " << ToString(message) << std::endl;
         }
     } while (ret == SQL_SUCCESS);
 }
