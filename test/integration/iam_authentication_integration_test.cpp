@@ -38,7 +38,7 @@ protected:
     std::string test_region = INTEGRATION_TEST_UTILS::get_env_var("TEST_REGION", (char*)"us-west-1");
     std::string test_server = std::getenv("TEST_SERVER");
 
-    std::string test_iam_user = "iam_user";
+    std::string test_iam_user = INTEGRATION_TEST_UTILS::get_env_var("TEST_IAM_USER", (char*)"john_doe");
 
     RDS_STR connection_string = TEXT("");
 
