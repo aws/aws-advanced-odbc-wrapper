@@ -22,11 +22,14 @@
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
 #define AS_CONST_WCHAR(str) (reinterpret_cast<const wchar_t*>(str))
+#define AS_RDS_CHAR(str) (reinterpret_cast<const RDS_CHAR*>(str))
 
 #ifdef UNICODE
     #define RDS_STR std::wstring
+    #define RDS_CHAR std::wchar_t
 #else
     #define RDS_STR std::string
+    #define RDS_CHAR char
 #endif
 
 #ifdef WIN32

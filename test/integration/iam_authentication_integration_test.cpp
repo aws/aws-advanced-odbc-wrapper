@@ -30,14 +30,13 @@
 
 class IamAuthenticationIntegrationTest : public testing::Test {
 protected:
-    std::string auth_type = "IAM";
-    std::string test_dsn = "unicode_dsn";
-    std::string test_db = "postgres";
-    std::string test_uid = "iam_user";
-    std::string test_pwd = "password";
-    int test_port = 5432;
-    std::string test_region = "us-east-2";
-    std::string test_server = "database-pg-ulojonat.cluster-cx422ywmsto6.us-east-2.rds.amazonaws.com";
+    std::string test_dsn = std::getenv("TEST_DSN");
+    std::string test_db = std::getenv("TEST_DATABASE");
+    std::string test_uid = std::getenv("TEST_USERNAME");
+    std::string test_pwd = std::getenv("TEST_PASSWORD");
+    int test_port = INTEGRATION_TEST_UTILS::str_to_int(INTEGRATION_TEST_UTILS::get_env_var("TEST_PORT", (char*)"5432"));
+    std::string test_region = INTEGRATION_TEST_UTILS::get_env_var("TEST_REGION", (char*)"us-west-1");
+    std::string test_server = std::getenv("TEST_SERVER");
 
     std::string test_iam_user = "iam_user";
 
@@ -149,7 +148,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
     SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
     rc = SQLError(nullptr, dbc, nullptr, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_STREQ(AS_SQLTCHAR(SQL_ERR_UNABLE_TO_CONNECT), state);
+    EXPECT_STREQ(SQL_ERR_UNABLE_TO_CONNECT, AS_RDS_CHAR(state));
 }
 
 // Tests that the IAM connection will fail when provided an empty user.
@@ -172,5 +171,5 @@ TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
     SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
     rc = SQLError(nullptr, dbc, nullptr, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_STREQ(AS_SQLTCHAR(SQL_ERR_UNABLE_TO_CONNECT), state);
+    EXPECT_STREQ(SQL_ERR_UNABLE_TO_CONNECT, AS_RDS_CHAR(state));
 }
