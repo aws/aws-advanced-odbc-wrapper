@@ -283,7 +283,7 @@ SQLRETURN RDS_FreeConnect(
     // Cleanup tracked statements
     const std::list<STMT*> stmt_list = dbc->stmt_list;
     for (STMT* stmt : stmt_list) {
-        RDS_FreeStmt(stmt);
+        RDS_FreeStmt(stmt, SQL_DROP);
     }
     dbc->stmt_list.clear();
     // and descriptors
@@ -365,29 +365,49 @@ SQLRETURN RDS_FreeEnv(
 }
 
 SQLRETURN RDS_FreeStmt(
-    SQLHSTMT       StatementHandle)
+    SQLHSTMT       StatementHandle,
+    SQLUSMALLINT   Option)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
-    // Remove statement from connection
-    dbc->stmt_list.remove(stmt);
+    switch (Option) {
+        case SQL_CLOSE:
+        case SQL_UNBIND:
+        case SQL_RESET_PARAMS:
+            {
+                SQLRETURN ret = SQL_ERROR;
+                if (stmt->wrapped_stmt) {
+                    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeStmt, RDS_STR_SQLFreeStmt,
+                        stmt->wrapped_stmt, Option
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                }
+                return ret;
+            }
+        case SQL_DROP:
+            // Deprecated option, used fully cleanup handle
+        default:
+            {
+                // Remove statement from connection
+                dbc->stmt_list.remove(stmt);
 
-    // Clean underlying Statements
-    if (stmt->wrapped_stmt) {
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt->wrapped_stmt
-        );
-        RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
-        stmt->wrapped_stmt = nullptr;
+                // Clean underlying Statements
+                if (stmt->wrapped_stmt) {
+                    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                        SQL_HANDLE_STMT, stmt->wrapped_stmt
+                    );
+                    RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                    stmt->wrapped_stmt = nullptr;
+                }
+
+                delete stmt->err;
+                delete stmt;
+                return SQL_SUCCESS;
+            }
     }
-
-    delete stmt->err;
-
-    delete stmt;
-    return SQL_SUCCESS;
 }
 
 SQLRETURN RDS_GetConnectAttr(
