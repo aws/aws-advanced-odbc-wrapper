@@ -468,7 +468,7 @@ SQLRETURN SQL_API SQLFreeHandle(
             ret = RDS_FreeEnv(Handle);
             break;
         case SQL_HANDLE_STMT:
-            ret = RDS_FreeStmt(Handle);
+            ret = RDS_FreeStmt(Handle, SQL_DROP);
             break;
         default:
             ret = SQL_ERROR;
@@ -481,7 +481,7 @@ SQLRETURN SQL_API SQLFreeStmt(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Option)
 {
-    return RDS_FreeStmt(StatementHandle);
+    return RDS_FreeStmt(StatementHandle, Option);
 }
 
 SQLRETURN SQL_API SQLGetData(
