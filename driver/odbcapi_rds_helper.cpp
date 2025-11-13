@@ -621,11 +621,18 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
+    std::string conn_str_utf8;
     size_t load_len = -1;
     if (ServerName) {
         // Load input DSN followed by Base DSN retrieved from input DSN
-        load_len = NameLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(ServerName)) : NameLength1;
-        OdbcDsnHelper::LoadAll(AS_RDS_STR_MAX(ServerName, load_len), dbc->conn_attr);
+#ifdef UNICODE
+        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(ServerName));
+        unicode_str.toUTF8String(conn_str_utf8);
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(ServerName);
+#endif
+        load_len = NameLength1 == SQL_NTS ? conn_str_utf8.length() : NameLength1;
+        OdbcDsnHelper::LoadAll(conn_str_utf8.substr(0, load_len), dbc->conn_attr);
         ret = RDS_InitializeConnection(dbc);
     } else {
         // Error, no DSN
@@ -635,12 +642,24 @@ SQLRETURN RDS_SQLConnect(
 
     // Replace with input parameters
     if (UserName) {
-        load_len = NameLength2 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(UserName)) : NameLength2;
-        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, AS_RDS_STR_MAX(UserName, load_len));
+#ifdef UNICODE
+        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(UserName));
+        unicode_str.toUTF8String(conn_str_utf8);
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(UserName);
+#endif
+        load_len = NameLength2 == SQL_NTS ? conn_str_utf8.length() : NameLength2;
+        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, conn_str_utf8.substr(0, load_len));
     }
     if (Authentication) {
-        load_len = NameLength3 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(Authentication)) : NameLength3;
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, AS_RDS_STR_MAX(Authentication, load_len));
+#ifdef UNICODE
+        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(Authentication));
+        unicode_str.toUTF8String(conn_str_utf8);
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(Authentication);
+#endif
+        load_len = NameLength3 == SQL_NTS ? conn_str_utf8.length() : NameLength3;
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, conn_str_utf8.substr(0, load_len));
     }
 
     // Connect if initialization successful
