@@ -141,6 +141,15 @@ SQLRETURN RDS_AllocStmt(
     RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     *StatementHandlePointer = stmt;
 
+    stmt->app_row_desc = new DESC();
+    stmt->app_row_desc->dbc = dbc;
+    stmt->app_param_desc = new DESC();
+    stmt->app_param_desc->dbc = dbc;
+    stmt->imp_row_desc = new DESC();
+    stmt->imp_row_desc->dbc = dbc;
+    stmt->imp_param_desc = new DESC();
+    stmt->imp_param_desc->dbc = dbc;
+
     dbc->stmt_list.emplace_back(stmt);
 
     return SQL_SUCCESS;
@@ -399,6 +408,11 @@ SQLRETURN RDS_FreeStmt(
                     RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
                     stmt->wrapped_stmt = nullptr;
                 }
+
+                delete stmt->app_row_desc;
+                delete stmt->app_param_desc;
+                delete stmt->imp_row_desc;
+                delete stmt->imp_param_desc;
 
                 delete stmt->err;
                 delete stmt;
@@ -1556,8 +1570,38 @@ SQLRETURN RDS_SQLGetStmtAttr(
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
+    RdsLibResult res;
+    switch (Attribute) {
+        case SQL_ATTR_APP_ROW_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->app_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_row_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_APP_PARAM_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->app_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_param_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_IMP_ROW_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->imp_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_row_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_IMP_PARAM_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->imp_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_param_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        default:
+            break;
+    }
+
     CHECK_WRAPPED_STMT(stmt);
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
         stmt->wrapped_stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1778,6 +1822,17 @@ SQLRETURN RDS_SQLSetStmtAttr(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
+
+    switch (Attribute) {
+        // Read-only attributes
+        case SQL_ATTR_IMP_PARAM_DESC:
+        case SQL_ATTR_IMP_ROW_DESC:
+        case SQL_ATTR_ROW_NUMBER:
+            stmt->err = new ERR_INFO("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
+            return SQL_ERROR;
+        default:
+            break;
+    }
 
     if (stmt->wrapped_stmt) {
         const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
