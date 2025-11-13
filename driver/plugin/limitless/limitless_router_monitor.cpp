@@ -65,7 +65,7 @@ void LimitlessRouterMonitor::Open(
     env->driver_lib_loader = lib_loader_;
 
     if (block_and_query_immediately) {
-        LOG(INFO) << "Attempting to query routers on initial setup.";
+        LOG(INFO) << "Attempting to query routers on initial setup";
         RDS_AllocDbc(henv, &local_hdbc);
         DBC* local_dbc = static_cast<DBC*>(local_hdbc);
 
@@ -87,7 +87,7 @@ void LimitlessRouterMonitor::Open(
             // Not successful, ensure limitless routers is empty.
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             this->limitless_routers_->clear();
-            LOG(WARNING) << "Failed to query routers on initial setup.";
+            LOG(WARNING) << "Failed to query routers on initial setup";
         }
     }
 
@@ -156,7 +156,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
                 conn = SQL_NULL_HANDLE;
 
                 // wait the full interval and then try to reconnect
-                LOG(WARNING) << "Limitless Monitor failed to connect to an instance.";
+                LOG(WARNING) << "Limitless Monitor failed to connect to an instance";
                 continue;
             } // else, connection was successful, proceed below
         }
@@ -165,7 +165,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
         // LimitlessQueryHelper::QueryForLimitlessRouters will return an empty vector on an error
         // if it was a connection error, then the next loop will catch it and attempt to reconnect
         if (!new_limitless_routers.empty()) {
-            LOG(WARNING) << "Limitless Monitor failed to query any routers.";
+            LOG(WARNING) << "Limitless Monitor failed to query any routers";
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         }

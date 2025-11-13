@@ -203,9 +203,9 @@ SQLRETURN SQL_API SQLCancelHandle(
             NULL_CHECK_HANDLE(Handle);
             env = static_cast<ENV*>(Handle);
             const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
-            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle.";
+            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle ENV";
             CLEAR_ENV_ERROR(env);
-            env->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            env->err = new ERR_INFO("SQLCancelHandle ENV - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DBC:
@@ -213,9 +213,9 @@ SQLRETURN SQL_API SQLCancelHandle(
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
             dbc = static_cast<DBC*>(Handle);
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle.";
+            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DBC";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            dbc->err = new ERR_INFO("SQLCancelHandle DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DESC:
@@ -223,9 +223,9 @@ SQLRETURN SQL_API SQLCancelHandle(
             NULL_CHECK_ENV_ACCESS_DESC(Handle);
             desc = static_cast<DESC*>(Handle);
             const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
-            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle.";
+            LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DESC";
             CLEAR_DESC_ERROR(desc);
-            desc->err = new ERR_INFO("SQLCancelHandle - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            desc->err = new ERR_INFO("SQLCancelHandle DESC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             NOT_IMPLEMENTED;
         }
         default:
@@ -274,9 +274,9 @@ SQLRETURN SQL_API SQLCompleteAsync(
             NULL_CHECK_ENV_ACCESS_DBC(Handle);
             DBC* dbc = static_cast<DBC*>(Handle);
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-            LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync.";
+            LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync DBC";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            dbc->err = new ERR_INFO("SQLCompleteAsync DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
         }
 
@@ -285,9 +285,9 @@ SQLRETURN SQL_API SQLCompleteAsync(
             NULL_CHECK_ENV_ACCESS_STMT(Handle);
             STMT* stmt = static_cast<STMT*>(Handle);
             const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
-            LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync.";
+            LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync STMT";
             CLEAR_DBC_ERROR(stmt);
-            stmt->err = new ERR_INFO("SQLCompleteAsync - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            stmt->err = new ERR_INFO("SQLCompleteAsync STMT - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
         }
         default:
@@ -398,7 +398,7 @@ SQLRETURN SQL_API SQLExecute(
         return dbc->plugin_head->Execute(StatementHandle);
     }
 
-    LOG(ERROR) << "Cannot execute without an open connection.";
+    LOG(ERROR) << "Cannot execute without an open connection";
     stmt->err = new ERR_INFO("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
     return SQL_ERROR;
 }

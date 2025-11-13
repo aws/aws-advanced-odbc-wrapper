@@ -110,7 +110,7 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    LOG(INFO) << "Entering Connect";
+    LOG(INFO) << "Entering Execute";
     RdsLibResult res;
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;

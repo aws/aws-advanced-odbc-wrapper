@@ -48,7 +48,7 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
-        LOG(ERROR) << "Topology Query passed in null DBC.";
+        LOG(ERROR) << "Topology Query passed in null DBC";
         return "";
     }
 
@@ -90,7 +90,7 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
-        LOG(ERROR) << "Topology Query passed in null DBC.";
+        LOG(ERROR) << "Topology Query passed in null DBC";
         return hosts;
     }
 
@@ -132,7 +132,7 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
         );
     }
 
-    LOG_IF(WARNING, hosts.empty()) << "Failed to fetch any instances from topology.";
+    LOG_IF(WARNING, hosts.empty()) << "Failed to fetch any instances from topology";
     return hosts;
 }
 

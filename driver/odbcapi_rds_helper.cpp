@@ -471,7 +471,7 @@ SQLRETURN RDS_SQLBrowseConnect(
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect.";
+    LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -644,7 +644,7 @@ SQLRETURN RDS_SQLDataSources(
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV *env = static_cast<ENV*>(EnvironmentHandle);
 
-    LOG(ERROR) << "Unsupported SQL API - SQLDataSources.";
+    LOG(ERROR) << "Unsupported SQL API - SQLDataSources";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -795,7 +795,7 @@ SQLRETURN RDS_SQLDrivers(
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV* env = static_cast<ENV*>(EnvironmentHandle);
 
-    LOG(ERROR) << "Unsupported SQL API - SQLDrivers.";
+    LOG(ERROR) << "Unsupported SQL API - SQLDrivers";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -853,7 +853,7 @@ SQLRETURN RDS_SQLExecDirect(
         return dbc->plugin_head->Execute(StatementHandle, StatementText, TextLength);
     }
 
-    LOG(ERROR) << "Cannot execute without an open connection.";
+    LOG(ERROR) << "Cannot execute without an open connection";
     stmt->err = new ERR_INFO("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
     return SQL_ERROR;
 }
@@ -1887,9 +1887,9 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         if (!env->driver_lib_loader) {
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.";
+            LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.", ERR_DIFF_ENV_UNDERLYING_DRIVER);
+            dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
             return SQL_ERROR;
         }
     } else {

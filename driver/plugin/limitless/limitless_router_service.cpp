@@ -48,11 +48,11 @@ LimitlessRouterService::~LimitlessRouterService() {
     std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
     if (pair.first == 1) {
         limitless_router_monitors.Delete(router_monitor_key_);
-        LOG(INFO) << "Shut down Limitless Monitor for: " << router_monitor_key_;
+        LOG(INFO) << "Shut down Limitless Monitor count for: " << router_monitor_key_;
     } else {
         pair.first--;
         limitless_router_monitors.Put(router_monitor_key_, pair);
-        LOG(INFO) << "Decremented Limitless Monitor for: " << router_monitor_key_ << ", to: " << pair.first;
+        LOG(INFO) << "Decremented Limitless Monitor count for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }
 
@@ -91,7 +91,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
 {
     if (dbc == nullptr) {
-        LOG(ERROR) << "Null DBC passed to EstablishConnection.";
+        LOG(ERROR) << "Null DBC passed to EstablishConnection";
         return SQL_INVALID_HANDLE;
     }
 
@@ -113,7 +113,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             SQL_HANDLE_ENV, nullptr, &env->wrapped_env
         );
         if (!SQL_SUCCEEDED(res.fn_result)) {
-            LOG(ERROR) << "Limitless Router failed to allocate ENV Handle.";
+            LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
@@ -163,7 +163,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     }
 
     if (limitless_routers.empty()) {
-        LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers.";
+        LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
@@ -212,7 +212,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
         }
     }
 
-    LOG(ERROR) << "The limitless connection plugin was unable to establish a connection.";
+    LOG(ERROR) << "The limitless connection plugin was unable to establish a connection";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
@@ -239,6 +239,6 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
         // If the monitor exists, increment the reference count.
         pair.first++;
         limitless_router_monitors.Put(router_monitor_key_, pair);
-        LOG(INFO) << "Incremented Limitless Monitor for: " << router_monitor_key_ << ", to: " << pair.first;
+        LOG(INFO) << "Incremented Limitless Monitor usage count for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }

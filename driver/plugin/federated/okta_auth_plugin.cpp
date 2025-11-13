@@ -96,7 +96,7 @@ SQLRETURN OktaAuthPlugin::Connect(
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
-        LOG(ERROR) << "Missing required parameters for Okta Authentication.";
+        LOG(ERROR) << "Missing required parameters for Okta Authentication";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Missing required parameters for Okta Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
@@ -111,7 +111,7 @@ SQLRETURN OktaAuthPlugin::Connect(
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
-        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token.";
+        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         // Update AWS Credentials
         const std::string saml_assertion = saml_util->GetSamlAssertion();
         const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
