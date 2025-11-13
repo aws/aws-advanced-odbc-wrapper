@@ -1730,7 +1730,16 @@ SQLRETURN RDS_SQLSetCursorName(
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     }
-    stmt->cursor_name = AS_RDS_STR_MAX(CursorName, NameLength);
+
+    std::string conn_str_utf8;
+#ifdef UNICODE
+    const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(CursorName));
+    unicode_str.toUTF8String(conn_str_utf8);
+#else
+    conn_str_utf8 = reinterpret_cast<const char *>(CursorName);
+#endif
+    size_t load_len = NameLength == SQL_NTS ? conn_str_utf8.length() : NameLength;
+    stmt->cursor_name = conn_str_utf8.substr(0, load_len);
     return ret;
 }
 
