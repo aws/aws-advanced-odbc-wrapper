@@ -87,6 +87,8 @@ jobs:
       - name: Run Unit Tests
         run: |
           ./build/test/unit_test/unit-test
+#        env:
+#          ASAN_OPTIONS: 'detect_container_overflow=0'
 
   test-linux-unit:
     name: Linux Ubuntu - Unit Test

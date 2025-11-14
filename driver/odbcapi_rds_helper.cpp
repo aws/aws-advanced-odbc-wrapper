@@ -289,8 +289,10 @@ SQLRETURN RDS_FreeConnect(
     }
 
     delete dbc->plugin_head;
-    delete dbc->err;
+    dbc->plugin_head = nullptr;
+    CLEAR_DBC_ERROR(dbc);
     delete dbc;
+    ConnectionHandle = nullptr;
     return SQL_SUCCESS;
 }
 
@@ -314,8 +316,8 @@ SQLRETURN RDS_FreeDesc(
         desc->wrapped_desc = nullptr;
     }
 
-    delete desc->err;
     delete desc;
+    DescriptorHandle = nullptr;
     return SQL_SUCCESS;
 }
 
@@ -344,8 +346,8 @@ SQLRETURN RDS_FreeEnv(
         env->driver_lib_loader.reset();
     }
 
-    delete env->err;
     delete env;
+    EnvironmentHandle = nullptr;
     LoggerWrapper::Shutdown();
     return SQL_SUCCESS;
 }
@@ -370,9 +372,8 @@ SQLRETURN RDS_FreeStmt(
         stmt->wrapped_stmt = nullptr;
     }
 
-    delete stmt->err;
-
     delete stmt;
+    StatementHandle = nullptr;
     return SQL_SUCCESS;
 }
 

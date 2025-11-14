@@ -75,12 +75,17 @@ struct ENV {
     std::list<DBC*>             dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
-    ERR_INFO*                   err;
+    ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
 
     SQLHENV                     wrapped_env;
 
     std::shared_ptr<RdsLibLoader> driver_lib_loader;
+
+     ~ENV() {
+          delete err;
+          err = nullptr;
+     }
 }; // ENV
 
 struct DBC {
@@ -99,9 +104,16 @@ struct DBC {
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
-    BasePlugin*                 plugin_head;
-    ERR_INFO*                   err;
+    BasePlugin*                 plugin_head = nullptr;
+    ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
+
+     ~DBC() {
+          delete plugin_head;
+          delete err;
+          plugin_head = nullptr;
+          err = nullptr;
+     }
 }; // DBC
 
 struct STMT {
@@ -114,8 +126,13 @@ struct STMT {
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
     RDS_STR cursor_name;
 
-    ERR_INFO*                   err;
+    ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
+
+     ~STMT() {
+          delete err;
+          err = nullptr;
+     }
 }; // STMT
 
 struct DESC {
@@ -124,8 +141,13 @@ struct DESC {
     // TODO - What to put here
     DBC*                        dbc;
     SQLHDESC                    wrapped_desc;
-    ERR_INFO*                   err;
+    ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
+
+     ~DESC() {
+          delete err;
+          err = nullptr;
+     }
 }; // DESC
 
 /* Function Declarations */

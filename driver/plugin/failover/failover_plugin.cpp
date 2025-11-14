@@ -112,13 +112,13 @@ SQLRETURN FailoverPlugin::Execute(
     // Invalidate statements, but don't fully clean up
     for (STMT* stmt : dbc->stmt_list) {
         stmt->wrapped_stmt = nullptr;
-        delete stmt->err;
+        CLEAR_STMT_ERROR(stmt);
         stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);;
     }
     // and descriptors
     for (DESC* desc : dbc->desc_list) {
         desc->wrapped_desc = nullptr;
-        delete desc->err;
+        CLEAR_DESC_ERROR(desc);
         desc->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
     }
 
@@ -131,7 +131,7 @@ SQLRETURN FailoverPlugin::Execute(
     }
 
     if (failover_result) {
-        ERR_INFO* err_info;
+        const ERR_INFO* err_info = nullptr;
         if (TRANSACTION_OPEN == original_transaction_status) {
             err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
         } else {
@@ -139,12 +139,12 @@ SQLRETURN FailoverPlugin::Execute(
         }
         // Set failover error messages for all related statements
         for (STMT* stmt : dbc->stmt_list) {
-            delete stmt->err;
+            CLEAR_STMT_ERROR(stmt);
             stmt->err = new ERR_INFO(*err_info);
         }
         // and descriptors
         for (DESC* desc : dbc->desc_list) {
-            delete desc->err;
+            CLEAR_DESC_ERROR(desc);
             desc->err = new ERR_INFO(*err_info);
         }
         delete err_info;

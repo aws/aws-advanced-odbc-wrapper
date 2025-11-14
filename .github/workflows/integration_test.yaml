@@ -459,6 +459,7 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+#          ASAN_OPTIONS: 'detect_container_overflow=0'
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
@@ -647,6 +648,7 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+#          ASAN_OPTIONS: 'detect_container_overflow=0,symbolize=1,print_module_map=2'
       # - name: Build and Run Unicode Integration Tests
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -1036,6 +1038,7 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+#          ASAN_OPTIONS: 'detect_container_overflow=0'
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
@@ -1224,6 +1227,7 @@ jobs:
           TEST_PORT: '5432'
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+#          ASAN_OPTIONS: 'detect_container_overflow=0'
       # - name: Build and Run Unicode Integration Tests
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}

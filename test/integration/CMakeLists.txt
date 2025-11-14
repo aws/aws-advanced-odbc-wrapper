@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
 set(BUILD_FAILOVER OFF CACHE BOOL "Build Failover Tests")
 set(BUILD_LIMITLESS OFF CACHE BOOL "Build Limitless Tests")
+set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
@@ -87,6 +88,16 @@ if(BUILD_FAILOVER)
 
     find_package(AWSSDK REQUIRED COMPONENTS core rds sts)
     list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
+endif()
+
+if(USE_ASAN)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+
+    if(WIN32)
+        add_compile_definitions(_DISABLE_STRING_ANNOTATION=1)
+        add_compile_definitions(_DISABLE_VECTOR_ANNOTATION=1)
+    endif()
 endif()
 
 # Build Executable ------------------------------------------------------------------------------------------
