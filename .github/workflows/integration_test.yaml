@@ -860,7 +860,7 @@ jobs:
           cmake -S test/integration -B build_unicode `
             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-          .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
+          .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
