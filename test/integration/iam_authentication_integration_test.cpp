@@ -30,6 +30,7 @@
 
 class IamAuthenticationIntegrationTest : public testing::Test {
 protected:
+    std::string auth_type = "IAM";
     std::string test_dsn = std::getenv("TEST_DSN");
     std::string test_db = std::getenv("TEST_DATABASE");
     std::string test_uid = std::getenv("TEST_USERNAME");
