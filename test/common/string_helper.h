@@ -26,7 +26,7 @@
 
 #ifdef UNICODE
     #define RDS_STR std::wstring
-    #define RDS_CHAR std::wchar_t
+    #define RDS_CHAR wchar_t
 #else
     #define RDS_STR std::string
     #define RDS_CHAR char
