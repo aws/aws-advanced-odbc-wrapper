@@ -17,12 +17,9 @@
 #include "odbcapi_rds_helper.h"
 
 
-#include <cwchar>
-
 #include <cstdio>
+#include <cwchar>
 #include <unordered_set>
-#include <stdio.h>
-#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
@@ -410,9 +407,13 @@ SQLRETURN RDS_FreeStmt(
                 }
 
                 delete stmt->app_row_desc;
+                stmt->app_row_desc = SQL_NULL_HANDLE;
                 delete stmt->app_param_desc;
+                stmt->app_param_desc = SQL_NULL_HANDLE;
                 delete stmt->imp_row_desc;
+                stmt->imp_row_desc = SQL_NULL_HANDLE;
                 delete stmt->imp_param_desc;
+                stmt->imp_param_desc = SQL_NULL_HANDLE;
 
                 delete stmt->err;
                 delete stmt;
@@ -639,8 +640,7 @@ SQLRETURN RDS_SQLConnect(
     if (ServerName) {
         // Load input DSN followed by Base DSN retrieved from input DSN
 #ifdef UNICODE
-        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(ServerName));
-        unicode_str.toUTF8String(conn_str_utf8);
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(ServerName));
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(ServerName);
 #endif
@@ -656,8 +656,7 @@ SQLRETURN RDS_SQLConnect(
     // Replace with input parameters
     if (UserName) {
 #ifdef UNICODE
-        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(UserName));
-        unicode_str.toUTF8String(conn_str_utf8);
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(UserName));
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(UserName);
 #endif
@@ -666,8 +665,7 @@ SQLRETURN RDS_SQLConnect(
     }
     if (Authentication) {
 #ifdef UNICODE
-        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(Authentication));
-        unicode_str.toUTF8String(conn_str_utf8);
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(Authentication));
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(Authentication);
 #endif
@@ -770,8 +768,7 @@ SQLRETURN RDS_SQLDriverConnect(
 #endif
     } else {
 #ifdef UNICODE
-        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-        unicode_str.toUTF8String(conn_str_utf8);
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(InConnectionString));
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
 #endif
@@ -1777,12 +1774,11 @@ SQLRETURN RDS_SQLSetCursorName(
 
     std::string conn_str_utf8;
 #ifdef UNICODE
-    const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(CursorName));
-    unicode_str.toUTF8String(conn_str_utf8);
+    conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(CursorName));
 #else
     conn_str_utf8 = reinterpret_cast<const char *>(CursorName);
 #endif
-    size_t load_len = NameLength == SQL_NTS ? conn_str_utf8.length() : NameLength;
+    const size_t load_len = NameLength == SQL_NTS ? conn_str_utf8.length() : NameLength;
     stmt->cursor_name = conn_str_utf8.substr(0, load_len);
     return ret;
 }
@@ -2076,7 +2072,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
             dbc->plugin_head = plugin_head;
         }
     } catch (const std::exception& ex) {
-        std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
+        const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
