@@ -30,8 +30,8 @@ protected:
     SQLHDBC dbc = nullptr;
 
     // Test Queries
-    SQLTCHAR* DROP_TABLE_QUERY = AS_SQLTCHAR("DROP TABLE IF EXISTS failover_transaction");
-    SQLTCHAR* CREATE_TABLE_QUERY = AS_SQLTCHAR("CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)");
+    SQLTCHAR* DROP_TABLE_QUERY = AS_SQLTCHAR(TEXT("DROP TABLE IF EXISTS failover_transaction"));
+    SQLTCHAR* CREATE_TABLE_QUERY = AS_SQLTCHAR(TEXT("CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)"));
 
     static void SetUpTestSuite() { Aws::InitAPI(options); }
 
@@ -117,7 +117,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
     EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, CREATE_TABLE_QUERY, SQL_NTS));
 
     // Execute queries within the transaction
-    SQLTCHAR* insert_query = AS_SQLTCHAR("BEGIN; INSERT INTO failover_transaction VALUES (1, 'test field string 1')");
+    SQLTCHAR* insert_query = AS_SQLTCHAR(TEXT("BEGIN; INSERT INTO failover_transaction VALUES (1, 'test field string 1')"));
     EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, insert_query, SQL_NTS));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
@@ -159,7 +159,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
     EXPECT_EQ(SQL_SUCCESS, SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0));
 
     // Run insert query in a new transaction
-    SQLTCHAR* insert_query = AS_SQLTCHAR("INSERT INTO failover_transaction VALUES (1, 'test field string 1')");
+    SQLTCHAR* insert_query = AS_SQLTCHAR(TEXT("INSERT INTO failover_transaction VALUES (1, 'test field string 1')"));
     EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, insert_query, SQL_NTS));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
