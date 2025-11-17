@@ -45,8 +45,8 @@
 
 class LimitlessIntegrationTest : public testing::Test {
 public:
-    SQLTCHAR *ROUTER_ENDPOINT_QUERY = AS_SQLTCHAR("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints();");
-    SQLTCHAR *SELECT_QUERY = AS_SQLTCHAR("SELECT 1;");
+    SQLTCHAR *ROUTER_ENDPOINT_QUERY = AS_SQLTCHAR(TEXT("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints();"));
+    SQLTCHAR *SELECT_QUERY = AS_SQLTCHAR(TEXT("SELECT 1;"));
     struct LimitlessHostInfo {
         std::string host_name;
         int64_t weight;
