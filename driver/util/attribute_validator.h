@@ -22,8 +22,8 @@
 
 namespace AttributeValidator {
     std::unordered_set<RDS_STR> ValidateMap(const std::map<RDS_STR, RDS_STR>& conn_attr);
-    bool ShouldKeyBeInt(const RDS_STR& key);
-    bool IsValueInt(const RDS_STR& value);
+    bool ShouldKeyBeUnsignedInt(const RDS_STR& key);
+    bool IsValueUnsignedInt(const RDS_STR& value);
 };
 
 #endif // ATTRIBUTE_VALIDATOR_H_

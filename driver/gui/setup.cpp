@@ -104,6 +104,9 @@ const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
     {KEY_IDP_ROLE_ARN, {IDC_ROLE_ARN, EDIT_TEXT}},
     {KEY_IAM_IDP_ARN, {IDC_IDP_ARN, EDIT_TEXT}},
     {KEY_IDP_PORT, {IDC_IDP_PORT, EDIT_TEXT}},
+    {KEY_RELAY_PARTY_ID, {IDC_RELAY_PARTY_ID, EDIT_TEXT}},
+    {KEY_HTTP_CONNECT_TIMEOUT, {IDC_CONNECT_TIMEOUT, EDIT_TEXT}},
+    {KEY_HTTP_SOCKET_TIMEOUT, {IDC_SOCKET_TIMEOUT, EDIT_TEXT}}
 };
 
 const std::map<std::string, std::pair<int, ControlType>> FAILOVER_KEYS = {
@@ -630,7 +633,12 @@ BOOL FailoverTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         if (keys.second.second == CHECK) {
             SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
         } else if (keys.second.second == COMBO) {
-            SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, FAILOVER_MODES);
+            if (keys.first == KEY_FAILOVER_MODE) {
+                SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, FAILOVER_MODES);
+            }
+            if (keys.first == KEY_HOST_SELECTOR_STRATEGY) {
+                SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, READER_SELECTION_MODES);
+            }
         } else {
             SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
         }

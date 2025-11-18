@@ -32,7 +32,6 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | IdP SAML Provider ARN | `IDP_SAML_ARN` | The ARN of the Identity Provider. | nil | `arn:aws:iam::123412341234:saml-provider/ADFS-AWS-IAM` |
 | HTTP Socket Timeout | `HTTP_SOCKET_TIMEOUT` | The socket timeout value in milliseconds for the HttpClient reading. | 3000 | 3000 |
 | HTTP Connect Timeout | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient. | 5000 | 5000 |
-| Relaying Party ID | `RELAY_PARTY_ID` | The relaying party identifier. | `urn:amazon:webservices` | `urn:amazon:webservices` |
 | App ID | `APP_ID` | The application ID for AWS configured on. | nil | `my-app-id` |
 | Extra URL Encode | `EXTRA_URL_ENCODE` | Generated tokens can have URL encoding prefix duplication for scenarios where underlying drivers automatically decode the URL before passing to the database for connections. | `0` | `1` |
 
