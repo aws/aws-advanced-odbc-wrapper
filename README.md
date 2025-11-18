@@ -35,11 +35,13 @@ For more information on how to download the AWS Advanced ODBC Wrapper, minimum r
 Technical documentation regarding the functionality of the AWS Advanced ODBC Wrapper will be maintained in this GitHub repository. Since the AWS Advanced ODBC Wrapper requires an underlying ODBC driver, please refer to the individual driver's documentation for driver-specific information.
 
 ### Using the AWS Advanced ODBC Wrapper
-To find all the documentation and concrete examples on how to use the AWS Advanced ODBC Wrapper, please refer to the [AWS Advanced ODBC Wrapper Documentation page](./docs/table-of-contents.md).
+
+To find all the documentation and concrete examples on how to use the AWS Advanced ODBC Wrapper, please refer to the [AWS Advanced ODBC Wrapper Documentation page](./docs/README.md).
 
 ### Known Limitations
 
 #### Amazon Aurora Global Databases
+
 AWS Authentication requires the proper region to be set to generate a proper credential token. If using the global endpoint to connect, the region may change when server-sided failover occurs. Please ensure region is updated to the correct database instance region when re-establishing connections.
 
 ## Getting Help & Opening Issues
