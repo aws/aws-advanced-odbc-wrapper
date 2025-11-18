@@ -33,15 +33,15 @@
 #endif
 
 #ifdef WIN32
-#include <windows.h> // Required to include sql.h and sqlext.h below
-#include <tchar.h>
+    #include <windows.h> // Required to include sql.h and sqlext.h below
+    #include <tchar.h>
 #else
     // On non-Windows platforms:
-#ifdef UNICODE
-#define TEXT(x) L##x
-#else
-#define TEXT(x) x
-#endif
+    #ifdef UNICODE
+        #define TEXT(x) L##x
+    #else
+        #define TEXT(x) x
+    #endif
 #endif
 
 #endif  // STRING_HELPER_H_
