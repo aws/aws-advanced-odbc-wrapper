@@ -1273,4 +1273,3 @@ jobs:
           path: /tmp/aws-odbc-wrapper/
           retention-days: 3
 
-
