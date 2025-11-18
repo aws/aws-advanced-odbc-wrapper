@@ -26,11 +26,7 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
     
     DBC dbc;
     dbc.env = &env;
-<<<<<<< HEAD
-    dbc.conn_attr[KEY_CLUSTER_ID] = AS_RDS_STR(cluster_id.c_str());
-=======
     dbc.conn_attr[KEY_CLUSTER_ID] = cluster_id;
->>>>>>> 9fa1fa9 (Remove ToRdsStr reference in failover unit tests)
 
     auto mock_dialect = std::make_shared<MockDialect>();
     auto mock_host_selector = std::make_shared<MockHostSelector>();
