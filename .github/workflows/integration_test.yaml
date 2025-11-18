@@ -538,7 +538,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt update
-          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
@@ -635,7 +635,7 @@ jobs:
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
           echo "Ansi Test Built"
-          ./build_ansi/integration-test
+          gdb -ex run ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -840,7 +840,7 @@ jobs:
             -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           echo "Ansi Test Built"
-          .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          gdb -ex run .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1117,7 +1117,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt update
-          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
@@ -1214,7 +1214,7 @@ jobs:
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
           echo "Ansi Test Built"
-          ./build_ansi/integration-test
+          gdb -ex run ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
