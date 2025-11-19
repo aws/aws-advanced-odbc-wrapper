@@ -52,16 +52,35 @@ public:
         int64_t weight;
     };
 
+    // lossy conversion
+    std::string SQLTCHARToString(SQLTCHAR* input, size_t len) {
+        char* buf = new char[len];
+        for (size_t i = 0; i < len; i++) {
+            buf[i] = (char)input[i];
+        }
+        std::string res(buf);
+        delete[] buf;
+        return res;
+    }
+
     LimitlessHostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* endpoint) {
-        double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
+        #if UNICODE
+        double load_num = std::strtod(SQLTCHARToString(load, wcslen(load)).c_str(), nullptr);
+        #else
+        double load_num = std::strtod(reinterpret_cast<const char*>(load), nullptr);
+        #endif
         int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
 
         if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
             weight = MIN_WEIGHT;
         }
 
-        std::string router_endpoint_str(reinterpret_cast<const char *>(endpoint));
-
+        #if UNICODE
+        std::string router_endpoint_str(SQLTCHARToString(endpoint, wcslen(endpoint)));
+        #else
+        std::string router_endpoint_str(reinterpret_cast<const char*>(endpoint));
+        #endif
+        
         return LimitlessHostInfo{
             .host_name = router_endpoint_str,
             .weight = weight
