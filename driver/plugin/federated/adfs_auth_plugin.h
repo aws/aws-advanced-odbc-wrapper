@@ -36,6 +36,7 @@ private:
 
     std::string sign_in_url;
 
+    static inline const std::string DEFAULT_RELAY_ID = "urn:amazon:webservices";
     static inline const std::regex FORM_ACTION_PATTERN = std::regex("<form.*?action=\"([^\"]+)\"");
     static inline const std::regex INPUT_TAG_PATTERN = std::regex("<input id=(.*)");
     static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("name=\"SAMLResponse\"\\s+value=\"([^\"]+)\"");
