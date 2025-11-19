@@ -85,8 +85,12 @@ SQLRETURN AdfsAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
+    std::string port = dbc->conn_attr.contains(KEY_IAM_PORT) ?
+        dbc->conn_attr.at(KEY_IAM_PORT) : "";
+    if (port.empty()) {
+        port = dbc->conn_attr.contains(KEY_PORT) ?
         dbc->conn_attr.at(KEY_PORT) : "";
+    }
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
@@ -133,8 +137,13 @@ AdfsSamlUtil::AdfsSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
-    const std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
+    std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
         connection_attributes.at(KEY_RELAY_PARTY_ID) : "";
+    if (relaying_party_id.empty()) {
+        LOG(INFO) << "Relaying party ID not supplied, using default: " << DEFAULT_RELAY_ID;
+        relaying_party_id = DEFAULT_RELAY_ID;
+    }
+
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
 }
 

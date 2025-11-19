@@ -72,8 +72,12 @@ SQLRETURN IamAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
+    std::string port = dbc->conn_attr.contains(KEY_IAM_PORT) ?
+        dbc->conn_attr.at(KEY_IAM_PORT) : "";
+    if (port.empty()) {
+        port = dbc->conn_attr.contains(KEY_PORT) ?
         dbc->conn_attr.at(KEY_PORT) : "";
+    }
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?

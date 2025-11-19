@@ -30,9 +30,8 @@ SamlUtil::SamlUtil(
     const std::shared_ptr<Aws::Http::HttpClient>& http_client,
     const std::shared_ptr<Aws::STS::STSClient>& sts_client)
 {
-    AwsSdkHelper::Init();
     ParseIdpConfig(connection_attributes);
-
+    AwsSdkHelper::Init();
     if (http_client) {
         this->http_client = http_client;
     } else {
@@ -114,4 +113,8 @@ void SamlUtil::ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes)
         connection_attributes.at(KEY_IDP_ROLE_ARN) : "";
     idp_saml_arn = connection_attributes.contains(KEY_IDP_SAML_ARN) ?
         connection_attributes.at(KEY_IDP_SAML_ARN) : "";
+
+    if (idp_endpoint.empty() || idp_username.empty() || idp_password.empty() || idp_role_arn.empty() || idp_saml_arn.empty()) {
+        throw std::runtime_error("Missing required parameter for Federated Auth.");
+    }
 }
