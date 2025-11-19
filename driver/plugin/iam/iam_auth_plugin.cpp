@@ -76,8 +76,7 @@ SQLRETURN IamAuthPlugin::Connect(
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
         dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
-
+        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         std::strtol(dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE).c_str(), nullptr, 0) > 0 : false;
 

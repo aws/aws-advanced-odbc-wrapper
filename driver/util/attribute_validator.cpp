@@ -20,7 +20,7 @@
 #include "connection_string_keys.h"
 #include "rds_strings.h"
 
-bool AttributeValidator::ShouldKeyBeInt(const RDS_STR& key) {
+bool AttributeValidator::ShouldKeyBeUnsignedInt(const RDS_STR& key) {
     static const std::unordered_set<RDS_STR> INTEGER_KEYS = {
         KEY_PORT,
         KEY_TOKEN_EXPIRATION,
@@ -39,15 +39,15 @@ bool AttributeValidator::ShouldKeyBeInt(const RDS_STR& key) {
     return INTEGER_KEYS.contains(key);
 }
 
-bool AttributeValidator::IsValueInt(const RDS_STR& value) {
+bool AttributeValidator::IsValueUnsignedInt(const RDS_STR& value) {
     if (value.empty()) {
         return false;
     }
 
     try {
         std::size_t pos{};
-        static_cast<void>(std::stoi(value, &pos));
-        return pos == value.length();
+        const int int_val = std::stoi(value, &pos);
+        return pos == value.length() && int_val >= 0;
     } catch (const std::invalid_argument&) {
         return false;
     } catch (const std::out_of_range&) {
@@ -61,7 +61,7 @@ std::unordered_set<RDS_STR> AttributeValidator::ValidateMap(const std::map<RDS_S
         const RDS_STR key = e.first;
         const RDS_STR value = e.second;
 
-        if (ShouldKeyBeInt(key) && !IsValueInt(value)) {
+        if (ShouldKeyBeUnsignedInt(key) && !IsValueUnsignedInt(value)) {
             invalid_keys.insert(key);
         }
     }
