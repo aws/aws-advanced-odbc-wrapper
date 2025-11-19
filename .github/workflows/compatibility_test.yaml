@@ -19,6 +19,10 @@ on:
 
 env:
   BUILD_CONFIG: Release
+  WIX_VERSION: 5.0.2
+
+  DRIVER_NAME_ANSI: 'AWS Advanced ODBC Wrapper Ansi'
+  DRIVER_NAME_UNICODE: 'AWS Advanced ODBC Wrapper Unicode'
 
 permissions:
   contents: read
@@ -122,20 +126,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
-      - name: Build aws-advanced-odbc-wrapper
+      - name: Setup Dotnet for WiX
+        uses: actions/setup-dotnet@v4
+      - name: Install WiX
+        shell: cmd
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
-          cmake --build build --config ${{env.BUILD_CONFIG}}
-      # TODO - Replace this step once installers are made
-      - name: Manual Install Wrapper Driver
+          dotnet tool install --global wix --version ${{env.WIX_VERSION}}
+          wix extension add --global WixToolset.UI.wixext/${{env.WIX_VERSION}}
+      - name: Run build installer script
+        shell: pwsh
         run: |
-          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "Installed" /f
-          reg add "HKEY_LOCAL_MACHINE\SOFTWARE\ODBC\ODBCINST.INI\aws-advanced-odbc-wrapper" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
+          ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Retrieve psqlODBC Cache
         uses: actions/cache@v4
         with:
@@ -147,6 +153,10 @@ jobs:
         working-directory: psqlodbc
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+      - name: Install driver
+        shell: pwsh
+        working-directory: installer
+        run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v7
         with:
@@ -160,22 +170,18 @@ jobs:
         run: |
           cmake -S test/compatibility -B build_test
           cmake --build build_test --config ${{env.BUILD_CONFIG}}
-      # TODO - Replace once setup routines are done (ConfigDSN, ConfigDriver, etc)
-      - name: Manual Setup DSN
+      - name: Install Ansi DSNs
+        shell: pwsh
         run: |
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\wrapper-dsn" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Configure Test DSN
-      #   run: |
-      #       Add-OdbcDsn -Name wrapper-dsn `
-      #       -DriverName "aws-advanced-odbc-wrapper" `
-      #       -DsnType User `
-      #       -SetPropertyValue `
-      #        @( `
-      #        "SERVER=localhost", `
-      #        "PORT=5432", `
-      #        "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+            Add-OdbcDsn -Name wrapper-dsn `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=localhost", `
+              "Port=5432", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
       - name: Configure Base DSN
         run: |
             Add-OdbcDsn -Name pg-dsn `
@@ -228,11 +234,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
@@ -307,7 +314,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |

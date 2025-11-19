@@ -37,9 +37,17 @@ endif()
 # Path to built AWS SDK
 set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/aws_sdk/install")
 list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
+list(APPEND CMAKE_PREFIX_PATH "${AWS_SDK_DIR}/lib/cmake")
 
-find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
+find_package(AWSSDK REQUIRED COMPONENTS rds secretsmanager sts)
 list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
+if(NOT WIN32)
+    list(APPEND AWS_DYN_LIBS
+        core aws-crt-cpp aws-c-http aws-c-mqtt aws-c-cal aws-c-auth aws-c-common
+        aws-c-io aws-checksums aws-c-event-stream aws-c-s3 aws-c-compression
+        aws-c-sdkutils rds secretsmanager sts
+    )
+endif()
 
 # -- ODBC --
 if(APPLE)
