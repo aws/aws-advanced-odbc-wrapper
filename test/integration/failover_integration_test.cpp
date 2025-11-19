@@ -37,6 +37,22 @@ protected:
 
     static void TearDownTestSuite() { Aws::ShutdownAPI(options); }
 
+    // lossy conversion
+    std::string RdsStrToString(RDS_STR input) {
+#if UNICODE
+        size_t len = wcslen(input.c_str()) + 1;
+        char* buf = new char[len];
+        for (size_t i = 0; i < len; i++) {
+            buf[i] = (char)input[i];
+        }
+        std::string res(buf);
+        delete[] buf;
+        return res;
+#else
+        return reinterpret_cast<const char*>(input);
+#endif
+    }
+
     void SetUp() override {
         SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
         SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
@@ -58,12 +74,12 @@ protected:
         reader_id = GetFirstReaderId(cluster_instances);
         target_writer_id = GetRandomDbReaderId(readers);
 
-        default_connection_string = ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
+        default_connection_string = RdsStrToString(ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
                                         .withUID(test_uid)
                                         .withPWD(test_pwd)
                                         .withDatabase(test_db)
                                         .withEnableClusterFailover(true)
-                                        .getRdsString();
+                                        .getRdsString());
         // Simple check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
     }
