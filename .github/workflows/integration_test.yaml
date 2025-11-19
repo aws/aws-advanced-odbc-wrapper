@@ -643,7 +643,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Unicode Integration Tests
-        shell: pwsh
+        shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_unicode \
@@ -1215,12 +1215,12 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Unicode Integration Tests
-        shell: pwsh
+        shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_unicode \
             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -DTEST_SERVER="${{ env.LIMITLESS_CLUSTER_ENDPOINT }}" \
             -DTEST_PORT="5432" \
             -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
