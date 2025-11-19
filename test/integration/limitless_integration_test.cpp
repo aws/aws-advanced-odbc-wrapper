@@ -54,6 +54,7 @@ public:
 
     // lossy conversion
     std::string SQLTCHARToString(SQLTCHAR* input) {
+        #if UNICODE
         size_t len = wcslen(input) + 1;
         char* buf = new char[len];
         for (size_t i = 0; i < len; i++) {
@@ -62,25 +63,20 @@ public:
         std::string res(buf);
         delete[] buf;
         return res;
+        #else
+        return reinterpret_cast<const char*>(input);
+        #endif
     }
 
     LimitlessHostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* endpoint) {
-        #if UNICODE
         double load_num = std::strtod(SQLTCHARToString(load).c_str(), nullptr);
-        #else
-        double load_num = std::strtod(reinterpret_cast<const char*>(load), nullptr);
-        #endif
         int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
 
         if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
             weight = MIN_WEIGHT;
         }
 
-        #if UNICODE
         std::string router_endpoint_str(SQLTCHARToString(endpoint));
-        #else
-        std::string router_endpoint_str(reinterpret_cast<const char*>(endpoint));
-        #endif
         
         return LimitlessHostInfo{
             .host_name = router_endpoint_str,
