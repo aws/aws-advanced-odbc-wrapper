@@ -51,7 +51,7 @@ DATABASE        = my-database-name
 BASE_DSN        = psqlodbc
 
 [psqlodbc]
-Driver          = path-to\psqlodbc30w.dylib
+Driver          = path-to\psqlodbca.dylib
 UID             = username
 PWD             = password
 SSLMODE         = require
@@ -73,7 +73,7 @@ PWD             = password
 BASE_DSN        = psqlodbc
 
 [psqlodbc]
-Driver          = path-to\psqlodbc30w.dylib
+Driver          = path-to\psqlodbca.dylib
 SSLMODE         = require
 ```
 
@@ -91,7 +91,7 @@ UID             = username
 PWD             = password
 SERVER          = database-cluster-name.cluster-XYZ.us-west-1.rds.amazonaws.com
 DATABASE        = my-database-name
-BASE_DRIVER     = path-to\psqlodbc30a.dylib
+BASE_DRIVER     = path-to\psqlodbca.dylib
 ```
 
 ## Plugins
