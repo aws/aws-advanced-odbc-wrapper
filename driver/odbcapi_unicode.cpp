@@ -15,6 +15,8 @@
 #include "odbcapi.h"
 #include "odbcapi_rds_helper.h"
 
+#include "util/logger_wrapper.h"
+
 SQLRETURN SQL_API SQLBrowseConnectW(
     SQLHDBC        ConnectionHandle,
     SQLWCHAR *     InConnectionString,
@@ -23,6 +25,7 @@ SQLRETURN SQL_API SQLBrowseConnectW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLength2Ptr)
 {
+    LOG(INFO) << "Entering SQLBrowseConnectW";
     return RDS_SQLBrowseConnect(
         ConnectionHandle,
         InConnectionString,
@@ -42,6 +45,7 @@ SQLRETURN SQL_API SQLColAttributeW(
     SQLSMALLINT *  StringLengthPtr,
     SQLLEN *       NumericAttributePtr)
 {
+    LOG(INFO) << "Entering SQLColAttributeW";
     return RDS_SQLColAttribute(
         StatementHandle,
         ColumnNumber,
@@ -62,6 +66,7 @@ SQLRETURN SQL_API SQLColAttributesW(
     SQLSMALLINT *  StringLengthPtr,
     SQLLEN *       NumericAttributePtr)
 {
+    LOG(INFO) << "Entering SQLColAttributesW";
     return RDS_SQLColAttribute(
         StatementHandle,
         ColumnNumber,
@@ -84,6 +89,7 @@ SQLRETURN SQL_API SQLColumnPrivilegesW(
     SQLWCHAR *     ColumnName,
     SQLSMALLINT    NameLength4)
 {
+    LOG(INFO) << "Entering SQLColumnPrivilegesW";
     return RDS_SQLColumnPrivileges(
         StatementHandle,
         CatalogName,
@@ -108,6 +114,7 @@ SQLRETURN SQL_API SQLColumnsW(
     SQLWCHAR *     ColumnName,
     SQLSMALLINT    NameLength4)
 {
+    LOG(INFO) << "Entering SQLColumnsW";
     return RDS_SQLColumns(
         StatementHandle,
         CatalogName,
@@ -130,6 +137,7 @@ SQLRETURN SQL_API SQLConnectW(
     SQLWCHAR *     Authentication,
     SQLSMALLINT    NameLength3)
 {
+    LOG(INFO) << "Entering SQLConnectW";
     return RDS_SQLConnect(
         ConnectionHandle,
         ServerName,
@@ -151,6 +159,7 @@ SQLRETURN SQL_API SQLDataSourcesW(
     SQLSMALLINT    BufferLength2,
     SQLSMALLINT *  NameLength2Ptr)
 {
+    LOG(INFO) << "Entering SQLDataSourcesW";
     return RDS_SQLDataSources(
         EnvironmentHandle,
         Direction,
@@ -174,6 +183,7 @@ SQLRETURN SQL_API SQLDescribeColW(
     SQLSMALLINT *  DecimalDigitsPtr,
     SQLSMALLINT *  NullablePtr)
 {
+    LOG(INFO) << "Entering SQLDescribeColW";
     return RDS_SQLDescribeCol(
         StatementHandle,
         ColumnNumber,
@@ -197,6 +207,7 @@ SQLRETURN SQL_API SQLDriverConnectW(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering SQLDriverConnectW";
     return RDS_SQLDriverConnect(
         ConnectionHandle,
         WindowHandle,
@@ -219,6 +230,7 @@ SQLRETURN SQL_API SQLDriversW(
     SQLSMALLINT    BufferLength2,
     SQLSMALLINT *  AttributesLengthPtr)
 {
+    LOG(INFO) << "Entering SQLDriversW";
     return RDS_SQLDrivers(
         EnvironmentHandle,
         Direction,
@@ -241,6 +253,7 @@ SQLRETURN SQL_API SQLErrorW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  TextLengthPtr)
 {
+    LOG(INFO) << "Entering SQLErrorW";
     return RDS_SQLError(
         EnvironmentHandle,
         ConnectionHandle,
@@ -258,6 +271,7 @@ SQLRETURN SQL_API SQLExecDirectW(
     SQLWCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering SQLExecDirectW";
     return RDS_SQLExecDirect(
         StatementHandle,
         StatementText,
@@ -280,6 +294,7 @@ SQLRETURN SQL_API SQLForeignKeysW(
     SQLWCHAR *     FKTableName,
     SQLSMALLINT    NameLength6)
 {
+    LOG(INFO) << "Entering SQLForeignKeysW";
     return RDS_SQLForeignKeys(
         StatementHandle,
         PKCatalogName,
@@ -304,6 +319,7 @@ SQLRETURN SQL_API SQLGetConnectAttrW(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetConnectAttrW";
     return RDS_GetConnectAttr(
         ConnectionHandle,
         Attribute,
@@ -318,6 +334,7 @@ SQLRETURN SQL_API SQLGetConnectOptionW(
     SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr)
 {
+    LOG(INFO) << "Entering SQLGetConnectOptionW";
     return RDS_SQLGetConnectOption(
         ConnectionHandle,
         Attribute,
@@ -331,6 +348,7 @@ SQLRETURN SQL_API SQLGetCursorNameW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  NameLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetCursorNameW";
     return RDS_SQLGetCursorName(
         StatementHandle,
         CursorName,
@@ -347,6 +365,7 @@ SQLRETURN SQL_API SQLGetDescFieldW(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetDescFieldW";
     return RDS_SQLGetDescField(
         DescriptorHandle,
         RecNumber,
@@ -370,6 +389,7 @@ SQLRETURN SQL_API SQLGetDescRecW(
     SQLSMALLINT *  ScalePtr,
     SQLSMALLINT *  NullablePtr)
 {
+    LOG(INFO) << "Entering SQLGetDescRecW";
     return RDS_SQLGetDescRec(
         DescriptorHandle,
         RecNumber,
@@ -394,6 +414,7 @@ SQLRETURN SQL_API SQLGetDiagFieldW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetDiagFieldW";
     return RDS_SQLGetDiagField(
         HandleType,
         Handle,
@@ -415,6 +436,7 @@ SQLRETURN SQL_API SQLGetDiagRecW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  TextLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetDiagRecW";
     return RDS_SQLGetDiagRec(
         HandleType,
         Handle,
@@ -434,6 +456,7 @@ SQLRETURN SQL_API SQLGetInfoW(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetInfoW";
     return RDS_SQLGetInfo(
         ConnectionHandle,
         InfoType,
@@ -450,6 +473,7 @@ SQLRETURN SQL_API SQLGetStmtAttrW(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
+    LOG(INFO) << "Entering SQLGetStmtAttrW";
     return RDS_SQLGetStmtAttr(
         StatementHandle,
         Attribute,
@@ -463,6 +487,7 @@ SQLRETURN SQL_API SQLGetTypeInfoW(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    DataType)
 {
+    LOG(INFO) << "Entering SQLGetTypeInfoW";
     return RDS_SQLGetTypeInfo(
         StatementHandle,
         DataType
@@ -477,6 +502,7 @@ SQLRETURN SQL_API SQLNativeSqlW(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   TextLength2Ptr)
 {
+    LOG(INFO) << "Entering SQLNativeSqlW";
     return RDS_SQLNativeSql(
         ConnectionHandle,
         InStatementText,
@@ -492,6 +518,7 @@ SQLRETURN SQL_API SQLPrepareW(
     SQLWCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering SQLPrepareW";
     return RDS_SQLPrepare(
         StatementHandle,
         StatementText,
@@ -508,6 +535,7 @@ SQLRETURN SQL_API SQLPrimaryKeysW(
     SQLWCHAR *     TableName,
     SQLSMALLINT    NameLength3)
 {
+    LOG(INFO) << "Entering SQLPrimaryKeysW";
     return RDS_SQLPrimaryKeys(
         StatementHandle,
         CatalogName,
@@ -530,6 +558,7 @@ SQLRETURN SQL_API SQLProcedureColumnsW(
     SQLWCHAR *     ColumnName,
     SQLSMALLINT    NameLength4)
 {
+    LOG(INFO) << "Entering SQLProcedureColumnsW";
     return RDS_SQLProcedureColumns(
         StatementHandle,
         CatalogName,
@@ -552,6 +581,7 @@ SQLRETURN SQL_API SQLProceduresW(
     SQLWCHAR *     ProcName,
     SQLSMALLINT    NameLength3)
 {
+    LOG(INFO) << "Entering SQLProceduresW";
     return RDS_SQLProcedures(
         StatementHandle,
         CatalogName,
@@ -569,6 +599,7 @@ SQLRETURN SQL_API SQLSetConnectAttrW(
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength)
 {
+    LOG(INFO) << "Entering SQLSetConnectAttrW";
     return RDS_SQLSetConnectAttr(
         ConnectionHandle,
         Attribute,
@@ -582,6 +613,7 @@ SQLRETURN SQL_API SQLSetConnectOptionW(
     SQLUSMALLINT   Option,
     SQLULEN        Param)
 {
+    LOG(INFO) << "Entering SQLSetConnectOptionW";
     return RDS_SQLSetConnectOption(
         ConnectionHandle,
         Option,
@@ -594,6 +626,7 @@ SQLRETURN SQL_API SQLSetCursorNameW(
     SQLWCHAR *     CursorName,
     SQLSMALLINT    NameLength)
 {
+    LOG(INFO) << "Entering SQLSetCursorNameW";
     return RDS_SQLSetCursorName(
         StatementHandle,
         CursorName,
@@ -608,6 +641,7 @@ SQLRETURN SQL_API SQLSetDescFieldW(
     SQLPOINTER     ValuePtr,
     SQLINTEGER     BufferLength)
 {
+    LOG(INFO) << "Entering SQLSetDescFieldW";
     return RDS_SQLSetDescField(
         DescriptorHandle,
         RecNumber,
@@ -623,6 +657,7 @@ SQLRETURN SQL_API SQLSetStmtAttrW(
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength)
 {
+    LOG(INFO) << "Entering SQLSetStmtAttrW";
     return RDS_SQLSetStmtAttr(
         StatementHandle,
         Attribute,
@@ -643,6 +678,7 @@ SQLRETURN SQL_API SQLSpecialColumnsW(
     SQLUSMALLINT   Scope,
     SQLUSMALLINT   Nullable)
 {
+    LOG(INFO) << "Entering SQLSpecialColumnsW";
     return RDS_SQLSpecialColumns(
         StatementHandle,
         IdentifierType,
@@ -668,6 +704,7 @@ SQLRETURN SQL_API SQLStatisticsW(
     SQLUSMALLINT   Unique,
     SQLUSMALLINT   Reserved)
 {
+    LOG(INFO) << "Entering SQLStatisticsW";
     return RDS_SQLStatistics(
         StatementHandle,
         CatalogName,
@@ -690,6 +727,7 @@ SQLRETURN SQL_API SQLTablePrivilegesW(
     SQLWCHAR *     TableName,
     SQLSMALLINT    NameLength3)
 {
+    LOG(INFO) << "Entering SQLTablePrivilegesW";
     return RDS_SQLTablePrivileges(
         StatementHandle,
         CatalogName,
@@ -712,6 +750,7 @@ SQLRETURN SQL_API SQLTablesW(
     SQLWCHAR *     TableType,
     SQLSMALLINT    NameLength4)
 {
+    LOG(INFO) << "Entering SQLTablesW";
     return RDS_SQLTables(
         StatementHandle,
         CatalogName,

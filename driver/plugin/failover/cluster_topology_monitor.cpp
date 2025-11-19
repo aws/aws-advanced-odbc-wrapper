@@ -66,7 +66,8 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
         SQL_HANDLE_ENV, nullptr, &henv->wrapped_env
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
-        delete dbc->err;
+        LOG(ERROR) << "Cluster Topology Monitor failed to create new Underlying Environment";
+        CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Cluster Topology Monitor failed to create new Underlying Environment", ERR_NO_UNDER_LYING_FUNCTION);
     }
     NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
@@ -176,7 +177,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     request_update_topology_cv_.notify_all();
 
     if (timeout_ms == 0) {
-        LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts.";
+        LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
         return curr_hosts;
     }
     std::chrono::steady_clock::time_point curr_time = std::chrono::steady_clock::now();
@@ -190,7 +191,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
         new_hosts = topology_map_->Get(cluster_id_);
         curr_time = std::chrono::steady_clock::now();
     }
-    LOG(INFO) << "new hosts have been updated";
+    LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
@@ -459,6 +460,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(ClusterTopolo
     this->writer_host_info_ = writer_host_info;
     RDS_AllocDbc(monitor->henv_, &hdbc_);
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
+    LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 
 ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
@@ -483,6 +485,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
         }
         RDS_FreeConnect(hdbc_);
     }
+    LOG(INFO) << "Finished node monitoring for: " << this->host_info_->GetHost();
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
@@ -497,7 +500,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
             if (GetNodeId(hdbc_, main_monitor_->dialect_).empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
-                    LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect.";
+                    LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect";
                 }
                 HandleReconnect();
             } else {

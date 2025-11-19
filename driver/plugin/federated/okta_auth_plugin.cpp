@@ -71,6 +71,7 @@ SQLRETURN OktaAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
@@ -94,7 +95,12 @@ SQLRETURN OktaAuthPlugin::Connect(
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
-    // TODO - Proper error handling for missing parameters
+    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
+        LOG(ERROR) << "Missing required parameters for Okta Authentication";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Missing required parameters for Okta Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return SQL_ERROR;
+    }
     std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
@@ -105,6 +111,7 @@ SQLRETURN OktaAuthPlugin::Connect(
     // Unsuccessful connection using cached token
     //  Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
+        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         // Update AWS Credentials
         const std::string saml_assertion = saml_util->GetSamlAssertion();
         const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
@@ -138,7 +145,7 @@ std::string OktaSamlUtil::GetSamlAssertion()
     LOG(INFO) << "OKTA Sign In URL w/o Session Token: " << sign_in_url;
     const std::string session_token = GetSessionToken();
     if (session_token.empty()) {
-        LOG(WARNING) << "No session token generated for SAML request";
+        LOG(ERROR) << "No session token generated for SAML request";
         return "";
     }
 
@@ -152,9 +159,9 @@ std::string OktaSamlUtil::GetSamlAssertion()
     std::string retval;
     // Check response code
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
-        LOG(WARNING) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
+        LOG(ERROR) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
         if (response->HasClientError()) {
-            LOG(WARNING) << "Client error: " << response->GetClientErrorMessage();
+            LOG(ERROR) << "Client error: " << response->GetClientErrorMessage();
         }
         return retval;
     }
@@ -165,7 +172,7 @@ std::string OktaSamlUtil::GetSamlAssertion()
     if (std::smatch matches; std::regex_search(body, matches, std::regex(SAML_RESPONSE_PATTERN))) {
         return HtmlUtil::EscapeHtmlEntity(matches.str(1));
     }
-    LOG(WARNING) << "No SAML response found in response";
+    LOG(ERROR) << "No SAML response found in response";
     return "";
 }
 
@@ -187,9 +194,9 @@ std::string OktaSamlUtil::GetSessionToken()
 
     // Check resp status
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
-        LOG(WARNING) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
+        LOG(ERROR) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
         if (response->HasClientError()) {
-            LOG(WARNING) << "HTTP Client Error: " << response->GetClientErrorMessage();
+            LOG(ERROR) << "HTTP Client Error: " << response->GetClientErrorMessage();
         }
         return "";
     }
@@ -197,12 +204,12 @@ std::string OktaSamlUtil::GetSessionToken()
     // Get response session token
     const Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
     if (!json_val.WasParseSuccessful()) {
-        LOG(WARNING) << "Unable to parse JSON from response";
+        LOG(ERROR) << "Unable to parse JSON from response";
         return "";
     }
     const Aws::Utils::Json::JsonView json_view = json_val.View();
     if (!json_view.KeyExists("sessionToken")) {
-        LOG(WARNING) << "Could not find session token in JSON";
+        LOG(ERROR) << "Could not find session token in JSON";
         return "";
     }
     return json_view.GetString("sessionToken");

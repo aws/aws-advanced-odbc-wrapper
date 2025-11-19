@@ -38,6 +38,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(WARNING) << "Failed to allocate statement handle to query routers";
         return {};
     }
 
@@ -64,6 +65,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
         const HostInfo host_info = CreateHost(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
+    LOG_IF(WARNING, limitless_routers.empty()) << "Failed to fetch any Limitless Routers";
 
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
         SQL_HANDLE_STMT, stmt
