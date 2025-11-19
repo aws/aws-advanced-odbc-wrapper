@@ -73,7 +73,7 @@ BASE_DRIVER     = path-to\psqlodbc30a.dylib
 [aws-odbc-wrapper-w]
 Driver          = AWS Advanced ODBC Wrapper Unicode
 SERVER          = database-cluster-name.cluster-XYZ.us-west-1.rds.amazonaws.com
-DATABASE        = my-database-namet
+DATABASE        = my-database-name
 BASE_DRIVER     = path-to\psqlodbc30w.dylib
 ```
 

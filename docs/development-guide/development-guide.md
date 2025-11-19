@@ -3,7 +3,6 @@
 ## Table of Contents
 
 - [Build and Test AWS Advanced ODBC Wrapper](#build-and-test-aws-odbc-wrapper)
-    - [Table of Contents](#table-of-contents)
     - [Building the Wrapper](#building-the-wrapper)
         - [Wrapper CMake Parameters](#wrapper-cmake-parameters)
         - [Windows](#windows)
@@ -29,7 +28,7 @@
 2. Install MSBuild, part of [Microsoft Visual Studio](https://visualstudio.microsoft.com/downloads/) C++ Desktop Development, and add to environment Path
 3. Build AWS SDK for C++
     ```
-    ./scripts/ctompile_aws_sdk_win.ps1 <Release/Debug>
+    ./scripts/compile_aws_sdk_win.ps1 <Release/Debug>
     ```
 
 #### Build Wrapper
