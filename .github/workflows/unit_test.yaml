@@ -36,15 +36,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
-          ./scripts/compile_aws_sdk_win.ps1 Release
+          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON
-          cmake --build build --config Release
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build --config ${{env.BUILD_CONFIG}}
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -53,7 +53,7 @@ jobs:
           role-session-name: odbc-wrapper-win-unit
       - name: Run Unit Tests
         run: |
-          ./build/test/unit_test/Release/unit-test.exe
+          ./build/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
 
   test-macos-unit:
     name: MacOS - Unit Test
@@ -70,10 +70,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         run: |
-          ./scripts/compile_aws_sdk_unix.sh Release "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
@@ -103,11 +104,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
-          ./scripts/compile_aws_sdk_unix.sh Release
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON

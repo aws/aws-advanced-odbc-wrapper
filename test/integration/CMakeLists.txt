@@ -127,6 +127,19 @@ target_include_directories(
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 
+# Copy External Dependencies --------------------------------------------------------------------------------
+IF(BUILD_FAILOVER)
+    if(MSVC)
+        set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    else()
+        set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
+    message("Copying Libraries to: ${OUTPUT_DIR}")
+
+    LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+    AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})
+ENDIF()
+
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
 SET(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
 

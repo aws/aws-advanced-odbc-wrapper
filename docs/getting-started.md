@@ -29,6 +29,12 @@ To uninstall the AWS Advanced ODBC Wrapper, open the same installer file, select
 
 Download the releases `aws-advanced-odbc-wrapper-<Version>-macos-arm64.zip` and extract the artifacts to a location of your choice.
 
+For pre-built binaries, users must allow both the Wrapper and the dependencies to be used through [Gatekeeper](https://support.apple.com/en-ca/guide/security/sec5599b66df/web).
+The following command can be used to bypass this for the downloaded files:
+```
+xattr -dr com.apple.quarantine /path/to/the/wrapper/
+```
+
 Once extracted, you can optionally perform a checksum to ensure match from GitHub build by running
 ```
 shasum -a 256 aws-advanced-odbc-wrapper-a.dylib

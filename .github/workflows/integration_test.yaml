@@ -69,7 +69,7 @@ jobs:
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
     if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -148,7 +148,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -230,23 +230,18 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
-      - name: Manual Setup DSN
+      - name: Install Ansi DSNs
+        shell: pwsh
         run: |
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Install Ansi DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
-      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+            Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=5432", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
       # - name: Install Unicode DSNs
       #   shell: pwsh
       #   run: |
@@ -263,9 +258,10 @@ jobs:
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_ansi `
+          cmake -S test/integration -B build_ansi -DCMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=ON -DBUILD_LIMITLESS=OFF
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
+          echo "Ansi Test Built"
           .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
@@ -281,9 +277,10 @@ jobs:
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
+      #     cmake -S test/integration -B build_unicode -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF `
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
@@ -338,7 +335,7 @@ jobs:
     name: MacOS - Integration Tests
     if: github.event_name == 'workflow_dispatch'
     needs: [build-macos-psqlodbc]
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Setup Cluster ID
         run: |
@@ -354,10 +351,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
@@ -446,6 +444,7 @@ jobs:
             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
+          echo "Ansi Test Built"
           ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
@@ -476,6 +475,7 @@ jobs:
       #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
       #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     ./build_unicode/integration-test
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
@@ -538,13 +538,13 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt update
-          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -634,7 +634,8 @@ jobs:
             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
-          ./build_ansi/integration-test
+          echo "Ansi Test Built"
+          gdb -ex run ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -661,6 +662,7 @@ jobs:
       #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
       #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     ./build_unicode/integration-test
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
@@ -723,7 +725,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -806,23 +808,18 @@ jobs:
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
-      - name: Manual Setup DSN
+      - name: Install Ansi DSNs
+        shell: pwsh
         run: |
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\ODBC Data Sources" /v "aws-advanced-odbc-wrapper" /t REG_SZ /d "aws-advanced-odbc-wrapper" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Driver" /t REG_SZ /d "${{ github.workspace }}/build/driver/${{env.BUILD_CONFIG}}/aws-advanced-odbc-wrapper-a.dll" /f
-          reg add "HKEY_CURRENT_USER\Software\ODBC\ODBC.INI\${{ env.TEST_DSN_ANSI }}" /v "Base_Driver" /t REG_SZ /d "C:\Program Files\psqlODBC\1700\bin\podbc30a.dll" /f
-      # - name: Install Ansi DSNs
-      #   shell: pwsh
-      #   run: |
-      #       Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
-      #         -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
-      #         -DsnType User `
-      #         -SetPropertyValue `
-      #         @("RDS_AUTH_TYPE=database", `
-      #         "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
-      #         "Port=5432", `
-      #         "SSLMode=prefer", `
-      #         "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+            Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
+              "Port=5432", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
       # - name: Install Unicode DSNs
       #   shell: pwsh
       #   run: |
@@ -839,10 +836,11 @@ jobs:
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_ansi `
+          cmake -S test/integration -B build_ansi -DCMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
-          .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          echo "Ansi Test Built"
+          gdb -ex run .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -857,9 +855,10 @@ jobs:
       #   shell: pwsh
       #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
       #   run: |
-      #     cmake -S test/integration -B build_unicode \
+      #     cmake -S test/integration -B build_unicode -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} `
       #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
@@ -914,7 +913,7 @@ jobs:
     name: MacOS - Limitless Integration Tests
     if: github.event_name == 'workflow_dispatch'
     needs: [build-macos-psqlodbc]
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Setup Cluster ID
         run: |
@@ -931,10 +930,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
@@ -1023,6 +1023,7 @@ jobs:
             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
+          echo "Ansi Test Built"
           ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
@@ -1052,6 +1053,7 @@ jobs:
       #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
       #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     ./build_unicode/integration-test
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
@@ -1115,13 +1117,13 @@ jobs:
       - name: Install Build Dependencies
         run: |
           sudo apt update
-          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1211,7 +1213,8 @@ jobs:
             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
-          ./build_ansi/integration-test
+          echo "Ansi Test Built"
+          gdb -ex run ./build_ansi/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1237,6 +1240,7 @@ jobs:
       #       -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
       #       -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
       #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+      #     echo "Unicode Test Built"
       #     ./build_unicode/integration-test
       #   env:
       #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
