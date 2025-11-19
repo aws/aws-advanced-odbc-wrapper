@@ -363,6 +363,13 @@ SQLRETURN SQL_API SQLDisconnect(
     const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
+    // Cleanup tracked statements
+    const std::list<STMT*> stmt_list = dbc->stmt_list;
+    for (STMT* stmt : stmt_list) {
+        RDS_FreeStmt(stmt, SQL_DROP);
+    }
+    dbc->stmt_list.clear();
+
     CHECK_WRAPPED_DBC(dbc);
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
@@ -497,7 +504,7 @@ SQLRETURN SQL_API SQLFreeHandle(
             ret = RDS_FreeEnv(Handle);
             break;
         case SQL_HANDLE_STMT:
-            ret = RDS_FreeStmt(Handle);
+            ret = RDS_FreeStmt(Handle, SQL_DROP);
             break;
         default:
             ret = SQL_ERROR;
@@ -511,7 +518,7 @@ SQLRETURN SQL_API SQLFreeStmt(
     SQLUSMALLINT   Option)
 {
     LOG(INFO) << "Entering SQLFreeStmt";
-    return RDS_FreeStmt(StatementHandle);
+    return RDS_FreeStmt(StatementHandle, Option);
 }
 
 SQLRETURN SQL_API SQLGetData(

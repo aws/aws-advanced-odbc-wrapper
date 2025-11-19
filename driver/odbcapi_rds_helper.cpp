@@ -17,12 +17,9 @@
 #include "odbcapi_rds_helper.h"
 
 
-#include <cwchar>
-
 #include <cstdio>
+#include <cwchar>
 #include <unordered_set>
-#include <stdio.h>
-#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
@@ -140,6 +137,15 @@ SQLRETURN RDS_AllocStmt(
     );
     RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     *StatementHandlePointer = stmt;
+
+    stmt->app_row_desc = new DESC();
+    stmt->app_row_desc->dbc = dbc;
+    stmt->app_param_desc = new DESC();
+    stmt->app_param_desc->dbc = dbc;
+    stmt->imp_row_desc = new DESC();
+    stmt->imp_row_desc->dbc = dbc;
+    stmt->imp_param_desc = new DESC();
+    stmt->imp_param_desc->dbc = dbc;
 
     dbc->stmt_list.emplace_back(stmt);
 
@@ -280,7 +286,7 @@ SQLRETURN RDS_FreeConnect(
     // Cleanup tracked statements
     const std::list<STMT*> stmt_list = dbc->stmt_list;
     for (STMT* stmt : stmt_list) {
-        RDS_FreeStmt(stmt);
+        RDS_FreeStmt(stmt, SQL_DROP);
     }
     dbc->stmt_list.clear();
     // and descriptors
@@ -362,28 +368,58 @@ SQLRETURN RDS_FreeEnv(
 }
 
 SQLRETURN RDS_FreeStmt(
-    SQLHSTMT       StatementHandle)
+    SQLHSTMT       StatementHandle,
+    SQLUSMALLINT   Option)
 {
     NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
-    // Remove statement from connection
-    dbc->stmt_list.remove(stmt);
+    switch (Option) {
+        case SQL_CLOSE:
+        case SQL_UNBIND:
+        case SQL_RESET_PARAMS:
+            {
+                SQLRETURN ret = SQL_ERROR;
+                if (stmt->wrapped_stmt) {
+                    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeStmt, RDS_STR_SQLFreeStmt,
+                        stmt->wrapped_stmt, Option
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                }
+                return ret;
+            }
+        case SQL_DROP:
+            // Deprecated option, used fully cleanup handle
+        default:
+            {
+                // Remove statement from connection
+                dbc->stmt_list.remove(stmt);
 
-    // Clean underlying Statements
-    if (stmt->wrapped_stmt) {
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt->wrapped_stmt
-        );
-        RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
-        stmt->wrapped_stmt = nullptr;
+                // Clean underlying Statements
+                if (stmt->wrapped_stmt) {
+                    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                        SQL_HANDLE_STMT, stmt->wrapped_stmt
+                    );
+                    RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                    stmt->wrapped_stmt = nullptr;
+                }
+
+                delete stmt->app_row_desc;
+                stmt->app_row_desc = SQL_NULL_HANDLE;
+                delete stmt->app_param_desc;
+                stmt->app_param_desc = SQL_NULL_HANDLE;
+                delete stmt->imp_row_desc;
+                stmt->imp_row_desc = SQL_NULL_HANDLE;
+                delete stmt->imp_param_desc;
+                stmt->imp_param_desc = SQL_NULL_HANDLE;
+
+                delete stmt->err;
+                delete stmt;
+                return SQL_SUCCESS;
+            }
     }
-
-    CLEAR_STMT_ERROR(stmt);
-    delete stmt;
-    return SQL_SUCCESS;
 }
 
 SQLRETURN RDS_GetConnectAttr(
@@ -599,11 +635,17 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
+    std::string conn_str_utf8;
     size_t load_len = -1;
     if (ServerName) {
         // Load input DSN followed by Base DSN retrieved from input DSN
-        load_len = NameLength1 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(ServerName)) : NameLength1;
-        OdbcDsnHelper::LoadAll(AS_RDS_STR_MAX(ServerName, load_len), dbc->conn_attr);
+#ifdef UNICODE
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(ServerName));
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(ServerName);
+#endif
+        load_len = NameLength1 == SQL_NTS ? conn_str_utf8.length() : NameLength1;
+        OdbcDsnHelper::LoadAll(conn_str_utf8.substr(0, load_len), dbc->conn_attr);
         ret = RDS_InitializeConnection(dbc);
     } else {
         // Error, no DSN
@@ -613,12 +655,22 @@ SQLRETURN RDS_SQLConnect(
 
     // Replace with input parameters
     if (UserName) {
-        load_len = NameLength2 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(UserName)) : NameLength2;
-        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, AS_RDS_STR_MAX(UserName, load_len));
+#ifdef UNICODE
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(UserName));
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(UserName);
+#endif
+        load_len = NameLength2 == SQL_NTS ? conn_str_utf8.length() : NameLength2;
+        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, conn_str_utf8.substr(0, load_len));
     }
     if (Authentication) {
-        load_len = NameLength3 == SQL_NTS ? RDS_STR_LEN(AS_RDS_CHAR(Authentication)) : NameLength3;
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, AS_RDS_STR_MAX(Authentication, load_len));
+#ifdef UNICODE
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(Authentication));
+#else
+        conn_str_utf8 = reinterpret_cast<const char *>(Authentication);
+#endif
+        load_len = NameLength3 == SQL_NTS ? conn_str_utf8.length() : NameLength3;
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, conn_str_utf8.substr(0, load_len));
     }
 
     // Connect if initialization successful
@@ -716,8 +768,7 @@ SQLRETURN RDS_SQLDriverConnect(
 #endif
     } else {
 #ifdef UNICODE
-        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(InConnectionString));
-        unicode_str.toUTF8String(conn_str_utf8);
+        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(InConnectionString));
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
 #endif
@@ -1516,8 +1567,38 @@ SQLRETURN RDS_SQLGetStmtAttr(
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
+    RdsLibResult res;
+    switch (Attribute) {
+        case SQL_ATTR_APP_ROW_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->app_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_row_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_APP_PARAM_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->app_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_param_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_IMP_ROW_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->imp_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_row_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        case SQL_ATTR_IMP_PARAM_DESC:
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+                stmt->wrapped_stmt, Attribute, &(stmt->imp_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+            );
+            *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_param_desc;
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        default:
+            break;
+    }
+
     CHECK_WRAPPED_STMT(stmt);
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
+    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
         stmt->wrapped_stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1690,7 +1771,15 @@ SQLRETURN RDS_SQLSetCursorName(
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     }
-    stmt->cursor_name = AS_RDS_STR_MAX(CursorName, NameLength);
+
+    std::string conn_str_utf8;
+#ifdef UNICODE
+    conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(CursorName));
+#else
+    conn_str_utf8 = reinterpret_cast<const char *>(CursorName);
+#endif
+    const size_t load_len = NameLength == SQL_NTS ? conn_str_utf8.length() : NameLength;
+    stmt->cursor_name = conn_str_utf8.substr(0, load_len);
     return ret;
 }
 
@@ -1729,6 +1818,17 @@ SQLRETURN RDS_SQLSetStmtAttr(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
+
+    switch (Attribute) {
+        // Read-only attributes
+        case SQL_ATTR_IMP_PARAM_DESC:
+        case SQL_ATTR_IMP_ROW_DESC:
+        case SQL_ATTR_ROW_NUMBER:
+            stmt->err = new ERR_INFO("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
+            return SQL_ERROR;
+        default:
+            break;
+    }
 
     if (stmt->wrapped_stmt) {
         const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
@@ -1972,7 +2072,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
             dbc->plugin_head = plugin_head;
         }
     } catch (const std::exception& ex) {
-        std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
+        const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);

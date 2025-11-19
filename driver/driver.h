@@ -140,6 +140,11 @@ struct STMT {
     DBC*                        dbc;
     SQLHSTMT                    wrapped_stmt;
 
+    DESC*                       app_row_desc    = SQL_NULL_HANDLE;
+    DESC*                       app_param_desc  = SQL_NULL_HANDLE;
+    DESC*                       imp_row_desc    = SQL_NULL_HANDLE;
+    DESC*                       imp_param_desc  = SQL_NULL_HANDLE;
+
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
     RDS_STR cursor_name;
@@ -189,7 +194,8 @@ SQLRETURN RDS_FreeEnv(
      SQLHENV        EnvironmentHandle);
 
 SQLRETURN RDS_FreeStmt(
-     SQLHSTMT       StatementHandle);
+     SQLHSTMT       StatementHandle,
+     SQLUSMALLINT   Option);
 
 SQLRETURN RDS_GetConnectAttr(
      SQLHDBC        ConnectionHandle,
