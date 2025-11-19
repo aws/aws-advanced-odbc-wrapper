@@ -272,24 +272,24 @@ jobs:
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: '5432'
-      # - name: Build and Run Unicode Integration Tests
-      #   shell: pwsh
-      #   if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
-      #   run: |
-      #     cmake -S test/integration -B build_unicode \
-      #       -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
-      #     cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-      #     .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
-      #   env:
-      #     TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
-      #     TEST_DATABASE: ${{ env.TEST_DATABASE }}
-      #     TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      #     TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      #     TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-      #     TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-      #     TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      #     TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
-      #     TEST_PORT: '5432'
+      - name: Build and Run Unicode Integration Tests
+        shell: pwsh
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_unicode `
+            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF
+          cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+          .\build_unicode\${{env.BUILD_CONFIG}}\integration.exe
+        env:
+          TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: '5432'
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: pwsh
