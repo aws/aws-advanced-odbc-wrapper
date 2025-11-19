@@ -53,7 +53,8 @@ public:
     };
 
     // lossy conversion
-    std::string SQLTCHARToString(SQLTCHAR* input, size_t len) {
+    std::string SQLTCHARToString(SQLTCHAR* input) {
+        size_t len = wcslen(input) + 1;
         char* buf = new char[len];
         for (size_t i = 0; i < len; i++) {
             buf[i] = (char)input[i];
@@ -65,7 +66,7 @@ public:
 
     LimitlessHostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* endpoint) {
         #if UNICODE
-        double load_num = std::strtod(SQLTCHARToString(load, wcslen(load)).c_str(), nullptr);
+        double load_num = std::strtod(SQLTCHARToString(load).c_str(), nullptr);
         #else
         double load_num = std::strtod(reinterpret_cast<const char*>(load), nullptr);
         #endif
@@ -76,7 +77,7 @@ public:
         }
 
         #if UNICODE
-        std::string router_endpoint_str(SQLTCHARToString(endpoint, wcslen(endpoint)));
+        std::string router_endpoint_str(SQLTCHARToString(endpoint));
         #else
         std::string router_endpoint_str(reinterpret_cast<const char*>(endpoint));
         #endif
@@ -213,7 +214,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
 
     SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
     SQLGetInfo(dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-    EXPECT_EQ(expected_host, std::string((const char*) server_name));
+    EXPECT_EQ(expected_host, SQLTCHARToString(server_name));
 
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, dbc, SQL_NULL_HSTMT);
 }
@@ -248,7 +249,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
 
     SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
     SQLGetInfo(second_dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-    EXPECT_EQ(expected_host, std::string((const char*) server_name));
+    EXPECT_EQ(expected_host, SQLTCHARToString(server_name));
 
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, second_dbc, SQL_NULL_HSTMT);
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, dbc, SQL_NULL_HSTMT);
@@ -302,7 +303,7 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
 
         SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
         SQLGetInfo(limitless_dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-        EXPECT_EQ(round_robin_hosts[i].host_name, std::string((const char*) server_name));
+        EXPECT_EQ(round_robin_hosts[i].host_name, SQLTCHARToString(server_name));
     }
 
     for (SQLHDBC limitless_dbc : limitless_dbcs) {
