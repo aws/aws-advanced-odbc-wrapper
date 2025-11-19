@@ -36,7 +36,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
         dbc->conn_attr.at(KEY_SECRET_ENDPOINT) : "";
 
     expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : DEFAULT_EXPIRATION_MS;
+        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : DEFAULT_EXPIRATION_MS;
 
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
         region = matches[1];
@@ -122,7 +122,8 @@ SQLRETURN SecretsManagerPlugin::Connect(
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     CLEAR_DBC_ERROR(dbc);
-    dbc->err = new ERR_INFO(request_outcome.GetError().GetMessage().c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
+    dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 

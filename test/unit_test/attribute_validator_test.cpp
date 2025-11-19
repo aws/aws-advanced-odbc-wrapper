@@ -30,35 +30,35 @@ protected:
     void TearDown() override {}
 };
 
-TEST_F(AttributeValidatorTest, ShouldKeyBeInt) {
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_TOKEN_EXPIRATION));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_IAM_PORT));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_IDP_PORT));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_HTTP_SOCKET_TIMEOUT));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_HTTP_CONNECT_TIMEOUT));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_IGNORE_TOPOLOGY_REQUEST));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_HIGH_REFRESH_RATE));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_REFRESH_RATE));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_FAILOVER_TIMEOUT));
-    EXPECT_TRUE(AttributeValidator::ShouldKeyBeInt(KEY_LIMITLESS_MONITOR_INTERVAL_MS));
+TEST_F(AttributeValidatorTest, ShouldKeyBeUnsignedInt) {
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_TOKEN_EXPIRATION));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_IAM_PORT));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_IDP_PORT));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_HTTP_SOCKET_TIMEOUT));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_HTTP_CONNECT_TIMEOUT));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_IGNORE_TOPOLOGY_REQUEST));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_HIGH_REFRESH_RATE));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_REFRESH_RATE));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_FAILOVER_TIMEOUT));
+    EXPECT_TRUE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_LIMITLESS_MONITOR_INTERVAL_MS));
 
-    EXPECT_FALSE(AttributeValidator::ShouldKeyBeInt(KEY_DATABASE));
-    EXPECT_FALSE(AttributeValidator::ShouldKeyBeInt(KEY_SERVER));
-    EXPECT_FALSE(AttributeValidator::ShouldKeyBeInt(KEY_DRIVER));
-    EXPECT_FALSE(AttributeValidator::ShouldKeyBeInt(KEY_AUTH_TYPE));
-    EXPECT_FALSE(AttributeValidator::ShouldKeyBeInt(KEY_REGION));
+    EXPECT_FALSE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_DATABASE));
+    EXPECT_FALSE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_SERVER));
+    EXPECT_FALSE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_DRIVER));
+    EXPECT_FALSE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_AUTH_TYPE));
+    EXPECT_FALSE(AttributeValidator::ShouldKeyBeUnsignedInt(KEY_REGION));
 }
 
 TEST_F(AttributeValidatorTest, IsValueInt) {
-    EXPECT_TRUE(AttributeValidator::IsValueInt("1234"));
-    EXPECT_TRUE(AttributeValidator::IsValueInt("-1234"));
+    EXPECT_TRUE(AttributeValidator::IsValueUnsignedInt("1234"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("-1234"));
 
-    EXPECT_FALSE(AttributeValidator::IsValueInt("99999999999999999999"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("99999999999999999999"));
 
-    EXPECT_FALSE(AttributeValidator::IsValueInt("abc"));
-    EXPECT_FALSE(AttributeValidator::IsValueInt("abc123efg"));
-    EXPECT_FALSE(AttributeValidator::IsValueInt("1e2"));
-    EXPECT_FALSE(AttributeValidator::IsValueInt("123efg"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("abc"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("abc123efg"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("1e2"));
+    EXPECT_FALSE(AttributeValidator::IsValueUnsignedInt("123efg"));
 }
 
 TEST_F(AttributeValidatorTest, ValidateMap) {
