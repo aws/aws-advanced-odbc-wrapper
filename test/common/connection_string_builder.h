@@ -140,15 +140,7 @@ public:
     }
 
     RDS_STR getRdsString() const {
-        RDS_STR converted;
-        #ifdef UNICODE
-            wchar_t* buf = new wchar_t[strlen(conn_in) * 2 + 2];
-            swprintf(buf, L"%S", conn_in);
-            converted = buf;
-            delete[] buf;
-        #else
-            converted = conn_in;
-        #endif
+        RDS_STR converted(conn_in, conn_in + strlen(conn_in));
         return converted;
     }
 
