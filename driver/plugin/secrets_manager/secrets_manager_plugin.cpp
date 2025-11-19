@@ -124,13 +124,12 @@ SQLRETURN SecretsManagerPlugin::Connect(
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-    } else {
-        LOG(ERROR) << "Failed to get secrets from Secrets Manager";
-        CLEAR_DBC_ERROR(dbc);
-        const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
-    dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-        return SQL_ERROR;
     }
+    LOG(ERROR) << "Failed to get secrets from Secrets Manager";
+    CLEAR_DBC_ERROR(dbc);
+    const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
+    dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    return SQL_ERROR;
 }
 
 Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::chrono::milliseconds expiration) {

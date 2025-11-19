@@ -58,7 +58,8 @@ SQLRETURN RDS_FreeEnv(
     SQLHENV        EnvironmentHandle);
 
 SQLRETURN RDS_FreeStmt(
-    SQLHSTMT       StatementHandle);
+    SQLHSTMT       StatementHandle,
+    SQLUSMALLINT   Option);
 
 SQLRETURN RDS_GetConnectAttr(
     SQLHDBC        ConnectionHandle,

@@ -45,7 +45,7 @@ std::vector<RDS_STR> SqlQueryAnalyzer::ParseMultiStatement(const RDS_STR &statem
         return {};
     }
 
-    RDS_STR delimiter = AS_RDS_STR(";");
+    RDS_STR delimiter = ";";
     return SplitStr(local_statement, delimiter);
 }
 
