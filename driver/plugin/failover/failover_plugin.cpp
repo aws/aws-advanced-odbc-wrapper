@@ -217,12 +217,12 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 host_string = host.GetHost();
                 LOG(INFO) << "Selected Host: " << host_string;
             } catch (const std::exception& e) {
-                LOG(INFO) << "no hosts in topology for: " << cluster_id_;
+                LOG(INFO) << "No hosts in topology for: " << cluster_id_;
                 return false;
             }
             const bool is_connected = ConnectToHost(dbc, host_string);
             if (!is_connected) {
-                LOG(INFO) << "unable to connect to: " << host_string;
+                LOG(INFO) << "Unable to connect to: " << host_string;
                 RemoveHostCandidate(host_string, remaining_readers);
                 continue;
             }
@@ -230,7 +230,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
             if (!GetNodeId(dbc, dialect_).empty()) {
                 const bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
-                    LOG(INFO) << "connected to a new reader for: " << host_string;
+                    LOG(INFO) << "Connected to a new reader for: " << host_string;
                     curr_host_ = host;
                     return true;
                 }
@@ -279,7 +279,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                     continue;
                 }
             }
-            LOG(INFO) << "reader failover connected to writer instance for: " << host_string;
+            LOG(INFO) << "Reader failover connected to writer instance for: " << host_string;
             curr_host_ = original_writer;
             return true;
         }
@@ -306,27 +306,27 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     try {
         host = host_selector_->GetHost(hosts, true, properties);
     } catch (const std::exception& e) {
-        LOG(INFO) << "no hosts in topology for: " << cluster_id_;
+        LOG(INFO) << "No hosts in topology for: " << cluster_id_;
         return false;
     }
     const std::string host_string = host.GetHost();
-    LOG(INFO) << "writer failover connection to a new writer: " << host_string;
+    LOG(INFO) << "Writer failover connection to a new writer: " << host_string;
 
     const bool is_connected = ConnectToHost(dbc, host_string);
     if (!is_connected) {
-        LOG(INFO) << "writer failover unable to connect to any instance for: " << cluster_id_;
+        LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
     }
     if (!GetNodeId(dbc, dialect_).empty()) {
         if (!topology_query_helper_->GetWriterId(dbc).empty()) {
-            LOG(INFO) << "writer failover connected to a new writer for: " << host_string;
+            LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
             curr_host_ = host;
             return true;
         }
         LOG(ERROR) << "The new writer was identified to be " << host_string << ", but querying the instance for its role returned a reader";
         return false;
     }
-    LOG(INFO) << "writer failover unable to connect to any instance for: " << cluster_id_;
+    LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
     );
