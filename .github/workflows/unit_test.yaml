@@ -49,18 +49,18 @@ jobs:
           role-session-name: odbc-wrapper-win-unit
       - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build --config ${{env.BUILD_CONFIG}}
+          cmake -S . -B build_ansi -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
       - name: Run ANSI Unit Tests
         run: |
-          ./build/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
+          ./build_ansi/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
       - name: Build Unicode aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build --config ${{env.BUILD_CONFIG}}
+          cmake -S . -B build_unicode -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
       - name: Run Unicode Unit Tests
         run: |
-          ./build/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
+          ./build_unicode/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
 
   test-macos-unit:
     name: MacOS - Unit Test
@@ -89,18 +89,18 @@ jobs:
           role-session-name: odbc-wrapper-linux-unit
       - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/ -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
+          cmake -S . -B build_ansi -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/ -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_ansi
       - name: Run ANSI Unit Tests
         run: |
-          ./build/test/unit_test/unit-test
+          ./build_ansi/test/unit_test/unit-test
       - name: Build Unicode aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/ -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
+          cmake -S . -B build_unicode -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/ -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_unicode
       - name: Run Unicode Unit Tests
         run: |
-          ./build/test/unit_test/unit-test
+          ./build_unicode/test/unit_test/unit-test
 
   test-linux-unit:
     name: Linux Ubuntu - Unit Test
@@ -130,15 +130,15 @@ jobs:
           role-session-name: odbc-wrapper-macos-unit
       - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
+          cmake -S . -B build_ansi -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_ansi
       - name: Run ANSI Unit Tests
         run: |
-          ./build/test/unit_test/unit-test
+          ./build_ansi/test/unit_test/unit-test
       - name: Build Unicode aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
+          cmake -S . -B build_unicode -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build_unicode
       - name: Run Unicode Unit Tests
         run: |
-          ./build/test/unit_test/unit-test
+          ./build_unicode/test/unit_test/unit-test
