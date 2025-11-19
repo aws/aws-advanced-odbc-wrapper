@@ -266,8 +266,17 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
     bool thread_writer_verified = false;
     if (!main_hdbc_) {
         SQLHDBC local_hdbc;
+
+        SQLHENV local_henv;
+        RDS_AllocEnv(&local_henv);
+        ENV* env = static_cast<ENV*>(local_henv);
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+            SQL_HANDLE_ENV, nullptr, &env->wrapped_env
+        );
+
         // Open a new connection
-        RDS_AllocDbc(henv_, &local_hdbc);
+        RDS_AllocDbc(local_henv, &local_hdbc);
+        // RDS_AllocDbc(henv_, &local_hdbc);
         DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
@@ -278,6 +287,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
                 );
             }
             RDS_FreeConnect(local_hdbc);
+            RDS_FreeEnv(local_henv);
             return {};
         }
         // Check if another thread already set HDBC
@@ -300,6 +310,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
                 );
             }
             RDS_FreeConnect(local_hdbc);
+            RDS_FreeEnv(local_henv);
         }
     }
 
