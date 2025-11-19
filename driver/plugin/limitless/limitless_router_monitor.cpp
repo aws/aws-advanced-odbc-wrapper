@@ -65,6 +65,7 @@ void LimitlessRouterMonitor::Open(
     env->driver_lib_loader = lib_loader_;
 
     if (block_and_query_immediately) {
+        LOG(INFO) << "Attempting to query routers on initial setup";
         RDS_AllocDbc(henv, &local_hdbc);
         DBC* local_dbc = static_cast<DBC*>(local_hdbc);
 
@@ -81,10 +82,12 @@ void LimitlessRouterMonitor::Open(
             const std::vector<HostInfo> new_limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port, dialect_);
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
+            LOG(INFO) << "Queried routers on initial setup: " << new_limitless_routers.size();
         } else {
             // Not successful, ensure limitless routers is empty.
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             this->limitless_routers_->clear();
+            LOG(WARNING) << "Failed to query routers on initial setup";
         }
     }
 
@@ -153,6 +156,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
                 conn = SQL_NULL_HANDLE;
 
                 // wait the full interval and then try to reconnect
+                LOG(WARNING) << "Limitless Monitor failed to connect to an instance";
                 continue;
             } // else, connection was successful, proceed below
         }
@@ -161,6 +165,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_
         // LimitlessQueryHelper::QueryForLimitlessRouters will return an empty vector on an error
         // if it was a connection error, then the next loop will catch it and attempt to reconnect
         if (!new_limitless_routers.empty()) {
+            LOG(WARNING) << "Limitless Monitor failed to query any routers";
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         }

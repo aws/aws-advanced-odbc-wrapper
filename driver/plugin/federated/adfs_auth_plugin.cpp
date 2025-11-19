@@ -71,6 +71,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
@@ -93,7 +94,12 @@ SQLRETURN AdfsAuthPlugin::Connect(
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
-    // TODO - Proper error handling for missing parameters
+    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
+        LOG(ERROR) << "Missing required parameters for ADFS Authentication";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Missing required parameters for ADFS Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return SQL_ERROR;
+    }
     std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
@@ -104,6 +110,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
     // Unsuccessful connection using cached token
     // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
+        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         // Update AWS Credentials
         const std::string saml_assertion = saml_util->GetSamlAssertion();
         const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
@@ -139,7 +146,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
 
     std::string retval;
     if (Aws::Http::HttpResponseCode::OK != http_response->GetResponseCode()) {
-        LOG(WARNING) << "ADFS request returned bad HTTP response code: " << http_response->GetResponseCode();
+        LOG(ERROR) << "ADFS request returned bad HTTP response code: " << http_response->GetResponseCode();
         return retval;
     }
 
@@ -152,7 +159,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     if (std::regex_search(body, matches, std::regex(FORM_ACTION_PATTERN))) {
         action = HtmlUtil::EscapeHtmlEntity(matches.str(1));
     } else {
-        LOG(WARNING) << "Could not extract login action from the response body";
+        LOG(ERROR) << "Could not extract login action from the response body";
         return retval;
     }
 
@@ -171,7 +178,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
         std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
         return matches.str(1);
     }
-    LOG(WARNING) << "Failed SAML Assertion";
+    LOG(ERROR) << "Failed SAML Assertion";
     return retval;
 }
 
@@ -254,7 +261,7 @@ bool AdfsSamlUtil::ValidateUrl(const std::string &url)
     const std::regex pattern(URL_PATTERN);
 
     if (!regex_match(url, pattern)) {
-        LOG(WARNING) << "Invalid URL, failed to match ADFS URL pattern";
+        LOG(ERROR) << "Invalid URL, failed to match ADFS URL pattern";
         return false;
     }
     return true;

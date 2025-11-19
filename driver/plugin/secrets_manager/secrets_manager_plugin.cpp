@@ -81,12 +81,14 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     SQLRETURN ret = SQL_ERROR;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
         if (secrets_cache.contains(secret_key)) {
+            LOG(INFO) << "Found secrets in cache";
             const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
             const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
@@ -94,6 +96,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, cached_secret.password);
                 ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
+                LOG(INFO) << "Existing secrets are expired";
                 secrets_cache.erase(secret_key);
             }
         }
@@ -108,6 +111,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     if (request_outcome.IsSuccess()) {
         const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
+            LOG(ERROR) << "Secrets Manager did not return DB credentials";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
@@ -120,11 +124,13 @@ SQLRETURN SecretsManagerPlugin::Connect(
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-    }
-    CLEAR_DBC_ERROR(dbc);
-    const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
+    } else {
+        LOG(ERROR) << "Failed to get secrets from Secrets Manager";
+        CLEAR_DBC_ERROR(dbc);
+        const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
     dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-    return SQL_ERROR;
+        return SQL_ERROR;
+    }
 }
 
 Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::chrono::milliseconds expiration) {

@@ -21,6 +21,8 @@
 
 #include <cstdio>
 #include <unordered_set>
+#include <stdio.h>
+#include <wchar.h>
 
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
@@ -51,32 +53,33 @@ SQLRETURN RDS_ProcessLibRes(
         ERR_INFO* new_err = new ERR_INFO(
             ("Underlying driver failed to load/execute: " + LibResult.fn_name).c_str(),
             ERR_NO_UNDER_LYING_FUNCTION);
+        LOG(ERROR) << new_err->error_msg;
         switch (HandleType) {
             case SQL_HANDLE_ENV:
                 {
                     ENV *env = static_cast<ENV*>(InputHandle);
-                    delete env->err;
+                    CLEAR_ENV_ERROR(env);
                     env->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DBC:
                 {
                     DBC *dbc = static_cast<DBC*>(InputHandle);
-                    delete dbc->err;
+                    CLEAR_DBC_ERROR(dbc);
                     dbc->err = new_err;
                     break;
                 }
             case SQL_HANDLE_STMT:
                 {
                     STMT *stmt = static_cast<STMT*>(InputHandle);
-                    delete stmt->err;
+                    CLEAR_STMT_ERROR(stmt);
                     stmt->err = new_err;
                     break;
                 }
             case SQL_HANDLE_DESC:
                 {
                     DESC *desc = static_cast<DESC*>(InputHandle);
-                    delete desc->err;
+                    CLEAR_DESC_ERROR(desc);
                     desc->err = new_err;
                     break;
                 }
@@ -324,6 +327,7 @@ SQLRETURN RDS_FreeDesc(
         desc->wrapped_desc = nullptr;
     }
 
+    CLEAR_DESC_ERROR(desc);
     delete desc;
     DescriptorHandle = nullptr;
     return SQL_SUCCESS;
@@ -354,6 +358,7 @@ SQLRETURN RDS_FreeEnv(
         env->driver_lib_loader.reset();
     }
 
+    CLEAR_ENV_ERROR(env);
     delete env;
     EnvironmentHandle = nullptr;
     LoggerWrapper::Shutdown();
@@ -380,6 +385,7 @@ SQLRETURN RDS_FreeStmt(
         stmt->wrapped_stmt = nullptr;
     }
 
+    CLEAR_STMT_ERROR(stmt);
     delete stmt;
     StatementHandle = nullptr;
     return SQL_SUCCESS;
@@ -469,6 +475,8 @@ SQLRETURN RDS_SQLBrowseConnect(
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+
+    LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -640,6 +648,8 @@ SQLRETURN RDS_SQLDataSources(
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV *env = static_cast<ENV*>(EnvironmentHandle);
+
+    LOG(ERROR) << "Unsupported SQL API - SQLDataSources";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -789,6 +799,8 @@ SQLRETURN RDS_SQLDrivers(
 {
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV* env = static_cast<ENV*>(EnvironmentHandle);
+
+    LOG(ERROR) << "Unsupported SQL API - SQLDrivers";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     NOT_IMPLEMENTED;
@@ -846,6 +858,7 @@ SQLRETURN RDS_SQLExecDirect(
         return dbc->plugin_head->Execute(StatementHandle, StatementText, TextLength);
     }
 
+    LOG(ERROR) << "Cannot execute without an open connection";
     stmt->err = new ERR_INFO("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
     return SQL_ERROR;
 }
@@ -1455,8 +1468,8 @@ SQLRETURN RDS_SQLGetInfo(
                 break;
             // TODO - Add other cases as needed
             default:
-                LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
                 CLEAR_DBC_ERROR(dbc);
                 dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
                 NOT_IMPLEMENTED;
@@ -1860,12 +1873,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     const std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
     if (!invalid_params.empty()) {
-        CLEAR_DBC_ERROR(dbc);
         std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
         for (const RDS_STR& msg : invalid_params) {
             invalid_message += msg;
             invalid_message += "\n\t";
         }
+        LOG(ERROR) << invalid_message;
+        CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
@@ -1878,13 +1892,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         if (!env->driver_lib_loader) {
             env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
         } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            LOG(ERROR) << "Attempted to load different drivers to the same environment";
+            LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers.", ERR_DIFF_ENV_UNDERLYING_DRIVER);
+            dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
             return SQL_ERROR;
         }
     } else {
-        LOG(ERROR) << "No driver loaded or found in Connection String / DSN";
+        LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
         return SQL_ERROR;
@@ -1963,8 +1977,10 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
             dbc->plugin_head = plugin_head;
         }
     } catch (const std::exception& ex) {
+        std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
+        LOG(ERROR) << err_msg;
         CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO((std::string("Error initializing plugins: ") + ex.what()).c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = new ERR_INFO(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
 

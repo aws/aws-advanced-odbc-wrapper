@@ -42,6 +42,7 @@ SQLRETURN BasePlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -109,6 +110,7 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering Execute";
     RdsLibResult res;
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
@@ -122,6 +124,7 @@ SQLRETURN BasePlugin::Execute(
                 SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
             );
         } else {
+            LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
             stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
