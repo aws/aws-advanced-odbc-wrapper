@@ -646,14 +646,14 @@ jobs:
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode \
-            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF \
-            -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-            -DTEST_PORT="5432" \
-            -DTEST_DATABASE="${{ env.TEST_DATABASE }}" \
-            -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+          cmake -S test/integration -B build_unicode `
+            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=ON  -DBUILD_LIMITLESS=OFF `
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} `
+            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" `
+            -DTEST_PORT="5432" `
+            -DTEST_DATABASE="${{ env.TEST_DATABASE }}" `
+            -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" `
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" `
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           ./build_unicode/integration-test
@@ -1218,15 +1218,15 @@ jobs:
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode \
-            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-            -DTEST_PORT="5432" \
-            -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-            -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+          cmake -S test/integration -B build_unicode `
+            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} `
+            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" `
+            -DTEST_PORT="5432" `
+            -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" `
+            -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" `
+            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" `
             -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-          cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+        cmake --build build_unicode --config ${{env.BUILD_CONFIG}}`
           ./build_unicode/integration-test
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
