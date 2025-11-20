@@ -52,10 +52,19 @@ public:
         int64_t weight;
     };
 
+    size_t SQLTCHARStrlen(SQLTCHAR* str) {
+        size_t length = 0;
+        while (*str != 0) {
+            length++;
+            str++;
+        }
+        return length;
+    }
+
     // lossy conversion
     std::string SQLTCHARToString(SQLTCHAR* input) {
         #if UNICODE
-        size_t len = wcslen(input) + 1;
+        size_t len = SQLTCHARStrlen(input) + 1;
         char* buf = new char[len];
         for (size_t i = 0; i < len; i++) {
             buf[i] = (char)input[i];
