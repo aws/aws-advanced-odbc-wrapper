@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.cpp
 )
 
 set(TEST_SUITE

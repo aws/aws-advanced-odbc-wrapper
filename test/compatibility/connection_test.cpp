@@ -109,7 +109,7 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDSN_Success) {
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
-        AS_SQLTCHAR(conn_str.c_str()),
+        conn_str_in,
         SQL_NTS,
         nullptr,
         0,
