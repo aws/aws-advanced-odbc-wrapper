@@ -27,6 +27,7 @@
 #include <sqlext.h>
 
 #include "../common/connection_string_builder.h"
+#include "../common/string_helper.h"
 
 #define MAX_SQL_STATE_LEN 6
 #define MAX_SQL_MESSAGE_LEN 256
@@ -48,13 +49,13 @@ protected:
     SQLHENV env;
     SQLHDBC dbc;
     SQLRETURN ret;
-    
+
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}
-    
+
     void SetUp() override {
         std::string test_dsn = GetParam();
-        
+
         ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
         EXPECT_EQ(ret, SQL_SUCCESS);
 
@@ -65,17 +66,19 @@ protected:
         EXPECT_EQ(ret, SQL_SUCCESS);
 
         ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn.c_str(), test_server, test_port);
-        RDS_STR conn_str = builder.withDatabase(test_db)
+        std::string conn_str = builder.withDatabase(test_db)
             .withUID(test_uid)
             .withPWD(test_pwd)
             .withBaseDriver(test_base_driver)
             .withBaseDSN(test_base_dsn)
-            .getRdsString();
+            .getString();
+        SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
-        ret = SQLDriverConnect(dbc, NULL, AS_SQLTCHAR(conn_str.c_str()), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
+        ret = SQLDriverConnect(dbc, NULL, conn_str_in, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
         EXPECT_EQ(ret, SQL_SUCCESS);
     }
-    
+
     void TearDown() override {
         SQLDisconnect(dbc);
         SQLFreeHandle(SQL_HANDLE_DBC, dbc);
@@ -154,7 +157,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
         "DROP TABLE IF EXISTS test_metadata")), SQL_NTS);
     SQLCloseCursor(stmt);
-    
+
     ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
         "CREATE TABLE test_metadata ("
         "id SERIAL PRIMARY KEY, "
@@ -224,7 +227,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
         out_file << "    \"return_code\": " << ret << ",\n";
         out_file << "    \"column_count\": " << num_cols << "\n";
         out_file << "  }";
-        
+
         if (num_cols > 0) {
             SQLCHAR col_name[MAX_COLUMN_NAME_LEN];
             SQLSMALLINT name_len, data_type, decimal_digits, nullable;
@@ -341,15 +344,15 @@ TEST_P(ODBC_API_TEST, SQLGetInfoTest) {
     for (const auto &attr: info_attrs) {
         if (!first_attr) out_file << ",\n";
         first_attr = false;
-        
+
         SQLCHAR buffer[MAX_BUFFER_LEN] = {};
         SQLSMALLINT str_len = 0;
         ret = SQLGetInfo(dbc, attr.first, buffer, sizeof(buffer), &str_len);
-        
+
         out_file << "  \"" << attr.second.first << "\": {\n";
         out_file << "    \"return_code\": " << ret << ",\n";
         out_file << "    \"attribute_id\": " << attr.first;
-        
+
         if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
             out_file << "\n  }";
             continue;
@@ -390,11 +393,11 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
     ret = SQLColumns(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"%", SQL_NTS, (SQLCHAR*)"%", SQL_NTS);
     out_file << "  \"SQLColumns\": {\n";
     out_file << "    \"return_code\": " << ret;
-    
+
     if (ret == SQL_SUCCESS) {
         SQLSMALLINT num_cols;
         SQLNumResultCols(stmt, &num_cols);
-        
+
         out_file << ",\n    \"column_names\": [";
         bool first_col = true;
         for (SQLSMALLINT i = 1; i <= num_cols; i++) {
@@ -407,7 +410,7 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
             out_file << "\"" << col_name << "\"";
         }
         out_file << "],\n";
-        
+
         out_file << "    \"rows\": [\n";
         int row_count = 0;
         while (SQLFetch(stmt) == SQL_SUCCESS) {

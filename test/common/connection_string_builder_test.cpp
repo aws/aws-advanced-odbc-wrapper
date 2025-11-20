@@ -43,7 +43,7 @@ TEST_F(ConnectionStringBuilderTest, test_complete_string) {
         .withLimitlessMode("lazy")
         .withLimitlessMonitorIntervalMs(234)
         .withSslMode("prefer")
-        .getRdsString();
+        .getString();
 
     const std::string expected =
         "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;DATABASE=testDb;"
@@ -59,7 +59,7 @@ TEST_F(ConnectionStringBuilderTest, test_complete_string) {
 // No optional fields are set in the builder. Build will succeed. Connection string with required fields.
 TEST_F(ConnectionStringBuilderTest, test_only_required_fields) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
-    auto connection_string = builder.getRdsString();
+    auto connection_string = builder.getString();
 
     const std::string expected = "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;";
 
@@ -70,7 +70,7 @@ TEST_F(ConnectionStringBuilderTest, test_only_required_fields) {
 // Connection string with required fields and ONLY the fields that were set.
 TEST_F(ConnectionStringBuilderTest, test_some_optional) {
     ConnectionStringBuilder builder("testDSN", "testServer", 5432);
-    auto connection_string = builder.withUID("testUser").withPWD("testPwd").getRdsString();
+    auto connection_string = builder.withUID("testUser").withPWD("testPwd").getString();
 
     const std::string expected("DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;");
 
@@ -84,7 +84,7 @@ TEST_F(ConnectionStringBuilderTest, test_setting_boolean_fields) {
         .withPWD("testPwd")
         .withEnableClusterFailover(true)
         .withLimitlessEnabled(false)
-        .getRdsString();
+        .getString();
 
     const std::string expected(
         "DSN=testDSN;SERVER=testServer;PORT=5432;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;UID=testUser;PWD=testPwd;"

@@ -113,7 +113,9 @@ struct ENV {
     std::shared_ptr<RdsLibLoader> driver_lib_loader;
 
      ~ENV() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // ENV
@@ -139,8 +141,12 @@ struct DBC {
     char                        sql_error_called = 0;
 
      ~DBC() {
-          delete plugin_head;
-          delete err;
+          if (plugin_head) {
+               delete plugin_head;
+          }
+          if (err) {
+               delete err;
+          }
           plugin_head = nullptr;
           err = nullptr;
      }
@@ -165,7 +171,9 @@ struct STMT {
     char                        sql_error_called = 0;
 
      ~STMT() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // STMT
@@ -180,7 +188,9 @@ struct DESC {
     char                        sql_error_called = 0;
 
      ~DESC() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // DESC

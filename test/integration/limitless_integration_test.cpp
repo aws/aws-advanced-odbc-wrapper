@@ -30,6 +30,8 @@
 #include <vector>
 
 #include "../common/connection_string_builder.h"
+#include "../common/string_helper.h"
+
 #include "integration_test_utils.h"
 
 // Generally accepted URL endpoint max length (2048) + 1 for null terminator
@@ -45,22 +47,22 @@
 
 class LimitlessIntegrationTest : public testing::Test {
 public:
-    SQLTCHAR *ROUTER_ENDPOINT_QUERY = AS_SQLTCHAR("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints();");
-    SQLTCHAR *SELECT_QUERY = AS_SQLTCHAR("SELECT 1;");
+    SQLTCHAR ROUTER_ENDPOINT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // SELECT router_endpoint, load FROM aurora_limitless_router_endpoints();
+    SQLTCHAR SELECT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // SELECT 1;
     struct LimitlessHostInfo {
         std::string host_name;
         int64_t weight;
     };
 
     LimitlessHostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* endpoint) {
-        double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
+        double load_num = std::strtod(STRING_HELPER::SqltcharToAnsi(load), nullptr);
         int64_t weight = WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING);
 
         if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
             weight = MIN_WEIGHT;
         }
 
-        std::string router_endpoint_str(reinterpret_cast<const char *>(endpoint));
+        std::string router_endpoint_str(STRING_HELPER::SqltcharToAnsi(endpoint));
 
         return LimitlessHostInfo{
             .host_name = router_endpoint_str,
@@ -115,11 +117,11 @@ public:
         return round_robin_hosts;
     }
 
-    void LoadThreads(SQLTCHAR *conn_in) {
+    void LoadThreads(const SQLTCHAR* conn_in) {
         SQLHDBC local_dbc;
         SQLHSTMT stmt;
         SQLAllocHandle(SQL_HANDLE_DBC, env, &local_dbc);
-        SQLDriverConnect(local_dbc, nullptr, conn_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        SQLDriverConnect(local_dbc, nullptr, const_cast<SQLTCHAR*>(conn_in), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         SQLAllocHandle(SQL_HANDLE_STMT, local_dbc, &stmt);
 
         // Repeated queries within two monitor intervals
@@ -148,7 +150,6 @@ protected:
     SQLHDBC monitor_dbc = nullptr;
 
     static void SetUpTestSuite() {}
-
     static void TearDownTestSuite() {}
 
     void SetUp() override {
@@ -156,14 +157,18 @@ protected:
         SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
         SQLAllocHandle(SQL_HANDLE_DBC, env, &monitor_dbc);
 
-        auto monitor_connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+        STRING_HELPER::AnsiToUnicode("SELECT router_endpoint, load FROM aurora_limitless_router_endpoints();", ROUTER_ENDPOINT_QUERY);
+        STRING_HELPER::AnsiToUnicode("SELECT 1", SELECT_QUERY);
+        std::string monitor_connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
             .withUID(test_uid)
             .withPWD(test_pwd)
             .withDatabase(test_db)
             .withDatabaseDialect("AURORA_POSTGRESQL_LIMITLESS")
             .withLimitlessEnabled(false)
-            .getRdsString();
-        SQLDriverConnect(monitor_dbc, nullptr, AS_SQLTCHAR(monitor_connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+            .getString();
+        SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode(monitor_connection_string.c_str(), conn_str_in);
+        SQLDriverConnect(monitor_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
     void TearDown() override {
@@ -177,7 +182,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
     ASSERT_FALSE(round_robin_hosts.empty());
     std::string expected_host = round_robin_hosts[0].host_name;
 
-    auto conn_in_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    auto conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
@@ -185,22 +190,23 @@ TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("immediate")
         .withLimitlessMonitorIntervalMs(1000)
-        .getRdsString();
-    SQLTCHAR *conn_in = AS_SQLTCHAR(conn_in_str.c_str());
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
     SQLHDBC dbc = nullptr;
     EXPECT_TRUE(SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc)));
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(dbc, nullptr, conn_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
+    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
 
     SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
     SQLGetInfo(dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-    EXPECT_EQ(expected_host, std::string((const char*) server_name));
+    EXPECT_EQ(expected_host, STRING_HELPER::SqltcharToAnsi(server_name));
 
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, dbc, SQL_NULL_HSTMT);
 }
 
 TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
-    auto conn_in_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    auto conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
@@ -208,12 +214,13 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("lazy")
         .withLimitlessMonitorIntervalMs(MONITOR_INTERVAL_MS)
-        .getRdsString();
-    SQLTCHAR *conn_in = AS_SQLTCHAR(conn_in_str.c_str());
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
     SQLHDBC dbc = nullptr;
     EXPECT_TRUE(SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc)));
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(dbc, nullptr, conn_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
+    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
 
     // Wait for monitors to spinup and fetch routers
     std::this_thread::sleep_for(std::chrono::milliseconds(2 * MONITOR_INTERVAL_MS));
@@ -225,11 +232,11 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
 
     SQLHDBC second_dbc = SQL_NULL_HDBC;
     SQLAllocHandle(SQL_HANDLE_DBC, env, &second_dbc);
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(second_dbc, nullptr, conn_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
+    EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(second_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
 
     SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
     SQLGetInfo(second_dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-    EXPECT_EQ(expected_host, std::string((const char*) server_name));
+    EXPECT_EQ(expected_host, STRING_HELPER::SqltcharToAnsi(server_name));
 
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, second_dbc, SQL_NULL_HSTMT);
     INTEGRATION_TEST_UTILS::odbc_cleanup(SQL_NULL_HENV, dbc, SQL_NULL_HSTMT);
@@ -246,12 +253,13 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
         .withPWD(test_pwd)
         .withDatabase(test_db)
         .withLimitlessEnabled(false)
-        .getRdsString();
-    SQLTCHAR *conn_in = AS_SQLTCHAR(load_conn_string.c_str());
+        .getString();
+    SQLTCHAR load_conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(load_conn_string.c_str(), load_conn_str_in);
 
     std::vector<std::shared_ptr<std::thread>> load_threads;
     for (int i = 0; i < NUM_CONNECTIONS_TO_OVERLOAD_ROUTER; i++) {
-        std::shared_ptr<std::thread> thread = std::make_shared<std::thread>([this, conn_in]{ LoadThreads(conn_in); });
+        std::shared_ptr<std::thread> thread = std::make_shared<std::thread>([this, load_conn_str_in]{ LoadThreads(load_conn_str_in); });
         load_threads.push_back(thread);
     }
 
@@ -270,8 +278,9 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("immediate")
         .withLimitlessMonitorIntervalMs(MONITOR_INTERVAL_MS)
-        .getRdsString();
-    conn_in = AS_SQLTCHAR(limitless_conn_string.c_str());
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(load_conn_string.c_str(), conn_str_in);
 
     std::vector<SQLHDBC> limitless_dbcs;
     for (int i = 0; i < 3; i++) {
@@ -279,11 +288,11 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
         SQLAllocHandle(SQL_HANDLE_DBC, env, &limitless_dbc);
         limitless_dbcs.push_back(limitless_dbc);
 
-        EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(limitless_dbc, nullptr, conn_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
+        EXPECT_TRUE(SQL_SUCCEEDED(SQLDriverConnect(limitless_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT)));
 
         SQLTCHAR server_name[ROUTER_ENDPOINT_LENGTH] = { 0 };
         SQLGetInfo(limitless_dbc, SQL_SERVER_NAME, server_name, sizeof(server_name), nullptr);
-        EXPECT_EQ(round_robin_hosts[i].host_name, std::string((const char*) server_name));
+        EXPECT_EQ(round_robin_hosts[i].host_name, STRING_HELPER::SqltcharToAnsi(server_name));
     }
 
     for (SQLHDBC limitless_dbc : limitless_dbcs) {

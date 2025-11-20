@@ -49,7 +49,7 @@ set(TEST_RUNNER
 )
 
 # Configure Build Defines ------------------------------------------------------------------------------------
-if(UNICODE)
+if(BUILD_UNICODE)
     SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-w")
 else()
     SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-a")
@@ -106,7 +106,7 @@ if(WIN32)
     )
 endif()
 
-if(UNICODE)
+if(BUILD_UNICODE)
     add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
         UNICODE
         _UNICODE

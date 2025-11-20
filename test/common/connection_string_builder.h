@@ -15,7 +15,7 @@
 #ifndef CONNECTION_STRING_BUILDER_H_
 #define CONNECTION_STRING_BUILDER_H_
 
-#include "string_helper.h"
+#include <string>
 
 class ConnectionStringBuilder {
 public:
@@ -139,17 +139,8 @@ public:
         return *this;
     }
 
-    RDS_STR getRdsString() const {
-        RDS_STR converted;
-        #ifdef UNICODE
-            wchar_t* buf = new wchar_t[strlen(conn_in) * 2 + 2];
-            swprintf(buf, L"%S", conn_in);
-            converted = buf;
-            delete[] buf;
-        #else
-            converted = conn_in;
-        #endif
-        return converted;
+    std::string getString() const {
+        return conn_in;
     }
 
 private:

@@ -27,6 +27,7 @@ set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.cpp
 )
