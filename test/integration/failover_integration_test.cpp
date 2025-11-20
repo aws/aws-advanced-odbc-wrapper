@@ -49,7 +49,7 @@ protected:
         delete[] buf;
         return res;
 #else
-        return reinterpret_cast<const char*>(input);
+        return input;
 #endif
     }
 
