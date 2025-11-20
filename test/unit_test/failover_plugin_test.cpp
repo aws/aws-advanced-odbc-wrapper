@@ -26,7 +26,7 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
 
     DBC* dbc = new DBC();
     dbc->env = &env;
-    dbc.conn_attr[KEY_CLUSTER_ID] = AS_RDS_STR(cluster_id.c_str());
+    dbc->conn_attr[KEY_CLUSTER_ID] = cluster_id;
 
     auto mock_dialect = std::make_shared<MockDialect>();
     auto mock_host_selector = std::make_shared<MockHostSelector>();
