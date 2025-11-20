@@ -419,7 +419,7 @@ SQLRETURN RDS_FreeStmt(
                 delete stmt->imp_param_desc;
                 stmt->imp_param_desc = SQL_NULL_HANDLE;
 
-                delete stmt->err;
+                CLEAR_STMT_ERROR(stmt);
                 delete stmt;
                 StatementHandle = nullptr;
                 return SQL_SUCCESS;

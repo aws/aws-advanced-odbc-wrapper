@@ -26,6 +26,7 @@ RdsLibLoader::~RdsLibLoader()
 {
     if (driver_handle) {
         RDS_FREE_MODULE(driver_handle);
+        driver_handle = nullptr;
     }
 }
 
