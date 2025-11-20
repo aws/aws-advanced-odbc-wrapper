@@ -31,6 +31,7 @@
 #include <cstdlib> // std::strtod
 
 #include "../common/string_helper.h"
+
 #include "integration_test_utils.h"
 
 char* INTEGRATION_TEST_UTILS::get_env_var(const char* key, char* default_value) {
@@ -112,13 +113,15 @@ void INTEGRATION_TEST_UTILS::print_errors(SQLHANDLE handle, int32_t handle_type)
         if (ret == SQL_INVALID_HANDLE) {
             std::cerr << "Invalid handle" << std::endl;
         } else if (SQL_SUCCEEDED(ret)) {
-            std::cerr << sqlstate << ": " << message << std::endl;
+            std::cerr << STRING_HELPER::SqltcharToAnsi(sqlstate) << ": "
+                << STRING_HELPER::SqltcharToAnsi(message) << std::endl;
         }
     } while (ret == SQL_SUCCESS);
 }
 
 SQLRETURN INTEGRATION_TEST_UTILS::exec_query(SQLHSTMT stmt, char *query_buffer) {
-    SQLTCHAR* query = AS_SQLTCHAR(query_buffer);
+    SQLTCHAR query[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(query_buffer, query);
     return SQLExecDirect(stmt, query, SQL_NTS);
 }
 

@@ -26,6 +26,8 @@
 #include <string>
 
 #include "../common/connection_string_builder.h"
+#include "../common/string_helper.h"
+
 #include "integration_test_utils.h"
 
 class SecretsManagerIntegrationTest : public testing::Test {
@@ -71,9 +73,11 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithRegion) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId(test_secret_arn)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, rc);
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
@@ -84,9 +88,11 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithoutRegion) {
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withSecretId(test_secret_arn)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, rc);
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
@@ -100,9 +106,11 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWrongRegion) {
         .withAuthMode(auth_type)
         .withAuthRegion("us-fake-1")
         .withSecretId(test_secret_arn)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, rc);
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
@@ -114,9 +122,11 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId("invalid-id")
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, rc);
 
     // Check state
@@ -124,5 +134,5 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
     SQLINTEGER native_error = 0;
     SQLSMALLINT stmt_length;
     EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, sqlstate, &native_error, message, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
-    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, AS_CHAR(sqlstate));
+    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, STRING_HELPER::SqltcharToAnsi(sqlstate));
 }

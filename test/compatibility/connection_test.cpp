@@ -22,6 +22,7 @@
 #include <sqlext.h>
 
 #include "../common/connection_string_builder.h"
+#include "../common/string_helper.h"
 
 static char* test_server;
 static int test_port;
@@ -65,15 +66,17 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriver_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    RDS_STR conn_str = builder.withDatabase(test_db)
+    std::string conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDriver(test_base_driver)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
-        AS_SQLTCHAR(conn_str.c_str()),
+        conn_str_in,
         SQL_NTS,
         nullptr,
         0,
@@ -96,11 +99,13 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDSN_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    RDS_STR conn_str = builder.withDatabase(test_db)
+    std::string conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDSN(test_base_dsn)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
@@ -127,16 +132,18 @@ TEST_F(ConnectionTest, SQLDriverConnect_BaseDriverAndDSN_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
     ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn, test_server, test_port);
-    RDS_STR conn_str = builder.withDatabase(test_db)
+    std::string conn_str = builder.withDatabase(test_db)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withBaseDriver(test_base_driver)
         .withBaseDSN(test_base_dsn)
-        .getRdsString();
+        .getString();
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
 
     EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(hdbc,
         nullptr,
-        AS_SQLTCHAR(conn_str.c_str()),
+        conn_str_in,
         SQL_NTS,
         nullptr,
         0,
@@ -158,10 +165,17 @@ TEST_F(ConnectionTest, SQLConnect_BaseDriver_Success) {
     EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, henv, &hdbc));
 
+    SQLTCHAR dsn_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(test_dsn, dsn_in);
+    SQLTCHAR uid_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(test_uid, uid_in);
+    SQLTCHAR pwd_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(test_pwd, pwd_in);
+
     EXPECT_EQ(SQL_SUCCESS, SQLConnect(hdbc,
-        AS_SQLTCHAR(test_dsn), SQL_NTS,
-        AS_SQLTCHAR(test_uid), SQL_NTS,
-        AS_SQLTCHAR(test_pwd), SQL_NTS)
+        dsn_in, SQL_NTS,
+        uid_in, SQL_NTS,
+        pwd_in, SQL_NTS)
     );
 
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(hdbc));

@@ -41,18 +41,21 @@ jobs:
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build --config ${{env.BUILD_CONFIG}}
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-win-unit
-      - name: Run Unit Tests
+      - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build --config ${{env.BUILD_CONFIG}}
+          ./build/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
+      - name: Build Unicode aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build --config ${{env.BUILD_CONFIG}}
           ./build/test/unit_test/${{env.BUILD_CONFIG}}/unit-test.exe
 
   test-macos-unit:
@@ -75,18 +78,23 @@ jobs:
         run: |
           export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
-          cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-linux-unit
-      - name: Run Unit Tests
+          role-session-name: odbc-wrapper-macos-unit
+      - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+          ./build/test/unit_test/unit-test
+#        env:
+#          ASAN_OPTIONS: 'detect_container_overflow=0'
+      - name: Build Unicode aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
           ./build/test/unit_test/unit-test
 #        env:
 #          ASAN_OPTIONS: 'detect_container_overflow=0'
@@ -111,16 +119,19 @@ jobs:
         if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
         run: |
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON
-          cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-macos-unit
-      - name: Run Unit Tests
+          role-session-name: odbc-wrapper-linux-unit
+      - name: Build ANSI aws-advanced-odbc-wrapper
         run: |
+          cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+          ./build/test/unit_test/unit-test
+      - name: Build Unicode aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
           ./build/test/unit_test/unit-test
