@@ -75,7 +75,8 @@ const std::map<std::string, std::pair<int, ControlType>> MAIN_KEYS = {
     {KEY_DATABASE, {IDC_DB, EDIT_TEXT}},
     {KEY_BASE_DSN, {IDC_BASE_DSN, EDIT_TEXT}},
     {KEY_BASE_CONN, {IDC_BASE_CONN, EDIT_TEXT}},
-    {KEY_BASE_DRIVER, {IDC_BASE_DRIVER, EDIT_TEXT}}
+    {KEY_BASE_DRIVER, {IDC_BASE_DRIVER, EDIT_TEXT}},
+    {KEY_DATABASE_DIALECT, {IDC_DB_DIALECT, COMBO}}
 };
 
 const std::map<std::string, std::pair<int, ControlType>> AUTH_KEYS = {
@@ -155,6 +156,12 @@ const std::vector<std::pair<std::string, std::string>> LIMITLESS_MODES = {
     {"", ""},
     {"Lazy", VALUE_LIMITLESS_MODE_LAZY},
     {"Immediate", VALUE_LIMITLESS_MODE_IMMEDIATE}
+};
+
+const std::vector<std::pair<std::string, std::string>> DB_DIALECTS = {
+    {"", ""},
+    {"Aurora PostgreSQL", VALUE_DB_DIALECT_AURORA_POSTGRESQL},
+    {"Aurora PostgreSQL Limitless", VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS}
 };
 
 HINSTANCE ghInstance;
@@ -243,6 +250,8 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return READER_SELECTION_MODES[selection].second;
                     case IDC_LIMITLESS_MODE:
                         return LIMITLESS_MODES[selection].second;
+                    case IDC_DB_DIALECT:
+                        return DB_DIALECTS[selection].second;
                     default:
                         break;
                 }
@@ -826,12 +835,20 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         EnableWindow(save_btn, SW_HIDE);
     }
 
+    HWND db_dialect = GetDlgItem(hwnd, IDC_DB_DIALECT);
+    for (int i = 0; i < DB_DIALECTS.size(); i++) {
+        ComboBox_InsertString(db_dialect, i, RDS_TSTR(DB_DIALECTS[i].first).c_str());
+    }
+
     for (const auto& keys : MAIN_KEYS) {
         if (keys.first == KEY_DSN && !driver_connect) {
             SetInitialEditTextValue(hwnd, keys.second.first, keys.first, current_dsn);
+        }  else if (keys.first == KEY_DATABASE_DIALECT) {
+            SetInitialComboBoxValue(hwnd, keys.second.first, keys.first, DB_DIALECTS);
         } else {
             SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
         }
+
     }
 
     AddTabToTabControl("Authentication", tab_control, AWS_AUTH);
