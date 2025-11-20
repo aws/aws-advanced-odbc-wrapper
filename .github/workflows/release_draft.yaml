@@ -177,16 +177,17 @@ jobs:
           ls -l ${{ github.workspace }}/build/driver/
       - name: Package Drivers as Tar
         shell: bash
-        run:
+        run: |
           mkdir stage
-          cp ${{ github.workspace }}/build/driver/ *.so stage
-          tar -chf "aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz" --gzip -C stage .
+          find ${{ github.workspace }}/build/driver/ -name "*.so*" -exec cp {} ${{ github.workspace }}/stage \;
+          cd stage
+          tar -chf "aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz" --gzip *
       - name: Upload the ANSI & Unicode driver
         uses: actions/upload-artifact@v4
         with:
           name: installers-linux
           path: |
-            aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz
+            ./stage/aws-advanced-odbc-wrapper-${{ github.ref_name }}-linux-x64.tar.gz
           retention-days: 5
           if-no-files-found: error
 
