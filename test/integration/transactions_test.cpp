@@ -27,6 +27,8 @@
 #include <string>
 
 #include "../common/connection_string_builder.h"
+#include "../common/string_helper.h"
+
 #include "integration_test_utils.h"
 
 class ConcurrentTransactionsTest: public testing::Test {
@@ -43,18 +45,22 @@ class ConcurrentTransactionsTest: public testing::Test {
         std::string connection_string;
         SQLHENV env = nullptr;
 
-        SQLTCHAR *DROP_TABLE_QUERY = AS_SQLTCHAR("DROP TABLE IF EXISTS concurrent_test");
-        SQLTCHAR *CREATE_TABLE_QUERY =
-            AS_SQLTCHAR("CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data "
-                        "VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        SQLTCHAR *COUNT_QUERY = AS_SQLTCHAR("SELECT COUNT(*) FROM concurrent_test");
+        SQLTCHAR DROP_TABLE_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // DROP TABLE IF EXISTS concurrent_test
+        SQLTCHAR CREATE_TABLE_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)
+        SQLTCHAR COUNT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // SELECT COUNT(*) FROM concurrent_test
 
         void SetUp() override {
             connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
-                                    .withUID(test_uid)
-                                    .withPWD(test_pwd)
-                                    .withDatabase(test_db)
-                                    .getRdsString();
+                .withUID(test_uid)
+                .withPWD(test_pwd)
+                .withDatabase(test_db)
+                .getString();
+            SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+            STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
+
+            STRING_HELPER::AnsiToUnicode("DROP TABLE IF EXISTS concurrent_test", DROP_TABLE_QUERY);
+            STRING_HELPER::AnsiToUnicode("CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)", CREATE_TABLE_QUERY);
+            STRING_HELPER::AnsiToUnicode("SELECT COUNT(*) FROM concurrent_test", COUNT_QUERY);
 
             SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
             SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
@@ -62,14 +68,7 @@ class ConcurrentTransactionsTest: public testing::Test {
             // Create test table "concurrent_test".
             SQLHDBC setup_dbc;
             SQLAllocHandle(SQL_HANDLE_DBC, env, &setup_dbc);
-            SQLDriverConnect(setup_dbc,
-                             nullptr,
-                             AS_SQLTCHAR(connection_string.c_str()),
-                             SQL_NTS,
-                             nullptr,
-                             0,
-                             nullptr,
-                             SQL_DRIVER_NOPROMPT);
+            SQLDriverConnect(setup_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
             SQLHSTMT setup_stmt;
             SQLAllocHandle(SQL_HANDLE_STMT, setup_dbc, &setup_stmt);
@@ -85,14 +84,9 @@ class ConcurrentTransactionsTest: public testing::Test {
             // Drop test table "concurrent_test".
             SQLHDBC cleanup_dbc;
             SQLAllocHandle(SQL_HANDLE_DBC, env, &cleanup_dbc);
-            SQLDriverConnect(cleanup_dbc,
-                             nullptr,
-                             AS_SQLTCHAR(connection_string.c_str()),
-                             SQL_NTS,
-                             nullptr,
-                             0,
-                             nullptr,
-                             SQL_DRIVER_NOPROMPT);
+            SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+            STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
+            SQLDriverConnect(cleanup_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
             SQLHSTMT cleanup_stmt;
             SQLAllocHandle(SQL_HANDLE_STMT, cleanup_dbc, &cleanup_stmt);
@@ -110,13 +104,15 @@ class ConcurrentTransactionsTest: public testing::Test {
         int GetRowCount() {
             SQLHDBC verify_dbc;
             SQLAllocHandle(SQL_HANDLE_DBC, env, &verify_dbc);
-            SQLDriverConnect(verify_dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
-            
+            SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+            STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
+            SQLDriverConnect(verify_dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+
             SQLHSTMT verify_stmt;
             SQLAllocHandle(SQL_HANDLE_STMT, verify_dbc, &verify_stmt);
             SQLExecDirect(verify_stmt, COUNT_QUERY, SQL_NTS);
             SQLFetch(verify_stmt);
-            
+
             SQLINTEGER count;
             SQLLEN indicator;
             SQLGetData(verify_stmt, 1, SQL_C_SLONG, &count, 0, &indicator);
@@ -124,29 +120,28 @@ class ConcurrentTransactionsTest: public testing::Test {
             SQLFreeHandle(SQL_HANDLE_STMT, verify_stmt);
             SQLDisconnect(verify_dbc);
             SQLFreeHandle(SQL_HANDLE_DBC, verify_dbc);
-            
+
             return count;
         }
 };
 
 TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
     // Execute a single transaction and commit using the DBC handle.
-
     SQLHDBC dbc;
     SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
     SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF, 0);
 
-    SQLRETURN ret = SQLDriverConnect(
-        dbc, nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
+    SQLRETURN ret = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     ASSERT_TRUE(SQL_SUCCEEDED(ret));
 
     SQLHSTMT stmt;
     SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
 
-    ret = SQLExecDirect(
-        stmt,
-        AS_SQLTCHAR("INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'test')"),
-        SQL_NTS);
+    SQLTCHAR INSERT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode("INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'test')", INSERT_QUERY);
+    ret = SQLExecDirect(stmt, INSERT_QUERY, SQL_NTS);
     ASSERT_TRUE(SQL_SUCCEEDED(ret));
 
     // Verify the table is still empty.
@@ -165,26 +160,30 @@ TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
 
 TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     // Execute three transactions and commit using the ENV handle.
-
     SQLHDBC dbc[NUM_CONNECTIONS];
     SQLHSTMT stmt[NUM_CONNECTIONS];
 
+    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
         SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc[i]);
         SQLSetConnectAttr(dbc[i], SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0);
-        SQLRETURN ret = SQLDriverConnect(
-            dbc[i], nullptr, AS_SQLTCHAR(connection_string.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        SQLRETURN ret = SQLDriverConnect(dbc[i], nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         ASSERT_TRUE(SQL_SUCCEEDED(ret));
         SQLAllocHandle(SQL_HANDLE_STMT, dbc[i], &stmt[i]);
     }
 
+    SQLTCHAR BEGIN_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode("BEGIN", BEGIN_QUERY);
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
-        SQLRETURN begin_ret = SQLExecDirect(stmt[i], AS_SQLTCHAR("BEGIN"), SQL_NTS);
+        SQLRETURN begin_ret = SQLExecDirect(stmt[i], BEGIN_QUERY, SQL_NTS);
         ASSERT_TRUE(SQL_SUCCEEDED(begin_ret));
 
         std::string sql = "INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (" +
             std::to_string(i + 1) + ", 1, 'dbc" + std::to_string(i + 1) + "')";
-        SQLRETURN ret = SQLExecDirect(stmt[i], AS_SQLTCHAR(sql.c_str()), SQL_NTS);
+        SQLTCHAR INSERT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode(sql.c_str(), INSERT_QUERY);
+        SQLRETURN ret = SQLExecDirect(stmt[i], INSERT_QUERY, SQL_NTS);
         ASSERT_TRUE(SQL_SUCCEEDED(ret));
     }
 

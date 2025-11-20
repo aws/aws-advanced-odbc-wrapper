@@ -37,7 +37,7 @@ public:
     static std::vector<HostInfo> QueryForLimitlessRouters(SQLHDBC conn, int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect);
 
 private:
-    static HostInfo create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, int host_port_to_map);
+    static HostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpoint, int host_port_to_map);
 };
 
 #endif // LIMITLESS_QUERY_HELPER_H_

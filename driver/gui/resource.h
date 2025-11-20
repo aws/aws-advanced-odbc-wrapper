@@ -70,8 +70,11 @@
 #define IDC_LIMITLESS_MODE              1054
 #define IDC_LIMITLESS_INTERVAL          1055
 #define IDC_LIMITLESS_RETRIES           1056
-#define IDC_EDIT1                       1057
+#define IDC_RELAY_PARTY_ID              1057
 #define IDC_ROUTER_RETRIES              1058
+#define IDC_CONNECT_TIMEOUT             1059
+#define IDC_SOCKET_TIMEOUT              1061
+#define IDC_DB_DIALECT                  1062
 
 // Next default values for new objects
 // 
@@ -79,7 +82,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        126
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1059
+#define _APS_NEXT_CONTROL_VALUE         1063
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

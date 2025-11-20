@@ -38,6 +38,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(WARNING) << "Failed to allocate statement handle to query routers";
         return {};
     }
 
@@ -55,15 +56,16 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     );
 
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-        stmt, AS_SQLTCHAR(limitless_router_endpoint_query.c_str()), SQL_NTS
+        stmt, AS_SQLTCHAR(limitless_router_endpoint_query), SQL_NTS
     );
 
     std::vector<HostInfo> limitless_routers;
 
     while (SQL_SUCCEEDED((NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch, stmt)).fn_result)) {
-        const HostInfo host_info = create_host(load_value, router_endpoint_value, host_port_to_map);
+        const HostInfo host_info = CreateHost(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
+    LOG_IF(WARNING, limitless_routers.empty()) << "Failed to fetch any Limitless Routers";
 
     NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
         SQL_HANDLE_STMT, stmt
@@ -72,16 +74,16 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHD
     return limitless_routers;
 }
 
-HostInfo LimitlessQueryHelper::create_host(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
-    const double load_num = std::strtod(reinterpret_cast<const char *>(load), nullptr);
+HostInfo LimitlessQueryHelper::CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpoint, const int host_port_to_map) {
+    const double load_num = std::strtod(AS_UTF8_CSTR(load), nullptr);
     uint64_t weight = static_cast<uint64_t>(WEIGHT_SCALING - std::floor(load_num * WEIGHT_SCALING));
 
     if (weight < MIN_WEIGHT || weight > MAX_WEIGHT) {
         weight = MIN_WEIGHT;
-        LOG(WARNING) << "Invalid router load of " << reinterpret_cast<char *>(load) << " for " << reinterpret_cast<char *>(router_endpoint);
+        LOG(WARNING) << "Invalid router load of " << AS_UTF8_CSTR(load) << " for " << AS_UTF8_CSTR(router_endpoint);
     }
 
-    const std::string router_endpoint_str(reinterpret_cast<const char *>(router_endpoint));
+    const std::string router_endpoint_str(AS_UTF8_CSTR(router_endpoint));
 
     return {
         router_endpoint_str,

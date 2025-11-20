@@ -42,6 +42,7 @@ SQLRETURN BasePlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     SQLRETURN ret = SQL_ERROR;
     bool has_conn_attr_errors = false;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -58,14 +59,27 @@ SQLRETURN BasePlugin::Connect(
 
     // DSN should be read from the original input
     // and a new connection string should be built without DSN & Driver
-    const RDS_STR conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
-    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ToStr(ConnectionStringHelper::MaskSensitiveInformation(conn_in));
+    const std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
+    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
+
+    SQLTCHAR *conn_in_sqltchar;
+#if UNICODE
+    const std::vector<uint16_t> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
+    const uint16_t* conn_in_ushort = conn_in_vec.data();
+
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));
+#else
+    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
+#endif
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
-        dbc->wrapped_dbc, WindowHandle, AS_SQLTCHAR(conn_in.c_str()), SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
     if (res.fn_load_success) {
         ret = res.fn_result;
+        if (!SQL_SUCCEEDED(ret)) {
+            return ret;
+        }
     }
 
     // Apply Tracked Connection Attributes
@@ -96,11 +110,12 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
+    LOG(INFO) << "Entering Execute";
     RdsLibResult res;
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
-    const RDS_STR query = StatementText ? AS_RDS_STR(StatementText) : AS_RDS_STR("");
+    const RDS_STR query = StatementText ? AS_UTF8_CSTR(StatementText) : "";
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
@@ -109,6 +124,7 @@ SQLRETURN BasePlugin::Execute(
                 SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
             );
         } else {
+            LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
             stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
@@ -121,7 +137,7 @@ SQLRETURN BasePlugin::Execute(
         // Cursor Name
         const RDS_STR cursor_name = stmt->cursor_name;
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
-            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name.c_str()), cursor_name.length()
+            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );
     }
 

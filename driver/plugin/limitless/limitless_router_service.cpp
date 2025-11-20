@@ -30,16 +30,16 @@ SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRo
 LimitlessRouterService::LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<RDS_STR, RDS_STR> &conn_attr) {
     this->dialect_ = dialect;
     this->limitless_monitor_interval_ms_ = conn_attr.contains(KEY_LIMITLESS_MONITOR_INTERVAL_MS) ?
-        static_cast<int>(std::strtol(ToStr(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS)).c_str(), nullptr, 0)) :
+        static_cast<int>(std::strtol(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS).c_str(), nullptr, 0)) :
         LimitlessDefault::MONITOR_INTERVAL_MS;
     this->max_router_retries_ = conn_attr.contains(KEY_ROUTER_MAX_RETRIES) ?
-        static_cast<int>(std::strtol(ToStr(conn_attr.at(KEY_ROUTER_MAX_RETRIES)).c_str(), nullptr, 0)) :
+        static_cast<int>(std::strtol(conn_attr.at(KEY_ROUTER_MAX_RETRIES).c_str(), nullptr, 0)) :
         LimitlessDefault::CONNECT_RETRY_ATTEMPTS;
     this->max_connect_retries_ = conn_attr.contains(KEY_LIMITLESS_MAX_RETRIES) ?
-        static_cast<int>(std::strtol(ToStr(conn_attr.at(KEY_LIMITLESS_MAX_RETRIES)).c_str(), nullptr, 0)) :
+        static_cast<int>(std::strtol(conn_attr.at(KEY_LIMITLESS_MAX_RETRIES).c_str(), nullptr, 0)) :
         LimitlessDefault::CONNECT_RETRY_ATTEMPTS;
     this->host_port_ = conn_attr.contains(KEY_PORT) ?
-        static_cast<int>(std::strtol(ToStr(conn_attr.at(KEY_PORT)).c_str(), nullptr, 0)) :
+        static_cast<int>(std::strtol(conn_attr.at(KEY_PORT).c_str(), nullptr, 0)) :
         dialect_->GetDefaultPort();
 }
 
@@ -48,9 +48,11 @@ LimitlessRouterService::~LimitlessRouterService() {
     std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
     if (pair.first == 1) {
         limitless_router_monitors.Delete(router_monitor_key_);
+        LOG(INFO) << "Shut down Limitless Monitor count for: " << router_monitor_key_;
     } else {
         pair.first--;
         limitless_router_monitors.Put(router_monitor_key_, pair);
+        LOG(INFO) << "Decremented Limitless Monitor count for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }
 
@@ -62,7 +64,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 {
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect);
 
-    const std::string host = conn_attr.contains(KEY_SERVER) ? ToStr(conn_attr.at(KEY_SERVER)) : "";
+    const std::string host = conn_attr.contains(KEY_SERVER) ? conn_attr.at(KEY_SERVER) : "";
     std::string service_id = RdsUtils::GetRdsClusterId(host);
 
     if (service_id.empty()) {
@@ -71,11 +73,10 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     }
 
     bool block_and_query_immediately = true;
-    std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ?
-        ToStr(conn_attr.at(KEY_LIMITLESS_MODE))
-        : ToStr(VALUE_LIMITLESS_MODE_IMMEDIATE);
-    RDS_STR_UPPER(limitless_mode)
-    if (limitless_mode == ToStr(VALUE_LIMITLESS_MODE_LAZY)) {
+    const std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ?
+        conn_attr.at(KEY_LIMITLESS_MODE) : VALUE_LIMITLESS_MODE_IMMEDIATE;
+    const std::string upper_local_str = RDS_STR_UPPER(limitless_mode);
+    if (upper_local_str == VALUE_LIMITLESS_MODE_LAZY) {
         block_and_query_immediately = false;
     }
 
@@ -90,6 +91,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
 {
     if (dbc == nullptr) {
+        LOG(ERROR) << "Null DBC passed to EstablishConnection";
         return SQL_INVALID_HANDLE;
     }
 
@@ -111,8 +113,9 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             SQL_HANDLE_ENV, nullptr, &env->wrapped_env
         );
         if (!SQL_SUCCEEDED(res.fn_result)) {
+            LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Failed to allocate ENV handle", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+            dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
         NULL_CHECK_CALL_LIB_FUNC(monitor->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
@@ -160,6 +163,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     }
 
     if (limitless_routers.empty()) {
+        LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
@@ -171,10 +175,10 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     try {
         RoundRobinHostSelector::SetRoundRobinWeight(limitless_routers, properties);
         const HostInfo host_info = this->round_robin_.GetHost(limitless_routers, true, properties);
-        dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_info.GetHost()));
+        dbc->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
         rc = next_plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     } catch (std::runtime_error& error) {
-        LOG(INFO) << "Got runtime error while getting round robin host for limitless (trying for highest weight host next): " << error.what();
+        LOG(WARNING) << "Got runtime error while getting round robin host for limitless (trying for highest weight host next): " << error.what();
         // Proceed and attempt to connect to highest weight host.
     }
 
@@ -187,7 +191,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     for (int i = 0; i < max_connect_retries_; i++) {
         try {
             const HostInfo host_info = this->highest_weight_.GetHost(limitless_routers, true, properties);
-            dbc->conn_attr.insert_or_assign(KEY_SERVER, ToRdsStr(host_info.GetHost()));
+            dbc->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
 
             const SQLRETURN rc = next_plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
             if (SQL_SUCCEEDED(rc)) {
@@ -203,11 +207,12 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             }
         } catch (std::runtime_error &error) {
             // No more hosts.
-            LOG(INFO) << "Got runtime error while getting highest weight host for limitless (no host found): " << error.what();
+            LOG(WARNING) << "Got runtime error while getting highest weight host for limitless (no host found): " << error.what();
             break;
         }
     }
 
+    LOG(ERROR) << "The limitless connection plugin was unable to establish a connection";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
@@ -215,22 +220,25 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
-    BasePlugin* plugin_head= dbc->plugin_head;
+    BasePlugin* plugin_head = dbc->plugin_head;
     const std::map<RDS_STR, RDS_STR> conn_attr = dbc->conn_attr;
-    const std::string host = ToStr(conn_attr.at(KEY_SERVER));
+    const std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
     }
+    LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
     if (!limitless_router_monitors.Find(router_monitor_key_)) {
         const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
         limitless_router_monitors.Put(router_monitor_key_, {1, monitor});
+        LOG(INFO) << "Created Limitless Monitor for: " << router_monitor_key_;
     } else {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
         // If the monitor exists, increment the reference count.
         pair.first++;
         limitless_router_monitors.Put(router_monitor_key_, pair);
+        LOG(INFO) << "Incremented Limitless Monitor usage count for: " << router_monitor_key_ << ", to: " << pair.first;
     }
 }

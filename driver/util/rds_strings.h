@@ -20,11 +20,7 @@
     #include <windows.h> // Required to include sql.h
     #include <tchar.h>
 #else // Unix Platforms
-    #ifdef UNICODE
-        #define TEXT(x) L##x
-    #else // Ansi
-        #define TEXT(x) x
-    #endif // UNICODE
+    #define TEXT(x) x
 #endif // WIN32
 
 #include <sql.h>
@@ -34,7 +30,79 @@
 #include <string.h>
 #include <vector>
 
-#define AS_SQLTCHAR(str) (const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str)))
+#include "logger_wrapper.h"
+#include "unicode/utypes.h"
+#include "unicode/ucasemap.h"
+
+#ifdef UNICODE
+#include "unicode/unistr.h"
+inline size_t UShortStrlen(const uint16_t* str) {
+    size_t length = 0;
+    while (str[length] != 0) {
+        length++;
+    }
+    return length;
+}
+
+inline std::wstring ConvertUTF8ToWString(std::string input) {
+    icu::StringPiece string_piece(input.c_str(), input.length());
+    icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
+
+    int32_t size;
+    UErrorCode error = U_ZERO_ERROR;
+    u_strToWCS(nullptr, 0, &size, string_utf16.getBuffer(), string_utf16.length(), &error);
+
+    error = U_ZERO_ERROR; // Reset error
+    std::wstring wstr(size, 0);
+    u_strToWCS(wstr.data(), wstr.size(), nullptr, string_utf16.getBuffer(), string_utf16.length(), &error);
+
+    return wstr;
+}
+
+inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
+    icu::StringPiece string_piece(input.c_str(), input.length());
+    icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
+    uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
+    size_t size = UShortStrlen(ushort_string);
+    std::vector<uint16_t> ushort_vec(ushort_string, ushort_string + size);
+    // Insert null terminator because vector.data() returns NULL when empty
+    ushort_vec.push_back(0);
+    return ushort_vec;
+}
+
+// Assumes that the passed in vec is null terminated and was produced by ConvertUTF8ToUTF16
+inline int CopyUTF16StringToBuffer(uint16_t* buf, size_t buf_len, std::vector<uint16_t> vec) {
+    size_t end = buf_len < vec.size() ? buf_len : vec.size();
+    std::copy(vec.begin(), vec.begin() + end, buf);
+    if (end > 0) {
+        buf[end - 1] = 0;
+    }
+    return vec.size() - 1;
+}
+
+inline int CopyUTF8ToUTF16Buffer(uint16_t* buf, size_t buf_len, std::string str) {
+    return CopyUTF16StringToBuffer(buf, buf_len, ConvertUTF8ToUTF16(str));
+}
+
+// The input string buffer is assumed to be null terminated
+inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
+    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
+    std::string buffer_utf8;
+    unicode_str.toUTF8String(buffer_utf8);
+    return buffer_utf8;
+}
+#endif
+
+#ifdef UNICODE
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(ConvertUTF8ToUTF16(str).data()))
+    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<uint16_t *>(str)).c_str()
+    #define RDS_TSTR(str) ConvertUTF8ToWString(str)
+#else
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
+    #define AS_UTF8_CSTR(str) reinterpret_cast<const char *>(str)
+    #define RDS_TSTR(str) str
+#endif
+
 #define AS_CHAR(str) (reinterpret_cast<char *>(str))
 #define AS_CONST_CHAR(str) (reinterpret_cast<const char *>(str))
 #define AS_WCHAR(str) (reinterpret_cast<wchar_t *>(str))
@@ -46,67 +114,43 @@
     #define STR_ICMP(str1, str2) strcasecmp(str1, str2)
 #endif
 
-#ifdef UNICODE
-    #include <cwctype>
-    #include <wchar.h>
-    typedef std::wstring RDS_STR;
-    typedef std::wostringstream RDS_STR_STREAM;
-    typedef wchar_t RDS_CHAR;
-    #define TO_UPPER(c) std::towupper(c)
-    #define RDS_STR_LEN(str) wcslen(str)
-    typedef std::wregex RDS_REGEX;
-    typedef std::wsmatch RDS_MATCH;
-    #define RDS_sprintf(buffer, max_length, format, ...) swprintf(buffer, max_length, format, __VA_ARGS__)
-    #define RDS_CHAR_FORMAT TEXT("%ws")
-    #define RDS_NUM_APPEND(str, num) str.append(std::to_wstring(num))
-#else
-    #include <cstring>
-    typedef std::string RDS_STR;
-    typedef std::ostringstream RDS_STR_STREAM;
-    typedef char RDS_CHAR;
-    #define TO_UPPER(c) std::toupper(c)
-    #define RDS_STR_LEN(str) strlen(str)
-    typedef std::regex RDS_REGEX;
-    typedef std::smatch RDS_MATCH;
-    #define RDS_sprintf(buffer, max_length, format, ...) snprintf(buffer, max_length, format, __VA_ARGS__)
-    #define RDS_CHAR_FORMAT TEXT("%s")
-    #define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
-#endif
+#include <cstring>
+typedef std::string RDS_STR;
+typedef std::ostringstream RDS_STR_STREAM;
+typedef char RDS_CHAR;
+#define RDS_STR_LEN(str) strlen(str)
+typedef std::regex RDS_REGEX;
+typedef std::smatch RDS_MATCH;
+#define RDS_CHAR_FORMAT "%s"
+#define RDS_WCHAR_FORMAT "%ls"
+#define RDS_NUM_APPEND(str, num) str.append(std::to_string(num))
 
-#define EMPTY_RDS_STR TEXT("")
+inline std::string RDS_STR_UPPER(std::string str) {
+    size_t buf_len = str.length() * 4;
+    char *buf = new char[buf_len];
+    UErrorCode ucasemap_status = U_ZERO_ERROR;
+    UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
+    if (U_FAILURE(ucasemap_status)) {
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
+       delete[] buf;
+       return str;
+    }
+    UErrorCode upper_status = U_ZERO_ERROR;
+    ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
+    if (U_FAILURE(upper_status)) {
+       LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status));
+       delete[] buf;
+       return str;
+    }
+    std::string upper(buf);
+    delete[] buf;
+    return upper;
+}
+
+#define EMPTY_RDS_STR ""
 #define AS_RDS_CHAR(str) (reinterpret_cast<RDS_CHAR *>(str))
 #define AS_RDS_STR(str) RDS_STR((RDS_CHAR *) str)
 #define AS_RDS_STR_MAX(str, len) RDS_STR((RDS_CHAR *) str, len)
-#define RDS_STR_UPPER(str) std::transform(str.begin(), str.end(), str.begin(), [](RDS_CHAR c) {return TO_UPPER(c);});
-
-inline RDS_STR ToRdsStr(const std::string &str)
-{
-    RDS_STR converted;
-#ifdef UNICODE
-    size_t new_len = str.size() * 2 + 2;
-    wchar_t* buf = new wchar_t[new_len];
-    swprintf(buf, new_len, L"%S", str.c_str());
-    converted = buf;
-    delete[] buf;
-#else
-    converted = str;
-#endif
-    return converted;
-}
-
-// TODO - Fix lossy conversion
-inline std::string ToStr(const RDS_STR &str)
-{
-#ifdef UNICODE
-    std::string ret(str.length(), 0);
-    std::transform(str.begin(), str.end(), ret.begin(), [] (wchar_t c) {
-        return (char)c;
-    });
-    return ret;
-#else
-    return str;
-#endif
-}
 
 inline RDS_STR TrimStr(RDS_STR &str) {
     str = str.erase(str.find_last_not_of(TEXT(' ')) + 1);

@@ -64,10 +64,12 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     if (use_cache) {
         const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         if (token_cache.contains(cache_key)) {
+            LOG(INFO) << "Found token in cache";
             token_info = token_cache.at(cache_key);
             if (curr_time < token_info.expiration_point) {
                 return {token_info.token, true};
             }
+            LOG(INFO) << "Existing token expired";
             token_cache.erase(cache_key);
         }
     }
@@ -79,7 +81,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
         token_cache.insert_or_assign(cache_key, token_info);
     }
-    DLOG(INFO) << "Returning Token Length: " << token_info.token.length();
+    LOG(INFO) << "Generated new token length: " << token_info.token.length();
     return {token_info.token, false};
 }
 
@@ -91,7 +93,8 @@ void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credenti
 }
 
 std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
-    DLOG(INFO) << "Additional URL Encode: " << url_str;
+    LOG(INFO) << "Original Token Length: " << url_str.length();
+    DLOG(INFO) << "Original Token: " << url_str;
     std::string result = url_str;
     size_t pos = 0;
     const std::string replacement = "%25";
@@ -100,15 +103,15 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
         result.replace(pos, 1, replacement);
         pos += replacement.length();
     }
+    LOG(INFO) << "URL Encoded Token Length: " << result.length();
     DLOG(INFO) << "URL Encoded: " << result;
     return result;
 }
 
 AuthType AuthProvider::AuthTypeFromString(const RDS_STR &auth_type) {
-    RDS_STR local_str = auth_type;
-    RDS_STR_UPPER(local_str);
-    if (auth_table.contains(local_str)) {
-        return auth_table.at(local_str);
+    const std::string local_str_upper = RDS_STR_UPPER(auth_type);
+    if (auth_table.contains(local_str_upper)) {
+        return auth_table.at(local_str_upper);
     }
     return AuthType::INVALID;
 }

@@ -37,7 +37,7 @@ This is only required if you are not using the installer script.
 
 ```
 # In Repository Root
-cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF>
+cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build --config <Release/Debug>
 ```
 
@@ -59,7 +59,7 @@ You can also build the installer via the following:
     ```
 2. Install build dependencies
     ```
-    brew install cmake curl openssl unixodbc zlib
+    brew install cmake curl openssl unixodbc zlib icu4c
     ```
 3. Build AWS SDK for C++
     ```
@@ -74,14 +74,14 @@ cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_
 cmake --build build
 ```
 
-### Linux
+### Linux (Debian/Ubuntu based systems)
 
 #### Prerequisites
 
 1. Install build dependencies
     ```
     sudo apt update
-    sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev
+    sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
     ```
 2. Build AWS SDK for C++
     ```

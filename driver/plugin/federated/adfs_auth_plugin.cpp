@@ -42,10 +42,10 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
         this->auth_provider = auth_provider;
     } else {
         std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+            dbc->conn_attr.at(KEY_REGION) : "";
         if (region.empty()) {
             region = dbc->conn_attr.contains(KEY_SERVER) ?
-                RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+                RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
                 : Aws::Region::US_EAST_1;
         }
         const std::string saml_assertion = this->saml_util->GetSamlAssertion();
@@ -71,46 +71,57 @@ SQLRETURN AdfsAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
-        ToStr(dbc->conn_attr.at(KEY_SERVER)) : "";
+        dbc->conn_attr.at(KEY_SERVER) : "";
     const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
-        ToStr(dbc->conn_attr.at(KEY_IAM_HOST)) : server;
+        dbc->conn_attr.at(KEY_IAM_HOST) : server;
     std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        ToStr(dbc->conn_attr.at(KEY_REGION)) : "";
+        dbc->conn_attr.at(KEY_REGION) : "";
     if (region.empty()) {
         region = dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(ToStr(dbc->conn_attr.at(KEY_SERVER)))
+            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    const std::string port = dbc->conn_attr.contains(KEY_PORT) ?
-        ToStr(dbc->conn_attr.at(KEY_PORT)) : "";
+    std::string port = dbc->conn_attr.contains(KEY_IAM_PORT) ?
+        dbc->conn_attr.at(KEY_IAM_PORT) : "";
+    if (port.empty()) {
+        port = dbc->conn_attr.contains(KEY_PORT) ?
+        dbc->conn_attr.at(KEY_PORT) : "";
+    }
     const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
-        ToStr(dbc->conn_attr.at(KEY_DB_USERNAME)) : "";
+        dbc->conn_attr.at(KEY_DB_USERNAME) : "";
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::milliseconds(std::strtol(ToStr(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION)).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;
+        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;
     const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
         dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
 
-    // TODO - Proper error handling for missing parameters
+    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
+        LOG(ERROR) << "Missing required parameters for ADFS Authentication";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Missing required parameters for ADFS Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return SQL_ERROR;
+    }
     std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
 
     SQLRETURN ret = SQL_ERROR;
 
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
     // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
+        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         // Update AWS Credentials
         const std::string saml_assertion = saml_util->GetSamlAssertion();
         const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
         auth_provider->UpdateAwsCredential(credentials);
         // and retry without cache
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, ToRdsStr(token.first));
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
         ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
@@ -126,8 +137,13 @@ AdfsSamlUtil::AdfsSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
-    const std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
-        ToStr(connection_attributes.at(KEY_RELAY_PARTY_ID)) : "";
+    std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
+        connection_attributes.at(KEY_RELAY_PARTY_ID) : "";
+    if (relaying_party_id.empty()) {
+        LOG(INFO) << "Relaying party ID not supplied, using default: " << DEFAULT_RELAY_ID;
+        relaying_party_id = DEFAULT_RELAY_ID;
+    }
+
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
 }
 
@@ -139,7 +155,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
 
     std::string retval;
     if (Aws::Http::HttpResponseCode::OK != http_response->GetResponseCode()) {
-        LOG(WARNING) << "ADFS request returned bad HTTP response code: " << http_response->GetResponseCode();
+        LOG(ERROR) << "ADFS request returned bad HTTP response code: " << http_response->GetResponseCode();
         return retval;
     }
 
@@ -152,7 +168,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     if (std::regex_search(body, matches, std::regex(FORM_ACTION_PATTERN))) {
         action = HtmlUtil::EscapeHtmlEntity(matches.str(1));
     } else {
-        LOG(WARNING) << "Could not extract login action from the response body";
+        LOG(ERROR) << "Could not extract login action from the response body";
         return retval;
     }
 
@@ -171,7 +187,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
         std::regex_search(sign_in_content, matches, std::regex(SAML_RESPONSE_PATTERN))) {
         return matches.str(1);
     }
-    LOG(WARNING) << "Failed SAML Assertion";
+    LOG(ERROR) << "Failed SAML Assertion";
     return retval;
 }
 
@@ -254,7 +270,7 @@ bool AdfsSamlUtil::ValidateUrl(const std::string &url)
     const std::regex pattern(URL_PATTERN);
 
     if (!regex_match(url, pattern)) {
-        LOG(WARNING) << "Invalid URL, failed to match ADFS URL pattern";
+        LOG(ERROR) << "Invalid URL, failed to match ADFS URL pattern";
         return false;
     }
     return true;

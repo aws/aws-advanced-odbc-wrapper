@@ -19,6 +19,36 @@
     #define ODBCVER 0x0380
 #endif
 
+#define ODBCVER_BITS 256
+
+#define DRIVER_VERSION "1.0.0"
+
+#if WIN32
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dll"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dll"
+     #endif
+#elif __APPLE__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.dylib"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.dylib"
+     #endif
+#elif __linux__ || __unix__
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w.so"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a.so"
+     #endif
+#else
+     #ifdef UNICODE
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-w"
+     #else
+          #define DRIVER_NAME "aws-advanced-odbc-wrapper-a"
+     #endif
+#endif
+
 #ifdef WIN32
     #include <windows.h>
 #endif
@@ -40,7 +70,7 @@
 #include "util/rds_strings.h"
 
 /* Const Lengths */
-#define NO_DATA_SQL_STATE     TEXT("00000")
+#define NO_DATA_SQL_STATE     "00000"
 #define NO_DATA_NATIVE_ERR    0
 #define MAX_SQL_STATE_LEN     6
 #define ODBC_VER_SiZE         16
@@ -83,7 +113,9 @@ struct ENV {
     std::shared_ptr<RdsLibLoader> driver_lib_loader;
 
      ~ENV() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // ENV
@@ -92,7 +124,7 @@ struct DBC {
     std::recursive_mutex        lock;
     ENV*                        env;
     std::list<STMT*>            stmt_list;
-    unsigned short              unnamed_cursor_count;
+    uint16_t                    unnamed_cursor_count;
     std::list<DESC*>            desc_list;
     SQLHDBC                     wrapped_dbc;
     CONN_STATUS                 conn_status;
@@ -103,14 +135,18 @@ struct DBC {
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
-    std::map<RDS_STR, RDS_STR>  conn_attr; // Key, Value
+    std::map<std::string, std::string>  conn_attr; // Key, Value
     BasePlugin*                 plugin_head = nullptr;
     ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
 
      ~DBC() {
-          delete plugin_head;
-          delete err;
+          if (plugin_head) {
+               delete plugin_head;
+          }
+          if (err) {
+               delete err;
+          }
           plugin_head = nullptr;
           err = nullptr;
      }
@@ -122,6 +158,11 @@ struct STMT {
     DBC*                        dbc;
     SQLHSTMT                    wrapped_stmt;
 
+    DESC*                       app_row_desc    = SQL_NULL_HANDLE;
+    DESC*                       app_param_desc  = SQL_NULL_HANDLE;
+    DESC*                       imp_row_desc    = SQL_NULL_HANDLE;
+    DESC*                       imp_param_desc  = SQL_NULL_HANDLE;
+
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
     RDS_STR cursor_name;
@@ -130,7 +171,9 @@ struct STMT {
     char                        sql_error_called = 0;
 
      ~STMT() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // STMT
@@ -145,7 +188,9 @@ struct DESC {
     char                        sql_error_called = 0;
 
      ~DESC() {
-          delete err;
+          if (err) {
+               delete err;
+          }
           err = nullptr;
      }
 }; // DESC
@@ -181,7 +226,8 @@ SQLRETURN RDS_FreeEnv(
      SQLHENV        EnvironmentHandle);
 
 SQLRETURN RDS_FreeStmt(
-     SQLHSTMT       StatementHandle);
+     SQLHSTMT       StatementHandle,
+     SQLUSMALLINT   Option);
 
 SQLRETURN RDS_GetConnectAttr(
      SQLHDBC        ConnectionHandle,

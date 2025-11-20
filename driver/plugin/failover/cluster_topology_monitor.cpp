@@ -36,27 +36,27 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
       dialect_{ dialect }
 {
     if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
-        cluster_id_ = ToStr(connection_attributes_.at(KEY_CLUSTER_ID));
+        cluster_id_ = connection_attributes_.at(KEY_CLUSTER_ID);
     } else {
-        std::string generated_id = RdsUtils::GetRdsClusterId(ToStr(connection_attributes_.at(KEY_SERVER)));
+        std::string generated_id = RdsUtils::GetRdsClusterId(connection_attributes_.at(KEY_SERVER));
         if (generated_id.empty()) {
             generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
         }
         LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, ToRdsStr(generated_id));
+        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, generated_id);
         cluster_id_ = generated_id;
     }
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST).c_str(), nullptr, 0));
     }
     if (connection_attributes_.contains(KEY_HIGH_REFRESH_RATE)) {
         high_refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_HIGH_REFRESH_RATE)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_HIGH_REFRESH_RATE).c_str(), nullptr, 0));
     }
     if (connection_attributes_.contains(KEY_REFRESH_RATE)) {
         refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            ToStr(connection_attributes_.at(KEY_REFRESH_RATE)).c_str(), nullptr, 0));
+            connection_attributes_.at(KEY_REFRESH_RATE).c_str(), nullptr, 0));
     }
 
     // Create ENV local to cluster topology monitor
@@ -66,6 +66,7 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
         SQL_HANDLE_ENV, nullptr, &henv->wrapped_env
     );
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(ERROR) << "Cluster Topology Monitor failed to create new Underlying Environment";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Cluster Topology Monitor failed to create new Underlying Environment", ERR_NO_UNDER_LYING_FUNCTION);
     }
@@ -176,7 +177,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     request_update_topology_cv_.notify_all();
 
     if (timeout_ms == 0) {
-        LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts.";
+        LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
         return curr_hosts;
     }
     std::chrono::steady_clock::time_point curr_time = std::chrono::steady_clock::now();
@@ -190,7 +191,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
         new_hosts = topology_map_->Get(cluster_id_);
         curr_time = std::chrono::steady_clock::now();
     }
-    LOG(INFO) << "new hosts have been updated";
+    LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
@@ -246,10 +247,9 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     request_update_topology_cv_.notify_one();
 }
 
-RDS_STR ClusterTopologyMonitor::ConnForHost(const std::string& new_host) const {
-    const RDS_STR new_host_str = ToRdsStr(new_host);
-    std::map<RDS_STR, RDS_STR> conn_map(connection_attributes_);
-    conn_map.insert_or_assign(KEY_SERVER, new_host_str);
+std::string ClusterTopologyMonitor::ConnForHost(const std::string& new_host) const {
+    std::map<std::string, std::string> conn_map(connection_attributes_);
+    conn_map.insert_or_assign(KEY_SERVER, new_host);
     return ConnectionStringHelper::BuildFullConnectionString(conn_map);
 }
 
@@ -290,7 +290,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
                 const std::lock_guard host_info_lock(node_threads_writer_hdbc_mutex_);
-                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id.c_str()), true, 0, 0));
+                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id), true, 0, 0));
             }
         } else {
             // Connection already set, close local HDBC
@@ -460,6 +460,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(ClusterTopolo
     this->writer_host_info_ = writer_host_info;
     RDS_AllocDbc(monitor->henv_, &hdbc_);
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
+    LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 
 ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
@@ -484,6 +485,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
         }
         RDS_FreeConnect(hdbc_);
     }
+    LOG(INFO) << "Finished node monitoring for: " << this->host_info_->GetHost();
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
@@ -498,7 +500,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
             if (GetNodeId(hdbc_, main_monitor_->dialect_).empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
-                    LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect.";
+                    LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect";
                 }
                 HandleReconnect();
             } else {

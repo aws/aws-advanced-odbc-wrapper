@@ -41,6 +41,7 @@
 #include <ostream>
 
 #include "../common/string_helper.h"
+
 #include "integration_test_utils.h"
 
 #ifdef WIN32
@@ -69,7 +70,7 @@ protected:
     std::string test_server = std::getenv("TEST_SERVER");
 
     std::string cluster_prefix = "cluster-";
-    Aws::String cluster_id = test_server.substr(0, test_server.find('.'));
+    std::string cluster_id = test_server.substr(0, test_server.find('.'));
     std::string instance_endpoint =
         test_server.substr(test_server.find(cluster_prefix) + cluster_prefix.size(), test_server.size());
     std::string db_conn_str_suffix = "." + instance_endpoint;
@@ -90,9 +91,6 @@ protected:
     std::string reader_id;
     std::string reader_endpoint;
     std::string target_writer_id;
-
-    // Queries
-    SQLTCHAR* SERVER_ID_QUERY = AS_SQLTCHAR("SELECT aurora_db_instance_identifier()");
 
     // Error codes
     std::string ERROR_FAILOVER_FAILED = "08S01";
@@ -144,7 +142,7 @@ protected:
         EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
         EXPECT_EQ(SQL_ERROR, SQLExecDirect(handle, query, SQL_NTS));
         EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, nullptr, handle, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
-        EXPECT_STREQ(expected_error.c_str(), AS_CHAR(state));
+        EXPECT_STREQ(expected_error.c_str(), STRING_HELPER::SqltcharToAnsi(state));
         EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
     }
 
@@ -153,11 +151,13 @@ protected:
         SQLLEN buflen;
         SQLHSTMT handle;
         EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
-        EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, SERVER_ID_QUERY, SQL_NTS));
+        SQLTCHAR server_id_query[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode("SELECT aurora_db_instance_identifier()", server_id_query);
+        EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, server_id_query, SQL_NTS));
         EXPECT_EQ(SQL_SUCCESS, SQLFetch(handle));
-        EXPECT_EQ(SQL_SUCCESS, SQLGetData(handle, 1, SQL_CHAR, buf, sizeof(buf), &buflen));
+        EXPECT_EQ(SQL_SUCCESS, SQLGetData(handle, 1, SQL_C_TCHAR, buf, sizeof(buf), &buflen));
         EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
-        std::string id(reinterpret_cast<char*>(buf));
+        std::string id(STRING_HELPER::SqltcharToAnsi(buf));
         return id;
     }
 
@@ -331,7 +331,8 @@ protected:
     }
 
     static int QueryCountTableRows(const SQLHSTMT handle) {
-        SQLTCHAR* SELECT_COUNT_QUERY = AS_SQLTCHAR("SELECT count(*) FROM failover_transaction");
+        SQLTCHAR SELECT_COUNT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode("SELECT count(*) FROM failover_transaction", SELECT_COUNT_QUERY);
         EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, SELECT_COUNT_QUERY, SQL_NTS));
         const auto rc = SQLFetch(handle);
 
@@ -345,8 +346,9 @@ protected:
     }
 
     void TestConnection(const SQLHDBC dbc, const std::string& conn_str) {
-        EXPECT_EQ(SQL_SUCCESS,
-            SQLDriverConnect(dbc, nullptr, AS_SQLTCHAR(conn_str.c_str()), SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+        SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+        STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
+        EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
         EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
     }
 

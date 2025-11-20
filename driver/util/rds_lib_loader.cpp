@@ -26,6 +26,7 @@ RdsLibLoader::~RdsLibLoader()
 {
     if (driver_handle) {
         RDS_FREE_MODULE(driver_handle);
+        driver_handle = nullptr;
     }
 }
 
@@ -36,8 +37,7 @@ RDS_STR RdsLibLoader::GetDriverPath()
 
 FUNC_HANDLE RdsLibLoader::GetFunction(const RDS_STR &func_name)
 {
-    const std::string converted_function_name = ToStr(func_name);
-    const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, converted_function_name.c_str());
+    const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, func_name.c_str());
     if (driver_function) {
         const std::unique_lock lock(cache_lock);
         function_cache.insert_or_assign(func_name, const_cast<FUNC_HANDLE>(driver_function));

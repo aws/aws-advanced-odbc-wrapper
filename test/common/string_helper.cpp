@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STRING_HELPER_H_
-#define STRING_HELPER_H_
+#include "string_helper.h"
 
 #ifdef WIN32
     #include <windows.h>
@@ -23,11 +22,20 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
-namespace STRING_HELPER {
-    const int MAX_SQLCHAR = 16384;
+void STRING_HELPER::AnsiToUnicode(const char* in, SQLTCHAR* out) {
+    int i;
+    for (i = 0; in[i]; i++) {
+        out[i] = in[i];
+    }
+    out[i] = 0;
+}
 
-    void AnsiToUnicode(const char* in, SQLTCHAR* out);
-    char* SqltcharToAnsi(SQLTCHAR* in);
-};
-
-#endif  // STRING_HELPER_H_
+char* STRING_HELPER::SqltcharToAnsi(SQLTCHAR* in) {
+    char* ansi = (char*) in;
+    int i;
+    for ( i = 0; in[i]; i ++ ) {
+        ansi[i] = in[i] & 0x00ff;
+    }
+    ansi[i] = 0;
+    return ansi;
+}

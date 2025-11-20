@@ -39,18 +39,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE
+2 TEXTINCLUDE 
 BEGIN
     "#include ""winres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE
+3 TEXTINCLUDE 
 BEGIN
     "\r\n"
     "\0"
@@ -84,13 +84,13 @@ BEGIN
             VALUE "Comments", "AWS Advanced ODBC Wrapper"
             VALUE "CompanyName", "Amazon.com Inc. or affiliates."
             VALUE "FileDescription", "AWS Advanced ODBC Wrapper"
-            VALUE "FileVersion", "1.0.0.0"
+            VALUE "FileVersion", "1.0.0"
             VALUE "InternalName", "aws-advanced-odbc-wrapper-a"
             VALUE "LegalCopyright", "Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved."
             VALUE "LegalTrademarks", "ODBC(TM) is a trademark of Microsoft Corporation.  Microsoft is a registered trademark of Microsoft Corporation. Windows(TM) is a trademark of Microsoft Corporation."
             VALUE "OriginalFilename", "aws-advanced-odbc-wrapper-a.dll"
             VALUE "ProductName", "AWS Advanced ODBC Wrapper"
-            VALUE "ProductVersion", "1.0.0.0"
+            VALUE "ProductVersion", "1.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -126,7 +126,7 @@ BEGIN
     LTEXT           "Database:",IDC_STATIC,170,118,34,8
     EDITTEXT        IDC_DB,170,127,148,14,ES_AUTOHSCROLL
     LTEXT           "Base Driver Data Source Name:",IDC_STATIC,17,145,104,8
-    EDITTEXT        IDC_BASE_DSN,17,153,301,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BASE_DSN,17,153,143,14,ES_AUTOHSCROLL
     LTEXT           "Base Driver Connection String:",IDC_STATIC,17,169,101,8
     EDITTEXT        IDC_BASE_CONN,17,179,301,14,ES_AUTOHSCROLL
     LTEXT           "Base Driver Location:",IDC_STATIC,17,196,70,8
@@ -139,6 +139,8 @@ BEGIN
     GROUPBOX        "Connection Parameters",IDC_STATIC,7,7,319,220
     PUSHBUTTON      "...",IDC_FILE_SELECT,297,206,16,14
     PUSHBUTTON      "Save",IDC_SAVE,160,233,50,14
+    COMBOBOX        IDC_DB_DIALECT,170,154,148,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Database Dialect:",IDC_STATIC,170,145,71,8
 END
 
 IDC_TAB_AWS_AUTH DIALOGEX 5, 15, 322, 201
@@ -146,37 +148,43 @@ STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     COMBOBOX        IDC_AUTH_MODE,62,7,96,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    EDITTEXT        IDC_REGION,62,25,96,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_EXPIRE,62,46,96,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_IAM_HOST,64,87,96,14,ES_AUTOHSCROLL | WS_DISABLED
-    EDITTEXT        IDC_IAM_PORT,64,106,96,14,ES_AUTOHSCROLL | WS_DISABLED
-    EDITTEXT        IDC_SECRET,64,125,96,14,ES_AUTOHSCROLL | WS_DISABLED
-    EDITTEXT        IDC_SECRET_REGION,64,144,96,14,ES_AUTOHSCROLL | WS_DISABLED
-    EDITTEXT        IDC_SECRET_END,64,164,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_REGION,62,24,96,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EXPIRE,62,44,96,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IAM_HOST,62,82,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_IAM_PORT,62,101,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET,62,120,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET_REGION,62,139,96,14,ES_AUTOHSCROLL | WS_DISABLED
+    EDITTEXT        IDC_SECRET_END,62,159,96,14,ES_AUTOHSCROLL | WS_DISABLED
     EDITTEXT        IDC_IDP_UID,209,7,106,14,ES_AUTOHSCROLL
-    EDITTEXT        IDC_IDP_PWD,209,25,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_IDP_PWD,209,25,106,14,ES_PASSWORD | ES_AUTOHSCROLL
     EDITTEXT        IDC_IDP_END,209,45,106,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_APP_ID,209,65,106,14,ES_AUTOHSCROLL | WS_DISABLED
     EDITTEXT        IDC_ROLE_ARN,209,85,106,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_IDP_ARN,209,104,106,14,ES_AUTOHSCROLL
     EDITTEXT        IDC_IDP_PORT,209,124,106,14,ES_AUTOHSCROLL
     RTEXT           "Authentication Mode:",IDC_STATIC,10,5,47,18,0,WS_EX_RIGHT
-    LTEXT           "IAM Host:",IDC_STATIC,24,89,33,8,0,WS_EX_RIGHT
-    LTEXT           "IAM Port:",IDC_STATIC,25,108,32,8,0,WS_EX_RIGHT
-    RTEXT           "Expire Time (ms):",IDC_STATIC,17,44,40,16,0,WS_EX_RIGHT
-    LTEXT           "Secret ID:",IDC_STATIC,23,127,34,8,0,WS_EX_RIGHT
-    RTEXT           "Secret Endpoint:",IDC_STATIC,25,161,32,17,0,WS_EX_RIGHT
-    LTEXT           "Secret Region:",IDC_STATIC,7,145,50,8,0,WS_EX_RIGHT
+    RTEXT           "IAM Host:",IDC_STATIC,23,84,33,8,0,WS_EX_RIGHT
+    RTEXT           "IAM Port:",IDC_STATIC,25,103,32,8,0,WS_EX_RIGHT
+    RTEXT           "Expire Time (ms):",IDC_STATIC,17,42,40,16,0,WS_EX_RIGHT
+    LTEXT           "Secret ID:",IDC_STATIC,23,122,34,8,0,WS_EX_RIGHT
+    RTEXT           "Secret Endpoint:",IDC_STATIC,25,156,32,17,0,WS_EX_RIGHT
+    LTEXT           "Secret Region:",IDC_STATIC,6,140,51,8,0,WS_EX_RIGHT
     RTEXT           "IDP Username:",IDC_STATIC,166,5,39,17,0,WS_EX_RIGHT
     RTEXT           "IDP Password:",IDC_STATIC,168,23,37,18,0,WS_EX_RIGHT
     RTEXT           "IDP Endpoint:",IDC_STATIC,169,44,36,16,0,WS_EX_RIGHT
     LTEXT           "App ID:",IDC_STATIC,179,67,26,8,0,WS_EX_RIGHT
     RTEXT           "IAM Role ARN:",IDC_STATIC,171,83,34,16,0,WS_EX_RIGHT
-    RTEXT           "IAM IDP ARN:",IDC_STATIC,173,103,32,15,0,WS_EX_RIGHT
-    LTEXT           "IDP Port:",IDC_STATIC,176,126,30,8,0,WS_EX_RIGHT
-    CONTROL         "",IDC_URL_ENCODE,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_MULTILINE | WS_TABSTOP,62,67,10,17
-    LTEXT           "Extra URL Encoding:",IDC_STATIC,21,66,36,18,0,WS_EX_RIGHT
-    LTEXT           "AWS Region:",IDC_STATIC,13,28,44,8,0,WS_EX_RIGHT
+    RTEXT           "IDP SAML ARN:",IDC_STATIC,173,103,32,15,0,WS_EX_RIGHT
+    RTEXT           "IDP Port:",IDC_STATIC,175,126,30,8,0,WS_EX_RIGHT
+    CONTROL         "",IDC_URL_ENCODE,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | BS_MULTILINE | WS_TABSTOP,62,62,10,17
+    LTEXT           "Extra URL Encoding:",IDC_STATIC,21,61,36,18,0,WS_EX_RIGHT
+    LTEXT           "AWS Region:",IDC_STATIC,13,27,44,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_RELAY_PARTY_ID,209,144,106,14,ES_AUTOHSCROLL
+    RTEXT           "Relaying Party ID:",IDC_STATIC,172,142,33,16
+    EDITTEXT        IDC_CONNECT_TIMEOUT,209,164,106,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_SOCKET_TIMEOUT,62,178,96,14,ES_AUTOHSCROLL
+    RTEXT           "Connect Timeout:",IDC_STATIC,163,163,42,17
+    RTEXT           "Socket Timeout:",IDC_STATIC,18,177,39,17
 END
 
 IDC_TAB_FAILOVER DIALOGEX 5, 15, 322, 201
@@ -243,7 +251,7 @@ BEGIN
 
     IDC_TAB_AWS_AUTH, DIALOG
     BEGIN
-        LEFTMARGIN, 7
+        LEFTMARGIN, 6
         RIGHTMARGIN, 315
         VERTGUIDE, 57
         VERTGUIDE, 62
@@ -319,3 +327,4 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+

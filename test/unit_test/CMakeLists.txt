@@ -49,7 +49,7 @@ set(TEST_RUNNER
 )
 
 # Configure Build Defines ------------------------------------------------------------------------------------
-if(UNICODE)
+if(BUILD_UNICODE)
     SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-w")
 else()
     SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-a")
@@ -106,7 +106,7 @@ if(WIN32)
     )
 endif()
 
-if(UNICODE)
+if(BUILD_UNICODE)
     add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
         UNICODE
         _UNICODE
@@ -142,3 +142,27 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 gtest_discover_tests(${PROJECT_NAME})
+
+# Copy ICU for Windows Builds ------------------------------------------------------------------------------------
+if(WIN32)
+    string(REGEX MATCH "^[0-9]+" ICU_MAJOR ${ICU_VERSION})
+    set(THIRD_PARTY_DLL
+        ${ICU_ROOT}/bin64/icuuc${ICU_MAJOR}.dll
+        ${ICU_ROOT}/bin64/icudt${ICU_MAJOR}.dll
+    )
+    foreach(dll_path IN LISTS THIRD_PARTY_DLL)
+        message("Copying File ${dll_path}")
+        file(COPY ${dll_path} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+    endforeach()
+endif()
+
+# Copy External Dependencies -------------------------------------------------------------------------------------
+if(MSVC)
+    set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
+else()
+    set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+message("Copying Libraries to: ${OUTPUT_DIR}")
+
+LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})
