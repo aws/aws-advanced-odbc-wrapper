@@ -25,7 +25,7 @@ LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessP
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service) : BasePlugin(dbc, next_plugin)
 {
-    const std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
+    const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     this->plugin_name = "LIMITLESS";
     this->dialect_ = dialect ? dialect : InitDialect(conn_info);
     this->limitless_router_service_ = limitless_router_service;

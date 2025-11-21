@@ -115,7 +115,7 @@ SQLRETURN BasePlugin::Execute(
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
-    const RDS_STR query = StatementText ? AS_UTF8_CSTR(StatementText) : "";
+    const std::string query = StatementText ? AS_UTF8_CSTR(StatementText) : "";
 
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
@@ -135,7 +135,7 @@ SQLRETURN BasePlugin::Execute(
             );
         }
         // Cursor Name
-        const RDS_STR cursor_name = stmt->cursor_name;
+        const std::string cursor_name = stmt->cursor_name;
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
             stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );

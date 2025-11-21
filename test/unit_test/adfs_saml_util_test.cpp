@@ -47,7 +47,7 @@ class AdfsSamlUtilTest : public testing::Test {
 protected:
     std::shared_ptr<MOCK_HTTP_CLIENT> mock_http_client;
     std::shared_ptr<MOCK_STS_CLIENT> mock_sts_client;
-    std::map<RDS_STR, RDS_STR> conn_attr;
+    std::map<std::string, std::string> conn_attr;
 
     // Runs once per suite
     static void SetUpTestSuite() {

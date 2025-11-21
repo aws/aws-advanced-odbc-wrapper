@@ -22,11 +22,11 @@
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
 
-SamlUtil::SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes)
+SamlUtil::SamlUtil(std::map<std::string, std::string> connection_attributes)
     : SamlUtil(std::move(connection_attributes), nullptr, nullptr) {}
 
 SamlUtil::SamlUtil(
-    std::map<RDS_STR, RDS_STR> connection_attributes,
+    std::map<std::string, std::string> connection_attributes,
     const std::shared_ptr<Aws::Http::HttpClient>& http_client,
     const std::shared_ptr<Aws::STS::STSClient>& sts_client)
 {
@@ -99,7 +99,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
     return credentials;
 }
 
-void SamlUtil::ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes)
+void SamlUtil::ParseIdpConfig(std::map<std::string, std::string> connection_attributes)
 {
     idp_endpoint = connection_attributes.contains(KEY_IDP_ENDPOINT) ?
         connection_attributes.at(KEY_IDP_ENDPOINT) : "";

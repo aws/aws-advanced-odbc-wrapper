@@ -16,7 +16,7 @@
 
 #include <mutex>
 
-RdsLibLoader::RdsLibLoader(RDS_STR library_path)
+RdsLibLoader::RdsLibLoader(std::string library_path)
 {
     driver_path = std::move(library_path);
     driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
@@ -30,12 +30,12 @@ RdsLibLoader::~RdsLibLoader()
     }
 }
 
-RDS_STR RdsLibLoader::GetDriverPath()
+std::string RdsLibLoader::GetDriverPath()
 {
     return driver_path;
 }
 
-FUNC_HANDLE RdsLibLoader::GetFunction(const RDS_STR &func_name)
+FUNC_HANDLE RdsLibLoader::GetFunction(const std::string &func_name)
 {
     const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, func_name.c_str());
     if (driver_function) {

@@ -25,8 +25,8 @@
 #define ODBCINST_INI "ODBCINST.INI"
 
 namespace OdbcDsnHelper {
-    void LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map);
-    RDS_STR Load(const RDS_STR &dsn_key, const RDS_STR &entry_key);
+    void LoadAll(const std::string &dsn_key, std::map<std::string, std::string> &conn_map);
+    std::string Load(const std::string &dsn_key, const std::string &entry_key);
 }
 
 #endif // ODBC_DSN_HELPER_H_

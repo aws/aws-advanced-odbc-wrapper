@@ -29,7 +29,7 @@
 #include "../../util/logger_wrapper.h"
 
 std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHDBC conn, const int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect) {
-    const RDS_STR limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
+    const std::string limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
 
     const DBC* dbc = static_cast<DBC*>(conn);
     SQLHSTMT stmt = SQL_NULL_HANDLE;

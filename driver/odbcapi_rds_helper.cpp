@@ -990,9 +990,9 @@ SQLRETURN RDS_SQLGetCursorName(
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     } else {
         if (stmt->cursor_name.empty()) {
-            stmt->cursor_name = RDS_NUM_APPEND(RDS_STR("CUR_"), stmt->dbc->unnamed_cursor_count++);
+            stmt->cursor_name = RDS_NUM_APPEND(std::string("CUR_"), stmt->dbc->unnamed_cursor_count++);
         }
-        const RDS_STR name = stmt->cursor_name;
+        const std::string name = stmt->cursor_name;
         const SQLULEN len = name.length();
         if (CursorName) {
             snprintf(reinterpret_cast<RDS_CHAR*>(CursorName), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
@@ -1971,10 +1971,10 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
         dbc->conn_attr.insert_or_assign(KEY_DRIVER, dbc->conn_attr.at(KEY_BASE_DRIVER));
     }
 
-    const std::unordered_set<RDS_STR> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
+    const std::unordered_set<std::string> invalid_params = AttributeValidator::ValidateMap(dbc->conn_attr);
     if (!invalid_params.empty()) {
         std::string invalid_message("Invalid value specified for connection string attribute:\n\t");
-        for (const RDS_STR& msg : invalid_params) {
+        for (const std::string& msg : invalid_params) {
             invalid_message += msg;
             invalid_message += "\n\t";
         }
@@ -1986,7 +1986,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     if (dbc->conn_attr.contains(KEY_DRIVER)) {
         // TODO - Need to ensure the paths (slashes) are correct per OS
-        const RDS_STR driver_path = dbc->conn_attr.at(KEY_DRIVER);
+        const std::string driver_path = dbc->conn_attr.at(KEY_DRIVER);
 
         // Load Module to Env if empty
         if (!env->driver_lib_loader) {

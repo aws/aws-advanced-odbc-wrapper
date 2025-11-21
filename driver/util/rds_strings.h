@@ -115,7 +115,6 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
 #endif
 
 #include <cstring>
-typedef std::string RDS_STR;
 typedef std::ostringstream RDS_STR_STREAM;
 typedef char RDS_CHAR;
 #define RDS_STR_LEN(str) strlen(str)
@@ -149,20 +148,18 @@ inline std::string RDS_STR_UPPER(std::string str) {
 
 #define EMPTY_RDS_STR ""
 #define AS_RDS_CHAR(str) (reinterpret_cast<RDS_CHAR *>(str))
-#define AS_RDS_STR(str) RDS_STR((RDS_CHAR *) str)
-#define AS_RDS_STR_MAX(str, len) RDS_STR((RDS_CHAR *) str, len)
 
-inline RDS_STR TrimStr(RDS_STR &str) {
+inline std::string TrimStr(std::string &str) {
     str = str.erase(str.find_last_not_of(TEXT(' ')) + 1);
     str = str.erase(0, str.find_first_not_of(TEXT(' ')));
     return str;
 }
 
-inline std::vector<RDS_STR> SplitStr(RDS_STR &str, RDS_STR &delimiter) {
+inline std::vector<std::string> SplitStr(std::string &str, std::string &delimiter) {
     RDS_REGEX pattern(delimiter);
     RDS_MATCH match;
-    RDS_STR str_itr = str;
-    std::vector<RDS_STR> matches;
+    std::string str_itr = str;
+    std::vector<std::string> matches;
     while (std::regex_search(str_itr, match, pattern)) {
         matches.push_back(match.prefix().str());
         str_itr = match.suffix().str();

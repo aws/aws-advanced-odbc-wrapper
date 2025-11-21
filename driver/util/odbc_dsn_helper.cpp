@@ -22,7 +22,7 @@
 #include "../util/connection_string_helper.h"
 #include "../util/connection_string_keys.h"
 
-void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &conn_map)
+void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, std::string> &conn_map)
 {
     int size = 0;
 
@@ -70,17 +70,17 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     for (size_t used = 0; used < MAX_VAL_SIZE && entries[0];
         used += RDS_STR_LEN(entries) + 1, entries += RDS_STR_LEN(entries) + 1)
     {
-        const RDS_STR raw_key(entries);
+        const std::string raw_key(entries);
         const std::string key = RDS_STR_UPPER(raw_key);
-        const RDS_STR val = Load(dsn_key, key);
+        const std::string val = Load(dsn_key, key);
 
         // Insert if value exists
         if (!val.empty()) {
             if (key == KEY_BASE_CONN) {
-                std::map<RDS_STR, RDS_STR> base_conn_map;
+                std::map<std::string, std::string> base_conn_map;
                 ConnectionStringHelper::ParseConnectionString(val, base_conn_map);
                 for (const auto& pair : base_conn_map) {
-                    RDS_STR base_conn_val = pair.second;
+                    std::string base_conn_val = pair.second;
                     if (base_conn_val.back() == ';') {
                         base_conn_val.pop_back();
                     }
@@ -97,7 +97,7 @@ void OdbcDsnHelper::LoadAll(const RDS_STR &dsn_key, std::map<RDS_STR, RDS_STR> &
     }
 }
 
-RDS_STR OdbcDsnHelper::Load(const RDS_STR &dsn_key, const RDS_STR &entry_key)
+std::string OdbcDsnHelper::Load(const std::string &dsn_key, const std::string &entry_key)
 {
     int size = 0;
 

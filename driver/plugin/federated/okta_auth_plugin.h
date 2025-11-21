@@ -23,8 +23,8 @@
 
 class OktaSamlUtil : public SamlUtil {
 public:
-    OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes);
-    OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
+    OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
+    OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
 private:
