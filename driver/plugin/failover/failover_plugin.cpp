@@ -158,7 +158,7 @@ SQLRETURN FailoverPlugin::Execute(
     return ret;
 }
 
-bool FailoverPlugin::CheckShouldFailover(const RDS_CHAR* sql_state)
+bool FailoverPlugin::CheckShouldFailover(const char* sql_state)
 {
     // Check if the SQL State is related to a communication error
     const bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);

@@ -21,8 +21,8 @@
 
 void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map)
 {
-    const RDS_REGEX pattern("([^;=]+)=([^;]+)");
-    RDS_MATCH match;
+    const std::regex pattern("([^;=]+)=([^;]+)");
+    std::smatch match;
     std::string conn_str_itr = std::move(conn_str);
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
@@ -37,7 +37,7 @@ void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::ma
 
 std::string ConnectionStringHelper::BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map)
 {
-    RDS_STR_STREAM conn_stream;
+    std::ostringstream conn_stream;
     for (const auto& e : conn_map) {
         if (!IsAwsOdbcKey(e.first)) {
             if (conn_stream.tellp() > 0) {
@@ -68,7 +68,7 @@ std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &
 {
     std::string result(conn_str);
     for (const std::string& key : sensitive_key_set) {
-        const RDS_REGEX pattern("(" + key + "=)([^;]+)");
+        const std::regex pattern("(" + key + "=)([^;]+)");
         result = std::regex_replace(result, pattern, "$1[REDACTED]");
     }
     return result;

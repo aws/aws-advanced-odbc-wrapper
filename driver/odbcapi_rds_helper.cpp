@@ -459,7 +459,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
             *(static_cast<SQLUINTEGER*>(ValuePtr)) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            snprintf(static_cast<RDS_CHAR*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, value_pair.first);
+            snprintf(static_cast<char*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", value_pair.first);
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -820,12 +820,12 @@ SQLRETURN RDS_SQLDriverConnect(
         const SQLULEN len = conn_out_str_utf8.length();
 #ifdef UNICODE
     #if _WIN32
-        const SQLULEN written = swprintf(OutConnectionString, MAX_KEY_SIZE, RDS_TSTR(RDS_WCHAR_FORMAT).c_str(), ConvertUTF8ToWString(conn_out_str_utf8).c_str());
+        const SQLULEN written = swprintf(OutConnectionString, MAX_KEY_SIZE, RDS_TSTR("%ls").c_str(), ConvertUTF8ToWString(conn_out_str_utf8).c_str());
     #else
         const SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, conn_out_str_utf8);
     #endif
 #else
-        const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, RDS_CHAR_FORMAT, conn_out_str_utf8.c_str());
+        const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), MAX_KEY_SIZE, "%s", conn_out_str_utf8.c_str());
 #endif
         if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
             ret = SQL_SUCCESS_WITH_INFO;
@@ -990,12 +990,12 @@ SQLRETURN RDS_SQLGetCursorName(
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     } else {
         if (stmt->cursor_name.empty()) {
-            stmt->cursor_name = RDS_NUM_APPEND(std::string("CUR_"), stmt->dbc->unnamed_cursor_count++);
+            stmt->cursor_name = std::string("CUR_").append(std::to_string(stmt->dbc->unnamed_cursor_count++));
         }
         const std::string name = stmt->cursor_name;
         const SQLULEN len = name.length();
         if (CursorName) {
-            snprintf(reinterpret_cast<RDS_CHAR*>(CursorName), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, name.c_str());
+            snprintf(reinterpret_cast<char*>(CursorName), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", name.c_str());
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }
@@ -1153,7 +1153,7 @@ SQLRETURN RDS_SQLGetDiagField(
         if (RecNumber > 1) {
             ret = SQL_NO_DATA_FOUND;
         } else {
-            const RDS_CHAR* char_value = nullptr;
+            const char* char_value = nullptr;
             ret = SQL_SUCCESS;
             switch (DiagIdentifier) {
                 // Header Fields
@@ -1217,7 +1217,7 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     }
                     if (err->error_msg != nullptr) {
-                        char_value = AS_RDS_CHAR(err->error_msg);
+                        char_value = err->error_msg;
                     }
                     break;
                 }
@@ -1247,7 +1247,7 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     } else {
-                        char_value = AS_RDS_CHAR(err->sqlstate);
+                        char_value = err->sqlstate;
                     }
                     break;
                 }
@@ -1269,9 +1269,9 @@ SQLRETURN RDS_SQLGetDiagField(
 
             // Pass info back to caller
             if (char_value) {
-                len = RDS_STR_LEN(char_value);
+                len = strlen(char_value);
                 if (DiagInfoPtr) {
-                    snprintf(static_cast<RDS_CHAR*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+                    snprintf(static_cast<char*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", char_value);
                     if (len >= BufferLength) {
                         ret = SQL_SUCCESS_WITH_INFO;
                     }
@@ -1405,7 +1405,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate);
 #else
-            snprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, AS_RDS_CHAR(err->sqlstate));
+            snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", err->sqlstate);
 #endif
         }
         const SQLLEN err_len = err->error_msg != nullptr ? static_cast<SQLLEN>(strlen(err->error_msg)) : 0;
@@ -1421,7 +1421,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(uint16_t), err->error_msg);
 #else
-            const SQLLEN written = snprintf(reinterpret_cast<RDS_CHAR*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, AS_RDS_CHAR(err->error_msg));
+            const SQLLEN written = snprintf(reinterpret_cast<char*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", err->error_msg);
 #endif
             if (written >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
@@ -1441,7 +1441,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
 #else
-            snprintf(reinterpret_cast<RDS_CHAR*>(SQLState), MAX_SQL_STATE_LEN, RDS_CHAR_FORMAT, NO_DATA_SQL_STATE);
+            snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", NO_DATA_SQL_STATE);
 #endif
         }
         if (MessageText) {
@@ -1469,8 +1469,8 @@ SQLRETURN RDS_SQLGetInfo(
     SQLRETURN ret = SQL_ERROR;
     SQLULEN len = sizeof(SQLSMALLINT);
     SQLULEN value = 0;
-    const RDS_CHAR* char_value = nullptr;
-    RDS_CHAR odbcver[ODBC_VER_SiZE];
+    const char* char_value = nullptr;
+    char odbcver[ODBC_VER_SiZE];
 
     // Query underlying driver if connection is established
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -1530,12 +1530,12 @@ SQLRETURN RDS_SQLGetInfo(
 
     // Pass info back to caller
     if (char_value) {
-        len = RDS_STR_LEN(char_value);
+        len = strlen(char_value);
         if (InfoValuePtr) {
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(InfoValuePtr), BufferLength / sizeof(uint16_t), char_value);
 #else
-            snprintf(static_cast<RDS_CHAR*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), RDS_CHAR_FORMAT, char_value);
+            snprintf(static_cast<char*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", char_value);
 #endif
             if (len >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;

@@ -25,7 +25,7 @@ std::string SqlQueryAnalyzer::GetFirstSqlStatement(const std::string &statement)
     const std::string& first_statement = query_list.front();
     std::string first_statement_upper = RDS_STR_UPPER(first_statement);
     // Remove spaces and comments (/* */)
-    const RDS_REGEX space_comment_pattern(R"(\s*/\*(.*?)\*/\s*)");
+    const std::regex space_comment_pattern(R"(\s*/\*(.*?)\*/\s*)");
     first_statement_upper = std::regex_replace(first_statement_upper, space_comment_pattern, " ");
     first_statement_upper = TrimStr(first_statement_upper);
 

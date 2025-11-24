@@ -55,10 +55,10 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
     }
     *buf_ptr = '\0';
 #else
-    RDS_CHAR buffer[MAX_VAL_SIZE];
+    char buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), nullptr, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
-    const RDS_CHAR *entries = buffer;
+    const char *entries = buffer;
     if (size < 1) {
         // No entries in DSN
         // TODO - Error handling?
@@ -68,7 +68,7 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
 
     // Load entries into map
     for (size_t used = 0; used < MAX_VAL_SIZE && entries[0];
-        used += RDS_STR_LEN(entries) + 1, entries += RDS_STR_LEN(entries) + 1)
+        used += strlen(entries) + 1, entries += strlen(entries) + 1)
     {
         const std::string raw_key(entries);
         const std::string key = RDS_STR_UPPER(raw_key);
@@ -123,7 +123,7 @@ std::string OdbcDsnHelper::Load(const std::string &dsn_key, const std::string &e
     std::copy(buffer_utf8.begin(), buffer_utf8.end(), buffer);
     buffer[buffer_utf8.length()] = '\0';
 #else
-    RDS_CHAR buffer[MAX_VAL_SIZE];
+    char buffer[MAX_VAL_SIZE];
     size = SQLGetPrivateProfileString(dsn_key.c_str(), entry_key.c_str(), EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBC_INI);
 #endif
 
