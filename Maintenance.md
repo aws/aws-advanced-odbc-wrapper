@@ -2,7 +2,7 @@
 
 | Release Date      | Release                                                                              |
 |-------------------|--------------------------------------------------------------------------------------|
-| November 20, 2025 | [Release 1.0.0](https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/1.0.0) |
+| November 25, 2025 | [Release 1.0.0](https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/1.0.0) |
 
 `aws-advanced-odbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
 release breaking changes in major versions. Generally speaking patches will be released to fix existing problems without

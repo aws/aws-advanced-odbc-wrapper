@@ -116,7 +116,7 @@ void SamlUtil::ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes)
 
 
     if (idp_endpoint.empty() || idp_username.empty() || idp_password.empty() || idp_role_arn.empty() || idp_saml_arn.empty()) {
-        std::string err_msg = "Missing required parameter for Federated Auth:";
+        std::string err_msg = "Missing required parameter for federated authentication:";
         err_msg += idp_endpoint.empty() ? std::string("\n\t") + KEY_IDP_ENDPOINT : "";
         err_msg += idp_username.empty() ? std::string("\n\t") + KEY_IDP_USERNAME : "";
         err_msg += idp_password.empty() ? std::string("\n\t") + KEY_IDP_PASSWORD : "";
