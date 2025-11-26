@@ -5,7 +5,7 @@
 Before using the AWS Advanced ODBC Wrapper, you must install:
 
 - The AWS Advanced ODBC Wrapper
-- UnixODBC if using the pre-compiled artifacts on Mac or Linux
+- UnixODBC and ICU4C if using the pre-compiled artifacts on Mac (via Homebrew) or Linux (via APT)
 - and an underlying ODBC Driver of your choice
     - To use the wrapper with Aurora with PostgreSQL compatibility, install the [psqlodbc PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc).
 

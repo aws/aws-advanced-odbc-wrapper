@@ -58,7 +58,6 @@
 /* IAM */
 #define KEY_IAM_HOST "IAM_HOST"
 #define KEY_IAM_PORT "IAM_PORT"
-#define KEY_IAM_IDP_ARN "IAM_IDP_ARN"
 #define KEY_IDP_PORT "IDP_PORT"
 /* Secrets Manager */
 #define KEY_SECRET_ID "SECRET_ID"

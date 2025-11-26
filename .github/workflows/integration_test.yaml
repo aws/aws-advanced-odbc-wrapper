@@ -355,7 +355,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib
+          brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
@@ -970,7 +970,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib
+          brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4

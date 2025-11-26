@@ -19,7 +19,7 @@ project("aws-advanced-odbc-wrapper")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
-set(CMAKE_BUILD_RPATH @loader_path)
+list(APPEND CMAKE_BUILD_RPATH "@loader_path;$ORIGIN")
 set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
