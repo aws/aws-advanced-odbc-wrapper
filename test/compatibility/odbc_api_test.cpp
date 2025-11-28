@@ -27,7 +27,9 @@
 #include <sqlext.h>
 
 #include "../common/connection_string_builder.h"
+#include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
+#include "../common/test_utils.h"
 
 #define MAX_SQL_STATE_LEN 6
 #define MAX_SQL_MESSAGE_LEN 256
@@ -35,14 +37,19 @@
 #define MAX_BUFFER_LEN 1024
 #define OID_COLUMN 23
 
-static char* test_server;
-static char* test_dsn;
+static std::string test_server;
+static std::string test_dsn;
 static int test_port;
-static char* test_db;
-static char* test_uid;
-static char* test_pwd;
-static char* test_base_driver;
-static char* test_base_dsn;
+static std::string test_db;
+static std::string test_uid;
+static std::string test_pwd;
+static std::string test_base_driver;
+static std::string test_base_dsn;
+
+static SQLTCHAR* catalog;
+static SQLTCHAR* schema;
+static SQLTCHAR* wild_star;
+static SQLTCHAR* table;
 
 class ODBC_API_TEST : public testing::TestWithParam<std::string> {
 protected:
@@ -50,60 +57,71 @@ protected:
     SQLHDBC dbc;
     SQLRETURN ret;
 
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void SetUpTestSuite() {
+        catalog = new SQLTCHAR[MAX_BUFFER_LEN];
+        STRING_HELPER::AnsiToUnicode("public", catalog);
+        schema = new SQLTCHAR[MAX_BUFFER_LEN];
+        STRING_HELPER::AnsiToUnicode("test_metadata", schema);
+        wild_star = new SQLTCHAR[MAX_BUFFER_LEN];
+        STRING_HELPER::AnsiToUnicode("%", wild_star);
+        table = new SQLTCHAR[MAX_BUFFER_LEN];
+        STRING_HELPER::AnsiToUnicode("TABLE", table);
+    }
+
+    static void TearDownTestSuite() {
+        if (catalog) {
+            delete catalog;
+        }
+        if (schema) {
+            delete schema;
+        }
+        if (wild_star) {
+            delete wild_star;
+        }
+        if (table) {
+            delete table;
+        }
+    }
 
     void SetUp() override {
         std::string test_dsn = GetParam();
+        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env));
+        EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
+        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc));
 
-        ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &env);
-        EXPECT_EQ(ret, SQL_SUCCESS);
-
-        ret = SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0);
-        EXPECT_EQ(ret, SQL_SUCCESS);
-
-        ret = SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
-        EXPECT_EQ(ret, SQL_SUCCESS);
-
-        ConnectionStringBuilder builder = ConnectionStringBuilder(test_dsn.c_str(), test_server, test_port);
-        std::string conn_str = builder.withDatabase(test_db)
+        std::string conn_str = ConnectionStringBuilder(test_dsn.c_str(), test_server, test_port)
+            .withDatabase(test_db)
             .withUID(test_uid)
             .withPWD(test_pwd)
             .withBaseDriver(test_base_driver)
             .withBaseDSN(test_base_dsn)
             .getString();
-        SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-        STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
-
-        ret = SQLDriverConnect(dbc, NULL, conn_str_in, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
-        EXPECT_EQ(ret, SQL_SUCCESS);
+        EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
     }
 
     void TearDown() override {
-        SQLDisconnect(dbc);
-        SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-        SQLFreeHandle(SQL_HANDLE_ENV, env);
+        ODBC_HELPER::CleanUpHandles(env, dbc, SQL_NULL_HSTMT);
     }
 };
 
-auto get_error_message = [](SQLSMALLINT handle_type, SQLHANDLE handle, SQLRETURN original_ret = SQL_ERROR) -> std::string {
-    SQLCHAR sql_state[MAX_SQL_STATE_LEN], message[MAX_SQL_MESSAGE_LEN];
+auto GetErrorMessage = [](SQLSMALLINT handle_type, SQLHANDLE handle, SQLRETURN original_ret = SQL_ERROR) -> std::string {
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN], message[MAX_SQL_MESSAGE_LEN];
     SQLINTEGER native_error;
     SQLSMALLINT msg_len;
     SQLRETURN diag_ret = SQLGetDiagRec(handle_type, handle, 1, sql_state, &native_error, message, sizeof(message), &msg_len);
-    if (diag_ret == SQL_SUCCESS) {
-        return std::string("Error: ") + reinterpret_cast<char*>(sql_state) + " - " + reinterpret_cast<char*>(message);
+    if (SQL_SUCCESS == diag_ret) {
+        return std::string("Error: ") + STRING_HELPER::SqltcharToAnsi(sql_state) + " - " + STRING_HELPER::SqltcharToAnsi(message);
     }
     return std::string("Unknown error - Original return code: ") + std::to_string(original_ret) + ", SQLGetDiagRec return code: " + std::to_string(diag_ret) + " (no diagnostic information available)";
 };
 
-auto create_test_file = [](const std::string& test_dsn, const std::string& test_name) -> std::ofstream {
+auto CreateResultsFile = [](const std::string& test_dsn, const std::string& test_name) -> std::ofstream {
     std::filesystem::create_directories(test_dsn);
     std::string file_name = test_dsn + "/" + test_name + ".json";
     return std::ofstream(file_name);
 };
 
-auto fetch_results = [](SQLHSTMT stmt, std::ofstream& out_file, const std::string& func_name, SQLRETURN ret, bool first_result = false) {
+auto FetchResults = [](SQLHSTMT stmt, std::ofstream& out_file, const std::string& func_name, SQLRETURN ret, bool first_result = false) {
     // Output the results in JSON format
     if (!first_result) out_file << ",\n";
     out_file << "  \"" << func_name << "\": {\n";
@@ -118,9 +136,9 @@ auto fetch_results = [](SQLHSTMT stmt, std::ofstream& out_file, const std::strin
             out_file << "      [";
             for (SQLSMALLINT i = 1; i <= num_cols; i++) {
                 if (i > 1) out_file << ", ";
-                SQLCHAR data[MAX_SQL_MESSAGE_LEN] = {0};
+                SQLTCHAR data[MAX_SQL_MESSAGE_LEN] = {0};
                 SQLLEN indicator = 0;
-                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_CHAR, data, sizeof(data) - 1, &indicator);
+                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_TCHAR, data, sizeof(data) - 1, &indicator);
                 if (get_ret == SQL_SUCCESS || get_ret == SQL_SUCCESS_WITH_INFO) {
                     if (indicator == SQL_NULL_DATA) {
                         out_file << "null";
@@ -138,7 +156,7 @@ auto fetch_results = [](SQLHSTMT stmt, std::ofstream& out_file, const std::strin
         out_file << "\n    ],\n";
         out_file << "    \"row_count\": " << row_count << "\n";
     } else {
-        out_file << "    \"error\": \"" << get_error_message(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
     }
     out_file << "  }";
 };
@@ -147,18 +165,16 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
 
-    std::ofstream out_file = create_test_file(test_dsn, "MetadataFunctionsTest");
+    std::ofstream out_file = CreateResultsFile(test_dsn, "MetadataFunctionsTest");
 
     out_file << "{\n";
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     EXPECT_EQ(ret, SQL_SUCCESS);
-
-    ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
-        "DROP TABLE IF EXISTS test_metadata")), SQL_NTS);
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "DROP TABLE IF EXISTS test_metadata");
     SQLCloseCursor(stmt);
 
-    ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
+    ret = ODBC_HELPER::ExecuteQuery(stmt,
         "CREATE TABLE test_metadata ("
         "id SERIAL PRIMARY KEY, "
         "name VARCHAR(50) NOT NULL, "
@@ -167,59 +183,59 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
         "created_date DATE, "
         "is_active BOOLEAN, "
         "UNIQUE(name)"
-        ")")), SQL_NTS);
+        ")");
     SQLCloseCursor(stmt);
 
     // Insert test data
-    ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
+    ret = ODBC_HELPER::ExecuteQuery(stmt,
         "INSERT INTO test_metadata (name, age, salary, created_date, is_active) VALUES "
         "('John Doe', 30, 50000.00, '2023-01-15', true), "
-        "('Jane Smith', 25, 45000.50, '2023-02-20', false)")), SQL_NTS);
+        "('Jane Smith', 25, 45000.50, '2023-02-20', false)");
     SQLCloseCursor(stmt);
 
     ret = SQLGetTypeInfo(stmt, SQL_ALL_TYPES);
-    fetch_results(stmt, out_file, "SQLGetTypeInfo", ret, true);
+    FetchResults(stmt, out_file, "SQLGetTypeInfo", ret, true);
     SQLCloseCursor(stmt);
 
-    ret = SQLTables(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"%", SQL_NTS, (SQLCHAR*)"TABLE", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLTables", ret);
+    ret = SQLTables(stmt, NULL, 0, catalog, SQL_NTS, wild_star, SQL_NTS, table, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLTables", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLProcedures(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"%", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLProcedures", ret);
+    ret = SQLProcedures(stmt, NULL, 0, catalog, SQL_NTS, wild_star, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLProcedures", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLProcedureColumns(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"%", SQL_NTS, (SQLCHAR*)"%", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLProcedureColumns", ret);
+    ret = SQLProcedureColumns(stmt, NULL, 0, catalog, SQL_NTS, wild_star, SQL_NTS, wild_star, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLProcedureColumns", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLTablePrivileges(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLTablePrivileges", ret);
+    ret = SQLTablePrivileges(stmt, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLTablePrivileges", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLColumnPrivileges(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS, (SQLCHAR*)"%", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLColumnPrivileges", ret);
+    ret = SQLColumnPrivileges(stmt, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, wild_star, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLColumnPrivileges", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLPrimaryKeys(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLPrimaryKeys", ret);
+    ret = SQLPrimaryKeys(stmt, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLPrimaryKeys", ret);
     SQLCloseCursor(stmt);
 
-    ret = SQLForeignKeys(stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS);
-    fetch_results(stmt, out_file, "SQLForeignKeys", ret);
+    ret = SQLForeignKeys(stmt, NULL, 0, NULL, 0, NULL, 0, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS);
+    FetchResults(stmt, out_file, "SQLForeignKeys", ret);
     SQLCloseCursor(stmt);
 
     // TODO: uncomment after fixing SQLSpecialColumns
-    // ret = SQLSpecialColumns(stmt, SQL_BEST_ROWID, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE);
-    // fetch_results(stmt, out_file, "SQLSpecialColumns", ret);
+    // ret = SQLSpecialColumns(stmt, SQL_BEST_ROWID, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE);
+    // FetchResults(stmt, out_file, "SQLSpecialColumns", ret);
     // SQLCloseCursor(stmt);
 
-    ret = SQLStatistics(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"test_metadata", SQL_NTS, SQL_INDEX_ALL, SQL_QUICK);
-    fetch_results(stmt, out_file, "SQLStatistics", ret);
+    ret = SQLStatistics(stmt, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK);
+    FetchResults(stmt, out_file, "SQLStatistics", ret);
     SQLCloseCursor(stmt);
 
     // Additional metadata functions in JSON format
-    ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>("SELECT 1")), SQL_NTS);
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT 1");
     if (ret == SQL_SUCCESS) {
         SQLSMALLINT num_cols;
         ret = SQLNumResultCols(stmt, &num_cols);
@@ -229,7 +245,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
         out_file << "  }";
 
         if (num_cols > 0) {
-            SQLCHAR col_name[MAX_COLUMN_NAME_LEN];
+            SQLTCHAR col_name[MAX_COLUMN_NAME_LEN];
             SQLSMALLINT name_len, data_type, decimal_digits, nullable;
             SQLULEN column_size;
             SQLLEN attr_value;
@@ -237,7 +253,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
             ret = SQLDescribeCol(stmt, 1, col_name, sizeof(col_name), &name_len, &data_type, &column_size, &decimal_digits, &nullable);
             out_file << ",\n  \"SQLDescribeCol\": {\n";
             out_file << "    \"return_code\": " << ret << ",\n";
-            out_file << "    \"column_name\": \"" << col_name << "\",\n";
+            out_file << "    \"column_name\": \"" << STRING_HELPER::SqltcharToAnsi(col_name) << "\",\n";
             out_file << "    \"data_type\": " << data_type << "\n";
             out_file << "  }";
 
@@ -256,7 +272,9 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     }
     SQLCloseCursor(stmt);
 
-    ret = SQLPrepare(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>("SELECT ? as int_param, ? as varchar_param, ? as date_param, ? as decimal_param, ? as bool_param")), SQL_NTS);
+    SQLTCHAR prepare_stmt[MAX_BUFFER_LEN] = { 0 };
+    STRING_HELPER::AnsiToUnicode("SELECT ? as int_param, ? as varchar_param, ? as date_param, ? as decimal_param, ? as bool_param", prepare_stmt);
+    ret = SQLPrepare(stmt, prepare_stmt, SQL_NTS);
     if (ret == SQL_SUCCESS) {
         SQLSMALLINT num_params;
         ret = SQLNumParams(stmt, &num_params);
@@ -268,8 +286,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
 
     out_file << "\n}\n";
 
-    ret = SQLExecDirect(stmt, const_cast<SQLCHAR *>(reinterpret_cast<const SQLCHAR *>(
-        "DROP TABLE IF EXISTS test_metadata")), SQL_NTS);
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "DROP TABLE IF EXISTS test_metadata");
     SQLCloseCursor(stmt);
 
     out_file.close();
@@ -279,7 +296,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
 TEST_P(ODBC_API_TEST, SQLGetInfoTest) {
     std::string test_dsn = GetParam();
 
-    std::ofstream out_file = create_test_file(test_dsn, "SQLGetInfoTest");
+    std::ofstream out_file = CreateResultsFile(test_dsn, "SQLGetInfoTest");
     out_file << "{\n";
 
     std::map<SQLUSMALLINT, std::pair<std::string, bool /* is numeric attribute */>> info_attrs = {
@@ -345,7 +362,7 @@ TEST_P(ODBC_API_TEST, SQLGetInfoTest) {
         if (!first_attr) out_file << ",\n";
         first_attr = false;
 
-        SQLCHAR buffer[MAX_BUFFER_LEN] = {};
+        SQLTCHAR buffer[MAX_BUFFER_LEN] = {};
         SQLSMALLINT str_len = 0;
         ret = SQLGetInfo(dbc, attr.first, buffer, sizeof(buffer), &str_len);
 
@@ -360,7 +377,7 @@ TEST_P(ODBC_API_TEST, SQLGetInfoTest) {
 
         if (!attr.second.second) {
             // Is a string attribute.
-            out_file << ",\n    \"value\": \"" << reinterpret_cast<char *>(buffer) << "\"\n";
+            out_file << ",\n    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(buffer) << "\"\n";
         } else {
             // Is a numeric attribute.
             out_file << ",\n    \"value\": ";
@@ -384,13 +401,13 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
 
-    std::ofstream out_file = create_test_file(test_dsn, "SQLColumnsTest");
+    std::ofstream out_file = CreateResultsFile(test_dsn, "SQLColumnsTest");
     out_file << "{\n";
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     EXPECT_EQ(ret, SQL_SUCCESS);
 
-    ret = SQLColumns(stmt, NULL, 0, (SQLCHAR*)"public", SQL_NTS, (SQLCHAR*)"%", SQL_NTS, (SQLCHAR*)"%", SQL_NTS);
+    ret = SQLColumns(stmt, NULL, 0, catalog, SQL_NTS, wild_star, SQL_NTS, wild_star, SQL_NTS);
     out_file << "  \"SQLColumns\": {\n";
     out_file << "    \"return_code\": " << ret;
 
@@ -404,10 +421,10 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
             if (i == OID_COLUMN) continue; // Intentionally skipping the OID column, as the ID changes.
             if (!first_col) out_file << ", ";
             first_col = false;
-            SQLCHAR col_name[MAX_COLUMN_NAME_LEN];
+            SQLTCHAR col_name[MAX_COLUMN_NAME_LEN];
             SQLSMALLINT name_len;
             SQLDescribeCol(stmt, i, col_name, sizeof(col_name), &name_len, NULL, NULL, NULL, NULL);
-            out_file << "\"" << col_name << "\"";
+            out_file << "\"" << STRING_HELPER::SqltcharToAnsi(col_name) << "\"";
         }
         out_file << "],\n";
 
@@ -421,15 +438,15 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
                 if (i == OID_COLUMN) continue; // Intentionally skipping the OID column, as the ID changes.
                 if (!first_data) out_file << ", ";
                 first_data = false;
-                SQLCHAR data[MAX_SQL_MESSAGE_LEN] = {};
+                SQLTCHAR data[MAX_SQL_MESSAGE_LEN] = {};
                 SQLLEN indicator = 0;
-                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_CHAR, data, sizeof(data) - 1, &indicator);
+                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_TCHAR, data, sizeof(data) - 1, &indicator);
                 if (get_ret == SQL_SUCCESS || get_ret == SQL_SUCCESS_WITH_INFO) {
                     if (indicator == SQL_NULL_DATA) {
                         out_file << "null";
                     } else {
                         data[sizeof(data) - 1] = '\0';
-                        out_file << "\"" << data << "\"";
+                        out_file << "\"" << STRING_HELPER::SqltcharToAnsi(data) << "\"";
                     }
                 } else {
                     out_file << "null";
@@ -441,7 +458,7 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
         out_file << "\n    ],\n";
         out_file << "    \"row_count\": " << row_count << "\n";
     } else {
-        out_file << ",\n    \"error\": \"" << get_error_message(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        out_file << ",\n    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
     }
     out_file << "  }\n";
     SQLCloseCursor(stmt);
@@ -452,22 +469,22 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
 }
 
 static std::vector<std::string> getDsnValues() {
-    test_server = std::getenv("TEST_SERVER");
-    if (!test_server) test_server = const_cast<char *>("localhost");
+    test_server = TEST_UTILS::GetEnvVar("TEST_SERVER", "localhost");
+    std::string port_str = TEST_UTILS::GetEnvVar("TEST_PORT", "5432");
+    test_port = std::strtol(port_str.c_str(), nullptr, 0);
 
-    const char* port_str = std::getenv("TEST_PORT");
-    test_port = port_str ? std::strtol(port_str, nullptr, 10) : 5432;
+    test_dsn = TEST_UTILS::GetEnvVar("TEST_DSN", "wrapper-dsn");
 
-    test_dsn = std::getenv("TEST_DSN");
-    if (!test_dsn) test_dsn = const_cast<char *>("wrapper-dsn");
+    test_db = TEST_UTILS::GetEnvVar("TEST_DATABASE");
+    test_uid = TEST_UTILS::GetEnvVar("TEST_USERNAME");
+    test_pwd = TEST_UTILS::GetEnvVar("TEST_PASSWORD");
+    test_base_driver = TEST_UTILS::GetEnvVar("TEST_BASE_DRIVER");
+    test_base_dsn = TEST_UTILS::GetEnvVar("TEST_BASE_DSN");
 
-    test_db = std::getenv("TEST_DATABASE");
-    test_uid = std::getenv("TEST_USERNAME");
-    test_pwd = std::getenv("TEST_PASSWORD");
-    test_base_driver = std::getenv("TEST_BASE_DRIVER");
-    test_base_dsn = std::getenv("TEST_BASE_DSN");
-
-    return std::vector<std::string> {test_dsn, test_base_dsn};
+    return std::vector<std::string> {
+        test_dsn,
+        test_base_dsn
+    };
 }
 
 INSTANTIATE_TEST_SUITE_P(

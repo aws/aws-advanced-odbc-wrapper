@@ -47,6 +47,9 @@ if(NOT WIN32)
         aws-c-io aws-checksums aws-c-event-stream aws-c-s3 aws-c-compression
         aws-c-sdkutils rds secretsmanager sts
     )
+    if(NOT APPLE)
+        list(APPEND AWS_DYN_LIBS s2n)
+    endif()
 endif()
 
 # -- ODBC --

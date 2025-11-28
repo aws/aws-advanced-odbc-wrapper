@@ -25,53 +25,37 @@
 
 #include <string>
 
+#include "../common/base_connection_test.h"
 #include "../common/connection_string_builder.h"
+#include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
+#include "../common/test_utils.h"
 
-#include "integration_test_utils.h"
-
-class IamAuthenticationIntegrationTest : public testing::Test {
+class IamAuthenticationIntegrationTest : public BaseConnectionTest {
 protected:
     std::string auth_type = "IAM";
-    std::string test_dsn = std::getenv("TEST_DSN");
-    std::string test_db = std::getenv("TEST_DATABASE");
-    std::string test_uid = std::getenv("TEST_USERNAME");
-    std::string test_pwd = std::getenv("TEST_PASSWORD");
-    int test_port = INTEGRATION_TEST_UTILS::str_to_int(
-        INTEGRATION_TEST_UTILS::get_env_var("TEST_PORT", (char*) "5432"));
-    std::string test_region = INTEGRATION_TEST_UTILS::get_env_var("TEST_REGION", (char*) "us-west-1");
-    std::string test_server = std::getenv("TEST_SERVER");
+    std::string test_iam_user = TEST_UTILS::GetEnvVar("TEST_IAM_USER", "");
 
-    std::string test_iam_user = INTEGRATION_TEST_UTILS::get_env_var("TEST_IAM_USER", (char*)"john_doe");
+    static void SetUpTestSuite() {
+        BaseConnectionTest::SetUpTestSuite();
+    }
 
-    std::string connection_string = "";
-
-    SQLHENV env = nullptr;
-    SQLHDBC dbc = nullptr;
-
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void TearDownTestSuite() {
+        BaseConnectionTest::TearDownTestSuite();
+    }
 
     void SetUp() override {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
-        SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-        SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
+        BaseConnectionTest::SetUp();
     }
 
     void TearDown() override {
-        if (nullptr != dbc) {
-            SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-        }
-        if (nullptr != env) {
-            SQLFreeHandle(SQL_HANDLE_ENV, env);
-        }
+        BaseConnectionTest::TearDown();
     }
 };
 
 // Tests a simple IAM connection with all expected fields provided.
 TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_iam_user)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
@@ -80,10 +64,8 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
         .withExtraUrlEncode(true)
         .withSslMode("allow")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
 
     rc = SQLDisconnect(dbc);
@@ -93,10 +75,8 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
 // Tests that IAM connection will still connect
 // when given an IP address instead of a cluster name.
 TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
-    GTEST_SKIP() << "Required to set IAM Host, not yet implemented";
-
-    auto ip_address = INTEGRATION_TEST_UTILS::host_to_IP(test_server);
-    connection_string = ConnectionStringBuilder(test_dsn, ip_address, test_port)
+    std::string ip_address = TEST_UTILS::HostToIp(test_server);
+    conn_str = ConnectionStringBuilder(test_dsn, ip_address, test_port)
         .withUID(test_iam_user)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
@@ -104,11 +84,10 @@ TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
         .withAuthExpiration(900)
         .withExtraUrlEncode(true)
         .withSslMode("allow")
+        .withIamHost(test_server)
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
 
     rc = SQLDisconnect(dbc);
@@ -118,7 +97,7 @@ TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
 // Tests that IAM connection will still connect
 // when given a wrong password (because the password gets replaced by the auth token).
 TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_iam_user)
         .withPWD("GARBAGE-PASSWORD")
         .withDatabase(test_db)
@@ -128,10 +107,8 @@ TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
         .withExtraUrlEncode(true)
         .withSslMode("allow")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
 
     rc = SQLDisconnect(dbc);
@@ -140,7 +117,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
 
 // Tests that the IAM connection will fail when provided a wrong user.
 TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
-    auto connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID("WRONG_USER")
         .withDatabase(test_db)
         .withAuthMode(auth_type)
@@ -149,10 +126,8 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
         .withExtraUrlEncode(true)
         .withSslMode("allow")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_ERROR, rc);
 
     SQLSMALLINT stmt_length;
@@ -165,7 +140,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
 
 // Tests that the IAM connection will fail when provided an empty user.
 TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
-    auto connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID("")
         .withDatabase(test_db)
         .withAuthMode(auth_type)
@@ -174,10 +149,8 @@ TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
         .withExtraUrlEncode(true)
         .withSslMode("allow")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_ERROR, rc);
 
     SQLSMALLINT stmt_length;

@@ -19,9 +19,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/base_connection_test.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/odbc_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/odbc_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_utils.cpp
 )
 
 set(TEST_SUITE
@@ -29,6 +34,7 @@ set(TEST_SUITE
 
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbc_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transactions_test.cpp
 )
 
 set(TEST_RUNNER

@@ -18,121 +18,100 @@
     #include <windows.h>
 #endif
 
-#include <thread>
-#include <chrono>
 #include <sql.h>
 #include <sqlext.h>
 
 #include <string>
 
+#include "../common/base_connection_test.h"
 #include "../common/connection_string_builder.h"
+#include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
+#include "../common/test_utils.h"
 
-#include "integration_test_utils.h"
-
-class SecretsManagerIntegrationTest : public testing::Test {
+class SecretsManagerIntegrationTest : public BaseConnectionTest {
 protected:
     std::string auth_type = "SECRETS_MANAGER";
-    std::string test_dsn = std::getenv("TEST_DSN");
-    std::string test_db = std::getenv("TEST_DATABASE");
-    int test_port = INTEGRATION_TEST_UTILS::str_to_int(
-        INTEGRATION_TEST_UTILS::get_env_var("TEST_PORT", (char*) "5432"));
-    std::string test_region = INTEGRATION_TEST_UTILS::get_env_var("TEST_REGION", (char*) "us-west-1");
-    std::string test_server = std::getenv("TEST_SERVER");
+    std::string test_secret_arn = TEST_UTILS::GetEnvVar("TEST_SECRET_ARN");
 
-    std::string test_secret_arn = std::getenv("TEST_SECRET_ARN");
+    static void SetUpTestSuite() {
+        BaseConnectionTest::SetUpTestSuite();
+    }
 
-    std::string connection_string = "";
-
-    SQLHENV env = nullptr;
-    SQLHDBC dbc = nullptr;
-
-    static void SetUpTestSuite() {}
-    static void TearDownTestSuite() {}
+    static void TearDownTestSuite() {
+        BaseConnectionTest::TearDownTestSuite();
+    }
 
     void SetUp() override {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
-        SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-        SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
+        BaseConnectionTest::SetUp();
     }
 
     void TearDown() override {
-        if (nullptr != dbc) {
-            SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-        }
-        if (nullptr != env) {
-            SQLFreeHandle(SQL_HANDLE_ENV, env);
-        }
+        BaseConnectionTest::TearDown();
     }
 };
 
 TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithRegion) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId(test_secret_arn)
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
-
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
+
+    rc = SQLDisconnect(dbc);
+    EXPECT_EQ(SQL_SUCCESS, rc);
 }
 
 TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithoutRegion) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withSecretId(test_secret_arn)
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
-
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
+
+    rc = SQLDisconnect(dbc);
+    EXPECT_EQ(SQL_SUCCESS, rc);
 }
 
 // Passing in a wrong region should still work in retrieving secrets
 // A full secret ARN will contain the proper region
 TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWrongRegion) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withAuthRegion("us-fake-1")
         .withSecretId(test_secret_arn)
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
-
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
+
+    rc = SQLDisconnect(dbc);
+    EXPECT_EQ(SQL_SUCCESS, rc);
 }
 
 TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
-    connection_string = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId("invalid-id")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(connection_string.c_str(), conn_str_in);
 
-    SQLRETURN rc = SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_ERROR, rc);
 
     // Check state
-    SQLTCHAR sqlstate[6] = {0}, message[SQL_MAX_MESSAGE_LENGTH] = {0};
+    SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
     SQLINTEGER native_error = 0;
     SQLSMALLINT stmt_length;
-    EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, sqlstate, &native_error, message, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
-    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, STRING_HELPER::SqltcharToAnsi(sqlstate));
+    EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, state, &native_error, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
+    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, STRING_HELPER::SqltcharToAnsi(state));
 }

@@ -25,24 +25,26 @@ set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/base_connection_test.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/odbc_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/odbc_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/string_helper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/integration_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/test_utils.cpp
 )
 
 set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/transactions_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
 )
 
 if(BUILD_FAILOVER)
     list(APPEND TEST_SUITE
-        ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
         ${CMAKE_CURRENT_SOURCE_DIR}/failover_integration_test.cpp
     )
 elseif(BUILD_LIMITLESS)
