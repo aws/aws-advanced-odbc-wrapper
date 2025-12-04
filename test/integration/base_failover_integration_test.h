@@ -40,9 +40,11 @@
 
 #include <ostream>
 
+#include "../common/base_connection_test.h"
+#include "../common/connection_string_builder.h"
+#include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
-
-#include "integration_test_utils.h"
+#include "../common/test_utils.h"
 
 #ifdef WIN32
     #include <windows.h>
@@ -57,32 +59,14 @@ static Aws::SDKOptions options;
 constexpr auto MAX_CONN_LENGTH = 4096;
 constexpr auto MAX_SQLSTATE_LENGTH = 6;
 
-class BaseFailoverIntegrationTest : public testing::Test {
+class BaseFailoverIntegrationTest : public BaseConnectionTest {
 protected:
-    // Connection string parameters
-    std::string test_dsn = std::getenv("TEST_DSN");
-    std::string test_db = std::getenv("TEST_DATABASE");
-    std::string test_uid = std::getenv("TEST_USERNAME");
-    std::string test_pwd = std::getenv("TEST_PASSWORD");
-    int test_port = INTEGRATION_TEST_UTILS::str_to_int(
-        INTEGRATION_TEST_UTILS::get_env_var("TEST_PORT", (char*) "5432"));
-    std::string test_region = INTEGRATION_TEST_UTILS::get_env_var("TEST_REGION", (char*) "us-west-1");
-    std::string test_server = std::getenv("TEST_SERVER");
-
-    std::string cluster_prefix = "cluster-";
+    std::string cluster_prefix = ".cluster-";
     std::string cluster_id = test_server.substr(0, test_server.find('.'));
     std::string instance_endpoint =
         test_server.substr(test_server.find(cluster_prefix) + cluster_prefix.size(), test_server.size());
     std::string db_conn_str_suffix = "." + instance_endpoint;
-    std::string cluster_ro_url = "cluster-ro-" + instance_endpoint;
-
-    std::string default_connection_string;
-    std::string connection_string;
-
-    SQLTCHAR* conn_in;
-    SQLTCHAR* conn_out, sqlstate, message;
-    SQLINTEGER native_error = 0;
-    SQLSMALLINT len = 0, length = 0;
+    std::string cluster_ro_url = ".cluster-ro-" + instance_endpoint;
 
     std::vector<std::string> cluster_instances;
     std::string writer_id;
@@ -97,7 +81,44 @@ protected:
     std::string ERROR_FAILOVER_SUCCEEDED = "08S02";
     std::string ERROR_TRANSACTION_UNKNOWN = "08007";
 
-    // Helper functions
+    // Test Queries
+    std::string DROP_TABLE_QUERY = "DROP TABLE IF EXISTS failover_transaction";
+    std::string CREATE_TABLE_QUERY = "CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)";
+    std::string SERVER_ID_QUERY = "SELECT aurora_db_instance_identifier()";
+    std::string COUNT_FAILOVER_TRANSACTION_ROWS_QUERY = "SELECT count(*) FROM failover_transaction";
+
+    static void SetUpTestSuite() {
+        BaseConnectionTest::SetUpTestSuite();
+    }
+
+    static void TearDownTestSuite() {
+        BaseConnectionTest::TearDownTestSuite();
+    }
+
+    void SetUp() override {
+        BaseConnectionTest::SetUp();
+
+        cluster_prefix = ".cluster-";
+        size_t cluster_id_index = test_server.find('.');
+        if (std::string::npos == cluster_id_index) {
+            GTEST_FAIL() << "Invalid test_server, cannot find Cluster ID for: " << test_server;
+        }
+        cluster_id = test_server.substr(0, cluster_id_index);
+        size_t cluster_id_prefix_index = test_server.find(cluster_prefix);
+        if (std::string::npos == cluster_id_prefix_index) {
+            GTEST_FAIL() << "Invalid test_server, cannot find Cluster ID for: " << test_server;
+        }
+        instance_endpoint =
+            test_server.substr(cluster_id_prefix_index + cluster_prefix.size(), test_server.size());
+        db_conn_str_suffix = "." + instance_endpoint;
+        cluster_ro_url = ".cluster-ro-" + instance_endpoint;
+    }
+
+    void TearDown() override {
+        BaseConnectionTest::TearDown();
+    }
+
+    // Class Helper functions
     std::string GetEndpoint(const std::string& instance_id) const {
         return instance_id + db_conn_str_suffix;
     }
@@ -126,42 +147,49 @@ protected:
         return instances[1];
     }
 
-    void AssertQuerySuccess(SQLHDBC dbc, SQLTCHAR* query) const {
-        SQLHSTMT handle;
-        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
-        EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, query, SQL_NTS));
-        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
-    }
-
-    void AssertQueryFail(const SQLHDBC dbc, SQLTCHAR* query, const std::string& expected_error) const {
-        SQLHSTMT handle;
+    // ODBC Query Helpers
+    void AssertQueryFail(const SQLHDBC dbc, std::string query, const std::string& expected_error) const {
+        SQLHSTMT hstmt;
         SQLSMALLINT stmt_length;
         SQLINTEGER native_err;
         SQLTCHAR msg[MAX_CONN_LENGTH], state[MAX_SQLSTATE_LENGTH];
 
-        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
-        EXPECT_EQ(SQL_ERROR, SQLExecDirect(handle, query, SQL_NTS));
-        EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, nullptr, handle, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
+        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+        EXPECT_EQ(SQL_ERROR, ODBC_HELPER::ExecuteQuery(hstmt, query));
+        EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, nullptr, hstmt, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
         EXPECT_STREQ(expected_error.c_str(), STRING_HELPER::SqltcharToAnsi(state));
-        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
+        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
     }
 
     std::string QueryInstanceId(SQLHDBC dbc) const {
         SQLTCHAR buf[SQL_MAX_MESSAGE_LENGTH] = { 0 };
         SQLLEN buflen;
-        SQLHSTMT handle;
-        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
-        SQLTCHAR server_id_query[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-        STRING_HELPER::AnsiToUnicode("SELECT aurora_db_instance_identifier()", server_id_query);
-        EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, server_id_query, SQL_NTS));
-        EXPECT_EQ(SQL_SUCCESS, SQLFetch(handle));
-        EXPECT_EQ(SQL_SUCCESS, SQLGetData(handle, 1, SQL_C_TCHAR, buf, sizeof(buf), &buflen));
-        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
+        SQLHSTMT hstmt;
+        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+        EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(hstmt, SERVER_ID_QUERY));
+        EXPECT_EQ(SQL_SUCCESS, SQLFetch(hstmt));
+        EXPECT_EQ(SQL_SUCCESS, SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, sizeof(buf), &buflen));
+        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
         std::string id(STRING_HELPER::SqltcharToAnsi(buf));
         return id;
     }
 
-    // Helper functions from integration tests
+    int QueryCountTableRows(const SQLHSTMT handle) {
+        EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, COUNT_FAILOVER_TRANSACTION_ROWS_QUERY));
+        const SQLRETURN rc = SQLFetch(handle);
+        EXPECT_EQ(SQL_SUCCESS, rc);
+
+        SQLINTEGER buf = -1;
+        SQLLEN buflen;
+        if (rc != SQL_NO_DATA_FOUND && rc != SQL_ERROR) {
+            EXPECT_EQ(SQL_SUCCESS, SQLGetData(handle, 1, SQL_INTEGER, &buf, sizeof(buf), &buflen));
+            EXPECT_EQ(SQL_SUCCESS, rc);
+            SQLCloseCursor(handle);
+        }
+        return buf;
+    }
+
+    // AWS SDK Helpers
     static std::vector<std::string> GetTopologyViaSdk(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {
         std::vector<std::string> instances;
 
@@ -281,7 +309,7 @@ protected:
                                                                const Aws::String& initial_writer_id, const Aws::String& target_writer_id = "") {
 
         auto cluster_endpoint = GetDbCluster(client, cluster_id).GetEndpoint();
-        std::string initial_writer_ip = INTEGRATION_TEST_UTILS::host_to_IP(cluster_endpoint);
+        std::string initial_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
 
         FailoverCluster(client, cluster_id, target_writer_id);
 
@@ -291,21 +319,21 @@ protected:
             // if writer is not changed, try triggering failover again
             remaining_attempts--;
             if (remaining_attempts == 0) {
-                throw std::runtime_error("Failover cluster request was not successful.");
+                GTEST_SKIP() << "Failover cluster request was not successful.";
             }
             FailoverCluster(client, cluster_id, target_writer_id);
         }
 
         // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
-        std::string current_writer_ip = INTEGRATION_TEST_UTILS::host_to_IP(cluster_endpoint);
+        std::string current_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
         auto start = std::chrono::high_resolution_clock::now();
         while (initial_writer_ip == current_writer_ip) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             if (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count() > timeout.count()) {
-                throw std::runtime_error("Cluster writer did not resolve to the target instance after server failover.");
+                GTEST_SKIP() << "Cluster writer did not resolve to the target instance after server failover.";
             }
 
-            current_writer_ip = INTEGRATION_TEST_UTILS::host_to_IP(cluster_endpoint);
+            current_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
         }
     }
 
@@ -328,28 +356,6 @@ protected:
 
     static bool IsInstanceReader(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id, const Aws::String& instance_id) {
         return !GetMatchedDbClusterMember(client, cluster_id, instance_id).GetIsClusterWriter();
-    }
-
-    static int QueryCountTableRows(const SQLHSTMT handle) {
-        SQLTCHAR SELECT_COUNT_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-        STRING_HELPER::AnsiToUnicode("SELECT count(*) FROM failover_transaction", SELECT_COUNT_QUERY);
-        EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, SELECT_COUNT_QUERY, SQL_NTS));
-        const auto rc = SQLFetch(handle);
-
-        SQLINTEGER buf = -1;
-        SQLLEN buflen;
-        if (rc != SQL_NO_DATA_FOUND && rc != SQL_ERROR) {
-            EXPECT_EQ(SQL_SUCCESS, SQLGetData(handle, 1, SQL_INTEGER, &buf, sizeof(buf), &buflen));
-            SQLFetch(handle); // To get cursor in correct position
-        }
-        return buf;
-    }
-
-    void TestConnection(const SQLHDBC dbc, const std::string& conn_str) {
-        SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-        STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
-        EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
-        EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
     }
 
     static void AssertNewReader(const std::vector<std::string>& old_readers, const std::string& new_reader) {

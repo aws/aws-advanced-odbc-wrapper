@@ -12,30 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "string_helper.h"
+#ifndef TEST_UTILS_H_
+#define TEST_UTILS_H_
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include <string>
 
-#include <sql.h>
-#include <sqlext.h>
-#include <sqltypes.h>
+namespace TEST_UTILS {
+    std::string GetEnvVar(const char* key, const char* default_value = "");
+    int StrToInt(std::string str);
+    std::string HostToIp(std::string hostname);
+	void ClearMemory(void* dest, size_t count);
+};
 
-void STRING_HELPER::AnsiToUnicode(const char* in, SQLTCHAR* out) {
-    int i;
-    for (i = 0; in[i]; i++) {
-        out[i] = in[i];
-    }
-    out[i] = 0;
-}
-
-char* STRING_HELPER::SqltcharToAnsi(SQLTCHAR* in) {
-    char* ansi = (char*) in;
-    int i;
-    for (i = 0; in[i]; i ++ ) {
-        ansi[i] = in[i] & 0x00ff;
-    }
-    ansi[i] = 0;
-    return ansi;
-}
+#endif // TEST_UTILS_H_

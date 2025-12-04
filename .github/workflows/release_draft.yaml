@@ -176,21 +176,6 @@ jobs:
         run: |
           mkdir stage
           find ${{ github.workspace }}/build/driver/ -name "*.so*" -exec cp {} ${{ github.workspace }}/stage \;
-      - name: Checkout s2n-tls
-        uses: actions/checkout@v4
-        with:
-          repository: aws/s2n-tls
-          path: s2n-tls
-      - name: Build and install s2n-tls
-        working-directory: s2n-tls
-        run: |
-          cmake . -B build \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS:BOOL=ON \
-              -DCMAKE_INSTALL_PREFIX=./s2n-tls-install
-          cmake --build build
-          cmake --install build
-          find ./s2n-tls-install/lib/ -name "*.so*" -exec cp {} ${{ github.workspace }}/stage \;
       - name: Package Drivers as Tar
         shell: bash
         run: |

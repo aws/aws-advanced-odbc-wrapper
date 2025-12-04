@@ -12,10 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INTEGRATION_TEST_UTILS_H_
-#define INTEGRATION_TEST_UTILS_H_
-
-#include <gtest/gtest.h>
+#ifndef ODBC_HELPER_H_
+#define ODBC_HELPER_H_
 
 #ifdef WIN32
     #include <windows.h>
@@ -23,19 +21,18 @@
 
 #include <sqlext.h>
 
+#include <string>
+
 #define SQL_MAX_MESSAGE_LENGTH  512
 #define SQL_ERR_UNABLE_TO_CONNECT "08001"
 #define SQL_ERR_INVALID_PARAMETER "01S00"
 
-namespace INTEGRATION_TEST_UTILS {
-    char* get_env_var(const char* key, char* default_value);
-    int str_to_int(const char* str);
-    double str_to_double(const char* str);
-    std::string host_to_IP(std::string hostname);
-    void print_errors(SQLHANDLE handle, int32_t handle_type);
-    SQLRETURN exec_query(SQLHSTMT stmt, char *query_buffer);
-	void clear_memory(void* dest, size_t count);
-    void odbc_cleanup(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
+namespace ODBC_HELPER {
+    SQLRETURN DriverConnect(SQLHDBC hdbc, std::string conn_str);
+    SQLRETURN DsnConnect(SQLHDBC hdbc, std::string dsn, std::string uid, std::string pwd);
+    void CleanUpHandles(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
+    SQLRETURN ExecuteQuery(SQLHSTMT stmt, std::string query);
+    void PrintHandleError(SQLHANDLE handle, int32_t handle_type);
 };
 
-#endif // INTEGRATION_TEST_UTILS_H_
+#endif // ODBC_HELPER_H_

@@ -109,6 +109,11 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withIamHost(const std::string& iam_host) {
+        length += sprintf(conn_in + length, "IAM_HOST=%s;", iam_host.c_str());
+        return *this;
+    }
+
     ConnectionStringBuilder& withSecretId(const std::string& secret_id) {
         length += sprintf(conn_in + length, "SECRET_ID=%s;", secret_id.c_str());
         return *this;

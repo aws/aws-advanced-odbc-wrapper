@@ -12,46 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base_failover_integration_test.cpp"
+#include "base_failover_integration_test.h"
 
+#include "../common/base_connection_test.h"
 #include "../common/connection_string_builder.h"
+#include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
-
-#include "integration_test_utils.h"
+#include "../common/test_utils.h"
 
 class FailoverIntegrationTest : public BaseFailoverIntegrationTest {
 protected:
-    std::string access_key = std::getenv("AWS_ACCESS_KEY_ID");
-    std::string secret_access_key = std::getenv("AWS_SECRET_ACCESS_KEY");
-    std::string session_token = std::getenv("AWS_SESSION_TOKEN") ? std::getenv("AWS_SESSION_TOKEN") : "";
-    std::string rds_endpoint = std::getenv("RDS_ENDPOINT") ? std::getenv("RDS_ENDPOINT") : "";
-    std::string rds_region = std::getenv("TEST_REGION") ? std::getenv("TEST_REGION") : "";
+    std::string access_key = TEST_UTILS::GetEnvVar("AWS_ACCESS_KEY_ID");
+    std::string secret_access_key = TEST_UTILS::GetEnvVar("AWS_SECRET_ACCESS_KEY");
+    std::string session_token = TEST_UTILS::GetEnvVar("AWS_SESSION_TOKEN");
+    std::string rds_endpoint = TEST_UTILS::GetEnvVar("RDS_ENDPOINT");
+    std::string rds_region = TEST_UTILS::GetEnvVar("TEST_REGION", "us-west-1");
     Aws::RDS::RDSClientConfiguration client_config;
     Aws::RDS::RDSClient rds_client;
-    SQLHENV env = nullptr;
-    SQLHDBC dbc = nullptr;
 
-    // Test Queries
-    SQLTCHAR DROP_TABLE_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // DROP TABLE IF EXISTS failover_transaction
-    SQLTCHAR CREATE_TABLE_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)
-    SQLTCHAR SERVER_ID_QUERY[STRING_HELPER::MAX_SQLCHAR] = { 0 }; // SELECT aurora_db_instance_identifier()
-
-    static void SetUpTestSuite() { Aws::InitAPI(options); }
-    static void TearDownTestSuite() { Aws::ShutdownAPI(options); }
+    static void SetUpTestSuite() {
+        BaseFailoverIntegrationTest::SetUpTestSuite();
+        Aws::InitAPI(options);
+    }
+    static void TearDownTestSuite() {
+        Aws::ShutdownAPI(options);
+        BaseFailoverIntegrationTest::TearDownTestSuite();
+    }
 
     void SetUp() override {
-        SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env);
-        SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-        SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc);
-
-        STRING_HELPER::AnsiToUnicode("DROP TABLE IF EXISTS failover_transaction", DROP_TABLE_QUERY);
-        STRING_HELPER::AnsiToUnicode("CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)", CREATE_TABLE_QUERY);
-        STRING_HELPER::AnsiToUnicode("SELECT aurora_db_instance_identifier()", SERVER_ID_QUERY);
-
+        BaseFailoverIntegrationTest::SetUp();
         Aws::Auth::AWSCredentials credentials =
-            session_token.empty() ? Aws::Auth::AWSCredentials(Aws::String(access_key), Aws::String(secret_access_key))
-                                  : Aws::Auth::AWSCredentials(Aws::String(access_key), Aws::String(secret_access_key), Aws::String(session_token));
-        client_config.region = rds_region.empty() ? "us-west-1" : rds_region;
+            session_token.empty() ? Aws::Auth::AWSCredentials(access_key, secret_access_key)
+                                  : Aws::Auth::AWSCredentials(access_key, secret_access_key, session_token);
+        client_config.region = rds_region;
         if (!rds_endpoint.empty()) {
             client_config.endpointOverride = rds_endpoint;
         }
@@ -64,36 +57,30 @@ protected:
         reader_id = GetFirstReaderId(cluster_instances);
         target_writer_id = GetRandomDbReaderId(readers);
 
-        default_connection_string = ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
+        conn_str = ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
             .withUID(test_uid)
             .withPWD(test_pwd)
             .withDatabase(test_db)
             .withEnableClusterFailover(true)
             .getString();
-        // Simple check to see if cluster is available.
+
+        // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
     }
 
     void TearDown() override {
-        if (nullptr != dbc) {
-            SQLFreeHandle(SQL_HANDLE_DBC, dbc);
-        }
-        if (nullptr != env) {
-            SQLFreeHandle(SQL_HANDLE_ENV, env);
-        }
+        BaseFailoverIntegrationTest::TearDown();
     }
 };
 
 /** Writer fails to a reader **/
 TEST_F(FailoverIntegrationTest, WriterFailToReader) {
-    auto conn_str = ConnectionStringBuilder(default_connection_string)
+    std::string strict_reader_conn_str = ConnectionStringBuilder(conn_str)
         .withFailoverMode("STRICT_READER")
         .getString();
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(conn_str.c_str(), conn_str_in);
-    EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, strict_reader_conn_str);
+    EXPECT_EQ(SQL_SUCCESS, rc);
 
-    // Query new ID after failover
     std::string current_connection_id = QueryInstanceId(dbc);
 
     // Check if current connection is a writer
@@ -114,22 +101,19 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
 
 /** Writer fails within a transaction. Open transaction by explicitly calling BEGIN */
 TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(default_connection_string.c_str(), conn_str_in);
-    EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests
     SQLHSTMT handle;
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
 
     // Execute setup query
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLExecDirect(handle, DROP_TABLE_QUERY, SQL_NTS)));
-    EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, CREATE_TABLE_QUERY, SQL_NTS));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY));
 
     // Execute queries within the transaction
-    SQLTCHAR insert_query[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode("BEGIN; INSERT INTO failover_transaction VALUES (1, 'test field string 1')", insert_query);
-    EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, insert_query, SQL_NTS));
+    std::string transaction_insert_query = "BEGIN; INSERT INTO failover_transaction VALUES (1, 'test field string 1')";
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, transaction_insert_query));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
 
@@ -148,7 +132,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
 
     // Clean up test
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLExecDirect(handle, DROP_TABLE_QUERY, SQL_NTS)));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
 
     EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
@@ -156,25 +140,22 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
 
 /** Writer fails within a transaction. Open transaction with SQLSetConnectAttr */
 TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) {
-    SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode(default_connection_string.c_str(), conn_str_in);
-    EXPECT_EQ(SQL_SUCCESS, SQLDriverConnect(dbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests
     SQLHSTMT handle;
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
 
     // Execute setup query
-    EXPECT_TRUE(SQL_SUCCEEDED(SQLExecDirect(handle, DROP_TABLE_QUERY, SQL_NTS)));
-    EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, CREATE_TABLE_QUERY, SQL_NTS));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY));
 
     // Set autocommit = false
     EXPECT_EQ(SQL_SUCCESS, SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0));
 
     // Run insert query in a new transaction
-    SQLTCHAR insert_query[STRING_HELPER::MAX_SQLCHAR] = { 0 };
-    STRING_HELPER::AnsiToUnicode("INSERT INTO failover_transaction VALUES (1, 'test field string 1')", insert_query);
-    EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, insert_query, SQL_NTS));
+    std::string insert_query = "INSERT INTO failover_transaction VALUES (1, 'test field string 1')";
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, insert_query));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
 
@@ -198,7 +179,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
     EXPECT_EQ(SQL_SUCCESS, SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_ON, 0));
 
     // Clean up test
-    EXPECT_EQ(SQL_SUCCESS, SQLExecDirect(handle, DROP_TABLE_QUERY, SQL_NTS));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
 
     EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, handle));
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
