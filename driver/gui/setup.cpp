@@ -107,7 +107,10 @@ const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
     {KEY_IDP_PORT, {IDC_IDP_PORT, EDIT_TEXT}},
     {KEY_RELAY_PARTY_ID, {IDC_RELAY_PARTY_ID, EDIT_TEXT}},
     {KEY_HTTP_CONNECT_TIMEOUT, {IDC_CONNECT_TIMEOUT, EDIT_TEXT}},
-    {KEY_HTTP_SOCKET_TIMEOUT, {IDC_SOCKET_TIMEOUT, EDIT_TEXT}}
+    {KEY_HTTP_SOCKET_TIMEOUT, {IDC_SOCKET_TIMEOUT, EDIT_TEXT}},
+    {KEY_MFA_TYPE, {IDC_MFA_TYPE, COMBO}},
+    {KEY_MFA_PORT, {IDC_MFA_PORT, EDIT_TEXT}},
+    {KEY_MFA_TIMEOUT, {IDC_MFA_TIMEOUT, EDIT_TEXT}}
 };
 
 const std::map<std::string, std::pair<int, ControlType>> FAILOVER_KEYS = {
@@ -162,6 +165,12 @@ const std::vector<std::pair<std::string, std::string>> DB_DIALECTS = {
     {"", ""},
     {"Aurora PostgreSQL", VALUE_DB_DIALECT_AURORA_POSTGRESQL},
     {"Aurora PostgreSQL Limitless", VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS}
+};
+
+const std::vector<std::pair<std::string, std::string>> MFA_TYPES = {
+    {"None", ""},
+    {"TOTP", VALUE_MFA_TOTP},
+    {"Push", VALUE_MFA_PUSH}
 };
 
 HINSTANCE ghInstance;
@@ -252,6 +261,8 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return LIMITLESS_MODES[selection].second;
                     case IDC_DB_DIALECT:
                         return DB_DIALECTS[selection].second;
+                    case IDC_MFA_TYPE:
+                        return MFA_TYPES[selection].second;
                     default:
                         break;
                 }
@@ -441,7 +452,6 @@ void TestConnection(HWND hwnd)
     RDS_AllocDbc(henv, &hdbc);
 
     std::string test_conn_str = GetDsn(true);
-
     SQLRETURN ret = RDS_SQLDriverConnect(
         hdbc,
         nullptr,
@@ -712,7 +722,10 @@ void HandleAuthModeSelection(HWND hwnd) {
                     if (!IAM_KEYS.contains(keys.first) &&
                         !FED_AUTH_KEYS.contains(keys.first) &&
                         !AUTH_KEYS.contains(keys.first) ||
-                        id == IDC_APP_ID ) {
+                        id == IDC_APP_ID ||
+                        id == IDC_MFA_TYPE ||
+                        id == IDC_MFA_PORT ||
+                        id == IDC_MFA_TIMEOUT) {
                         show_ctrl = false;
                     }
                     break;
@@ -761,7 +774,13 @@ BOOL AuthTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         ComboBox_InsertString(auth_mode_box, i, RDS_TSTR(AWS_AUTH_MODES[i].first).c_str());
     }
 
+    HWND mfa_type_box = GetDlgItem(hwnd, IDC_MFA_TYPE);
+    for (int i = 0; i < MFA_TYPES.size(); i++) {
+        ComboBox_InsertString(mfa_type_box, i, RDS_TSTR(MFA_TYPES[i].first).c_str());
+    }
+
     SetInitialComboBoxValue(hwnd, IDC_AUTH_MODE, KEY_AUTH_TYPE, AWS_AUTH_MODES);
+    SetInitialComboBoxValue(hwnd, IDC_MFA_TYPE, KEY_MFA_TYPE, MFA_TYPES);
 
     HandleAuthModeSelection(hwnd);
 
