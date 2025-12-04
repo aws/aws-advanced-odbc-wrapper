@@ -75,6 +75,10 @@
 #define IDC_CONNECT_TIMEOUT             1059
 #define IDC_SOCKET_TIMEOUT              1061
 #define IDC_DB_DIALECT                  1062
+#define IDC_MFA_PORT                    1063
+#define IDC_MFA_TIMEOUT                 1064
+#define IDC_MFA_TYPE                    1065
+
 
 // Next default values for new objects
 // 
@@ -82,7 +86,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        126
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1063
+#define _APS_NEXT_CONTROL_VALUE         1066
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -21,6 +21,18 @@
 #include "../base_plugin.h"
 #include "../../driver.h"
 
+typedef enum {
+    NONE,
+    TOTP,
+    PUSH
+} MfaType;
+
+static std::map<std::string, MfaType> const mfa_type_table = {
+    {"", MfaType::NONE},
+    {VALUE_MFA_TOTP, MfaType::TOTP},
+    {VALUE_MFA_PUSH, MfaType::PUSH}
+};
+
 class OktaSamlUtil : public SamlUtil {
 public:
     OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
@@ -30,8 +42,19 @@ public:
 private:
     std::string GetSessionToken();
 
+    std::string VerifyTOTPChallenge(const std::string &verify_url, const std::string &state_token);
+
+    std::string VerifyPushChallenge(const std::string &verify_url, const std::string &state_token);
+
+    static inline const std::string DEFAULT_MFA_TIMEOUT = "60";
+    static inline const int VERIFY_PUSH_INTERVAL = 5;
+    static inline const std::string DEFAULT_PORT = "8080";
+    static inline const std::string WEBSERVER_HOST = "http://127.0.0.1";
     std::string sign_in_url;
     std::string session_token_url;
+    MfaType mfa_type;
+    std::string mfa_port;
+    std::string mfa_timeout;
 
     static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("<input name=\"SAMLResponse\".+value=\"(.+)\"/\\>");
 };
