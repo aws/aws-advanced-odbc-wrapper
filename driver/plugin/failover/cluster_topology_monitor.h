@@ -82,7 +82,7 @@ private:
     BasePlugin* plugin_head_;
     // Topology Tracking
     std::string cluster_id_;
-    std::map<RDS_STR, RDS_STR> connection_attributes_;
+    std::map<std::string, std::string> connection_attributes_;
 
     // SlidingCacheMap internally is thread safe
     std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>> topology_map_;
@@ -151,7 +151,7 @@ private:
     void ReaderThreadFetchTopology();
 
     ClusterTopologyMonitor* main_monitor_;
-    std::map<RDS_STR, RDS_STR> conn_info_;
+    std::map<std::string, std::string> conn_info_;
     std::shared_ptr<HostInfo> host_info_;
     std::shared_ptr<HostInfo> writer_host_info_;
     bool writer_changed_ = false;

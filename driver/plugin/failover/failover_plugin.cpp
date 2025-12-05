@@ -42,7 +42,7 @@ FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin) : FailoverPlug
 FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin, FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<HostSelector>& host_selector, const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper, const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
-    std::map<RDS_STR, RDS_STR> &conn_info = dbc->conn_attr;
+    std::map<std::string, std::string> &conn_info = dbc->conn_attr;
 
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
         std::chrono::milliseconds(std::strtol(conn_info.at(KEY_FAILOVER_TIMEOUT).c_str(), nullptr, 0))
@@ -158,7 +158,7 @@ SQLRETURN FailoverPlugin::Execute(
     return ret;
 }
 
-bool FailoverPlugin::CheckShouldFailover(const RDS_CHAR* sql_state)
+bool FailoverPlugin::CheckShouldFailover(const char* sql_state)
 {
     // Check if the SQL State is related to a communication error
     const bool should_failover = this->dialect_->IsSqlStateNetworkError(sql_state);
@@ -354,7 +354,7 @@ bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string)
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
 
-std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR>& conn_info)
+std::string FailoverPlugin::InitClusterId(std::map<std::string, std::string>& conn_info)
 {
     std::string generated_id;
     if (conn_info.contains(KEY_CLUSTER_ID)) {
@@ -370,11 +370,11 @@ std::string FailoverPlugin::InitClusterId(std::map<RDS_STR, RDS_STR>& conn_info)
     return generated_id;
 }
 
-FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR>& conn_info)
+FailoverMode FailoverPlugin::InitFailoverMode(std::map<std::string, std::string>& conn_info)
 {
     FailoverMode mode = UNKNOWN_FAILOVER_MODE;
     if (conn_info.contains(KEY_FAILOVER_MODE)) {
-        const RDS_STR local_str = conn_info.at(KEY_FAILOVER_MODE);
+        const std::string local_str = conn_info.at(KEY_FAILOVER_MODE);
         const std::string local_str_upper = RDS_STR_UPPER(local_str);
         if (failover_mode_table.contains(local_str_upper)) {
             mode = failover_mode_table.at(local_str_upper);
@@ -389,7 +389,7 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<RDS_STR, RDS_STR>& conn_i
     return mode;
 }
 
-std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR>& conn_info)
+std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<std::string, std::string>& conn_info)
 {
     host_selector_strategy_ = RANDOM_HOST;
     if (conn_info.contains(KEY_HOST_SELECTOR_STRATEGY)) {
@@ -410,7 +410,7 @@ std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<
 
 std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC* dbc)
 {
-    std::map<RDS_STR, RDS_STR> conn_info = dbc->conn_attr;
+    std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
     std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? conn_info.at(KEY_ENDPOINT_TEMPLATE) : "";
     const std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";

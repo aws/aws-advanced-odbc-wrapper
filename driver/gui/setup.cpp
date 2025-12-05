@@ -331,9 +331,9 @@ void SetInitialEditTextValue(HWND hwnd, int id, std::string key, std::string val
                 RDS_SQLGetPrivateProfileString(current_dsn, key, std::string(""), buff, ODBC_INI);
             } else {
 #ifdef UNICODE
-                swprintf(buff, MAX_KEY_SIZE, _T(RDS_WCHAR_FORMAT), RDS_TSTR(value).c_str());
+                swprintf(buff, MAX_KEY_SIZE, _T("%ls"), RDS_TSTR(value).c_str());
 #else
-                snprintf(buff, MAX_KEY_SIZE, RDS_CHAR_FORMAT, value.c_str());
+                snprintf(buff, MAX_KEY_SIZE, "%s", value.c_str());
 #endif
             }
             key_value = AS_UTF8_CSTR(buff);
@@ -446,7 +446,7 @@ void TestConnection(HWND hwnd)
         hdbc,
         nullptr,
         AS_SQLTCHAR(test_conn_str),
-        RDS_STR_LEN(test_conn_str.c_str()),
+        strlen(test_conn_str.c_str()),
         0,
         MAX_KEY_SIZE,
         nullptr,

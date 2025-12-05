@@ -21,13 +21,13 @@
 
 void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map)
 {
-    const RDS_REGEX pattern("([^;=]+)=([^;]+)");
-    RDS_MATCH match;
-    RDS_STR conn_str_itr = std::move(conn_str);
+    const std::regex pattern("([^;=]+)=([^;]+)");
+    std::smatch match;
+    std::string conn_str_itr = std::move(conn_str);
 
     while (std::regex_search(conn_str_itr, match, pattern)) {
-        const RDS_STR key = match[1].str();
-        const RDS_STR val = match[2].str();
+        const std::string key = match[1].str();
+        const std::string val = match[2].str();
 
         // Connection String takes precedence
         conn_map.insert_or_assign(RDS_STR_UPPER(key), val);
@@ -35,9 +35,9 @@ void ConnectionStringHelper::ParseConnectionString(std::string conn_str, std::ma
     }
 }
 
-RDS_STR ConnectionStringHelper::BuildMinimumConnectionString(const std::map<RDS_STR, RDS_STR> &conn_map)
+std::string ConnectionStringHelper::BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map)
 {
-    RDS_STR_STREAM conn_stream;
+    std::ostringstream conn_stream;
     for (const auto& e : conn_map) {
         if (!IsAwsOdbcKey(e.first)) {
             if (conn_stream.tellp() > 0) {
@@ -64,22 +64,22 @@ std::string ConnectionStringHelper::BuildFullConnectionString(const std::map<std
     return conn_stream.str();
 }
 
-RDS_STR ConnectionStringHelper::MaskSensitiveInformation(const RDS_STR &conn_str)
+std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &conn_str)
 {
-    RDS_STR result(conn_str);
-    for (const RDS_STR& key : sensitive_key_set) {
-        const RDS_REGEX pattern("(" + key + "=)([^;]+)");
+    std::string result(conn_str);
+    for (const std::string& key : sensitive_key_set) {
+        const std::regex pattern("(" + key + "=)([^;]+)");
         result = std::regex_replace(result, pattern, "$1[REDACTED]");
     }
     return result;
 }
 
-bool ConnectionStringHelper::IsAwsOdbcKey(const RDS_STR &aws_odbc_key)
+bool ConnectionStringHelper::IsAwsOdbcKey(const std::string &aws_odbc_key)
 {
     return aws_odbc_key_set.contains(aws_odbc_key);
 }
 
-bool ConnectionStringHelper::IsSensitiveData(const RDS_STR &sensitive_key)
+bool ConnectionStringHelper::IsSensitiveData(const std::string &sensitive_key)
 {
     return sensitive_key_set.contains(sensitive_key);
 }

@@ -113,7 +113,7 @@ void LimitlessRouterMonitor::Close() {
     }
 }
 
-void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_STR, RDS_STR>& conn_attr, int host_port) {
+void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<std::string, std::string>& conn_attr, int host_port) {
     DBC* dbc = static_cast<DBC*>(conn);
     do {
         std::unique_lock lock(monitor_loop_mutex_);

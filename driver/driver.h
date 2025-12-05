@@ -165,7 +165,7 @@ struct STMT {
 
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
-    RDS_STR cursor_name;
+    std::string cursor_name;
 
     ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;

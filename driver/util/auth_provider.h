@@ -44,7 +44,7 @@ typedef enum {
     INVALID,
 } AuthType;
 
-static std::map<RDS_STR, AuthType> const auth_table = {
+static std::map<std::string, AuthType> const auth_table = {
     {VALUE_AUTH_DATABASE,   AuthType::DATABASE},
     {VALUE_AUTH_IAM,        AuthType::IAM},
     {VALUE_AUTH_SECRETS,    AuthType::SECRETS_MANAGER},
@@ -78,7 +78,7 @@ public:
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
-    static AuthType AuthTypeFromString(const RDS_STR& auth_type);
+    static AuthType AuthTypeFromString(const std::string& auth_type);
     static std::string BuildCacheKey(
         const std::string &server,
         const std::string &region,

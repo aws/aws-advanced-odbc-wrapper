@@ -32,7 +32,7 @@ SQLRETURN MockFunction() {
 
 class MockRdsLibLoader : public RdsLibLoader {
     public:
-        FUNC_HANDLE GetFunction(const RDS_STR& function_name) override {
+        FUNC_HANDLE GetFunction(const std::string& function_name) override {
             return reinterpret_cast<FUNC_HANDLE>(&MockFunction);
         }
 };
@@ -46,7 +46,7 @@ class MockHostSelector : public HostSelector {
 
 class MockClusterTopologyQueryHelper : public ClusterTopologyQueryHelper {
     public:
-        MockClusterTopologyQueryHelper() : ClusterTopologyQueryHelper(nullptr, 0, "", AS_RDS_STR(TEXT("")), AS_RDS_STR(TEXT("")), AS_RDS_STR(TEXT(""))) {}
+        MockClusterTopologyQueryHelper() : ClusterTopologyQueryHelper(nullptr, 0, "", "", "", "") {}
         std::vector<HostInfo> QueryTopology(SQLHDBC hdbc) override { return {}; }
 };
 

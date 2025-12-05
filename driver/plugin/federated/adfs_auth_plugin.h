@@ -23,8 +23,8 @@
 
 class AdfsSamlUtil : public SamlUtil {
 public:
-    AdfsSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes);
-    AdfsSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
+    AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes);
+    AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
 private:

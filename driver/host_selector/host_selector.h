@@ -29,7 +29,7 @@ typedef enum {
     UNKNOWN_STRATEGY
 } HostSelectorStrategies;
 
-static std::unordered_map<RDS_STR, HostSelectorStrategies> const host_selector_table = {
+static std::unordered_map<std::string, HostSelectorStrategies> const host_selector_table = {
     {VALUE_HIGHEST_WEIGHT_HOST_SELECTOR,    HostSelectorStrategies::HIGHEST_WEIGHT},
     {VALUE_RANDOM_HOST_SELECTOR,            HostSelectorStrategies::RANDOM_HOST},
     {VALUE_ROUND_ROBIN_HOST_SELECTOR,       HostSelectorStrategies::ROUND_ROBIN}
@@ -40,8 +40,8 @@ public:
     virtual ~HostSelector() = default;
     virtual HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer,
         std::unordered_map<std::string, std::string> properties) = 0;
-    static HostSelectorStrategies GetHostSelectorStrategy(const RDS_STR &auth_type) {
-        RDS_STR local_str = auth_type;
+    static HostSelectorStrategies GetHostSelectorStrategy(const std::string &auth_type) {
+        std::string local_str = auth_type;
         std::string local_str_upper = RDS_STR_UPPER(local_str);
         if (host_selector_table.contains(local_str_upper)) {
             return host_selector_table.at(local_str_upper);

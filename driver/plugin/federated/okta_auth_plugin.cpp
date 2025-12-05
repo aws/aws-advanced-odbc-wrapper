@@ -129,11 +129,11 @@ SQLRETURN OktaAuthPlugin::Connect(
     return ret;
 }
 
-OktaSamlUtil::OktaSamlUtil(const std::map<RDS_STR, RDS_STR> &connection_attributes)
+OktaSamlUtil::OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes)
     : OktaSamlUtil(connection_attributes, nullptr, nullptr) {}
 
 OktaSamlUtil::OktaSamlUtil(
-    const std::map<RDS_STR, RDS_STR> &connection_attributes,
+    const std::map<std::string, std::string> &connection_attributes,
     const std::shared_ptr<Aws::Http::HttpClient> &http_client,
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)

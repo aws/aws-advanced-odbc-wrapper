@@ -27,7 +27,7 @@
 #include "rds_strings.h"
 
 std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
-    const RDS_STR node_id_query = dialect->GetNodeIdQuery();
+    const std::string node_id_query = dialect->GetNodeIdQuery();
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR node_id[MAX_HOST_SIZE] = {};

@@ -31,7 +31,7 @@ typedef enum {
     UNKNOWN_FAILOVER_MODE
 } FailoverMode;
 
-static std::map<RDS_STR, FailoverMode> const failover_mode_table = {
+static std::map<std::string, FailoverMode> const failover_mode_table = {
     {VALUE_FAILOVER_MODE_STRICT_READER,     FailoverMode::STRICT_READER},
     {VALUE_FAILOVER_MODE_STRICT_WRITER,     FailoverMode::STRICT_WRITER},
     {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER}
@@ -72,15 +72,15 @@ private:
     static inline const std::chrono::milliseconds
         DEFAULT_FAILOVER_TIMEOUT_MS = std::chrono::seconds(30);
 
-    bool CheckShouldFailover(const RDS_CHAR* sql_state);
+    bool CheckShouldFailover(const char* sql_state);
     static void RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates);
     bool FailoverReader(DBC* hdbc);
     bool FailoverWriter(DBC* hdbc);
     static bool ConnectToHost(DBC* hdbc, const std::string& host_string);
 
-    static std::string InitClusterId(std::map<RDS_STR, RDS_STR>& conn_info);
-    static FailoverMode InitFailoverMode(std::map<RDS_STR, RDS_STR>& conn_info);
-    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<RDS_STR, RDS_STR>& conn_info);
+    static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
+    static FailoverMode InitFailoverMode(std::map<std::string, std::string>& conn_info);
+    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<std::string, std::string>& conn_info);
     std::shared_ptr<ClusterTopologyQueryHelper> InitQueryHelper(DBC* dbc);
     std::shared_ptr<ClusterTopologyMonitor> InitTopologyMonitor(DBC* dbc);
 

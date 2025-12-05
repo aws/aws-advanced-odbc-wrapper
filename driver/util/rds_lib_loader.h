@@ -51,31 +51,31 @@ inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
 struct RdsLibResult {
     bool fn_load_success;
     SQLRETURN fn_result;
-    RDS_STR fn_name;
+    std::string fn_name;
 }; // RdsLibResult
 
 class RdsLibLoader {
 public:
     RdsLibLoader() = default;
-    RdsLibLoader(RDS_STR library_path);
+    RdsLibLoader(std::string library_path);
     ~RdsLibLoader();
 
     template<typename RDS_Func, typename... Args>
-    RdsLibResult CallFunction(const RDS_STR& func_name, Args... args);
-    virtual FUNC_HANDLE GetFunction(const RDS_STR& function_name);
-    RDS_STR GetDriverPath();
+    RdsLibResult CallFunction(const std::string& func_name, Args... args);
+    virtual FUNC_HANDLE GetFunction(const std::string& function_name);
+    std::string GetDriverPath();
 
 protected:
 private:
-    RDS_STR driver_path;
+    std::string driver_path;
 
     std::shared_mutex cache_lock;
     MODULE_HANDLE driver_handle;
-    std::unordered_map<RDS_STR, FUNC_HANDLE> function_cache;
+    std::unordered_map<std::string, FUNC_HANDLE> function_cache;
 };
 
 template <typename RDS_Func, typename... Args>
-RdsLibResult RdsLibLoader::CallFunction(const RDS_STR& func_name, Args... args)
+RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... args)
 {
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache

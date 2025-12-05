@@ -19,7 +19,7 @@
 #include "init_plugin_helper.h"
 #include "rds_utils.h"
 
-std::shared_ptr<Dialect> InitDialect(std::map<RDS_STR, RDS_STR> conn_info)
+std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_info)
 {
     DatabaseDialectType dialect = DatabaseDialectType::UNKNOWN_DIALECT;
     if (conn_info.contains(KEY_DATABASE_DIALECT)) {

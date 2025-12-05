@@ -17,6 +17,6 @@
 
 #include "../dialect/dialect.h"
 
-std::shared_ptr<Dialect> InitDialect(std::map<RDS_STR, RDS_STR> conn_info);
+std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_info);
 
 #endif // INIT_PLUGIN_HELPER_H

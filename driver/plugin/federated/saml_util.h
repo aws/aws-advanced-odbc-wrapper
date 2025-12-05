@@ -25,8 +25,8 @@
 class SamlUtil {
 public:
     SamlUtil() = default;
-    SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes);
-    SamlUtil(std::map<RDS_STR, RDS_STR> connection_attributes, const std::shared_ptr<Aws::Http::HttpClient>& http_client, const std::shared_ptr<Aws::STS::STSClient>& sts_client);
+    SamlUtil(std::map<std::string, std::string> connection_attributes);
+    SamlUtil(std::map<std::string, std::string> connection_attributes, const std::shared_ptr<Aws::Http::HttpClient>& http_client, const std::shared_ptr<Aws::STS::STSClient>& sts_client);
     virtual ~SamlUtil();
 
     virtual Aws::Auth::AWSCredentials GetAwsCredentials(const std::string &assertion);
@@ -47,7 +47,7 @@ protected:
     std::shared_ptr<Aws::STS::STSClient> sts_client;
 
 private:
-    void ParseIdpConfig(std::map<RDS_STR, RDS_STR> connection_attributes);
+    void ParseIdpConfig(std::map<std::string, std::string> connection_attributes);
 };
 
 #endif // FEDERATION_H_

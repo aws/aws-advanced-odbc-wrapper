@@ -29,13 +29,13 @@ typedef enum {
 
 class LimitlessRouterService {
 public:
-    LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<RDS_STR, RDS_STR> &conn_attr);
+    LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr);
     ~LimitlessRouterService();
     RoundRobinHostSelector round_robin_;
     HighestWeightHostSelector highest_weight_;
 
     std::shared_ptr<LimitlessRouterMonitor> CreateMonitor(
-        const std::map<RDS_STR, RDS_STR>& conn_attr,
+        const std::map<std::string, std::string>& conn_attr,
         BasePlugin* plugin_head,
         DBC* dbc,
         const std::shared_ptr<DialectLimitless>& dialect) const;

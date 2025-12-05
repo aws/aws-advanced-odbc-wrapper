@@ -57,7 +57,7 @@ protected:
     std::shared_ptr<std::thread> monitor_thread_ = nullptr;
     std::shared_ptr<DialectLimitless> dialect_;
 
-    void Run(SQLHENV henv, SQLHDBC conn, const std::map<RDS_STR, RDS_STR>& conn_attr, int host_port);
+    void Run(SQLHENV henv, SQLHDBC conn, const std::map<std::string, std::string>& conn_attr, int host_port);
 };
 
 #endif // LIMITLESS_ROUTER_MONITOR_H_

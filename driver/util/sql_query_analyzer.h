@@ -22,15 +22,15 @@
 
 class SqlQueryAnalyzer {
 public:
-    static RDS_STR GetFirstSqlStatement(const RDS_STR& statement);
-    static std::vector<RDS_STR> ParseMultiStatement(const RDS_STR& statement);
-    static bool DoesOpenTransaction(const RDS_STR& statement);
-    static bool DoesCloseTransaction(DBC* dbc, const RDS_STR& statement);
-    static bool IsStatementStartingTransaction(const RDS_STR& statement);
-    static bool IsStatementClosingTransaction(const RDS_STR& statement);
-    static bool IsStatementSettingAutoCommit(const RDS_STR& statement);
-    static bool DoesSwitchAutoCommitFalseTrue(DBC* dbc, const RDS_STR& statement);
-    static bool GetAutoCommitValueFromSqlStatement(const RDS_STR& statement);
+    static std::string GetFirstSqlStatement(const std::string& statement);
+    static std::vector<std::string> ParseMultiStatement(const std::string& statement);
+    static bool DoesOpenTransaction(const std::string& statement);
+    static bool DoesCloseTransaction(DBC* dbc, const std::string& statement);
+    static bool IsStatementStartingTransaction(const std::string& statement);
+    static bool IsStatementClosingTransaction(const std::string& statement);
+    static bool IsStatementSettingAutoCommit(const std::string& statement);
+    static bool DoesSwitchAutoCommitFalseTrue(DBC* dbc, const std::string& statement);
+    static bool GetAutoCommitValueFromSqlStatement(const std::string& statement);
 };
 
 #endif // SQL_QUERY_ANALYZER_H_
