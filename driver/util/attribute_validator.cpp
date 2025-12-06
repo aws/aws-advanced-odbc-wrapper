@@ -34,7 +34,9 @@ bool AttributeValidator::ShouldKeyBeUnsignedInt(const std::string& key) {
         KEY_FAILOVER_TIMEOUT,
         KEY_LIMITLESS_MONITOR_INTERVAL_MS,
         KEY_ROUTER_MAX_RETRIES,
-        KEY_LIMITLESS_MAX_RETRIES
+        KEY_LIMITLESS_MAX_RETRIES,
+        KEY_MFA_PORT,
+        KEY_MFA_TIMEOUT
     };
     return INTEGER_KEYS.contains(key);
 }
