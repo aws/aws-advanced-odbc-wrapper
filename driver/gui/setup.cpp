@@ -161,7 +161,8 @@ const std::vector<std::pair<std::string, std::string>> LIMITLESS_MODES = {
 const std::vector<std::pair<std::string, std::string>> DB_DIALECTS = {
     {"", ""},
     {"Aurora PostgreSQL", VALUE_DB_DIALECT_AURORA_POSTGRESQL},
-    {"Aurora PostgreSQL Limitless", VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS}
+    {"Aurora PostgreSQL Limitless", VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS},
+    {"Aurora MySQL", VALUE_DB_DIALECT_AURORA_MYSQL}
 };
 
 HINSTANCE ghInstance;
