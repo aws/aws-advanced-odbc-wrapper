@@ -19,8 +19,8 @@
 #include "rds_utils.h"
 
 #include "../dialect/dialect.h"
-#include "../dialect/dialect_aurora_postgres.h"
 #include "../dialect/dialect_aurora_mysql.h"
+#include "../dialect/dialect_aurora_postgres.h"
 
 std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_info)
 {

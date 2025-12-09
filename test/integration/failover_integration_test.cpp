@@ -62,6 +62,7 @@ protected:
             .withPWD(test_pwd)
             .withDatabase(test_db)
             .withEnableClusterFailover(true)
+            .withDatabaseDialect(test_dialect)
             .getString();
 
         // Check to see if cluster is available.

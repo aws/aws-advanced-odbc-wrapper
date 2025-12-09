@@ -1,13 +1,21 @@
-[ODBC Data Sources]
-data_source_name = @TEST_DSN@
-
-[@TEST_DSN@]
+[wrapper-pg-dsn]
 Driver          = @TEST_DRIVER_PATH@
-DATABASE        = @TEST_DATABASE@
-SERVER          = @TEST_SERVER@
-BASE_DRIVER     = @BASE_PG_DRIVER_PATH@
+DATABASE        = @PG_DATABASE@
+SERVER          = @PG_SERVER@
+BASE_DRIVER     = @PG_DRIVER_PATH@
 
-[@BASE_PG_DSN@]
-Driver          = @BASE_PG_DRIVER_PATH@
-DATABASE        = @TEST_DATABASE@
-SERVER          = @TEST_SERVER@
+[wrapper-mysql-dsn]
+Driver          = @TEST_DRIVER_PATH@
+DATABASE        = @MYSQL_DATABASE@
+SERVER          = @MYSQL_SERVER@
+BASE_DRIVER     = @MYSQL_DRIVER_PATH@
+
+[pg-dsn]
+Driver          = @PG_DRIVER_PATH@
+DATABASE        = @PG_DATABASE@
+SERVER          = @PG_SERVER@
+
+[mysql-dsn]
+Driver          = @MYSQL_DRIVER_PATH@
+DATABASE        = @MYSQL_DATABASE@
+SERVER          = @MYSQL_SERVER@
