@@ -17,13 +17,19 @@
 
 #include "../base_plugin.h"
 #include "../../dialect/dialect.h"
+#include "../../util/odbc_helper.h"
 #include "limitless_router_service.h"
 
 class LimitlessPlugin : public BasePlugin {
 public:
     LimitlessPlugin(DBC* dbc);
     LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin);
-    LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service_);
+    LimitlessPlugin(
+        DBC* dbc,
+        BasePlugin* next_plugin,
+        const std::shared_ptr<Dialect>& dialect,
+        const std::shared_ptr<LimitlessRouterService> &limitless_router_service_,
+        const std::shared_ptr<OdbcHelper> &odbc_helper);
     ~LimitlessPlugin() override;
 
     SQLRETURN Connect(
@@ -37,6 +43,7 @@ public:
 private:
     std::shared_ptr<LimitlessRouterService> limitless_router_service_;
     std::shared_ptr<Dialect> dialect_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 };
 
 #endif // LIMITLESS_PLUGIN_H_

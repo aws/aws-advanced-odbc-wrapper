@@ -14,6 +14,8 @@
 
 #include "base_plugin.h"
 
+#include <iostream>
+
 #include "../driver.h"
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
@@ -61,7 +63,6 @@ SQLRETURN BasePlugin::Connect(
     // and a new connection string should be built without DSN & Driver
     const std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
-
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE
     const std::vector<uint16_t> conn_in_vec = ConvertUTF8ToUTF16(conn_in);

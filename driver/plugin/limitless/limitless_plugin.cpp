@@ -21,14 +21,20 @@
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
 
-LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessPlugin(dbc, next_plugin, nullptr, nullptr) {}
+LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessPlugin(dbc, next_plugin, nullptr, nullptr, std::make_shared<OdbcHelper>()) {}
 
-LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<LimitlessRouterService> &limitless_router_service) : BasePlugin(dbc, next_plugin)
+LimitlessPlugin::LimitlessPlugin(
+    DBC *dbc,
+    BasePlugin *next_plugin,
+    const std::shared_ptr<Dialect>& dialect,
+    const std::shared_ptr<LimitlessRouterService> &limitless_router_service,
+    const std::shared_ptr<OdbcHelper> &odbc_helper) : BasePlugin(dbc, next_plugin)
 {
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     this->plugin_name = "LIMITLESS";
     this->dialect_ = dialect ? dialect : InitDialect(conn_info);
     this->limitless_router_service_ = limitless_router_service;
+    this->odbc_helper_ = odbc_helper;
 }
 
 LimitlessPlugin::~LimitlessPlugin() {
@@ -61,7 +67,7 @@ SQLRETURN LimitlessPlugin::Connect(
         dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
 
         if (!this->limitless_router_service_) {
-            this->limitless_router_service_ = std::make_shared<LimitlessRouterService>(limitless_dialect, dbc->conn_attr);
+            this->limitless_router_service_ = std::make_shared<LimitlessRouterService>(limitless_dialect, dbc->conn_attr, this->odbc_helper_);
         }
 
         limitless_router_service_->StartMonitoring(dbc, limitless_dialect);

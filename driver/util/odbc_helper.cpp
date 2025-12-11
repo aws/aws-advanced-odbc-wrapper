@@ -14,52 +14,96 @@
 
 #include "odbc_helper.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../odbcapi_rds_helper.h"
 
-#include <sql.h>
-#include <sqlext.h>
-
-#include "../dialect/dialect.h"
-#include "../driver.h"
-#include "../odbcapi.h"
-#include "rds_strings.h"
-
-std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
-    const std::string node_id_query = dialect->GetNodeIdQuery();
-
-    SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR node_id[MAX_HOST_SIZE] = {};
-    SQLLEN rt = 0;
-    RdsLibResult res;
-    const DBC* dbc = static_cast<DBC*>(hdbc);
-
-    if (!dbc || !dbc->wrapped_dbc) {
-        return "";
+// codechecker_suppress [readability-convert-member-functions-to-static]
+void OdbcHelper::Disconnect(const DBC* &dbc, const std::shared_ptr<RdsLibLoader> &lib_loader) {
+    if (dbc->wrapped_dbc) {
+        try {
+            NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+            dbc->wrapped_dbc
+            );
+        } catch (const std::exception& ex) {
+            LOG(ERROR) << "Exception while disconnecting: " << ex.what();
+        }
     }
+}
 
-    res = NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
+void OdbcHelper::Disconnect(const SQLHDBC hdbc, const std::shared_ptr<RdsLibLoader> &lib_loader) {
+    const DBC* local_dbc = static_cast<DBC*>(hdbc);
+    Disconnect(local_dbc, lib_loader);
+}
+
+void OdbcHelper::DisconnectAndFree(const SQLHDBC &hdbc, const std::shared_ptr<RdsLibLoader> &lib_loader) {
+    Disconnect(hdbc, lib_loader);
+    RDS_FreeConnect(hdbc);
+}
+
+RdsLibResult OdbcHelper::AllocEnv(SQLHENV &henv, ENV* &env, const std::shared_ptr<RdsLibLoader> &lib_loader) {
+    RDS_AllocEnv(&henv);
+    env = static_cast<ENV*>(henv);
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+        SQL_HANDLE_ENV, nullptr, &env->wrapped_env
     );
+}
 
-    if (SQL_SUCCEEDED(res.fn_result)) {
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(node_id_query), SQL_NTS
-        );
+void OdbcHelper::FreeEnv(const SQLHENV &henv) {
+    RDS_FreeEnv(henv);
+}
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, 1, SQL_C_TCHAR, &node_id, sizeof(node_id), &rt
-        );
+RdsLibResult OdbcHelper::AllocStmt(const SQLHDBC &wrapped_dbc, const std::shared_ptr<RdsLibLoader> &lib_loader, SQLHSTMT &stmt) {
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+        SQL_HANDLE_STMT, wrapped_dbc, &stmt
+    );
+}
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
-            stmt
-        );
+RdsLibResult OdbcHelper::FreeStmt(const std::shared_ptr<RdsLibLoader> &lib_loader, SQLHSTMT &stmt) {
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+        SQL_HANDLE_STMT, stmt
+    );
+}
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt
-        );
-    }
+DBC* OdbcHelper::AllocDbc(SQLHENV &henv, SQLHDBC &hdbc) {
+    RDS_AllocDbc(henv, &hdbc);
+    DBC* local_dbc = static_cast<DBC*>(hdbc);
+    return local_dbc;
+}
 
-    return AS_UTF8_CSTR(node_id);
+void OdbcHelper::SQLSetEnvAttr(
+    const std::shared_ptr<RdsLibLoader> &lib_loader,
+    const ENV* henv,
+    const SQLINTEGER attribute,
+    SQLPOINTER pointer,
+    const int length)
+{
+    NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+        henv->wrapped_env, attribute, pointer, length
+    );
+}
+
+RdsLibResult OdbcHelper::SQLFetch(const std::shared_ptr<RdsLibLoader> &lib_loader, SQLHSTMT &stmt)
+{
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+        stmt
+    );
+}
+
+RdsLibResult OdbcHelper::SQLBindCol(
+    const std::shared_ptr<RdsLibLoader> &lib_loader,
+    const SQLHSTMT &stmt,
+    const int column,
+    const int type,
+    void* value,
+    size_t size,
+    SQLLEN len)
+{
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+        stmt, column, type, value, size, &len
+    );
+}
+
+RdsLibResult OdbcHelper::SQLExecDirect(const std::shared_ptr<RdsLibLoader> &lib_loader, const SQLHSTMT &stmt, const std::string &query) {
+    return NULL_CHECK_CALL_LIB_FUNC(lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+        stmt, AS_SQLTCHAR(query), SQL_NTS
+    );
 }

@@ -27,7 +27,7 @@
 std::mutex LimitlessRouterService::limitless_router_monitors_mutex_;
 SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> LimitlessRouterService::limitless_router_monitors;
 
-LimitlessRouterService::LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr) {
+LimitlessRouterService::LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr, const std::shared_ptr<OdbcHelper> &odbc_helper) {
     this->dialect_ = dialect;
     this->limitless_monitor_interval_ms_ = conn_attr.contains(KEY_LIMITLESS_MONITOR_INTERVAL_MS) ?
         static_cast<int>(std::strtol(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS).c_str(), nullptr, 0)) :
@@ -41,6 +41,7 @@ LimitlessRouterService::LimitlessRouterService(const std::shared_ptr<DialectLimi
     this->host_port_ = conn_attr.contains(KEY_PORT) ?
         static_cast<int>(std::strtol(conn_attr.at(KEY_PORT).c_str(), nullptr, 0)) :
         dialect_->GetDefaultPort();
+    this->odbc_helper_ = odbc_helper;
 }
 
 LimitlessRouterService::~LimitlessRouterService() {
@@ -62,7 +63,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     DBC* dbc,
     const std::shared_ptr<DialectLimitless>& dialect) const
 {
-    std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect);
+    std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect, odbc_helper_);
 
     const std::string host = conn_attr.contains(KEY_SERVER) ? conn_attr.at(KEY_SERVER) : "";
     std::string service_id = RdsUtils::GetRdsClusterId(host);
@@ -107,20 +108,15 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
         int retry_count = -1; // Start at -1 since the first try is not a retry.
 
         SQLHENV henv = SQL_NULL_HANDLE;
-        RDS_AllocEnv(&henv);
-        ENV* env = static_cast<ENV*>(henv);
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(monitor->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-            SQL_HANDLE_ENV, nullptr, &env->wrapped_env
-        );
+        ENV* env;
+        const RdsLibResult res = odbc_helper_->AllocEnv(henv, env, monitor->lib_loader_);
         if (!SQL_SUCCEEDED(res.fn_result)) {
             LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
-        NULL_CHECK_CALL_LIB_FUNC(monitor->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
-            env->wrapped_env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0
-        );
+        odbc_helper_->SQLSetEnvAttr(monitor->lib_loader_, env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
         env->driver_lib_loader = monitor->lib_loader_;
 
         do {
@@ -128,8 +124,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             SQLHDBC local_hdbc = SQL_NULL_HANDLE;
 
             // Open a new connection
-            RDS_AllocDbc(henv, &local_hdbc);
-            DBC* local_dbc = static_cast<DBC*>(local_hdbc);
+            DBC* local_dbc = odbc_helper_->AllocDbc(henv, local_hdbc);
 
             local_dbc->conn_attr = dbc->conn_attr;
 
@@ -144,22 +139,17 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             if (SQL_SUCCEEDED(res)) {
                 // LimitlessQueryHelper::QueryForLimitlessRouters will return an empty vector on an error
                 // if it was a connection error, then the next loop will catch it and attempt to reconnect
-                limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port_, dialect_);
+                limitless_routers = LimitlessQueryHelper::QueryForLimitlessRouters(local_hdbc, host_port_, dialect_, odbc_helper_);
             }
 
-            if (local_dbc->wrapped_dbc) {
-                NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    local_dbc->wrapped_dbc
-                );
-            }
-            RDS_FreeConnect(local_hdbc);
+            odbc_helper_->DisconnectAndFree(local_hdbc, env->driver_lib_loader);
 
             if (limitless_routers.empty()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(limitless_monitor_interval_ms_));
             }
             retry_count++;
         } while (limitless_routers.empty() && retry_count < max_router_retries_);
-        RDS_FreeEnv(henv);
+        odbc_helper_->FreeEnv(henv);
     }
 
     if (limitless_routers.empty()) {

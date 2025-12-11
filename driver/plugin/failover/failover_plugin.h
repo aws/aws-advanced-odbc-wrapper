@@ -23,6 +23,7 @@
 #include "../../host_info.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/sliding_cache_map.h"
+#include "../../util/odbc_helper.h"
 
 typedef enum {
     STRICT_READER,
@@ -48,7 +49,8 @@ public:
         FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect,
         const std::shared_ptr<HostSelector>& host_selector,
         const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
-        const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor
+        const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor,
+        const std::shared_ptr<OdbcHelper> &odbc_helper
     );
     ~FailoverPlugin() override;
 
@@ -76,7 +78,7 @@ private:
     static void RemoveHostCandidate(const std::string& host, std::vector<HostInfo>& candidates);
     bool FailoverReader(DBC* hdbc);
     bool FailoverWriter(DBC* hdbc);
-    static bool ConnectToHost(DBC* hdbc, const std::string& host_string);
+    static bool ConnectToHost(DBC* hdbc, const std::string& host_string, const std::shared_ptr<OdbcHelper> &odbc_helper);
 
     static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
     static FailoverMode InitFailoverMode(std::map<std::string, std::string>& conn_info);
@@ -93,6 +95,7 @@ private:
     std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper_;
     std::shared_ptr<ClusterTopologyMonitor> topology_monitor_;
     FailoverMode failover_mode_ = UNKNOWN_FAILOVER_MODE;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 
     static inline std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>> topology_map_
         = std::make_shared<SlidingCacheMap<std::string, std::vector<HostInfo>>>();

@@ -18,11 +18,11 @@
 #include "../../odbcapi_rds_helper.h"
 #include "../base_plugin.h"
 
+#include "../../util/cluster_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/init_plugin_helper.h"
 #include "../../util/logger_wrapper.h"
-#include "../../util/odbc_helper.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
 
@@ -37,13 +37,22 @@ SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopo
 
 FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
-FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr) {}
+FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin) : FailoverPlugin(dbc, next_plugin, FailoverMode::UNKNOWN_FAILOVER_MODE, nullptr, nullptr, nullptr, nullptr, std::make_shared<OdbcHelper>()) {}
 
-FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin, FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<HostSelector>& host_selector, const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper, const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor) : BasePlugin(dbc, next_plugin)
+FailoverPlugin::FailoverPlugin(
+    DBC* dbc,
+    BasePlugin* next_plugin,
+    FailoverMode failover_mode,
+    const std::shared_ptr<Dialect>& dialect,
+    const std::shared_ptr<HostSelector>& host_selector,
+    const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
+    const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor,
+    const std::shared_ptr<OdbcHelper> &odbc_helper) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
     std::map<std::string, std::string> &conn_info = dbc->conn_attr;
 
+    this->odbc_helper_ = odbc_helper;
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
         std::chrono::milliseconds(std::strtol(conn_info.at(KEY_FAILOVER_TIMEOUT).c_str(), nullptr, 0))
         : DEFAULT_FAILOVER_TIMEOUT_MS;
@@ -220,7 +229,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 LOG(INFO) << "No hosts in topology for: " << cluster_id_;
                 return false;
             }
-            const bool is_connected = ConnectToHost(dbc, host_string);
+            const bool is_connected = ConnectToHost(dbc, host_string, odbc_helper_);
             if (!is_connected) {
                 LOG(INFO) << "Unable to connect to: " << host_string;
                 RemoveHostCandidate(host_string, remaining_readers);
@@ -228,7 +237,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
             }
 
             if (!GetNodeId(dbc, dialect_).empty()) {
-                const bool is_reader = topology_query_helper_->GetWriterId(dbc).empty();
+                const bool is_reader = topology_query_helper_->GetWriterId(dbc, odbc_helper_).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "Connected to a new reader for: " << host_string;
                     curr_host_ = host;
@@ -237,9 +246,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 LOG(INFO) << "Strict Reader Mode, not connected to a reader: " << host_string;
             }
             RemoveHostCandidate(host_string, remaining_readers);
-            NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                dbc->wrapped_dbc
-            );
+            odbc_helper_->Disconnect(dbc, dbc->env->driver_lib_loader);
             LOG(INFO) << "Cleaned up first connection, required a strict reader: " << host_string << ", " << dbc;
 
             if (host.IsHostWriter()) {
@@ -263,16 +270,14 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
 
         // Try the original writer, which may have been demoted to a reader.
         host_string = original_writer.GetHost();
-        const bool is_connected = ConnectToHost(dbc, host_string);
+        const bool is_connected = ConnectToHost(dbc, host_string, odbc_helper_);
         if (is_connected) {
             if (GetNodeId(dbc, dialect_).empty()) {
-                NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    dbc->wrapped_dbc
-                );
+                odbc_helper_->Disconnect(dbc, dbc->env->driver_lib_loader);
                 LOG(WARNING) << "Reconnection to original writer failed";
                 continue;
             }
-            if (!topology_query_helper_->GetWriterId(dbc).empty()) {
+            if (!topology_query_helper_->GetWriterId(dbc, odbc_helper_).empty()) {
                 is_original_writer_still_writer = true;
                 if (STRICT_READER == this->failover_mode_) {
                     LOG(INFO) << "Strict Reader Mode, not connected to a reader: " << host_string;
@@ -287,9 +292,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
     } while (std::chrono::steady_clock::now() < end);
 
     // Timed out.
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-        dbc->wrapped_dbc
-    );
+    odbc_helper_->Disconnect(dbc, dbc->env->driver_lib_loader);
     LOG(INFO) << "The reader failover process was not able to establish a connection before timing out";
     return false;
 }
@@ -312,13 +315,13 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     const std::string host_string = host.GetHost();
     LOG(INFO) << "Writer failover connection to a new writer: " << host_string;
 
-    const bool is_connected = ConnectToHost(dbc, host_string);
+    const bool is_connected = ConnectToHost(dbc, host_string, odbc_helper_);
     if (!is_connected) {
         LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
     }
     if (!GetNodeId(dbc, dialect_).empty()) {
-        if (!topology_query_helper_->GetWriterId(dbc).empty()) {
+        if (!topology_query_helper_->GetWriterId(dbc, odbc_helper_).empty()) {
             LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
             curr_host_ = host;
             return true;
@@ -327,13 +330,11 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         return false;
     }
     LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-        dbc->wrapped_dbc
-    );
+    odbc_helper_->Disconnect(dbc, dbc->env->driver_lib_loader);
     return false;
 }
 
-bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string)
+bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string, const std::shared_ptr<OdbcHelper> &odbc_helper)
 {
     if (TRANSACTION_OPEN == dbc->transaction_status) {
         // TODO - Need to revisit rolling back internally
@@ -345,9 +346,7 @@ bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string)
         dbc->transaction_status = TRANSACTION_CLOSED;
     }
 
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-        dbc->wrapped_dbc
-    );
+    odbc_helper->Disconnect(dbc, dbc->env->driver_lib_loader);
     LOG(INFO) << "Attempting to connect to host: " << host_string;
     dbc->conn_attr.insert_or_assign(KEY_SERVER, host_string);
 
@@ -433,7 +432,7 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC*
     const std::lock_guard lock_guard(topology_monitors_mutex_);
     if (!topology_monitors_.Find(this->cluster_id_)) {
         std::shared_ptr<ClusterTopologyMonitor> monitor = std::make_shared<ClusterTopologyMonitor>(
-            dbc, topology_map_, topology_query_helper_, dialect_
+            dbc, topology_map_, topology_query_helper_, dialect_, odbc_helper_
         );
         topology_monitors_.Put(this->cluster_id_, {1, monitor});
         LOG(INFO) << "Created Topology Monitor for: " << this->cluster_id_;

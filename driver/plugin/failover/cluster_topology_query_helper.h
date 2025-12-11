@@ -22,6 +22,7 @@
 #endif
 #include <sqltypes.h>
 
+#include "../../util/odbc_helper.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_strings.h"
 #include "../../driver.h"
@@ -30,8 +31,8 @@
 class ClusterTopologyQueryHelper {
 public:
     ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, std::string topology_query, std::string writer_id_query, std::string node_id_query);
-    virtual std::string GetWriterId(SQLHDBC hdbc);
-    virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc);
+    virtual std::string GetWriterId(SQLHDBC hdbc, const std::shared_ptr<OdbcHelper> &odbc_helper);
+    virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc, const std::shared_ptr<OdbcHelper>& odbc_helper);
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLINTEGER replica_lag_ms);
     virtual std::string GetEndpoint(SQLTCHAR* node_id);
 

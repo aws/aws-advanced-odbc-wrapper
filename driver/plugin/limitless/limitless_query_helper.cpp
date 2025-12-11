@@ -28,48 +28,42 @@
 #include "../../host_info.h"
 #include "../../util/logger_wrapper.h"
 
-std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(const SQLHDBC conn, const int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect) {
+std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(
+    const SQLHDBC conn, const int host_port_to_map,
+    const std::shared_ptr<DialectLimitless> &dialect,
+    const std::shared_ptr<OdbcHelper> &odbc_helper)
+{
     const std::string limitless_router_endpoint_query = dialect->GetLimitlessRouterEndpointQuery();
 
     const DBC* dbc = static_cast<DBC*>(conn);
     SQLHSTMT stmt = SQL_NULL_HANDLE;
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
-    );
+    const RdsLibResult res = odbc_helper->AllocStmt(dbc->wrapped_dbc, dbc->env->driver_lib_loader, stmt);
     if (!SQL_SUCCEEDED(res.fn_result)) {
         LOG(WARNING) << "Failed to allocate statement handle to query routers";
         return {};
     }
 
     SQLTCHAR router_endpoint_value[ROUTER_ENDPOINT_LENGTH] = {};
-    SQLLEN ind_router_endpoint_value = 0;
+    const SQLLEN ind_router_endpoint_value = 0;
 
     SQLTCHAR load_value[LOAD_LENGTH] = {};
-    SQLLEN ind_load_value = 0;
+    const SQLLEN ind_load_value = 0;
 
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-        stmt, 1, SQL_C_TCHAR, &router_endpoint_value, sizeof(router_endpoint_value), &ind_router_endpoint_value
-    );
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-        stmt, 2, SQL_C_TCHAR, &load_value, sizeof(load_value), &ind_load_value
-    );
+    odbc_helper->SQLBindCol(dbc->env->driver_lib_loader, stmt, 1, SQL_C_TCHAR, &router_endpoint_value, sizeof(router_endpoint_value), ind_router_endpoint_value);
+    odbc_helper->SQLBindCol(dbc->env->driver_lib_loader, stmt, 2, SQL_C_TCHAR, &load_value, sizeof(load_value), ind_load_value);
 
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-        stmt, AS_SQLTCHAR(limitless_router_endpoint_query), SQL_NTS
-    );
+    odbc_helper->SQLExecDirect(dbc->env->driver_lib_loader, stmt, limitless_router_endpoint_query);
 
     std::vector<HostInfo> limitless_routers;
 
-    while (SQL_SUCCEEDED((NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch, stmt)).fn_result)) {
+    while (SQL_SUCCEEDED((odbc_helper->SQLFetch(dbc->env->driver_lib_loader, stmt)).fn_result)) {
         const HostInfo host_info = CreateHost(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
     LOG_IF(WARNING, limitless_routers.empty()) << "Failed to fetch any Limitless Routers";
 
-    NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-        SQL_HANDLE_STMT, stmt
-    );
+    odbc_helper->FreeStmt(dbc->env->driver_lib_loader, stmt);
 
     return limitless_routers;
 }
