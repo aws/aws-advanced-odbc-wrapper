@@ -74,6 +74,17 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi.h
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.h
+
+    # Webserver
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/AddrInformation.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/HtmlResponse.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Parser.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Selector.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Socket.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/SocketStream.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/SocketSupport.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/WEBServer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/WEBServer_utils.h
 )
 
 set(SRC
@@ -116,6 +127,15 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.cpp
+
+    # Webserver
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/AddrInformation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Parser.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Selector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/Socket.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/SocketStream.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/WEBServer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/http/WEBServer_utils.cpp
 )
 
 # GUI

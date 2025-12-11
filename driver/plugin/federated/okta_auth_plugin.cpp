@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if (defined(_WIN32) || defined(_WIN64))
+    #include <windows.h>
+    #include <shellapi.h>
+    #undef GetObject
+#endif
+
 #include "okta_auth_plugin.h"
 
-#include <unordered_set>
-
 #include "html_util.h"
+#include "http/WEBServer.h"
+#include "http/WEBServer_utils.h"
+#include "saml_util.h"
 
-#include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
-#include "saml_util.h"
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
 
@@ -113,7 +119,7 @@ SQLRETURN OktaAuthPlugin::Connect(
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
-    //  Skip cache and generate a new token to retry
+    // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         // Update AWS Credentials
@@ -145,6 +151,16 @@ OktaSamlUtil::OktaSamlUtil(
     }
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
     session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
+
+    const std::string mfa_type_str = connection_attributes.contains(KEY_MFA_TYPE) ?
+        connection_attributes.at(KEY_MFA_TYPE) : "";
+    if (mfa_type_table.contains(mfa_type_str)) {
+        mfa_type = mfa_type_table.at(mfa_type_str);
+    }
+    mfa_port = connection_attributes.contains(KEY_MFA_PORT) ?
+        connection_attributes.at(KEY_MFA_PORT) : DEFAULT_PORT;
+    mfa_timeout = connection_attributes.contains(KEY_MFA_TIMEOUT) ?
+        connection_attributes.at(KEY_MFA_TIMEOUT) : DEFAULT_MFA_TIMEOUT;
 }
 
 std::string OktaSamlUtil::GetSamlAssertion()
@@ -214,10 +230,169 @@ std::string OktaSamlUtil::GetSessionToken()
         LOG(ERROR) << "Unable to parse JSON from response";
         return "";
     }
+
+    if (mfa_type != NONE) {
+        const Aws::Utils::Json::JsonView json_view = json_val.View();
+
+        if (!json_view.KeyExists("stateToken")) {
+            LOG(ERROR) << "Could not find state token in JSON";
+            return "";
+        }
+
+        const std::string state_token = json_view.GetString("stateToken");
+        const Aws::Utils::Json::JsonView embedded_view = json_view.GetObject("_embedded");
+        Aws::Utils::Array<Aws::Utils::Json::JsonView> factor_views = embedded_view.GetArray("factors");
+
+        std::string factor_id;
+        for (int i = 0; i < factor_views.GetLength(); i++) {
+            const std::string type = factor_views[i].GetString("factorType");
+            if (mfa_type == TOTP && type == "token:software:totp" || mfa_type == PUSH && type == "push") {
+                factor_id = factor_views[i].GetString("id");
+            }
+        }
+
+        if (factor_id.empty()) {
+            LOG(ERROR) << "Could not find factor in JSON";
+            return "";
+        }
+
+        const std::string verify_url = session_token_url + "/factors/" + factor_id + "/verify";
+        if (mfa_type == TOTP) {
+            return VerifyTOTPChallenge(verify_url, state_token);
+        }
+        if (mfa_type == PUSH) {
+            return VerifyPushChallenge(verify_url, state_token);
+        }
+    }
+
     const Aws::Utils::Json::JsonView json_view = json_val.View();
     if (!json_view.KeyExists("sessionToken")) {
         LOG(ERROR) << "Could not find session token in JSON";
         return "";
     }
+
     return json_view.GetString("sessionToken");
+}
+
+std::string OktaSamlUtil::VerifyTOTPChallenge(
+    const std::string &verify_url,
+    const std::string &state_token)
+{
+    std::string state = WebServerUtils::GenerateState();
+    WEBServer srv(state, mfa_port, mfa_timeout);
+
+    srv.LaunchServer();
+
+    const std::string mfa_form_url =  WEBSERVER_HOST + ":" + mfa_port;
+    try {
+#if (defined(_WIN32) || defined(_WIN64))
+        const HINSTANCE result = ShellExecute(NULL, RDS_TSTR(std::string("open")).c_str(), RDS_TSTR(mfa_form_url).c_str(), NULL, NULL, SW_SHOWNORMAL);
+        if (reinterpret_cast<intptr_t>(result) <= 32) {
+            srv.Cancel();
+        }
+#else
+#if (defined(LINUX) || defined(__linux__))
+        const int result = system(("xdg-open " + mfa_form_url).c_str());
+#else
+        const int result = system(("open " + mfa_form_url).c_str());
+#endif
+        if (result != 0) {
+            srv.Cancel();
+        }
+#endif
+    } catch (const std::exception & e) {
+        srv.Cancel();
+        srv.Join();
+        LOG(ERROR) << "Could not open browser to obtain MFA token: " << e.what();
+        return "";
+    }
+
+    srv.Join();
+
+    const std::string pass_code = srv.GetCode();
+    if (pass_code.empty()) {
+        LOG(ERROR) << "MFA Authorization code was not obtained";
+        return "";
+    }
+
+    const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
+        verify_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
+    Aws::Utils::Json::JsonValue json_body;
+    json_body
+        .WithString("stateToken", state_token)
+        .WithString("passCode", pass_code);
+    const Aws::String json_str = json_body.View().WriteReadable();
+    const Aws::String json_len = Aws::Utils::StringUtils::to_string(json_str.size());
+    req->SetContentType("application/json");
+    req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
+    req->SetContentLength(json_len);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+
+    // Check resp status
+    if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
+        LOG(ERROR) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
+        if (response->HasClientError()) {
+            LOG(ERROR) << "HTTP Client Error: " << response->GetClientErrorMessage();
+        }
+        return "";
+    }
+
+    const Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
+    if (!json_val.WasParseSuccessful()) {
+        LOG(ERROR) << "Unable to parse JSON from response";
+        return "";
+    }
+
+    const Aws::Utils::Json::JsonView json_view = json_val.View();
+    if (!json_view.KeyExists("sessionToken")) {
+        LOG(ERROR) << "Could not find session token in JSON";
+        return "";
+    }
+
+    return json_view.GetString("sessionToken");
+}
+
+std::string OktaSamlUtil::VerifyPushChallenge(
+    const std::string &verify_url,
+    const std::string &state_token)
+{
+    const std::chrono::time_point<std::chrono::system_clock> end_time = std::chrono::system_clock::now() + std::chrono::seconds(std::strtol(mfa_timeout.c_str(), nullptr, 0));
+    while (std::chrono::system_clock::now() < end_time) {
+        const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
+            verify_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
+        Aws::Utils::Json::JsonValue json_body;
+        json_body.WithString("stateToken", state_token);
+        const Aws::String json_str = json_body.View().WriteReadable();
+        const Aws::String json_len = Aws::Utils::StringUtils::to_string(json_str.size());
+        req->SetContentType("application/json");
+        req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
+        req->SetContentLength(json_len);
+        const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+
+        // Check resp status
+        if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
+            LOG(ERROR) << "OKTA request returned bad HTTP response code: " << response->GetResponseCode();
+            if (response->HasClientError()) {
+                LOG(ERROR) << "HTTP Client Error: " << response->GetClientErrorMessage();
+            }
+        } else {
+            const Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
+            if (!json_val.WasParseSuccessful()) {
+                LOG(ERROR) << "Unable to parse JSON from response";
+                continue;
+            }
+
+            const Aws::Utils::Json::JsonView json_view = json_val.View();
+            if (!json_view.KeyExists("sessionToken")) {
+                LOG(ERROR) << "Could not find session token in JSON";
+                continue;
+            }
+
+            return json_view.GetString("sessionToken");
+        }
+
+        std::this_thread::sleep_for(std::chrono::seconds(VERIFY_PUSH_INTERVAL));
+    }
+    LOG(ERROR) << "The MFA challenge was not completed in time";
+    return "";
 }
