@@ -14,25 +14,31 @@
 
 #ifndef LIMITLESS_ROUTER_MONITOR_H_
 #define LIMITLESS_ROUTER_MONITOR_H_
+#include "limitless_query_helper.h"
 
 #ifdef WIN32
     #include <windows.h>
 #endif
 
 #include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <condition_variable>
 
 #include "../../host_info.h"
-#include "../../util/rds_strings.h"
 #include "../../dialect/dialect.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/rds_strings.h"
 #include "../base_plugin.h"
 
 class LimitlessRouterMonitor {
 public:
-    LimitlessRouterMonitor(BasePlugin* plugin_head, const std::shared_ptr<DialectLimitless>& dialect);
+    LimitlessRouterMonitor(
+        BasePlugin* plugin_head,
+        const std::shared_ptr<DialectLimitless>& dialect,
+        const std::shared_ptr<OdbcHelper> &odbc_helper,
+        const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper);
     ~LimitlessRouterMonitor();
 
     void Close();
@@ -56,6 +62,8 @@ protected:
     unsigned int interval_ms_;
     std::shared_ptr<std::thread> monitor_thread_ = nullptr;
     std::shared_ptr<DialectLimitless> dialect_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
+    std::shared_ptr<LimitlessQueryHelper> limitless_query_helper_;
 
     void Run(SQLHENV henv, SQLHDBC conn, const std::map<std::string, std::string>& conn_attr, int host_port);
 };

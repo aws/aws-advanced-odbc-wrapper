@@ -21,7 +21,7 @@
 
 class MockLimitlessRouterService : public LimitlessRouterService {
     public:
-        MockLimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr) : LimitlessRouterService(dialect, conn_attr) {}
+        MockLimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr) : LimitlessRouterService(dialect, conn_attr, nullptr, nullptr) {}
         MOCK_METHOD(SQLRETURN, EstablishConnection, (BasePlugin* plugin_head, DBC* dbc), ());
         MOCK_METHOD(void, StartMonitoring, (DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect), ());
 };

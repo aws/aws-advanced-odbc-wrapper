@@ -22,14 +22,15 @@
 #endif
 #include <sqltypes.h>
 
-#include "../../util/rds_lib_loader.h"
-#include "../../util/rds_strings.h"
 #include "../../driver.h"
 #include "../../host_info.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/rds_lib_loader.h"
+#include "../../util/rds_strings.h"
 
 class ClusterTopologyQueryHelper {
 public:
-    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, std::string topology_query, std::string writer_id_query, std::string node_id_query);
+    ClusterTopologyQueryHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, int port, std::string endpoint_template, std::string topology_query, std::string writer_id_query, std::string node_id_query, const std::shared_ptr<OdbcHelper> &odbc_helper);
     virtual std::string GetWriterId(SQLHDBC hdbc);
     virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc);
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLINTEGER replica_lag_ms);
@@ -37,6 +38,7 @@ public:
 
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
     const int port;
 
     std::string endpoint_template_;

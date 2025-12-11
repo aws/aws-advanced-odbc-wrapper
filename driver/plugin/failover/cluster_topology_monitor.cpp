@@ -14,26 +14,31 @@
 
 #include "cluster_topology_monitor.h"
 
+#include <iostream>
 #include <sqlext.h>
 
+#include "cluster_topology_query_helper.h"
+
 #include "../../odbcapi_rds_helper.h"
+#include "../../util/cluster_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/odbc_helper.h"
 #include "../../util/rds_utils.h"
-#include "cluster_topology_query_helper.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
     DBC* dbc,
     const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
     const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
-    const std::shared_ptr<Dialect> &dialect)
+    const std::shared_ptr<Dialect> &dialect,
+    const std::shared_ptr<OdbcHelper> &odbc_helper)
     : query_helper_{ query_helper },
       lib_loader_{ dbc->env->driver_lib_loader },
       connection_attributes_{ dbc->conn_attr },
       topology_map_{ topology_map },
-      dialect_{ dialect }
+      dialect_{ dialect },
+      odbc_helper_{odbc_helper}
 {
     if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
         cluster_id_ = connection_attributes_.at(KEY_CLUSTER_ID);
@@ -60,19 +65,15 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
     }
 
     // Create ENV local to cluster topology monitor
-    RDS_AllocEnv(&henv_);
+    odbc_helper_->AllocEnv(&henv_);
     ENV* henv = static_cast<ENV*>(henv_);
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_ENV, nullptr, &henv->wrapped_env
-    );
+    const RdsLibResult res = odbc_helper->BaseAllocEnv(henv);
     if (!SQL_SUCCEEDED(res.fn_result)) {
         LOG(ERROR) << "Cluster Topology Monitor failed to create new Underlying Environment";
         CLEAR_DBC_ERROR(dbc);
         dbc->err = new ERR_INFO("Cluster Topology Monitor failed to create new Underlying Environment", ERR_NO_UNDER_LYING_FUNCTION);
     }
-    NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
-        henv->wrapped_env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0
-    );
+    odbc_helper_->SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
     henv->driver_lib_loader = lib_loader_;
 }
 
@@ -96,7 +97,7 @@ ClusterTopologyMonitor::~ClusterTopologyMonitor() {
     // Cleanup Handles
     const std::lock_guard hdbc_lock(hdbc_mutex_);
     CleanUpDbc(main_hdbc_);
-    RDS_FreeEnv(henv_);
+    odbc_helper_->FreeEnv(&henv_);
 }
 
 void ClusterTopologyMonitor::SetClusterId(const std::string& cluster_id) {
@@ -267,17 +268,12 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
     if (!main_hdbc_) {
         SQLHDBC local_hdbc;
         // Open a new connection
-        RDS_AllocDbc(henv_, &local_hdbc);
-        DBC *local_dbc = static_cast<DBC*>(local_hdbc);
+        odbc_helper_->AllocDbc(henv_, local_hdbc);
+        DBC *local_dbc = static_cast<DBC*>(local_hdbc);;
         local_dbc->conn_attr = connection_attributes_;
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rc)) {
-            if (local_dbc->wrapped_dbc) {
-                NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    local_dbc->wrapped_dbc
-                );
-            }
-            RDS_FreeConnect(local_hdbc);
+            odbc_helper_->DisconnectAndFree(&local_hdbc);
             return {};
         }
         // Check if another thread already set HDBC
@@ -294,12 +290,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
             }
         } else {
             // Connection already set, close local HDBC
-            if (local_dbc->wrapped_dbc) {
-                NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    local_dbc->wrapped_dbc
-                );
-            }
-            RDS_FreeConnect(local_hdbc);
+            odbc_helper_->DisconnectAndFree(&local_hdbc);
         }
     }
 
@@ -326,17 +317,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
 void ClusterTopologyMonitor::CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc) {
     if (dbc) {
         auto* dbc_to_delete = static_cast<SQLHDBC>(*(dbc));
-        const DBC* local_dbc = static_cast<DBC*>(dbc_to_delete);
-        if (local_dbc->wrapped_dbc) {
-            try {
-                NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    local_dbc->wrapped_dbc
-                );
-            } catch (const std::exception& ex) {
-                LOG(ERROR) << "Exception while cleaning up DBC: " << ex.what();
-            }
-        }
-        RDS_FreeConnect(dbc_to_delete);
+        odbc_helper_->DisconnectAndFree(&dbc_to_delete);
         dbc.reset(); // Release & set to null
     }
 }
@@ -407,7 +388,7 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
         for (const HostInfo& hi : hosts) {
             if (const std::string host_id = hi.GetHost(); !node_monitoring_threads_.contains(host_id)) {
                 node_monitoring_threads_[host_id] =
-                    std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_);
+                    std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_, odbc_helper_);
             }
         }
     }
@@ -448,18 +429,24 @@ bool ClusterTopologyMonitor::GetPossibleWriterConn() {
         const std::string host_id = hi.GetHost();
         if (node_monitoring_threads_.find(host_id) == end) {
             node_monitoring_threads_[host_id] =
-                std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_);
+                std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_, odbc_helper_);
         }
     }
     return true;
 }
 
-ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(ClusterTopologyMonitor* monitor, const std::shared_ptr<HostInfo>& host_info, const std::shared_ptr<HostInfo>& writer_host_info) {
+ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
+    ClusterTopologyMonitor* monitor,
+    const std::shared_ptr<HostInfo>& host_info,
+    const std::shared_ptr<HostInfo>& writer_host_info,
+    const std::shared_ptr<OdbcHelper> &odbc_helper)
+{
     this->main_monitor_ = monitor;
     this->host_info_ = host_info;
     this->writer_host_info_ = writer_host_info;
-    RDS_AllocDbc(monitor->henv_, &hdbc_);
+    this->odbc_helper_ = odbc_helper;
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
+    odbc_helper_->AllocDbc(monitor->henv_, hdbc_);
     LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 
@@ -473,17 +460,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
 
     // Main thread will clean up if this Node was used as a reader connection
     if (!reader_update_topology_ && hdbc_) {
-        const DBC* local_dbc = static_cast<DBC*>(hdbc_);
-        if (local_dbc->wrapped_dbc) {
-            try {
-                NULL_CHECK_CALL_LIB_FUNC(main_monitor_->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                    local_dbc->wrapped_dbc
-                );
-            } catch (const std::exception& ex) {
-                LOG(ERROR) << "Exception while cleaning up DBC: " << ex.what();
-            }
-        }
-        RDS_FreeConnect(hdbc_);
+        odbc_helper_->DisconnectAndFree(&hdbc_);
     }
     LOG(INFO) << "Finished node monitoring for: " << this->host_info_->GetHost();
 }
@@ -521,32 +498,19 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
 
     // Close any open connections / handles
     if (hdbc_) {
-        local_dbc = static_cast<DBC*>(hdbc_);
-        if (local_dbc->wrapped_dbc) {
-            NULL_CHECK_CALL_LIB_FUNC(main_monitor_->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                local_dbc->wrapped_dbc
-            );
-        }
-        RDS_FreeConnect(hdbc_);
+        odbc_helper_->DisconnectAndFree(&hdbc_);
         hdbc_ = SQL_NULL_HDBC;
     }
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
-    DBC* local_dbc;
     if (hdbc_ != SQL_NULL_HDBC) {
         // Disconnect if hdbc is not null
-        local_dbc = static_cast<DBC*>(hdbc_);
-        if (local_dbc->wrapped_dbc) {
-            NULL_CHECK_CALL_LIB_FUNC(main_monitor_->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                local_dbc->wrapped_dbc
-            );
-        }
-        RDS_FreeConnect(hdbc_);
+        odbc_helper_->DisconnectAndFree(&hdbc_);
     }
     // Reconnect and try to query next interval
-    RDS_AllocDbc(main_monitor_->henv_, &hdbc_);
-    local_dbc = static_cast<DBC*>(hdbc_);
+    odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
+    DBC *local_dbc = static_cast<DBC*>(hdbc_);;
     local_dbc->conn_attr = conn_info_;
     main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 }
@@ -557,13 +521,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleWriterConn() {
         // Writer connection already set
         // Disconnect this thread's connection
         LOG(INFO) << "Writer connection already set, disconnect this thread's connection";
-        const DBC* local_dbc = static_cast<DBC*>(hdbc_);
-        if (local_dbc->wrapped_dbc) {
-            NULL_CHECK_CALL_LIB_FUNC(main_monitor_->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                local_dbc->wrapped_dbc
-            );
-        }
-        RDS_FreeConnect(hdbc_);
+        odbc_helper_->DisconnectAndFree(&hdbc_);
     } else {
         // Main monitor now tracks this connection
         LOG(INFO) << "Main monitor now tracks this connection";

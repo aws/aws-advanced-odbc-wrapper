@@ -24,9 +24,11 @@
 
 #include "../../host_info.h"
 #include "../../dialect/dialect.h"
+#include "../../util/odbc_helper.h"
 
 class LimitlessQueryHelper {
 public:
+    LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper);
     // Generally accepted URL endpoint max length (2048) + 1 for null terminator
     static const int ROUTER_ENDPOINT_LENGTH = 2049;
     static const int LOAD_LENGTH = 5;
@@ -34,10 +36,15 @@ public:
     static const int MAX_WEIGHT = 10;
     static const int MIN_WEIGHT = 1;
 
-    static std::vector<HostInfo> QueryForLimitlessRouters(SQLHDBC conn, int host_port_to_map, const std::shared_ptr<DialectLimitless> &dialect);
+    std::vector<HostInfo> QueryForLimitlessRouters(
+        SQLHDBC conn,
+        int host_port_to_map,
+        const std::shared_ptr<DialectLimitless> &dialect);
 
 private:
     static HostInfo CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpoint, int host_port_to_map);
+
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 };
 
 #endif // LIMITLESS_QUERY_HELPER_H_

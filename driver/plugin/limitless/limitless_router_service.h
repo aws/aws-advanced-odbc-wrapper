@@ -16,10 +16,12 @@
 #define LIMITLESS_ROUTER_SERVICE_H_
 
 #include "limitless_router_monitor.h"
+#include "limitless_query_helper.h"
 #include "../../host_info.h"
 #include "../../host_selector/round_robin_host_selector.h"
 #include "../../host_selector/highest_weight_host_selector.h"
 #include "../../util/sliding_cache_map.h"
+#include "../../util/odbc_helper.h"
 #include "../../dialect/dialect.h"
 
 typedef enum {
@@ -29,7 +31,12 @@ typedef enum {
 
 class LimitlessRouterService {
 public:
-    LimitlessRouterService(const std::shared_ptr<DialectLimitless> &dialect, const std::map<std::string, std::string> &conn_attr);
+    LimitlessRouterService(
+        const std::shared_ptr<DialectLimitless> &dialect,
+        const std::map<std::string, std::string> &conn_attr,
+        const std::shared_ptr<OdbcHelper> &odbc_helper,
+        const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper);
+
     ~LimitlessRouterService();
     RoundRobinHostSelector round_robin_;
     HighestWeightHostSelector highest_weight_;
@@ -52,6 +59,8 @@ private:
     int max_router_retries_;
     int max_connect_retries_;
     int host_port_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
+    std::shared_ptr<LimitlessQueryHelper> limitless_query_helper_;
 };
 
 #endif // LIMITLESS_ROUTER_SERVICE_H_
