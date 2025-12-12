@@ -25,7 +25,7 @@
 
 class DialectAuroraMySql : virtual public Dialect {
 public:
-    int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
+    int GetDefaultPort() override { return DEFAULT_MYSQL_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
     std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
@@ -46,7 +46,7 @@ public:
     };
 
 private:
-    const int DEFAULT_POSTGRES_PORT = 3306;
+    const int DEFAULT_MYSQL_PORT = 3306;
     const std::string TOPOLOGY_QUERY =
         "SELECT SERVER_ID, CASE WHEN SESSION_ID = 'MASTER_SESSION_ID' THEN TRUE ELSE FALSE END, \
         CPU, REPLICA_LAG_IN_MILLISECONDS, LAST_UPDATE_TIMESTAMP \

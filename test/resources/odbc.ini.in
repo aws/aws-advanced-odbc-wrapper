@@ -19,3 +19,14 @@ SERVER          = @PG_SERVER@
 Driver          = @MYSQL_DRIVER_PATH@
 DATABASE        = @MYSQL_DATABASE@
 SERVER          = @MYSQL_SERVER@
+
+[inte-wrapper-dsn]
+Driver          = @TEST_DRIVER_PATH@
+DATABASE        = @TEST_DATABASE@
+SERVER          = @TEST_SERVER@
+BASE_DRIVER     = @BASE_DRIVER_PATH@
+
+[inte-base-dsn]
+Driver          = @BASE_DRIVER_PATH@
+DATABASE        = @TEST_DATABASE@
+SERVER          = @TEST_SERVER@

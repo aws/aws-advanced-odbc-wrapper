@@ -157,20 +157,17 @@ ENDIF()
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
 SET(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
 
-# Common Settings
+# DSN Settings
 SET(THREADING "0")
-SET(TEST_SERVER ${TEST_SERVER},${TEST_PORT})
-SET(TEST_DATABASE ${TEST_DATABASE})
 
-# Test Driver
-SET(TEST_DSN ${TEST_DSN})
-SET(TEST_DRIVER_NAME "aws-odbc-wrapper")
-SET(TEST_DRIVER_PATH ${TEST_DRIVER_PATH})
-
-# Base PG Driver
-SET(BASE_PG_DSN "pg-dsn")
-SET(BASE_PG_DRIVER_NAME "community-pg")
-SET(BASE_PG_DRIVER_PATH ${BASE_PG_DRIVER_PATH})
+# To be set via flags
+# -D TEST_DRIVER_PATH
+# -D PG_DRIVER_PATH
+# -D PG_SERVER
+# -D PG_DATABASE
+# -D MYSQL_DRIVER_PATH
+# -D MYSQL_SERVER
+# -D MYSQL_DATABASE
 
 CONFIGURE_FILE(
     ${ODBC_PATH}/odbcinst.ini.in

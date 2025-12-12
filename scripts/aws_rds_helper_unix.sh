@@ -42,7 +42,7 @@ function add_ip_to_db_sg {
     cidrBlock="$LocalIp/32"
 
     # Allow inbound traffic from the local IP address to the DB security group using AWS CLI
-    aws ec2 authorize-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 5432 --region $Region || true
+    aws ec2 authorize-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 0-65535 --region $Region || true
 
     # Sleep to ensure IP is added and propagated to DBs before moving onto next step
     sleep 60
@@ -76,7 +76,7 @@ function remove_ip_from_db_sg {
     cidrBlock="$LocalIp/32"
 
     # Revoke Inbound traffic
-    aws ec2 revoke-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 5432 --region $Region || true
+    aws ec2 revoke-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 0-65565 --region $Region || true
 
     # Check if revoked successfully
     if [ $? -eq 0 ]; then
