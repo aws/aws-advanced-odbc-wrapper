@@ -23,12 +23,14 @@
 typedef enum {
     AURORA_POSTGRESQL,
     AURORA_POSTGRESQL_LIMITLESS,
+    AURORA_MYSQL,
     UNKNOWN_DIALECT
 } DatabaseDialectType;
 
 static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
-    {VALUE_DB_DIALECT_AURORA_POSTGRESQL,    DatabaseDialectType::AURORA_POSTGRESQL},
-    {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,    DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS}
+    {VALUE_DB_DIALECT_AURORA_POSTGRESQL,            DatabaseDialectType::AURORA_POSTGRESQL},
+    {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,  DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS},
+    {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL}
 };
 
 class Dialect {

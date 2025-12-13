@@ -68,6 +68,11 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
 
+    # Dialects
+    ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect_aurora_mysql.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect_aurora_postgres.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect.h
+
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/driver.h
     ${CMAKE_CURRENT_SOURCE_DIR}/error.h

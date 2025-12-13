@@ -1,4 +1,4 @@
-name: Compatibility Test - PostgreSQL
+name: Compatibility Test - PostgreSQL & MySQL
 
 on:
   workflow_dispatch:
@@ -24,10 +24,16 @@ env:
   DRIVER_NAME_ANSI: 'AWS Advanced ODBC Wrapper Ansi'
   DRIVER_NAME_UNICODE: 'AWS Advanced ODBC Wrapper Unicode'
 
+  # Values from .\scripts\init_local_mysql_query.sql
+  LOCAL_DB_UID: 'test_username'
+  LOCAL_DB_PWD: 'test_password'
+  LOCAL_DB_NAME: 'test_database'
+
 permissions:
   contents: read
 
 jobs:
+# Build / Get Underlying Drivers
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
     runs-on: windows-latest
@@ -114,9 +120,63 @@ jobs:
           ./configure
           make
 
+  build-win-mysql:
+    name: Windows - Build MySQL Connector ODBC
+    runs-on: windows-latest
+    steps:
+      - name: Retrieve mysql-connector Cache
+        id: cache-mysql-connector
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector
+          key: ${{ runner.os }}-mysql-driver
+      - name: Download mysql-connector
+        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
+        run: |
+          mkdir mysql-connector
+          cd mysql-connector
+          curl.exe -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-winx64.msi" --output mysql-connector_x64.msi
+
+  build-macos-mysql:
+    name: MacOS - Build MySQL Connector ODBC
+    runs-on: macos-15
+    steps:
+      - name: Retrieve mysql-connector Cache
+        id: cache-mysql-connector
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
+      - name: Download mysql-connector
+        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
+        run: |
+          mkdir mysql-connector
+          curl -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-macos15-arm64.tar.gz" --output mysql-connector_arm64.tar.gz
+          tar xvf mysql-connector_arm64.tar.gz --strip-components 1 -C mysql-connector
+
+  build-linux-mysql:
+    name: Linux Ubuntu - Build MySQL Connector ODBC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve mysql-connector Cache
+        id: cache-mysql-connector
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
+      - name: Download mysql-connector
+        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
+        run: |
+          mkdir mysql-connector
+          cd mysql-connector
+          curl \
+            -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
+            --output mysql-connector_x64.deb
+
+# Build Wrapper & Run Tests
   test-win-compat:
     name: Windows - Compatibility Test
-    needs: [build-win-psqlodbc]
+    needs: [build-win-psqlodbc, build-win-mysql]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -142,6 +202,11 @@ jobs:
         shell: pwsh
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
+      - name: Install driver
+        shell: pwsh
+        working-directory: installer
+        run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
+      # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         uses: actions/cache@v4
         with:
@@ -153,36 +218,50 @@ jobs:
         working-directory: psqlodbc
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
-      - name: Install driver
-        shell: pwsh
-        working-directory: installer
-        run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v7
         with:
-          username: postgres
-          password: password
-          database: test_db
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
           port: 5432
           postgres-version: 17
           ssl: true
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector
+          key: ${{ runner.os }}-mysql-driver
+          fail-on-cache-miss: true
+      - name: Install MySQL Connector ODBC
+        shell: pwsh
+        working-directory: mysql-connector
+        run: |
+          Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
+      - name: Setup Local MySQL
+        run: |
+          choco install mysql --version 9.2.0
+          $mysqlExe = Get-ChildItem -Path "C:\tools\mysql" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          & $mysqlExe.FullName --protocol=TCP -u root -P 3306 --execute="source ${{ github.workspace }}/scripts/init_local_mysql_query.sql"
       - name: Build Compatibility Tests
         run: |
           cmake -S test/compatibility -B build_test
           cmake --build build_test --config ${{env.BUILD_CONFIG}}
-      - name: Install Ansi DSNs
+      - name: Install PostgreSQL Ansi DSNs
         shell: pwsh
         run: |
-            Add-OdbcDsn -Name wrapper-dsn `
+            Add-OdbcDsn -Name wrapper-pg-dsn `
               -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
               -DsnType User `
               -SetPropertyValue `
               @("RDS_AUTH_TYPE=database", `
               "Server=localhost", `
+              "Database=${{env.LOCAL_DB_NAME}}", `
               "Port=5432", `
               "SSLMode=prefer", `
               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
-      - name: Configure Base DSN
+      - name: Configure Base PostgreSQL DSN
         run: |
             Add-OdbcDsn -Name pg-dsn `
             -DriverName "PostgreSQL ANSI(x64)" `
@@ -191,16 +270,16 @@ jobs:
              @( `
              "SERVER=localhost", `
              "PORT=5432") `
-      - name: Run Compatibility Tests
+      - name: Run Compatibility Tests for PostgreSQL
         run: |
           ./build_test/${{env.BUILD_CONFIG}}/compatibility-test
         env:
           TEST_SERVER: localhost
           TEST_PORT: '5432'
-          TEST_DSN: wrapper-dsn
-          TEST_DATABASE: test_db
-          TEST_USERNAME: postgres
-          TEST_PASSWORD: password
+          TEST_DSN: wrapper-pg-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: C:\Program Files\psqlODBC\1700\bin\podbc30a.dll
           TEST_BASE_DSN: pg-dsn
       - name: Compare Test Results
@@ -208,19 +287,61 @@ jobs:
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
           pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-dsn pg-dsn
+          python test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+      - name: Install MySQL Ansi DSNs
+        shell: pwsh
+        run: |
+            Add-OdbcDsn -Name wrapper-mysql-dsn `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=localhost", `
+              "Database=${{env.LOCAL_DB_NAME}}", `
+              "Port=3306", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9a.dll")
+      - name: Configure Base MySQL DSN
+        run: |
+            Add-OdbcDsn -Name mysql-dsn `
+            -DriverName "MySQL ODBC 9.5 ANSI Driver" `
+            -DsnType User `
+            -SetPropertyValue `
+             @( `
+             "SERVER=localhost", `
+             "PORT=3306") `
+      - name: Run Compatibility Tests for MySQL
+        run: |
+          ./build_test/${{env.BUILD_CONFIG}}/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9a.dll
+          TEST_BASE_DSN: mysql-dsn
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip3 install deepdiff
+          python test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: odbc-api-compatibility-test-results-windows
           path: |
-            wrapper-dsn/
+            wrapper-pg-dsn/
             pg-dsn/
+            wrapper-mysql-dsn/
+            mysql-dsn/
 
   test-macos-compat:
     name: MacOS - Compatibility Test
-    needs: [build-macos-psqlodbc]
+    needs: [build-macos-psqlodbc, build-macos-mysql]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -244,6 +365,7 @@ jobs:
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
           cmake --build build
+      # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v4
@@ -254,31 +376,52 @@ jobs:
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v7
         with:
-          username: postgres
-          password: password
-          database: test_db
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
           port: 5432
           postgres-version: 17
           ssl: true
-      - name: Build Compatibility Tests for PostgreSQL
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
+          fail-on-cache-miss: true
+      - name: Setup iODBC Locally for pre-built MySQL Connector
+        run: |
+          curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
+          MOUNTDIR=$(echo `hdiutil mount iodbc.dmg | tail -1 \
+          | awk '{$1=$2=""; print $0}'` | xargs -0 echo) \
+          && sudo installer -pkg "${MOUNTDIR}/"*.pkg -target /
+      - name: Setup Local MySQL
+        run: |
+          brew install mysql@9.5
+          brew services restart mysql
+          mysql.server start
+          mysql -u root < ./scripts/init_local_mysql_query.sql
+      - name: Build Compatibility Tests
         run: |
           cmake -S test/compatibility -B test-compatibility \
-            -DTEST_SERVER="localhost" \
-            -DTEST_PORT="5432" \
-            -DTEST_DATABASE="test_db" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
-            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
+            -D PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so" \
+            -D PG_SERVER="localhost" \
+            -D PG_DATABASE="${{env.LOCAL_DB_NAME}}" \
+            -D MYSQL_DRIVER_PATH="${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so" \
+            -D MYSQL_SERVER="localhost" \
+            -D MYSQL_DATABASE="${{env.LOCAL_DB_NAME}}"
           cmake --build test-compatibility
-      - name: Run Compatibility Tests
+      - name: Run Compatibility Tests for PostgreSQL
         run: |
           ./test-compatibility/compatibility-test
         env:
           TEST_SERVER: localhost
           TEST_PORT: '5432'
-          TEST_DSN: wrapper-dsn
-          TEST_DATABASE: test_db
-          TEST_USERNAME: postgres
-          TEST_PASSWORD: password
+          TEST_DSN: wrapper-pg-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
@@ -288,19 +431,41 @@ jobs:
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-dsn pg-dsn
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+      - name: Run Compatibility Tests for MySQL
+        run: |
+          ./test-compatibility/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: ${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so
+          TEST_BASE_DSN: mysql-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: odbc-api-compatibility-test-results-macos
           path: |
-            wrapper-dsn/
+            wrapper-pg-dsn/
             pg-dsn/
+            wrapper-mysql-dsn/
+            mysql-dsn/
 
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
-    needs: [build-linux-psqlodbc]
+    needs: [build-linux-psqlodbc, build-linux-mysql]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -323,6 +488,7 @@ jobs:
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
           cmake --build build
+      # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v4
@@ -333,31 +499,47 @@ jobs:
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v7
         with:
-          username: postgres
-          password: password
-          database: test_db
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
           port: 5432
           postgres-version: 17
           ssl: true
-      - name: Build Compatibility Tests for PostgreSQL
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v4
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
+          fail-on-cache-miss: true
+      - name: Install MySQL Connector
+        run: |
+          sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
+      - name: Setup Local MySQL
+        run: |
+          sudo systemctl start mysql.service
+          sudo mysql -u root -proot < ./scripts/init_local_mysql_query.sql
+      - name: Build Compatibility Tests
         run: |
           cmake -S test/compatibility -B test-compatibility \
-            -DTEST_SERVER="localhost" \
-            -DTEST_PORT="5432" \
-            -DTEST_DATABASE="test_db" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
-            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
+            -D PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so" \
+            -D PG_SERVER="localhost" \
+            -D PG_DATABASE="${{env.LOCAL_DB_NAME}}" \
+            -D MYSQL_DRIVER_PATH="/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so" \
+            -D MYSQL_SERVER="localhost" \
+            -D MYSQL_DATABASE="${{env.LOCAL_DB_NAME}}"
           cmake --build test-compatibility
-      - name: Run Compatibility Tests
+      - name: Run Compatibility Tests for PostgreSQL
         run: |
           ./test-compatibility/compatibility-test
         env:
           TEST_SERVER: localhost
           TEST_PORT: '5432'
-          TEST_DSN: wrapper-dsn
-          TEST_DATABASE: test_db
-          TEST_USERNAME: postgres
-          TEST_PASSWORD: password
+          TEST_DSN: wrapper-pg-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
@@ -367,12 +549,34 @@ jobs:
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-dsn pg-dsn
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+      - name: Run Compatibility Tests for MySQL
+        run: |
+          ./test-compatibility/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: /usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so
+          TEST_BASE_DSN: mysql-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: odbc-api-compatibility-test-results-linux
           path: |
-            wrapper-dsn/
+            wrapper-pg-dsn/
             pg-dsn/
+            wrapper-mysql-dsn/
+            mysql-dsn/

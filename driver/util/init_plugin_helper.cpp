@@ -14,10 +14,13 @@
 
 #include <map>
 
-#include "../dialect/dialect.h"
-#include "../dialect/dialect_aurora_postgres.h"
 #include "init_plugin_helper.h"
+
 #include "rds_utils.h"
+
+#include "../dialect/dialect.h"
+#include "../dialect/dialect_aurora_mysql.h"
+#include "../dialect/dialect_aurora_postgres.h"
 
 std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_info)
 {
@@ -43,6 +46,8 @@ std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_inf
             return std::make_shared<DialectAuroraPostgres>();
         case DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS:
             return std::make_shared<DialectAuroraPostgresLimitless>();
+        case DatabaseDialectType::AURORA_MYSQL:
+            return std::make_shared<DialectAuroraMySql>();
         default:
             return std::make_shared<Dialect>();
     }
