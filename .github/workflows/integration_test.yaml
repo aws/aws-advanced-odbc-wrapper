@@ -414,7 +414,7 @@ jobs:
           aws ec2 revoke-security-group-ingress `
             --group-name default `
             --protocol tcp `
-            --port 0 `
+            --port 0-65535 `
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
            *> $null;
       # - name: Copy Driver Logs
@@ -533,7 +533,7 @@ jobs:
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
-            echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
+          echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
@@ -1086,7 +1086,7 @@ jobs:
           aws ec2 revoke-security-group-ingress `
             --group-name default `
             --protocol tcp `
-            --port 0 `
+            --port 0-65535 `
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
            *> $null;
       # - name: Copy Driver Logs

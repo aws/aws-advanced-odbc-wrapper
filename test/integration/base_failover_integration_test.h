@@ -114,9 +114,9 @@ protected:
         db_conn_str_suffix = "." + instance_endpoint;
         cluster_ro_url = ".cluster-ro-" + instance_endpoint;
 
-        if ("AURORA_POSTGRESQL" == test_dialect) {
+        if (test_dialect == "AURORA_POSTGRESQL") {
             SERVER_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier();";
-        } else if ("AURORA_MYSQL" == test_dialect) {
+        } else if (test_dialect == "AURORA_MYSQL") {
             SERVER_ID_QUERY = "SELECT @@aurora_server_id";
         } else {
             GTEST_SKIP() << "Failover requires database dialect to know which query to call.";
