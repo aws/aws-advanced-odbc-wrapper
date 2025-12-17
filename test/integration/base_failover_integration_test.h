@@ -84,8 +84,9 @@ protected:
     // Test Queries
     std::string DROP_TABLE_QUERY = "DROP TABLE IF EXISTS failover_transaction";
     std::string CREATE_TABLE_QUERY = "CREATE TABLE failover_transaction (id INT NOT NULL PRIMARY KEY, failover_transaction_field VARCHAR(255) NOT NULL)";
-    std::string SERVER_ID_QUERY = "SELECT aurora_db_instance_identifier()";
     std::string COUNT_FAILOVER_TRANSACTION_ROWS_QUERY = "SELECT count(*) FROM failover_transaction";
+    // Based off of dialect
+    std::string SERVER_ID_QUERY = "";
 
     static void SetUpTestSuite() {
         BaseConnectionTest::SetUpTestSuite();
@@ -112,6 +113,14 @@ protected:
             test_server.substr(cluster_id_prefix_index + cluster_prefix.size(), test_server.size());
         db_conn_str_suffix = "." + instance_endpoint;
         cluster_ro_url = ".cluster-ro-" + instance_endpoint;
+
+        if (test_dialect == "AURORA_POSTGRESQL") {
+            SERVER_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier();";
+        } else if (test_dialect == "AURORA_MYSQL") {
+            SERVER_ID_QUERY = "SELECT @@aurora_server_id";
+        } else {
+            GTEST_SKIP() << "Failover requires database dialect to know which query to call.";
+        }
     }
 
     void TearDown() override {

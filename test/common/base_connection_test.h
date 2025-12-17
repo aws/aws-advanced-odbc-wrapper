@@ -41,6 +41,7 @@ protected:
     int test_port = TEST_UTILS::StrToInt(TEST_UTILS::GetEnvVar("TEST_PORT", "5432"));
     std::string test_region = TEST_UTILS::GetEnvVar("TEST_REGION", "us-west-1");
     std::string test_server = TEST_UTILS::GetEnvVar("TEST_SERVER");
+    std::string test_dialect = TEST_UTILS::GetEnvVar("TEST_DIALECT");
 
     std::string conn_str = "";
 

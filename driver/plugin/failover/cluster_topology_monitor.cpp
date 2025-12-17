@@ -548,7 +548,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     RDS_AllocDbc(main_monitor_->henv_, &hdbc_);
     local_dbc = static_cast<DBC*>(hdbc_);
     local_dbc->conn_attr = conn_info_;
-    main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, SQL_NTS, nullptr, SQL_DRIVER_NOPROMPT);
+    main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::HandleWriterConn() {

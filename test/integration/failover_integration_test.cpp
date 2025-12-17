@@ -62,6 +62,7 @@ protected:
             .withPWD(test_pwd)
             .withDatabase(test_db)
             .withEnableClusterFailover(true)
+            .withDatabaseDialect(test_dialect)
             .getString();
 
         // Check to see if cluster is available.
@@ -112,7 +113,9 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY));
 
     // Execute queries within the transaction
-    std::string transaction_insert_query = "BEGIN; INSERT INTO failover_transaction VALUES (1, 'test field string 1')";
+    std::string begin_query = "BEGIN;";
+    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, begin_query));
+    std::string transaction_insert_query = "INSERT INTO failover_transaction VALUES (1, 'test field string 1')";
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, transaction_insert_query));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);

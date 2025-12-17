@@ -1,11 +1,16 @@
 [ODBC Drivers]
 @TEST_DRIVER_NAME@ = Installed
-@BASE_PG_DRIVER_NAME@ = Installed
+community-pg = Installed
+community-mysql = Installed
 
 [@TEST_DRIVER_NAME@]
 Driver = @TEST_DRIVER_PATH@
 Threading = @THREADING@
 
-[@BASE_PG_DRIVER_NAME@]
-Driver = @BASE_PG_DRIVER_PATH@
+[community-pg]
+Driver = @PG_DRIVER_PATH@
+Threading = @THREADING@
+
+[community-mysql]
+Driver = @MYSQL_DRIVER_PATH@
 Threading = @THREADING@
