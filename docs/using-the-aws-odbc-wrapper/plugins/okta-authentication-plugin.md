@@ -2,8 +2,6 @@
 
 The driver supports authentication via an [Okta](https://www.okta.com/) federated identity and then database access via IAM.
 
-However, the driver does not support 2FA. To disable 2FA for specific users or a groups, please read [Okta's article](https://support.okta.com/help/s/article/Exclude-from-OKta-Verify-MFA-user-doesn-t-have-a-phone) on how to do so.
-
 ### What is Federated Identity
 
 Federated Identity allows users to use the same set of credentials to access multiple services or resources across different organizations. This works by having Identity Providers (IdP) that manage and authenticate user credentials, and Service Providers (SP) that are services or resources that can be internal, external, and/or belonging to various organizations. Multiple SPs can establish trust relationships with a single IdP.
@@ -14,7 +12,7 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 
 1. Follow steps in [Enable AWS IAM Database Authentication](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.IAMDBAuth.Enabling.html) to setup IAM authentication.
 2. Configure Okta as the AWS identity provider following [Okta's official documentation](https://help.okta.com/en-us/content/topics/deploymentguides/aws/aws-deployment.htm)
-3. (Optional) Enable MFA. MFA through Okta Verify is supported for the Push and OTP methods. Please ensure the authentication policies and/or global session policies have been configured to use MFA.
+3. (Optional) Enable MFA. MFA through Okta Verify is supported for the Push and OTP methods. Please ensure there is a global session policy configured to require MFA.
 
 ### Connection String / DSN Configuration for Okta Authentication Plugin Support
 
