@@ -83,3 +83,12 @@ bool ConnectionStringHelper::IsSensitiveData(const std::string &sensitive_key)
 {
     return sensitive_key_set.contains(sensitive_key);
 }
+
+std::string ConnectionStringHelper::GetRealKeyName(const std::string& alias_key)
+{
+    auto key_it = alias_to_real_map.find(alias_key);
+    if (key_it != alias_to_real_map.end()) {
+        return key_it->second;
+    }
+    return alias_key;
+}

@@ -104,3 +104,17 @@ TEST_F(ConnectionStringHelperTest, MaskConnectionString) {
 
     EXPECT_EQ(expected, masked_str);
 }
+
+TEST_F(ConnectionStringHelperTest, GetRealKeyName) {
+    // UID
+    EXPECT_EQ(std::string(KEY_DB_USERNAME), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_USERNAME_1));
+    EXPECT_EQ(std::string(KEY_DB_USERNAME), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_USERNAME_2));
+    // PWD
+    EXPECT_EQ(std::string(KEY_DB_PASSWORD), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_PASSWORD_1));
+    EXPECT_EQ(std::string(KEY_DB_PASSWORD), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_PASSWORD_2));
+    EXPECT_EQ(std::string(KEY_DB_PASSWORD), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_PASSWORD_3));
+    // Server
+    EXPECT_EQ(std::string(KEY_SERVER), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_SERVER_1));
+    // Default, no aliases
+    EXPECT_EQ(std::string(KEY_AUTH_TYPE), ConnectionStringHelper::GetRealKeyName(KEY_AUTH_TYPE));
+}
