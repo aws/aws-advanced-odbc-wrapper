@@ -45,10 +45,14 @@ std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
         const size_t semicolon_idx = html.find(';', i);
         if (semicolon_idx != std::string::npos) {
             const std::string html_code = html.substr(i, semicolon_idx - i + 1);
+            char next = c;
             if (auto itr = HtmlUtil::HTML_DECODE_MAP.find(html_code); itr != HtmlUtil::HTML_DECODE_MAP.end()) {
-                retval.append(1, itr->second);
                 i = semicolon_idx + 1;
+                next = itr->second;
+            } else {
+                i++;
             }
+            retval.append(1, next);
         } else {
             retval.append(1, c);
             i++;

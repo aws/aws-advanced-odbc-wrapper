@@ -23,6 +23,7 @@ set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_mock_objects.h
 )
 
 set(TEST_SUITE
@@ -42,6 +43,9 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
 )
 
 set(TEST_RUNNER
