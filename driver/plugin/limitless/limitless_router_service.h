@@ -39,8 +39,9 @@ public:
         BasePlugin* plugin_head,
         DBC* dbc,
         const std::shared_ptr<DialectLimitless>& dialect) const;
-    SQLRETURN EstablishConnection(BasePlugin* plugin_head, DBC* dbc);
-    void StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect);
+    virtual SQLRETURN EstablishConnection(BasePlugin* plugin_head, DBC* dbc);
+    virtual void StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect);
+
     static SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> limitless_router_monitors;
 
 private:
