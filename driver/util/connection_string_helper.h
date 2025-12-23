@@ -68,12 +68,6 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_ROUTER_MAX_RETRIES
 };
 
-typedef enum {
-    UID,
-    PWD,
-    SERVER,
-} KeyAliasType;
-
 static std::unordered_map<std::string, std::string> const alias_to_real_map = {
     // UID
     {ALIAS_KEY_USERNAME_1, KEY_DB_USERNAME},
