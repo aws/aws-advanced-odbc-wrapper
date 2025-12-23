@@ -46,6 +46,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
 )
 
 set(TEST_RUNNER

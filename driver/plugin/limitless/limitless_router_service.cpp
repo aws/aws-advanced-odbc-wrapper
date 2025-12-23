@@ -29,8 +29,7 @@ SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRo
 
 LimitlessRouterService::LimitlessRouterService(
     const std::shared_ptr<DialectLimitless> &dialect,
-    const std::map<std::string,
-    std::string> &conn_attr,
+    const std::map<std::string, std::string> &conn_attr,
     const std::shared_ptr<OdbcHelper> &odbc_helper,
     const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper) {
     this->dialect_ = dialect;
