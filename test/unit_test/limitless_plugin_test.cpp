@@ -50,7 +50,7 @@ TEST_F(LimitlessPluginTest, Connect_Success) {
         .Times(testing::Exactly(0));
     dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_TRUE);
     std::shared_ptr<DialectAuroraPostgresLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
-    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr);
+    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr, std::make_shared<OdbcHelper>(nullptr));
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(1));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(1)).WillOnce(testing::Return(SQL_SUCCESS));
     LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
@@ -58,7 +58,7 @@ TEST_F(LimitlessPluginTest, Connect_Success) {
     EXPECT_EQ(SQL_SUCCESS, ret);
 }
 
-TEST_F(LimitlessPluginTest, Connect_Limitless_Disabled) {
+TEST_F(LimitlessPluginTest, Connect_LimitlessDisabled) {
     EXPECT_CALL(
         *mock_base_plugin,
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
@@ -66,7 +66,7 @@ TEST_F(LimitlessPluginTest, Connect_Limitless_Disabled) {
         .WillOnce(testing::Return(SQL_SUCCESS));
     dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
     std::shared_ptr<DialectAuroraPostgresLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
-    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr);
+    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr, std::make_shared<OdbcHelper>(nullptr));
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(0));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(0));
     LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
