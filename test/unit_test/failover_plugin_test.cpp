@@ -35,13 +35,15 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
     {
         FailoverPlugin plugin1(dbc, nullptr, FailoverMode::STRICT_WRITER,
                               mock_dialect, mock_host_selector,
-                              mock_topology_query_helper, nullptr);
+                              mock_topology_query_helper, nullptr,
+                              std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader));
 
         EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 1);
 
         FailoverPlugin plugin2(dbc, nullptr, FailoverMode::STRICT_WRITER,
                               mock_dialect, mock_host_selector,
-                              mock_topology_query_helper, nullptr);
+                              mock_topology_query_helper, nullptr,
+                              std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader));
         EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 2);
     }
 

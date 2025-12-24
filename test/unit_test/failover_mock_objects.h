@@ -46,7 +46,7 @@ class MockHostSelector : public HostSelector {
 
 class MockClusterTopologyQueryHelper : public ClusterTopologyQueryHelper {
     public:
-        MockClusterTopologyQueryHelper() : ClusterTopologyQueryHelper(nullptr, 0, "", "", "", "") {}
+        MockClusterTopologyQueryHelper() : ClusterTopologyQueryHelper(nullptr, 0, "", "", "", "", std::make_shared<OdbcHelper>(nullptr)) {}
         std::vector<HostInfo> QueryTopology(SQLHDBC hdbc) override { return {}; }
 };
 

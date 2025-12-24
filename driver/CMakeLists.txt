@@ -66,6 +66,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
 
     # Dialects
@@ -126,6 +127,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
 
     # Core

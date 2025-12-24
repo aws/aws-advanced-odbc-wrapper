@@ -39,6 +39,7 @@
 #include "../../util/sliding_cache_map.h"
 #include "../../util/rds_strings.h"
 #include "../../dialect/dialect.h"
+#include "../../util/odbc_helper.h"
 
 struct DBC;
 struct ENV;
@@ -48,7 +49,8 @@ public:
     ClusterTopologyMonitor(DBC* dbc,
         const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
         const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
-        const std::shared_ptr<Dialect> &dialect_);
+        const std::shared_ptr<Dialect> &dialect_,
+        const std::shared_ptr<OdbcHelper> &odbc_helper);
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
@@ -80,7 +82,7 @@ private:
 
     std::shared_ptr<RdsLibLoader> lib_loader_;
     BasePlugin* plugin_head_;
-    // Topology Tracking
+    std::shared_ptr<OdbcHelper> odbc_helper_;    // Topology Tracking
     std::string cluster_id_;
     std::map<std::string, std::string> connection_attributes_;
 
@@ -140,7 +142,7 @@ private:
 class ClusterTopologyMonitor::NodeMonitoringThread {
 public:
     NodeMonitoringThread(ClusterTopologyMonitor* monitor, const std::shared_ptr<HostInfo>& host_info,
-        const std::shared_ptr<HostInfo>& writer_host_info);
+        const std::shared_ptr<HostInfo>& writer_host_info, const std::shared_ptr<OdbcHelper> &odbc_helper);
     ~NodeMonitoringThread();
 
 private:
@@ -158,6 +160,7 @@ private:
     std::shared_ptr<std::thread> node_thread_;
     SQLHDBC hdbc_ = SQL_NULL_HDBC;
     bool reader_update_topology_ = false;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 
     const uint32_t THREAD_SLEEP_MS_ = 100;
 };

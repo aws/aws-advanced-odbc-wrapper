@@ -53,7 +53,7 @@ TEST_F(LimitlessPluginTest, Connect_Success) {
     std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr);
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(1));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(1)).WillOnce(testing::Return(SQL_SUCCESS));
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service);
+    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
 }
@@ -69,7 +69,7 @@ TEST_F(LimitlessPluginTest, Connect_Limitless_Disabled) {
     std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr);
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(0));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(0));
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service);
+    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
 }
@@ -80,7 +80,7 @@ TEST_F(LimitlessPluginTest, IncorrectDialect) {
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(0));
     std::shared_ptr<DialectAuroraPostgres> dialect = std::make_shared<DialectAuroraPostgres>();
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, nullptr);
+    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, nullptr, nullptr);
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }

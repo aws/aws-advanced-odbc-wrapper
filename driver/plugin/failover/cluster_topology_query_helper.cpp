@@ -22,6 +22,7 @@
 #include "../../driver.h"
 #include "../../odbcapi.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/odbc_helper.h"
 #include "../../util/rds_strings.h"
 
 ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
@@ -30,20 +31,22 @@ ClusterTopologyQueryHelper::ClusterTopologyQueryHelper(
     std::string endpoint_template,
     std::string topology_query,
     std::string writer_id_query,
-    std::string node_id_query)
+    std::string node_id_query,
+    const std::shared_ptr<OdbcHelper> &odbc_helper)
     : lib_loader_{ lib_loader },
       port{ port },
       endpoint_template_{ std::move(endpoint_template) },
       topology_query_{ std::move(topology_query) },
       writer_id_query_{ std::move(writer_id_query) },
-      node_id_query_{ std::move(node_id_query) } {}
+      node_id_query_{ std::move(node_id_query) },
+      odbc_helper_{ odbc_helper } {}
 
 std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     SQLTCHAR writer_id[BUFFER_SIZE] = {0};
-    SQLLEN rt = 0;
+    SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
@@ -52,26 +55,14 @@ std::string ClusterTopologyQueryHelper::GetWriterId(SQLHDBC hdbc)
         return "";
     }
 
-    res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
-    );
+    res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(writer_id_query_), SQL_NTS
-        );
+        this->odbc_helper_->SQLExecDirect(&stmt, writer_id_query_);
 
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, NODE_ID_COL, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &rt
-        );
-
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
-            stmt
-        );
-
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt
-        );
+        this->odbc_helper_->SQLBindCol(&stmt, NODE_ID_COL, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &len);
+        this->odbc_helper_->SQLFetch(&stmt);
+        this->odbc_helper_->BaseFreeStmt(&stmt);
     }
 
     return AS_UTF8_CSTR(writer_id);
@@ -83,9 +74,8 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
     SQLTCHAR node_id[BUFFER_SIZE] = {0};
     bool is_writer = false;
     SQLREAL cpu_usage = 0;
+    SQLLEN len = 0;
     SQLINTEGER replica_lag_ms = 0;
-    SQLLEN rt = 0;
-    RdsLibResult res;
     std::vector<HostInfo> hosts;
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
@@ -94,42 +84,24 @@ std::vector<HostInfo> ClusterTopologyQueryHelper::QueryTopology(SQLHDBC hdbc)
         return hosts;
     }
 
-    res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-        SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
-    );
+    RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(topology_query_), SQL_NTS
-        );
+        this->odbc_helper_->SQLExecDirect(&stmt, topology_query_);
 
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, NODE_ID_COL, SQL_C_TCHAR, &node_id, sizeof(node_id), &rt
-        );
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, IS_WRITER_COL, SQL_BIT, &is_writer, sizeof(is_writer), &rt
-        );
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, CPU_USAGE_COL, SQL_REAL, &cpu_usage, sizeof(cpu_usage), &rt
-        );
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, REPLICA_LAG_COL, SQL_INTEGER, &replica_lag_ms, sizeof(replica_lag_ms), &rt
-        );
+        this->odbc_helper_->SQLBindCol(&stmt, NODE_ID_COL, SQL_C_TCHAR, &node_id, sizeof(node_id), &len);
+        this->odbc_helper_->SQLBindCol(&stmt, IS_WRITER_COL, SQL_BIT, &is_writer, sizeof(is_writer), &len);
+        this->odbc_helper_->SQLBindCol(&stmt, CPU_USAGE_COL, SQL_REAL, &cpu_usage, sizeof(cpu_usage), &len);
+        this->odbc_helper_->SQLBindCol(&stmt, REPLICA_LAG_COL, SQL_INTEGER, &replica_lag_ms, sizeof(replica_lag_ms), &len);
 
-        res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
-            stmt
-        );
+        res = this->odbc_helper_->SQLFetch(&stmt);
         while (SQL_SUCCEEDED(res.fn_result)) {
             const HostInfo new_host = CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms);
             hosts.push_back(new_host);
-            res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
-                stmt
-            );
+            res = this->odbc_helper_->SQLFetch( &stmt);
         }
 
-        NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-            SQL_HANDLE_STMT, stmt
-        );
+        this->odbc_helper_->BaseFreeStmt(&stmt);
     }
 
     LOG_IF(WARNING, hosts.empty()) << "Failed to fetch any instances from topology";

@@ -15,18 +15,33 @@
 #ifndef ODBC_HELPER_H
 #define ODBC_HELPER_H
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../driver.h"
+#include "../odbcapi.h"
+#include "rds_lib_loader.h"
 
-#include <sql.h>
+class OdbcHelper {
+public:
+    OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader);
 
-#include <string>
-#include <memory>
+    virtual void Disconnect(const DBC *dbc);
+    virtual void Disconnect(SQLHDBC *hdbc);
+    virtual void DisconnectAndFree(SQLHDBC *hdbc);
 
-#include "../dialect/dialect.h"
+    virtual SQLRETURN AllocEnv(SQLHENV *henv);
+    virtual SQLRETURN FreeEnv(SQLHENV *henv);
+    virtual SQLRETURN AllocDbc(SQLHENV &henv, SQLHDBC &hdbc);
 
-static const int MAX_HOST_SIZE = 1024;
-std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect);
+    virtual RdsLibResult SQLSetEnvAttr(const ENV *henv, SQLINTEGER attribute, SQLPOINTER pointer, int length);
+    virtual RdsLibResult SQLFetch(SQLHSTMT *stmt);
+    virtual RdsLibResult SQLBindCol(const SQLHSTMT *stmt, int column, int type, void *value, size_t size, SQLLEN *len);
+    virtual RdsLibResult SQLExecDirect(const SQLHSTMT *stmt, const std::string &query);
+
+    virtual RdsLibResult BaseAllocEnv(ENV *env);
+    virtual RdsLibResult BaseAllocStmt(const SQLHDBC *wrapped_dbc, SQLHSTMT *stmt);
+    virtual RdsLibResult BaseFreeStmt(SQLHSTMT *stmt);
+
+private:
+    std::shared_ptr<RdsLibLoader> lib_loader_;
+};
 
 #endif //ODBC_HELPER_H
