@@ -91,7 +91,7 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
             }
             else {
                 // Insert if absent, connection string keys take precedence
-                conn_map.try_emplace(key, val);
+                conn_map.try_emplace(ConnectionStringHelper::GetRealKeyName(key), val);
             }
         }
     }

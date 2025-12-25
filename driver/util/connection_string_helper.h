@@ -17,6 +17,7 @@
 
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "connection_string_keys.h"
 #include "rds_strings.h"
@@ -67,6 +68,18 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_ROUTER_MAX_RETRIES
 };
 
+static std::unordered_map<std::string, std::string> const alias_to_real_map = {
+    // UID
+    {ALIAS_KEY_USERNAME_1, KEY_DB_USERNAME},
+    {ALIAS_KEY_USERNAME_2, KEY_DB_USERNAME},
+    // PWD
+    {ALIAS_KEY_PASSWORD_1, KEY_DB_PASSWORD},
+    {ALIAS_KEY_PASSWORD_2, KEY_DB_PASSWORD},
+    {ALIAS_KEY_PASSWORD_3, KEY_DB_PASSWORD},
+    // Server
+    {ALIAS_KEY_SERVER_1, KEY_SERVER},
+};
+
 namespace ConnectionStringHelper {
     void ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map);
     std::string BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map);
@@ -74,6 +87,7 @@ namespace ConnectionStringHelper {
     std::string MaskSensitiveInformation(const std::string &conn_str);
     bool IsAwsOdbcKey(const std::string &aws_odbc_key);
     bool IsSensitiveData(const std::string &sensitive_key);
+    std::string GetRealKeyName(const std::string &alias_key);
 }
 
 #endif // CONNECTION_STRING_HELPER_H_
