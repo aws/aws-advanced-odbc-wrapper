@@ -68,6 +68,7 @@
 #include "plugin/base_plugin.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
+#include "util/topology_service.h"
 
 /* Const Lengths */
 #define NO_DATA_SQL_STATE     "00000"
@@ -136,9 +137,10 @@ struct DBC {
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<std::string, std::string>  conn_attr; // Key, Value
-    BasePlugin*                 plugin_head = nullptr;
-    ERR_INFO*                   err = nullptr;
-    char                        sql_error_called = 0;
+    BasePlugin*                         plugin_head = nullptr;
+    std::shared_ptr<TopologyService>    topology_service;
+    ERR_INFO*                           err = nullptr;
+    char                                sql_error_called = 0;
 
      ~DBC() {
           if (plugin_head) {

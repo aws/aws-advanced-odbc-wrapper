@@ -35,11 +35,14 @@
 #include "../base_plugin.h"
 #include "../../driver.h"
 #include "../../host_info.h"
-#include "../../util/logger_wrapper.h"
-#include "../../util/sliding_cache_map.h"
-#include "../../util/rds_strings.h"
+
 #include "../../dialect/dialect.h"
+
+#include "../../util/logger_wrapper.h"
 #include "../../util/odbc_helper.h"
+#include "../../util/rds_strings.h"
+#include "../../util/sliding_cache_map.h"
+#include "../../util/topology_service.h"
 
 struct DBC;
 struct ENV;
@@ -47,7 +50,7 @@ struct ENV;
 class ClusterTopologyMonitor {
 public:
     ClusterTopologyMonitor(DBC* dbc,
-        const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
+        const std::shared_ptr<TopologyService>& topology_service,
         const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
         const std::shared_ptr<Dialect> &dialect_,
         const std::shared_ptr<OdbcHelper> &odbc_helper);
@@ -87,7 +90,7 @@ private:
     std::map<std::string, std::string> connection_attributes_;
 
     // SlidingCacheMap internally is thread safe
-    std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>> topology_map_;
+    std::shared_ptr<TopologyService> topology_service_;
 
     // Track Update Request
     std::atomic<bool> request_update_topology_;

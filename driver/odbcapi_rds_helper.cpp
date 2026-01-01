@@ -35,6 +35,7 @@
 #include "util/odbc_dsn_helper.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
+#include "util/topology_service.h"
 
 #ifdef WIN32
     #include "gui/setup.h"
@@ -2028,6 +2029,11 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     // Initialize Plugins
     try {
+        if (!dbc->topology_service) {
+            // Create Topology Service
+            std::string cluster_id = TopologyService::InitClusterId(dbc->conn_attr);
+            dbc->topology_service = std::make_shared<TopologyService>(cluster_id);
+        }
         if (!dbc->plugin_head) {
             BasePlugin* plugin_head = new BasePlugin(dbc);
             BasePlugin* next_plugin;

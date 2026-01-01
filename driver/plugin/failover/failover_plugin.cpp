@@ -25,6 +25,7 @@
 #include "../../util/logger_wrapper.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
+#include "../../util/topology_service.h"
 
 #include "../../host_selector/highest_weight_host_selector.h"
 #include "../../host_selector/host_selector.h"
@@ -45,6 +46,7 @@ FailoverPlugin::FailoverPlugin(DBC* dbc, BasePlugin* next_plugin) : FailoverPlug
     nullptr,
     nullptr,
     nullptr,
+    nullptr,
     std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader)) {}
 
 FailoverPlugin::FailoverPlugin(
@@ -53,6 +55,7 @@ FailoverPlugin::FailoverPlugin(
     FailoverMode failover_mode,
     const std::shared_ptr<Dialect>& dialect,
     const std::shared_ptr<HostSelector>& host_selector,
+    const std::shared_ptr<TopologyService>& topology_service,
     const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
     const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor,
     const std::shared_ptr<OdbcHelper> &odbc_helper) : BasePlugin(dbc, next_plugin)
@@ -68,6 +71,7 @@ FailoverPlugin::FailoverPlugin(
     this->failover_mode_ = failover_mode != FailoverMode::UNKNOWN_FAILOVER_MODE ? failover_mode : InitFailoverMode(conn_info);
     this->dialect_ = dialect ? dialect : InitDialect(conn_info);
     this->host_selector_ = host_selector ? host_selector : InitHostSelectorStrategy(conn_info);
+    this->topology_service_ = topology_service ? topology_service : dbc->topology_service;
     this->topology_query_helper_ = topology_query_helper ? topology_query_helper : InitQueryHelper(dbc);
     this->topology_monitor_ = topology_monitor ? topology_monitor : InitTopologyMonitor(dbc);
 }
@@ -204,7 +208,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
     topology_monitor_->ForceRefresh(false, 0);
 
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
-    const std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
+    const std::vector<HostInfo> hosts = topology_service_->GetFilteredHosts();
     if (hosts.empty()) {
         LOG(INFO) << "No topology available";
         return false;
@@ -314,7 +318,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     topology_monitor_->ForceRefresh(true, failover_timeout_ms_.count());
 
     // Try connecting to a writer
-    const std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
+    const std::vector<HostInfo> hosts = topology_service_->GetFilteredHosts();;
     std::unordered_map<std::string, std::string> properties;
     RoundRobinHostSelector::SetRoundRobinWeight(hosts, properties);
     HostInfo host;
@@ -450,7 +454,7 @@ std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC*
         LOG(INFO) << "Incremented Topology Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
     } else {
         monitor = std::make_shared<ClusterTopologyMonitor>(
-            dbc, topology_map_, topology_query_helper_, dialect_, odbc_helper_
+            dbc, topology_service_, topology_query_helper_, dialect_, odbc_helper_
         );
         const std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = {1, monitor};
         topology_monitors_.insert_or_assign(this->cluster_id_, pair);
