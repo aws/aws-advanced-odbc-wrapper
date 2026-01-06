@@ -51,14 +51,12 @@ public:
 
     std::string GetHost() const;
     int GetPort() const;
+    std::string GetHostId() const;
     std::string GetHostPortPair() const;
     uint64_t GetWeight() const;
 
     void SetHostState(HOST_STATE state);
     HOST_STATE GetHostState() const;
-
-    std::string session_id;
-    std::string replica_lag;
 
     bool operator==(const HostInfo& other) const {
         return this->EqualHostPortPair(other) && this->weight == other.GetWeight() && this->is_writer == other.IsHostWriter();
@@ -66,7 +64,8 @@ public:
 
 private:
     std::string host_port_separator = ":";
-    std::string host;
+    std::string host_;
+    std::string host_id_;
     int port = NO_PORT;
     uint64_t weight = DEFAULT_WEIGHT;
 

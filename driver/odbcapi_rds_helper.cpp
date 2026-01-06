@@ -21,6 +21,10 @@
 #include <cwchar>
 #include <unordered_set>
 
+#include "plugin/base_plugin.h"
+#include "plugin/default_plugin.h"
+
+#include "plugin/custom_endpoint/custom_endpoint_plugin.h"
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
@@ -2031,11 +2035,11 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
     try {
         if (!dbc->topology_service) {
             // Create Topology Service
-            std::string cluster_id = TopologyService::InitClusterId(dbc->conn_attr);
+            const std::string cluster_id = TopologyService::InitClusterId(dbc->conn_attr);
             dbc->topology_service = std::make_shared<TopologyService>(cluster_id);
         }
         if (!dbc->plugin_head) {
-            BasePlugin* plugin_head = new BasePlugin(dbc);
+            BasePlugin* plugin_head = new DefaultPlugin(dbc);
             BasePlugin* next_plugin;
 
             // Auth Plugins
@@ -2078,6 +2082,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                 && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
             {
                 next_plugin = new FailoverPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Custom Endpoint
+            if (dbc->conn_attr.contains(KEY_ENABLE_CUSTOM_ENDPOINT)
+                && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new CustomEndpointPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

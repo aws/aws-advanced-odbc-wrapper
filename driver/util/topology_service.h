@@ -30,6 +30,12 @@ static inline std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>
 struct HostFilter {
     std::set<std::string> allowed_host_ids;
     std::set<std::string> blocked_host_ids;
+
+    bool operator==(const HostFilter& other) const
+    {
+        return allowed_host_ids == other.allowed_host_ids
+            && blocked_host_ids == other.blocked_host_ids;
+    }
 };
 
 class TopologyService {
@@ -38,7 +44,7 @@ public:
     ~TopologyService() = default;
     TopologyService(std::string cluster_id);
     virtual std::vector<HostInfo> GetHosts();
-    virtual void SetHosts(std::vector<HostInfo> hosts);
+    virtual void SetHosts(const std::vector<HostInfo>& hosts);
     virtual std::vector<HostInfo> GetFilteredHosts();
     virtual void SetHostFilter(HostFilter hosts);
 

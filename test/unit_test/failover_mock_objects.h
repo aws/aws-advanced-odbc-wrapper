@@ -49,7 +49,7 @@ class MockTopologyService : public TopologyService {
     public:
         MockTopologyService() : TopologyService("") {}
         std::vector<HostInfo> GetHosts() override { return {}; }
-        void SetHosts(std::vector<HostInfo>) override {}
+        void SetHosts(const std::vector<HostInfo>&) override {}
 };
 
 class MockClusterTopologyQueryHelper : public ClusterTopologyQueryHelper {

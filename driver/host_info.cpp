@@ -13,14 +13,19 @@
 // limitations under the License.
 
 #include "host_info.h"
+#include "util/rds_utils.h"
 
 HostInfo::HostInfo(std::string host, int port, HOST_STATE state, bool is_writer, uint64_t weight) :
-    host { std::move(host) },
+    host_ { std::move(host) },
     port { port },
     host_state { state },
     is_writer { is_writer },
     weight { weight }
 {
+    auto idx = host_.find('.');
+    if (idx != std::string::npos) {
+        host_id_ = host_.substr(0, idx);
+    }
 }
 
 /**
@@ -30,7 +35,7 @@ HostInfo::HostInfo(std::string host, int port, HOST_STATE state, bool is_writer,
  */
 std::string HostInfo::GetHost() const
 {
-    return host;
+    return host_;
 }
 
 /**
@@ -41,6 +46,15 @@ std::string HostInfo::GetHost() const
 int HostInfo::GetPort() const
 {
     return port;
+}
+
+/**
+ * Returns the Host ID.
+ *
+ * @return the Host ID
+ */
+std::string HostInfo::GetHostId() const {
+    return host_id_;
 }
 
 /**
@@ -60,7 +74,7 @@ uint64_t HostInfo::GetWeight() const
  */
 std::string HostInfo::GetHostPortPair() const
 {
-    return host + host_port_separator + std::to_string(port);
+    return host_ + host_port_separator + std::to_string(port);
 }
 
 bool HostInfo::EqualHostPortPair(const HostInfo& hi) const

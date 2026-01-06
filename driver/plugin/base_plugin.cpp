@@ -28,12 +28,13 @@ BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
     plugin_name("BasePlugin") {}
 
 BasePlugin::~BasePlugin() {
-    if (next_plugin) {
+    if (next_plugin != this) {
         delete next_plugin;
         next_plugin = nullptr;
     }
 }
 
+// codechecker_suppress [misc-no-recursion]
 SQLRETURN BasePlugin::Connect(
     SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
@@ -42,133 +43,27 @@ SQLRETURN BasePlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    LOG(INFO) << "Entering Connect";
-    SQLRETURN ret = SQL_ERROR;
-    bool has_conn_attr_errors = false;
-    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    const ENV* env = dbc->env;
-
-    // TODO - Should a new connect use a new underlying DBC?
-    // Create Wrapped DBC if not already allocated
-    RdsLibResult res;
-    if (!dbc->wrapped_dbc) {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-            SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
+    if (next_plugin && next_plugin != this) {
+        return next_plugin->Connect(
+            ConnectionHandle,
+            WindowHandle,
+            OutConnectionString,
+            BufferLength,
+            StringLengthPtr,
+            DriverCompletion
         );
     }
-
-    // DSN should be read from the original input
-    // and a new connection string should be built without DSN & Driver
-    const std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
-    DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
-
-    SQLTCHAR *conn_in_sqltchar;
-#if UNICODE
-    const std::vector<uint16_t> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
-    const uint16_t* conn_in_ushort = conn_in_vec.data();
-
-    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in_ushort));
-#else
-    conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
-#endif
-    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
-        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
-    );
-
-    if (res.fn_load_success) {
-        ret = res.fn_result;
-        if (!SQL_SUCCEEDED(ret)) {
-            return ret;
-        }
-    }
-
-    // Apply Tracked Connection Attributes
-    for (auto const& [key, val] : dbc->attr_map) {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
-            dbc->wrapped_dbc, key, val.first, val.second
-        );
-        if (!res.fn_result) {
-            LOG(WARNING) << "Error setting connection attribute";
-        }
-        has_conn_attr_errors = res.fn_result == 0 ? has_conn_attr_errors : true;
-    }
-    dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
-
-    // TODO - Error Handling for ConnAttr, IsConnected
-    // Successful Connection, but bad environment and/or connection attribute setting
-    if (SQL_SUCCEEDED(ret)) {
-        dbc->conn_status = CONN_CONNECTED;
-        if (has_conn_attr_errors) {
-            ret = SQL_SUCCESS_WITH_INFO;
-        }
-    }
-    return ret;
+    return SQL_ERROR;
 }
 
+// codechecker_suppress [misc-no-recursion]
 SQLRETURN BasePlugin::Execute(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    LOG(INFO) << "Entering Execute";
-    RdsLibResult res;
-    STMT* stmt = static_cast<STMT*>(StatementHandle);
-    DBC* dbc = stmt->dbc;
-    const ENV* env = dbc->env;
-    const std::string query = StatementText ? AS_UTF8_CSTR(StatementText) : "";
-
-    // Allocate wrapped handle if NULL
-    if (!stmt->wrapped_stmt) {
-        if (dbc->wrapped_dbc) {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-                SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
-            );
-        } else {
-            LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
-            stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
-            return SQL_ERROR;
-        }
-        // Set statement settings
-        for (auto const& [key, val] : stmt->attr_map) {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
-                stmt->wrapped_stmt, key, val.first, val.second
-            );
-        }
-        // Cursor Name
-        const std::string cursor_name = stmt->cursor_name;
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
-            stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
-        );
+    if (next_plugin && next_plugin != this) {
+        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
     }
-
-    if (query.empty()) {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
-            stmt->wrapped_stmt
-        );
-    } else {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt->wrapped_stmt, StatementText, TextLength
-        );
-    }
-
-    // Supports checking for transaction changes only if it was a direct execute
-    if (SQL_SUCCEEDED(res.fn_result) && !query.empty()) {
-        if (SqlQueryAnalyzer::DoesOpenTransaction(query)) {
-            dbc->transaction_status = TRANSACTION_OPEN;
-        } else if (SqlQueryAnalyzer::DoesCloseTransaction(dbc, query)
-            || SqlQueryAnalyzer::DoesSwitchAutoCommitFalseTrue(dbc, query)
-        ) {
-            dbc->transaction_status = TRANSACTION_CLOSED;
-        }
-
-        if (SqlQueryAnalyzer::IsStatementSettingAutoCommit(query)) {
-            dbc->auto_commit = SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(query);
-            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
-                dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0
-            );
-            dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair(reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0));
-        }
-    }
-
-    return res.fn_result;
+    return SQL_ERROR;
 }

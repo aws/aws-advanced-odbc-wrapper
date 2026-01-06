@@ -33,6 +33,10 @@ set(INC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.h
+    ## Custom Endpoint
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
     ## Failover
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.h
@@ -102,6 +106,9 @@ set(SRC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
