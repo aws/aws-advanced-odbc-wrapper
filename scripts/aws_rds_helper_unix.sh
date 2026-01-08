@@ -76,7 +76,7 @@ function remove_ip_from_db_sg {
     cidrBlock="$LocalIp/32"
 
     # Revoke Inbound traffic
-    aws ec2 revoke-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 0-65565 --region $Region || true
+    aws ec2 revoke-security-group-ingress --group-id $securityGroupId --protocol tcp --cidr $cidrBlock --port 0-65535 --region $Region || true
 
     # Check if revoked successfully
     if [ $? -eq 0 ]; then
