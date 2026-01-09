@@ -33,7 +33,7 @@
 
 // Initialize static members
 std::mutex FailoverPlugin::topology_monitors_mutex_;
-SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> FailoverPlugin::topology_monitors_;
+std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> FailoverPlugin::topology_monitors_;
 
 FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
@@ -75,14 +75,15 @@ FailoverPlugin::FailoverPlugin(
 FailoverPlugin::~FailoverPlugin()
 {
     const std::lock_guard lock_guard(topology_monitors_mutex_);
-    std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
-    if (pair.first == 1) {
-        topology_monitors_.Delete(this->cluster_id_);
-        LOG(INFO) << "Shut down Topology Monitor for: " <<  this->cluster_id_;
-    } else {
-        pair.first--;
-        topology_monitors_.Put(this->cluster_id_, pair);
-        LOG(INFO) << "Decremented Topology Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
+    if (auto itr = topology_monitors_.find(this->cluster_id_); itr != topology_monitors_.end()) {
+        std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>& pair = itr->second;
+        if (pair.first == 1) {
+            topology_monitors_.erase(this->cluster_id_);
+            LOG(INFO) << "Shut down Topology Monitor for: " <<  this->cluster_id_;
+        } else {
+            pair.first--;
+            LOG(INFO) << "Decremented Topology Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
+        }
     }
 }
 
@@ -435,28 +436,32 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC*
     );
 }
 
-std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC* dbc)
-{
+std::shared_ptr<ClusterTopologyMonitor> FailoverPlugin::InitTopologyMonitor(DBC* dbc) {
     const std::lock_guard lock_guard(topology_monitors_mutex_);
-    if (!topology_monitors_.Find(this->cluster_id_)) {
-        std::shared_ptr<ClusterTopologyMonitor> monitor = std::make_shared<ClusterTopologyMonitor>(
+    std::shared_ptr<ClusterTopologyMonitor> monitor;
+    if (auto itr = topology_monitors_.find(this->cluster_id_); itr != topology_monitors_.end()) {
+        std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>& pair= itr->second;
+        // If the monitor exists, increment the reference count.
+        pair.first++;
+        monitor = pair.second;
+        LOG(INFO) << "Incremented Topology Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
+    } else {
+        monitor = std::make_shared<ClusterTopologyMonitor>(
             dbc, topology_map_, topology_query_helper_, dialect_, odbc_helper_
         );
-        topology_monitors_.Put(this->cluster_id_, {1, monitor});
+        const std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = {1, monitor};
+        topology_monitors_.insert_or_assign(this->cluster_id_, pair);
         LOG(INFO) << "Created Topology Monitor for: " << this->cluster_id_;
-        return monitor;
     }
-
-    std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair = topology_monitors_.Get(this->cluster_id_);
-    // If the monitor exists, increment the reference count.
-    pair.first++;
-    topology_monitors_.Put(this->cluster_id_, pair);
-    LOG(INFO) << "Incremented Topology Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
-    return pair.second;
+    return monitor;
 }
 
 unsigned int FailoverPlugin::GetTopologyMonitorCount(const std::string& cluster_id) {
     const std::lock_guard lock_guard(topology_monitors_mutex_);
-    auto [count, monitor] = topology_monitors_.Get(cluster_id);
+    unsigned int count = 0;
+    if (auto itr = topology_monitors_.find(cluster_id); itr != topology_monitors_.end()) {
+        const std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>> pair= itr->second;
+        count = pair.first;
+    }
     return count;
 }

@@ -66,24 +66,24 @@ TEST_F(LimitlessRouterServiceTest, LimitlessRouterMonitorReferenceCountingTest) 
     TestLimitlessRouterService* router_service3 = new TestLimitlessRouterService(dialect, attr2, odbc_helper_);
     router_service3->StartMonitoring(dbc, dialect);
 
-    std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = LimitlessRouterService::limitless_router_monitors.Get("server_1");
+    std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = LimitlessRouterService::limitless_router_monitors_.at("server_1");
     EXPECT_EQ(2, pair.first);
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_2");
+    pair = LimitlessRouterService::limitless_router_monitors_.at("server_2");
     EXPECT_EQ(1, pair.first);
 
     delete router_service1;
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_1");
+    pair = LimitlessRouterService::limitless_router_monitors_.at("server_1");
     EXPECT_EQ(1, pair.first);
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_2");
+    pair = LimitlessRouterService::limitless_router_monitors_.at("server_2");
     EXPECT_EQ(1, pair.first);
 
     delete router_service2;
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_1");
-    EXPECT_EQ(0, pair.first);
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_2");
+    auto itr = LimitlessRouterService::limitless_router_monitors_.find("server_1");
+    EXPECT_EQ(LimitlessRouterService::limitless_router_monitors_.end(), itr);
+    pair = LimitlessRouterService::limitless_router_monitors_.at("server_2");
     EXPECT_EQ(1, pair.first);
 
     delete router_service3;
-    pair = LimitlessRouterService::limitless_router_monitors.Get("server_2");
-    EXPECT_EQ(0, pair.first);
+    itr = LimitlessRouterService::limitless_router_monitors_.find("server_2");
+    EXPECT_EQ(LimitlessRouterService::limitless_router_monitors_.end(), itr);
 }
