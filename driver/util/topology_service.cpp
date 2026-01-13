@@ -27,7 +27,8 @@ std::vector<HostInfo> TopologyService::GetFilteredHosts() {
             const std::string host_id = host.GetHostId();
             if (!host_filter.allowed_host_ids.empty()) {
                 return host_filter.allowed_host_ids.contains(host_id);
-            } else if (!host_filter.blocked_host_ids.empty()) {
+            }
+            if (!host_filter.blocked_host_ids.empty()) {
                 return !host_filter.blocked_host_ids.contains(host_id);
             }
             return true;
