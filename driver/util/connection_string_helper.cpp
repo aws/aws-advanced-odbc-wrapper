@@ -74,6 +74,15 @@ std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &
     return result;
 }
 
+std::string ConnectionStringHelper::RemoveInternalWrapperKeys(const std::string& conn_str) {
+    std::string result(conn_str);
+    for (const std::string& key : internal_wrapper_key_set) {
+        const std::regex pattern("(" + key + "=)([^;]+)");
+        result = std::regex_replace(result, pattern, "");
+    }
+    return result;
+}
+
 bool ConnectionStringHelper::IsAwsOdbcKey(const std::string &aws_odbc_key)
 {
     return aws_odbc_key_set.contains(aws_odbc_key);

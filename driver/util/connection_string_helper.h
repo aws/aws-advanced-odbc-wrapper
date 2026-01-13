@@ -27,6 +27,10 @@ static std::unordered_set<std::string> const sensitive_key_set = {
     KEY_IDP_PASSWORD
 };
 
+static std::unordered_set<std::string> const internal_wrapper_key_set = {
+    KEY_RDS_TEST_CONN
+};
+
 static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_BASE_DRIVER,
     KEY_BASE_DSN,
@@ -65,7 +69,8 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_ENABLE_LIMITLESS,
     KEY_LIMITLESS_MODE,
     KEY_LIMITLESS_MONITOR_INTERVAL_MS,
-    KEY_ROUTER_MAX_RETRIES
+    KEY_ROUTER_MAX_RETRIES,
+    KEY_RDS_TEST_CONN
 };
 
 static std::unordered_map<std::string, std::string> const alias_to_real_map = {
@@ -85,6 +90,7 @@ namespace ConnectionStringHelper {
     std::string BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string BuildFullConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string MaskSensitiveInformation(const std::string &conn_str);
+    std::string RemoveInternalWrapperKeys(const std::string &conn_str);
     bool IsAwsOdbcKey(const std::string &aws_odbc_key);
     bool IsSensitiveData(const std::string &sensitive_key);
     std::string GetRealKeyName(const std::string &alias_key);
