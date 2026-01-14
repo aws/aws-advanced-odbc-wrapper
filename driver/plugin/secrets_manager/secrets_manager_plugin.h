@@ -45,18 +45,20 @@ public:
     static void ClearSecretsCache();
 
 private:
-    static inline const std::string SECRET_USERNAME_KEY = "username";
-    static inline const std::string SECRET_PASSWORD_KEY = "password";
+    static inline const std::string DEFAULT_SECRET_USERNAME_KEY = "username";
+    static inline const std::string DEFAULT_SECRET_PASSWORD_KEY = "password";
     static inline const std::chrono::milliseconds DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
     static inline const std::regex SECRETS_ARN_REGION_PATTERN = std::regex("^arn:aws:secretsmanager:([-\\w\\d]+):[\\d]+:secret:");
     static inline std::unordered_map<std::string, Secret> secrets_cache;
     static inline std::recursive_mutex secrets_cache_mutex;
     Secret secret;
     std::string secret_key;
+    std::string username_key;
+    std::string password_key;
     std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> secrets_manager_client;
     Aws::SecretsManager::Model::GetSecretValueRequest secret_request;
     std::chrono::milliseconds expiration_ms;
-    static Secret ParseSecret(const std::string &secret_string, std::chrono::milliseconds expiration);
+    static Secret ParseSecret(const std::string &secret_string, const std::string &username_key, const std::string &password_key, std::chrono::milliseconds expiration);
 };
 
 #endif // SECRETS_MANAGER_PLUGIN_H_

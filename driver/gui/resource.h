@@ -49,8 +49,9 @@
 #define IDC_EXPIRE                      1018
 #define IDC_SECRET                      1019
 #define IDC_SECRET_END                  1021
-#define IDC_SECRET_END2                 1022
-#define IDC_AUTH_MODE                   1023
+#define IDC_SECRET_USERNAME_PROPERTY    1022
+#define IDC_SECRET_PASSWORD_PROPERTY    1023
+#define IDC_AUTH_MODE                   1024
 #define IDC_FED_AUTH_MODE               1026
 #define IDC_IDP_UID                     1029
 #define IDC_IDP_PWD                     1032

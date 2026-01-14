@@ -39,6 +39,8 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_SECRET_ID,
     KEY_SECRET_REGION,
     KEY_SECRET_ENDPOINT,
+    KEY_SECRET_USERNAME_PROPERTY,
+    KEY_SECRET_PASSWORD_PROPERTY,
     KEY_IDP_ENDPOINT,
     KEY_IDP_PORT,
     KEY_IDP_USERNAME,

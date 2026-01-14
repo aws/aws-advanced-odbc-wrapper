@@ -38,6 +38,15 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : DEFAULT_EXPIRATION_MS;
 
+    username_key =
+        dbc->conn_attr.contains(KEY_SECRET_USERNAME_PROPERTY) ? dbc->conn_attr.at(KEY_SECRET_USERNAME_PROPERTY) : DEFAULT_SECRET_USERNAME_KEY;
+    password_key =
+        dbc->conn_attr.contains(KEY_SECRET_PASSWORD_PROPERTY) ? dbc->conn_attr.at(KEY_SECRET_PASSWORD_PROPERTY) : DEFAULT_SECRET_PASSWORD_KEY;
+
+    if (username_key.empty() || password_key.empty()) {
+        throw std::runtime_error("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.");
+    }
+
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
         region = matches[1];
     }
@@ -109,11 +118,12 @@ SQLRETURN SecretsManagerPlugin::Connect(
     Aws::SecretsManager::Model::GetSecretValueOutcome request_outcome = secrets_manager_client->GetSecretValue(secret_request);
 
     if (request_outcome.IsSuccess()) {
-        const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), expiration_ms);
+        const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), username_key, password_key, expiration_ms);
         if (secret.username.empty() || secret.password.empty()) {
-            LOG(ERROR) << "Secrets Manager did not return DB credentials";
+            const std::string fail_msg = "Secrets Manager did not return any database credentials, please verify the values set via SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY and ensure they match the values in the Secret value.";
+            LOG(ERROR) << fail_msg;
             CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Secret did not contain username or password.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+            dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
         {
@@ -125,23 +135,23 @@ SQLRETURN SecretsManagerPlugin::Connect(
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
-    LOG(ERROR) << "Failed to get secrets from Secrets Manager";
+    LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
     CLEAR_DBC_ERROR(dbc);
     const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
     dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 
-Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::chrono::milliseconds expiration) {
+Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::string &username_key, const std::string &password_key, const std::chrono::milliseconds expiration) {
     const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
 
     const Aws::Utils::Json::JsonValue json_value(secret_string);
     const Aws::Utils::Json::JsonView view = json_value.View();
 
-    if (view.ValueExists(SECRET_USERNAME_KEY) && view.ValueExists(SECRET_PASSWORD_KEY)) {
+    if (view.ValueExists(username_key) && view.ValueExists(password_key)) {
         return Secret{
-            .username = view.GetString(SECRET_USERNAME_KEY),
-            .password = view.GetString(SECRET_PASSWORD_KEY),
+            .username = view.GetString(username_key),
+            .password = view.GetString(password_key),
             .expiration_point = curr_time + expiration
         };
     }

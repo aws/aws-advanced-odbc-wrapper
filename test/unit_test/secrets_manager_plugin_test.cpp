@@ -30,6 +30,8 @@
 
 namespace {
     const auto TEST_SECRET_STRING = "{\"username\": \"test_user\", \"password\": \"my_pwd\"}";
+    const auto TEST_CUSTOM_SECRET_STRING = "{\"db_user\": \"foo\", \"db_pass\": \"bar\"}";
+    const auto TEST_MIXED_SECRET_STRING = "{\"db_user\": \"foo\", \"password\": \"bar\"}";
     const auto TEST_SECRET_INVALID_JSON = "invalid json";
     const auto TEST_SECRET_WITHOUT_CRED = "{\"key\": \"password\"}";
 }
@@ -42,6 +44,14 @@ Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcome(std:
 
 Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeSuccess() {
     return GetMockSecretValueOutcome(TEST_SECRET_STRING);
+}
+
+Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeCustom() {
+    return GetMockSecretValueOutcome(TEST_CUSTOM_SECRET_STRING);
+}
+
+Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeCustomWithFallback() {
+    return GetMockSecretValueOutcome(TEST_MIXED_SECRET_STRING);
 }
 
 Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeInvalid() {
@@ -234,6 +244,43 @@ TEST_F(SecretsManagerPluginTest, SecretMissingCredentials) {
 
     EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     EXPECT_EQ(0, plugin->GetSecretsCacheSize());
+
+    delete plugin;
+}
+
+TEST_F(SecretsManagerPluginTest, UseCustomSecretUsernameKey) {
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_PASSWORD_PROPERTY, "db_pass");
+
+    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustom);
+
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_EQ(1, plugin->GetSecretsCacheSize());
+    EXPECT_EQ("foo", dbc->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("bar", dbc->conn_attr[KEY_DB_PASSWORD]);
+    plugin->ClearSecretsCache();
+
+    delete plugin;
+}
+
+TEST_F(SecretsManagerPluginTest, UseCustomSecretUsernameKeyWithFallback) {
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
+
+    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustomWithFallback);
+
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_EQ(1, plugin->GetSecretsCacheSize());
+    EXPECT_EQ("foo", dbc->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("bar", dbc->conn_attr[KEY_DB_PASSWORD]);
+    plugin->ClearSecretsCache();
 
     delete plugin;
 }
