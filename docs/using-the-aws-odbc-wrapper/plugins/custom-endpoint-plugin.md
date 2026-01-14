@@ -2,13 +2,13 @@
 
 ### What are Custom Endpoints?
 
-RDS Custom Endpoints are user defined subsets of DB instances to provide. For more information, refer the [AWS Custom Endpoints documentation](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Endpoints.Custom.html).
+RDS Custom Endpoints are user defined subsets of DB instances. For more information, refer to the [AWS Custom Endpoints documentation](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Endpoints.Custom.html).
 The Custom Endpoint Plugin adds support for RDS custom endpoints, such that connections respect the specified subsets when used in conjunction with other plugins, such as the [Failover Plugin](./failover-plugin.md).
 
 ### Enable Custom Endpoints
 
-1. If needed, create a custom endpoint using the AWS RDS Console:
-   - If needed, review the documentation about [creating a custom endpoint](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-custom-endpoint-creating.html).
+1. Create or use an existing custom endpoint with the AWS RDS Console. The endpoint should be used as the `SERVER` value. Documentation on creating a custom endpoint can be found [here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-custom-endpoint-creating.html).
+1. Set the [`ENABLE_CUSTOM_ENDPOINT`](#custom-endpoint-plugin-parameters) parameter value to `1`.
 
 ### Custom Endpoint Plugin Parameters
 

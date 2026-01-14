@@ -32,16 +32,16 @@ CustomEndpointMonitor::CustomEndpointMonitor(
     const std::shared_ptr<TopologyService>& topology_service,
     const std::string& endpoint,
     std::string region,
-    int64_t refresh_rate_ms,
-    int64_t max_refresh_rate_ms,
+    std::chrono::milliseconds refresh_rate_ms,
+    std::chrono::milliseconds max_refresh_rate_ms,
     int exponential_backoff_rate)
     : topology_service_{ topology_service },
       endpoint_{ endpoint },
       endpoint_identifier_{ RdsUtils::GetRdsClusterId(endpoint) },
       region_{ std::move(region) },
-      refresh_rate_ms_{ std::chrono::milliseconds(refresh_rate_ms) },
-      min_refresh_rate_ms_{ std::chrono::milliseconds(refresh_rate_ms) },
-      max_refresh_rate_ms_{ std::chrono::milliseconds(max_refresh_rate_ms) },
+      refresh_rate_ms_{ refresh_rate_ms },
+      min_refresh_rate_ms_{ refresh_rate_ms },
+      max_refresh_rate_ms_{ max_refresh_rate_ms },
       exponential_backoff_rate_{ exponential_backoff_rate }
 {
     AwsSdkHelper::Init();

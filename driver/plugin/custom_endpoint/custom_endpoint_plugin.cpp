@@ -54,14 +54,14 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     this->wait_for_info_ = dbc->conn_attr.contains(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO) ?
         dbc->conn_attr.at(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO) == VALUE_BOOL_TRUE : false;
     this->wait_duration_ms_ = dbc->conn_attr.contains(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS) ?
-        static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS).c_str(), nullptr, 0)) :
-        CustomEndpointPlugin::DEFAULT_WAIT_FOR_INFO_TIMEOUT_MS.count();
+        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS).c_str(), nullptr, 0))) :
+        CustomEndpointPlugin::DEFAULT_WAIT_FOR_INFO_TIMEOUT_MS;
     this->refresh_rate_ms_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_INTERVAL_MS) ?
-        static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_INTERVAL_MS).c_str(), nullptr, 0)) :
-        CustomEndpointPlugin::DEFAULT_MONITORING_INTERVAL_MS.count();
+        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_INTERVAL_MS).c_str(), nullptr, 0))) :
+        CustomEndpointPlugin::DEFAULT_MONITORING_INTERVAL_MS;
     this->max_refresh_rate_ms_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS) ?
-        static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS).c_str(), nullptr, 0)) :
-        CustomEndpointPlugin::DEFAULT_MAX_MONITORING_INTERVAL_MS.count();
+        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS).c_str(), nullptr, 0))) :
+        CustomEndpointPlugin::DEFAULT_MAX_MONITORING_INTERVAL_MS;
     this->exponential_backoff_rate_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_BACKOFF_RATE) ?
         static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_BACKOFF_RATE).c_str(), nullptr, 0)) :
         DEFAULT_EXPONENTIAL_BACKOFF_RATE;
@@ -165,10 +165,9 @@ bool CustomEndpointPlugin::WaitForInfo() {
         return true;
     }
 
-    LOG(INFO) << "Custom endpoint info for " << this->cluster_id_ << " not found. waiting for " << this->wait_duration_ms_ << "ms for monitor to fetch info.";
+    LOG(INFO) << "Custom endpoint info for " << this->cluster_id_ << " not found. Waiting for " << this->wait_duration_ms_.count() << "ms for monitor to fetch info.";
 
-    const auto wait_for_end = std::chrono::steady_clock::now()
-        + std::chrono::milliseconds(this->wait_duration_ms_);
+    const auto wait_for_end = std::chrono::steady_clock::now() + this->wait_duration_ms_;
 
     while (!has_info && std::chrono::steady_clock::now() < wait_for_end) {
         std::this_thread::sleep_for(WAIT_FOR_INFO_SLEEP_DIR_MS);
@@ -176,7 +175,7 @@ bool CustomEndpointPlugin::WaitForInfo() {
     }
 
     if (!has_info) {
-        LOG(WARNING) << "Custom endpoint timed out after " << this->wait_duration_ms_ << "ms while waiting for custom endpoint info for host " << this->cluster_id_;
+        LOG(WARNING) << "Custom endpoint timed out after " << this->wait_duration_ms_.count() << "ms while waiting for custom endpoint info for host " << this->cluster_id_;
     }
     return has_info;
 }

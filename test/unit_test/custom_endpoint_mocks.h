@@ -17,13 +17,15 @@
 
 #include <aws/rds/RDSClient.h>
 
+#include <chrono>
+
 #include "gmock/gmock.h"
 
 #include "../../driver/plugin/custom_endpoint/custom_endpoint_monitor.h"
 
 class MOCK_CUSTOM_ENDPOINT_MONITOR : public CustomEndpointMonitor {
 public:
-    MOCK_CUSTOM_ENDPOINT_MONITOR() : CustomEndpointMonitor(nullptr, "", "", 0, 0, 0) {};
+    MOCK_CUSTOM_ENDPOINT_MONITOR() : CustomEndpointMonitor(nullptr, "", "", std::chrono::milliseconds(0), std::chrono::milliseconds(0), 0) {};
 
     MOCK_METHOD(bool, HasInfo, (), ());
     MOCK_METHOD(void, Run, (), ());

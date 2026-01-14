@@ -46,7 +46,7 @@ public:
     virtual std::vector<HostInfo> GetHosts();
     virtual void SetHosts(const std::vector<HostInfo>& hosts);
     virtual std::vector<HostInfo> GetFilteredHosts();
-    virtual void SetHostFilter(HostFilter hosts);
+    virtual void SetHostFilter(HostFilter filter);
 
     static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
 

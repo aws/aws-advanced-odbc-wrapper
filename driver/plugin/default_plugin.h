@@ -17,9 +17,6 @@
 
 #include "base_plugin.h"
 
-struct DBC;
-struct STMT;
-
 class DefaultPlugin : public BasePlugin {
 public:
     DefaultPlugin() = default;

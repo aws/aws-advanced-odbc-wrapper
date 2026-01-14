@@ -15,9 +15,6 @@
 #ifndef CUSTOM_ENDPOINT_MONITOR_H_
 #define CUSTOM_ENDPOINT_MONITOR_H_
 
-#include "../base_plugin.h"
-#include "../../driver.h"
-
 #include "../../util/topology_service.h"
 #include "../../util/sliding_cache_map.h"
 
@@ -30,8 +27,8 @@ public:
         const std::shared_ptr<TopologyService>& topology_service,
         const std::string& endpoint,
         std::string region,
-        int64_t refresh_rate_ms,
-        int64_t max_refresh_rate_ms,
+        std::chrono::milliseconds refresh_rate_ms,
+        std::chrono::milliseconds max_refresh_rate_ms,
         int exponential_backoff_rate);
     ~CustomEndpointMonitor();
 

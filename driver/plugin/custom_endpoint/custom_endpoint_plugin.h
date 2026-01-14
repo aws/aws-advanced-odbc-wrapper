@@ -69,9 +69,9 @@ private:
 
     std::shared_ptr<CustomEndpointMonitor> endpoint_monitor_;
     bool wait_for_info_;
-    int64_t wait_duration_ms_;
-    int64_t refresh_rate_ms_;
-    int64_t max_refresh_rate_ms_;
+    std::chrono::milliseconds wait_duration_ms_;
+    std::chrono::milliseconds refresh_rate_ms_;
+    std::chrono::milliseconds max_refresh_rate_ms_;
     int exponential_backoff_rate_;
 
     static std::mutex endpoint_monitors_mutex_;
