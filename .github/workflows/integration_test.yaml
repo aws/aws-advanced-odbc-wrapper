@@ -200,7 +200,9 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "CUSTOM_ENDPOINT_ID=CUSTOM_ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Setup Custom Endpoint ID
+        run: |
+          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Retrieve AWS SDK for C++ Cache
@@ -258,7 +260,8 @@ jobs:
           Create-Custom-Endpoint `
             -EndpointName ${{ env.CUSTOM_ENDPOINT_ID }} `
             -ClusterId ${{ env.AURORA_CLUSTER_ID }} `
-            -NumInstances ${{ env.NUM_INSTANCES }}
+            -NumInstances ${{ env.NUM_INSTANCES }} `
+            -StaticList
       - name: Get Aurora Cluster endpoint
         shell: pwsh
         working-directory: ./scripts
@@ -469,6 +472,8 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Setup Custom Endpoint ID
+        run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
@@ -519,7 +524,8 @@ jobs:
           create_custom_endpoint \
             ${{ env.CUSTOM_ENDPOINT_ID }} \
             ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }}
+            ${{ env.NUM_INSTANCES }} \
+            --static
       - name: Get Aurora Cluster endpoint
         shell: bash
         run: |
@@ -724,6 +730,8 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Setup Custom Endpoint ID
+        run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
@@ -773,7 +781,8 @@ jobs:
           create_custom_endpoint \
             ${{ env.CUSTOM_ENDPOINT_ID }} \
             ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }}
+            ${{ env.NUM_INSTANCES }} \
+            --static
       - name: Get Aurora Cluster endpoint
         shell: bash
         run: |

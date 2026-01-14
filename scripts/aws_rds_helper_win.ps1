@@ -213,7 +213,7 @@ function Create-Custom-Endpoint {
         [switch]$StaticList
     )
 
-    $InstancesList = (1..($NumInstances / 2) | ForEach-Object { "$ClusterId-$_" }) -join ' '
+    $InstancesList = (1..($NumInstances / 2) | ForEach-Object { "$ClusterId-$_".ToLower() })
 
     # Before modifying, wait until ready
     aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
@@ -437,7 +437,7 @@ function Delete-Custom-Endpoint {
         [Parameter(Mandatory=$true)]
         [string]$EndpointName,
         [Parameter(Mandatory=$true)]
-        [string]$ClusterId,
+        [string]$ClusterId
     )
     # Delete Custom Endpoint
     aws rds delete-db-cluster-endpoint --db-cluster-endpoint-identifier $EndpointName
@@ -452,7 +452,7 @@ function Get-Cluster-Endpoint {
         [Parameter(Mandatory=$true)]
         [string]$ClusterId
     )
-    return aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint
+    return aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint --output text
 }
 
 # ---------------- Secrets Manager Operations ----------------------

@@ -269,7 +269,7 @@ function create_custom_endpoint {
     Half=$((NumInstances/2))
     InstancesList=()
     for ((i=1; i<=Half; i++)); do
-        InstancesList+=( "${ClusterId}-${i}" )
+        InstancesList+=($(echo "${ClusterId}-${i}" | tr '[:upper:]' '[:lower:]'))
     done
 
     # Wait until cluster is ready for modification
@@ -436,7 +436,7 @@ function get_cluster_endpoint {
     ClusterId=$1
 
     # Get the DB cluster details using AWS CLI
-    echo aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint
+    echo $(aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint --output text)
 } # get_cluster_endpoint
 export -f get_cluster_endpoint
 
