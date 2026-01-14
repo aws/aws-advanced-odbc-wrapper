@@ -35,6 +35,10 @@
 
 # VSC Settings
 .vscode/*
+.vs/*
+
+# Jetbrains
+.idea/*
 
 # Build Folders
 **/build**/
