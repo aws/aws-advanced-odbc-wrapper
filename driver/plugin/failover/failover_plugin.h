@@ -101,7 +101,7 @@ private:
         = std::make_shared<SlidingCacheMap<std::string, std::vector<HostInfo>>>();
 
     static std::mutex topology_monitors_mutex_;
-    static SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> topology_monitors_;
+    static std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> topology_monitors_;
 };
 
 #endif // FAILOVER_PLUGIN_H_

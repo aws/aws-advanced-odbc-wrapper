@@ -25,7 +25,7 @@
 
 // Initialize static members
 std::mutex LimitlessRouterService::limitless_router_monitors_mutex_;
-SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> LimitlessRouterService::limitless_router_monitors;
+std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> LimitlessRouterService::limitless_router_monitors_;
 
 LimitlessRouterService::LimitlessRouterService(
     const std::shared_ptr<DialectLimitless> &dialect,
@@ -51,14 +51,15 @@ LimitlessRouterService::LimitlessRouterService(
 
 LimitlessRouterService::~LimitlessRouterService() {
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
-    if (pair.first == 1) {
-        limitless_router_monitors.Delete(router_monitor_key_);
-        LOG(INFO) << "Shut down Limitless Monitor count for: " << router_monitor_key_;
-    } else {
-        pair.first--;
-        limitless_router_monitors.Put(router_monitor_key_, pair);
-        LOG(INFO) << "Decremented Limitless Monitor count for: " << router_monitor_key_ << ", to: " << pair.first;
+    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+        std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
+        if (pair.first == 1) {
+            limitless_router_monitors_.erase(router_monitor_key_);
+            LOG(INFO) << "Shut down Limitless Monitor count for: " << router_monitor_key_;
+        } else {
+            pair.first--;
+            LOG(INFO) << "Decremented Limitless Monitor count for: " << router_monitor_key_ << ", to: " << pair.first;
+        }
     }
 }
 
@@ -104,7 +105,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
     std::shared_ptr<LimitlessRouterMonitor> monitor;
     std::vector<HostInfo> limitless_routers;
     {
-        monitor = limitless_router_monitors.Get(router_monitor_key_).second;
+        monitor = limitless_router_monitors_.at(router_monitor_key_).second;
         const std::lock_guard<std::mutex> limitless_routers_guard(monitor->limitless_routers_mutex_);
         limitless_routers = *monitor->limitless_routers_;
     }
@@ -226,15 +227,15 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
     LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    if (!limitless_router_monitors.Find(router_monitor_key_)) {
-        const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
-        limitless_router_monitors.Put(router_monitor_key_, {1, monitor});
-        LOG(INFO) << "Created Limitless Monitor for: " << router_monitor_key_;
-    } else {
-        std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = limitless_router_monitors.Get(router_monitor_key_);
+    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+        std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
         // If the monitor exists, increment the reference count.
         pair.first++;
-        limitless_router_monitors.Put(router_monitor_key_, pair);
         LOG(INFO) << "Incremented Limitless Monitor usage count for: " << router_monitor_key_ << ", to: " << pair.first;
+    } else {
+        const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
+        const std::pair pair = {1, monitor};
+        limitless_router_monitors_.insert_or_assign(router_monitor_key_, pair);
+        LOG(INFO) << "Created Limitless Monitor for: " << router_monitor_key_;
     }
 }
