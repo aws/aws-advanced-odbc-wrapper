@@ -26,7 +26,8 @@ To enable AWS Secrets Manager authentication, follow the AWS RDS documents on [E
 
 ### Secret Value
 The secret stored in the AWS Secrets Manager should be a JSON object containing the properties username and password. If the secret contains different key names, you can specify them with the `SECRET_USERNAME_PROPERTY` and `SECRET_PASSWORD_PROPERTY` parameters.
-> [!NOTE] \
+
+> [!NOTE]
 > Only un-nested JSON format is supported at the moment.
 
 ### Sample Code
