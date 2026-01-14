@@ -200,6 +200,7 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CUSTOM_ENDPOINT_ID=CUSTOM_ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Retrieve AWS SDK for C++ Cache
@@ -243,11 +244,21 @@ jobs:
             -TestUsername ${{ secrets.TEST_USERNAME }} `
             -TestPassword ${{ secrets.TEST_PASSWORD }} `
             -TestDatabase ${{ env.TEST_DATABASE }} `
-            -ClusterId ${{ env.Aurora_CLUSTER_ID }} `
+            -ClusterId ${{ env.AURORA_CLUSTER_ID }} `
             -NumInstances ${{ env.NUM_INSTANCES }}  `
             -Engine ${{matrix.rds_engine}} `
             -EngineVersion ${{ env.ENGINE_VERSION }} `
             -Region ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create RDS Custom Endpoint
+        id: AuroraCustomEndpointSetup
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          Create-Custom-Endpoint `
+            -EndpointName ${{ env.CUSTOM_ENDPOINT_ID }} `
+            -ClusterId ${{ env.AURORA_CLUSTER_ID }} `
+            -NumInstances ${{ env.NUM_INSTANCES }}
       - name: Get Aurora Cluster endpoint
         shell: pwsh
         working-directory: ./scripts
@@ -369,6 +380,7 @@ jobs:
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
       - name: Build and Run Unicode Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -389,6 +401,14 @@ jobs:
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
+      - name: Delete RDS Custom Endpoint
+        if: always()
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+          . ".\aws_rds_helper_win.ps1"
+          Delete-Custom-Endpoint -EndpointName ${{ env.CUSTOM_ENDPOINT_ID }} -ClusterId ${{ env.AURORA_CLUSTER_ID }}
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: pwsh
@@ -449,6 +469,7 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
@@ -490,6 +511,15 @@ jobs:
             ${{ matrix.rds_engine }} \
             ${{ env.ENGINE_VERSION }} \
             ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create RDS Custom Endpoint
+        id: AuroraCustomEndpointSetup
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          create_custom_endpoint \
+            ${{ env.CUSTOM_ENDPOINT_ID }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ env.NUM_INSTANCES }}
       - name: Get Aurora Cluster endpoint
         shell: bash
         run: |
@@ -597,6 +627,7 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
           # ASAN_OPTIONS: 'detect_container_overflow=0'
       - name: Build and Run Unicode Integration Tests
         shell: bash
@@ -627,9 +658,16 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+      - name: Delete RDS Custom Endpoint
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_custom_endpoint ${{ env.CUSTOM_ENDPOINT_ID }} ${{ env.AURORA_CLUSTER_ID }}
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash
@@ -686,6 +724,7 @@ jobs:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
       - name: Install Build Dependencies
@@ -726,6 +765,15 @@ jobs:
             ${{ matrix.rds_engine }} \
             ${{ env.ENGINE_VERSION }} \
             ${{ secrets.AWS_DEFAULT_REGION }}
+      - name: Create RDS Custom Endpoint
+        id: AuroraCustomEndpointSetup
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          create_custom_endpoint \
+            ${{ env.CUSTOM_ENDPOINT_ID }} \
+            ${{ env.AURORA_CLUSTER_ID }} \
+            ${{ env.NUM_INSTANCES }}
       - name: Get Aurora Cluster endpoint
         shell: bash
         run: |
@@ -831,6 +879,7 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
           # ASAN_OPTIONS: 'detect_container_overflow=0,symbolize=1,print_module_map=2'
       - name: Build and Run Unicode Integration Tests
         shell: bash
@@ -861,6 +910,13 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
+      - name: Delete RDS Custom Endpoint
+        if: always()
+        shell: bash
+        run: |
+          . "./scripts/aws_rds_helper_unix.sh"
+          delete_custom_endpoint ${{ env.CUSTOM_ENDPOINT_ID }} ${{ env.AURORA_CLUSTER_ID }}
       - name: Delete Aurora RDS Cluster
         if: always()
         shell: bash

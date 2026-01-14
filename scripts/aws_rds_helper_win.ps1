@@ -201,6 +201,42 @@ function Create-Limitless-RDS-Cluster {
     Add-Ip-To-Db-Sg -ClusterId $ClusterId -Region $Region
 }
 
+# Creates a custom endpoint with half of the instances in the static or excluded list
+function Create-Custom-Endpoint {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$EndpointName,
+        [Parameter(Mandatory=$true)]
+        [string]$ClusterId,
+        [Parameter(Mandatory=$true)]
+        [int]$NumInstances,
+        [switch]$StaticList
+    )
+
+    $InstancesList = (1..($NumInstances / 2) | ForEach-Object { "$ClusterId-$_" }) -join ' '
+
+    # Before modifying, wait until ready
+    aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
+
+    # Create custom endpoints
+    if ($StaticList) {
+        aws rds create-db-cluster-endpoint `
+            --db-cluster-endpoint-identifier ${EndpointName} `
+            --db-cluster-identifier ${ClusterId} `
+            --endpoint-type any `
+            --static-members ${InstancesList}
+    } else {
+        aws rds create-db-cluster-endpoint `
+            --db-cluster-endpoint-identifier ${EndpointName} `
+            --db-cluster-identifier ${ClusterId} `
+            --endpoint-type any `
+            --excluded-members ${InstancesList}
+    }
+
+    # Wait until create operation completes
+    aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
+}
+
 # ---------------- Security Group Operations ----------------------
 function Add-Ip-To-Db-Sg {
     param(
@@ -396,28 +432,27 @@ function Delete-Limitless-Db-Cluster {
     }
 }
 
+function Delete-Custom-Endpoint {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$EndpointName,
+        [Parameter(Mandatory=$true)]
+        [string]$ClusterId,
+    )
+    # Delete Custom Endpoint
+    aws rds delete-db-cluster-endpoint --db-cluster-endpoint-identifier $EndpointName
+
+    # Wait until delete operation completes
+    aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
+}
+
 # ---------------- Get Cluster endpoint ----------------------
 function Get-Cluster-Endpoint {
     param (
         [Parameter(Mandatory=$true)]
         [string]$ClusterId
     )
-
-    try {
-        # Get the DB cluster details using AWS CLI and jq
-        $endpoint = aws rds describe-db-clusters --db-cluster-identifier $ClusterId | jq -r '.DBClusters[0].Endpoint'
-
-        # Check if the endpoint was retrieved
-        if ($endpoint -and $endpoint -ne "null") {
-            return $endpoint
-        } else {
-            Write-Host "No cluster found with ID: $ClusterId"
-            return $null
-        }
-    } catch {
-        Write-Host "Error: $_"
-        return $null
-    }
+    return aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint
 }
 
 # ---------------- Secrets Manager Operations ----------------------

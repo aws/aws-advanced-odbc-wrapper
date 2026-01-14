@@ -260,6 +260,40 @@ function create_limitless_rds_cluster {
 } # function create_limitless_rds_cluster
 export -f create_limitless_rds_cluster
 
+function create_custom_endpoint {
+    EndpointName=$1
+    ClusterId=$2
+    NumInstances=$3
+    StaticList=${4:-}
+
+    Half=$((NumInstances/2))
+    InstancesList=()
+    for ((i=1; i<=Half; i++)); do
+        InstancesList+=( "${ClusterId}-${i}" )
+    done
+
+    # Wait until cluster is ready for modification
+    aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
+
+    if [[ "$StaticList" == "--static" ]]; then
+        aws rds create-db-cluster-endpoint \
+            --db-cluster-endpoint-identifier "$EndpointName" \
+            --db-cluster-identifier "$ClusterId" \
+            --endpoint-type any \
+            --static-members "${InstancesList[@]}"
+    else
+        aws rds create-db-cluster-endpoint \
+            --db-cluster-endpoint-identifier "$EndpointName" \
+            --db-cluster-identifier "$ClusterId" \
+            --endpoint-type any \
+            --excluded-members "${InstancesList[@]}"
+    fi
+
+    # Wait until cluster is ready after modification
+    aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
+} # create_custom_endpoint
+export -f create_custom_endpoint
+
 # ---------------- Db Deletion operations ----------------------
 function delete_dbshards {
     ShardId=$1
@@ -385,24 +419,24 @@ function delete_limitless_db_cluster {
 } # delete_limitless_db_cluster
 export -f delete_limitless_db_cluster
 
+function delete_custom_endpoint {
+    EndpointName=$1
+    ClusterId=$2
+
+    # Delete Custom Endpoint
+    aws rds delete-db-cluster-endpoint --db-cluster-endpoint-identifier $EndpointName
+
+    # Wait until delete operation completes
+    aws rds wait db-cluster-available --db-cluster-identifier $ClusterId
+} # delete_custom_endpoint
+export -f delete_custom_endpoint
+
 # ---------------- Get Cluster endpoint ----------------------
 function get_cluster_endpoint {
     ClusterId=$1
 
-    # Get the DB cluster details using AWS CLI and jq
-    output=$(aws rds describe-db-clusters --db-cluster-identifier $ClusterId)
-    if [ $? -ne 0 ]; then
-        echo "Failed to get cluster endpoint."
-        exit 1
-    fi
-    endpoint=$(echo "$output" | jq -r '.DBClusters[0].Endpoint')
-
-    if [ "$endpoint" = "null" ]; then
-        echo "Failed to get cluster endpoint."
-        exit 1
-    else
-        echo $endpoint
-    fi
+    # Get the DB cluster details using AWS CLI
+    echo aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint
 } # get_cluster_endpoint
 export -f get_cluster_endpoint
 
