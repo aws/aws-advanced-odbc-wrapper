@@ -117,25 +117,30 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
 #include <cstring>
 
 inline std::string RDS_STR_UPPER(std::string str) {
-    size_t buf_len = str.length() * 4;
-    char *buf = new char[buf_len];
-    UErrorCode ucasemap_status = U_ZERO_ERROR;
-    UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
-    if (U_FAILURE(ucasemap_status)) {
-       LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
-       delete[] buf;
-       return str;
+    if (!str.empty()) {
+        size_t buf_len = str.length() * 4;
+        char *buf = new char[buf_len];
+        UErrorCode ucasemap_status = U_ZERO_ERROR;
+        UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
+        if (U_FAILURE(ucasemap_status)) {
+            LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
+            delete[] buf;
+            return str;
+        }
+        UErrorCode upper_status = U_ZERO_ERROR;
+        ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
+        if (U_FAILURE(upper_status)) {
+            LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status));
+            ucasemap_close(ucasemap);
+            delete[] buf;
+            return str;
+        }
+        std::string upper(buf);
+        ucasemap_close(ucasemap);
+        delete[] buf;
+        return upper;
     }
-    UErrorCode upper_status = U_ZERO_ERROR;
-    ucasemap_utf8ToUpper(ucasemap, buf, buf_len, str.c_str(), -1, &upper_status);
-    if (U_FAILURE(upper_status)) {
-       LOG(ERROR) << std::format("Failed to convert string {} to uppercase: {}\n", str, u_errorName(upper_status));
-       delete[] buf;
-       return str;
-    }
-    std::string upper(buf);
-    delete[] buf;
-    return upper;
+    return str;
 }
 
 #define EMPTY_RDS_STR ""
