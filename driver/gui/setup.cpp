@@ -94,7 +94,9 @@ const std::map<std::string, std::pair<int, ControlType>> IAM_KEYS = {
 const std::map<std::string, std::pair<int, ControlType>> SECRETS_KEYS = {
     {KEY_SECRET_ID, {IDC_SECRET, EDIT_TEXT}},
     {KEY_SECRET_REGION, {IDC_SECRET_REGION, EDIT_TEXT}},
-    {KEY_SECRET_ENDPOINT, {IDC_SECRET_END, EDIT_TEXT}}
+    {KEY_SECRET_ENDPOINT, {IDC_SECRET_END, EDIT_TEXT}},
+    {KEY_SECRET_USERNAME_PROPERTY, {IDC_SECRET_USERNAME_PROPERTY, EDIT_TEXT}},
+    {KEY_SECRET_PASSWORD_PROPERTY, {IDC_SECRET_PASSWORD_PROPERTY, EDIT_TEXT}},
 };
 
 const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
