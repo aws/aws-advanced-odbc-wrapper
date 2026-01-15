@@ -31,6 +31,7 @@
 #define IDC_APP_ARN                     1005
 #define IDC_BASE_DRIVER                 1005
 #define IDC_FAILOVER_TIME               1005
+#define IDC_TAB_CUSTOM_ENDPOINT         1005
 #define IDC_PWD                         1006
 #define IDC_IAM_HOST                    1006
 #define IDC_CLUSTER_ID                  1006

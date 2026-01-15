@@ -68,7 +68,7 @@ TEST_F(CustomEndpointIntegrationTest, CustomEndpointFailover) {
     // Connect using custom endpoint
     const auto endpoint_info = GetCustomEndpointInfo(rds_client, custom_endpoint_id);
     const std::vector<std::string>& endpoint_members = endpoint_info.GetStaticMembers();
-    conn_str = ConnectionStringBuilder(test_dsn, endpoint_info.GetEndpoint(), 5432)
+    conn_str = ConnectionStringBuilder(test_dsn, endpoint_info.GetEndpoint(), test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
