@@ -445,8 +445,8 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
     this->host_info_ = host_info;
     this->writer_host_info_ = writer_host_info;
     this->odbc_helper_ = odbc_helper;
-    node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     odbc_helper_->AllocDbc(monitor->henv_, hdbc_);
+    node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 

@@ -19,7 +19,7 @@ on:
       - 'ISSUE_TEMPLATE/**'
 
 env:
-  BUILD_CONFIG: Release
+  BUILD_CONFIG: Debug
   WIX_VERSION: 5.0.2
 
   # Test configuration
@@ -363,6 +363,16 @@ jobs:
               "BASE_DRIVER=${{steps.base_driver_info.outputs.driver_path_unicode}}")
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+            . ".\aws_rds_helper_win.ps1"
+            Describe-Cluster-Endpoint -ClusterId ${{ env.AURORA_CLUSTER_ID }}
+      - name: Setup GDB
+        run: |
+          choco install mingw
+          echo "set auto-load safe-path /" > "$HOME/.gdbinit"
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -371,7 +381,7 @@ jobs:
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           echo "Ansi Test Built"
-          .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          gdb -q -x ./.gdbinit .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -392,7 +402,7 @@ jobs:
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
-          .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          gdb -q -x ./.gdbinit .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -604,6 +614,10 @@ jobs:
           mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }} -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -616,10 +630,10 @@ jobs:
             -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_ansi
-          echo "Ansi Test Built"
-          ./build_ansi/integration-test
           cat ${{ github.workspace }}/test/resources/odbc.ini
           cat ${{ github.workspace }}/test/resources/odbcinst.ini
+          echo "Ansi Test Built"
+          ./build_ansi/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -647,9 +661,9 @@ jobs:
             -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_unicode
-          echo "Unicode Test Built"
           cat ${{ github.workspace }}/test/resources/odbc.ini
           cat ${{ github.workspace }}/test/resources/odbcinst.ini
+          echo "Unicode Test Built"
           ./build_unicode/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
@@ -859,6 +873,13 @@ jobs:
           mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }} -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
+      - name: Setup GDB
+        run: |
+          echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -874,7 +895,8 @@ jobs:
           echo "Ansi Test Built"
           cat ${{ github.workspace }}/test/resources/odbc.ini
           cat ${{ github.workspace }}/test/resources/odbcinst.ini
-          gdb -ex run ./build_ansi/integration-test
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_ansi/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -905,7 +927,8 @@ jobs:
           echo "Unicode Test Built"
           cat ${{ github.workspace }}/test/resources/odbc.ini
           cat ${{ github.workspace }}/test/resources/odbcinst.ini
-          ./build_unicode/integration-test
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_unicode/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -1088,6 +1111,16 @@ jobs:
               "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        shell: pwsh
+        working-directory: ./scripts
+        run: |
+            . ".\aws_rds_helper_win.ps1"
+            Describe-Cluster-Endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
+      - name: Setup GDB
+        run: |
+          choco install mingw
+          echo "set auto-load safe-path $PWD" > "$HOME/.gdbinit"
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -1096,7 +1129,7 @@ jobs:
             -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           echo "Ansi Test Built"
-          gdb -ex run .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          gdb -q -x ./.gdbinit .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1115,7 +1148,7 @@ jobs:
             -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
-          .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          gdb -q -x ./.gdbinit .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1276,6 +1309,10 @@ jobs:
             --command="\du"
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            describe_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -1478,6 +1515,13 @@ jobs:
             --command="\du"
       - name: Create logs folder
         run: mkdir logs
+      - name: Describe DB Cluster
+        run: |
+            . "./scripts/aws_rds_helper_unix.sh"
+            describe_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
+      - name: Setup GDB
+        run: |
+          echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -1492,7 +1536,7 @@ jobs:
             -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
           echo "Ansi Test Built"
-          gdb -ex run ./build_ansi/integration-test
+          gdb -q -x ./.gdbinit ./build_ansi/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1519,7 +1563,7 @@ jobs:
             -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
-          ./build_unicode/integration-test
+          gdb -q -x ./.gdbinit ./build_unicode/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}

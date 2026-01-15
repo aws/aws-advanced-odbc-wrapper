@@ -32,6 +32,9 @@ protected:
 
     std::string custom_endpoint_id = TEST_UTILS::GetEnvVar("TEST_CUSTOM_ENDPOINT_ID");
 
+    std::vector<std::string> custom_endpoint_members;
+    std::string custom_endpoint_url;
+
     static void SetUpTestSuite() {
         BaseFailoverIntegrationTest::SetUpTestSuite();
         Aws::InitAPI(options);
@@ -55,6 +58,10 @@ protected:
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         writer_id = GetWriterId(cluster_instances);
 
+        const auto endpoint_info = GetCustomEndpointInfo(rds_client, custom_endpoint_id);
+        custom_endpoint_url = endpoint_info.GetEndpoint();
+        custom_endpoint_members = endpoint_info.GetStaticMembers();
+
         // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
     }
@@ -66,29 +73,33 @@ protected:
 
 TEST_F(CustomEndpointIntegrationTest, CustomEndpointFailover) {
     // Connect using custom endpoint
-    const auto endpoint_info = GetCustomEndpointInfo(rds_client, custom_endpoint_id);
-    const std::vector<std::string>& endpoint_members = endpoint_info.GetStaticMembers();
-    conn_str = ConnectionStringBuilder(test_dsn, endpoint_info.GetEndpoint(), test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, custom_endpoint_url, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
         .withCustomEndpoint(true)
         .withEnableClusterFailover(true)
+        .withFailoverMode("READER_OR_WRITER")
         .withDatabaseDialect(test_dialect)
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
 
-    // Failover cluster to ensure connection swaps
-    FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id);
+    const std::string connection_id = QueryInstanceId(dbc);
+    if (connection_id == writer_id) {
+        // Failover to any other instances, demote current writer
+        FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id);
+    } else {
+        // Promote current instance to writer
+        FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, connection_id);
+    }
 
     // Ensure failover is successful
     AssertQueryFail(dbc, SERVER_ID_QUERY, ERROR_FAILOVER_SUCCEEDED);
 
-    // Query new ID after failover
-    const std::string connection_id = QueryInstanceId(dbc);
     // Ensure connected to an instance within the static list
-    EXPECT_NE(std::find(endpoint_members.begin(), endpoint_members.end(), connection_id), endpoint_members.end());
+    const std::string new_connection_id = QueryInstanceId(dbc);
+    EXPECT_NE(std::find(custom_endpoint_members.begin(), custom_endpoint_members.end(), new_connection_id), custom_endpoint_members.end());
 
     // Cleanup
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));

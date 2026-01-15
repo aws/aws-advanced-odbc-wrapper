@@ -289,6 +289,9 @@ function create_custom_endpoint {
             --excluded-members "${InstancesList[@]}"
     fi
 
+    # Wait for 30 seconds to allow cluster to update status
+    sleep 30
+
     # Wait until cluster is ready after modification
     aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
 } # create_custom_endpoint
@@ -437,6 +440,14 @@ function get_cluster_endpoint {
 
     # Get the DB cluster details using AWS CLI
     echo $(aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint --output text)
+} # get_cluster_endpoint
+export -f get_cluster_endpoint
+
+function describe_cluster_endpoint {
+    ClusterId=$1
+
+    # Get the DB cluster details using AWS CLI
+    aws rds describe-db-clusters --db-cluster-identifier $ClusterId
 } # get_cluster_endpoint
 export -f get_cluster_endpoint
 

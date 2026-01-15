@@ -233,6 +233,9 @@ function Create-Custom-Endpoint {
             --excluded-members ${InstancesList}
     }
 
+    # Wait for 30 seconds to allow cluster to update status
+    Start-Sleep -Seconds 30
+
     # Wait until create operation completes
     aws rds wait db-cluster-available --db-cluster-identifier ${ClusterId}
 }
@@ -453,6 +456,14 @@ function Get-Cluster-Endpoint {
         [string]$ClusterId
     )
     return aws rds describe-db-clusters --db-cluster-identifier $ClusterId --query DBClusters[0].Endpoint --output text
+}
+
+function Describe-Cluster-Endpoint {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$ClusterId
+    )
+    aws rds describe-db-clusters --db-cluster-identifier $ClusterId
 }
 
 # ---------------- Secrets Manager Operations ----------------------
