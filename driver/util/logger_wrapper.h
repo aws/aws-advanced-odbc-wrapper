@@ -24,6 +24,7 @@
 
 #include <atomic>
 #include <filesystem>
+#include <mutex>
 
 namespace logger_config {
     const std::string PROGRAM_NAME = "aws-odbc-wrapper";
@@ -33,14 +34,11 @@ namespace logger_config {
 
 class LoggerWrapper {
 public:
-    LoggerWrapper() = default;
-
-    static void Initialize();
-    static void Initialize(int threshold);
-    static void Initialize(std::string log_location);
-    static void Initialize(std::string log_location, int threshold);
-
-    static void Shutdown();
+    LoggerWrapper();
+    LoggerWrapper(int threshold);
+    LoggerWrapper(const std::string &log_location);
+    LoggerWrapper(std::string log_location, int threshold);
+    ~LoggerWrapper();
 
     // Prevent copy constructors
     LoggerWrapper(const LoggerWrapper&) = delete;
@@ -50,7 +48,8 @@ public:
 
 private:
     static void SetLogDirectory(const std::string &directory_path);
-    static inline std::atomic<int> logger_init_count = 0;
+    static inline std::atomic<int> logger_init_count_{0};
+    static std::mutex logger_mutex_;
 };
 
 #endif // LOGGER_WRAPPER_H_

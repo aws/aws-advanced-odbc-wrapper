@@ -15,24 +15,17 @@
 #include "logger_wrapper.h"
 #include <ng-log/logging.h>
 
-void LoggerWrapper::Initialize()
-{
-    Initialize(logger_config::DEFAULT_LOG_LOCATION, logger_config::DEFAULT_LOG_THRESHOLD);
-}
+std::mutex LoggerWrapper::logger_mutex_;
 
-void LoggerWrapper::Initialize(int threshold)
-{
-    Initialize(logger_config::DEFAULT_LOG_LOCATION, threshold);
-}
+LoggerWrapper::LoggerWrapper() : LoggerWrapper(logger_config::DEFAULT_LOG_LOCATION, logger_config::DEFAULT_LOG_THRESHOLD) {}
 
-void LoggerWrapper::Initialize(std::string log_location)
-{
-    Initialize(std::move(log_location), logger_config::DEFAULT_LOG_THRESHOLD);
-}
+LoggerWrapper::LoggerWrapper(const int threshold) : LoggerWrapper(logger_config::DEFAULT_LOG_LOCATION, threshold) {}
 
-void LoggerWrapper::Initialize(std::string log_location, int threshold)
-{
-    if (0 == logger_init_count++) {
+LoggerWrapper::LoggerWrapper(const std::string &log_location) : LoggerWrapper(log_location, logger_config::DEFAULT_LOG_THRESHOLD) {}
+
+LoggerWrapper::LoggerWrapper(std::string log_location, int threshold) {
+    if (++logger_init_count_ == 1) {
+        const std::lock_guard<std::mutex> lock(logger_mutex_);
         // Set to 4 to disable console output
         threshold = threshold >= 0 ? threshold : logger_config::DEFAULT_LOG_THRESHOLD;
         FLAGS_stderrthreshold = threshold;
@@ -46,9 +39,9 @@ void LoggerWrapper::Initialize(std::string log_location, int threshold)
     }
 }
 
-void LoggerWrapper::Shutdown()
-{
-    if (--logger_init_count == 0) {
+LoggerWrapper::~LoggerWrapper() {
+    if (--logger_init_count_ == 0) {
+        const std::lock_guard<std::mutex> lock(logger_mutex_);
         nglog::ShutdownLogging();
     }
 }
