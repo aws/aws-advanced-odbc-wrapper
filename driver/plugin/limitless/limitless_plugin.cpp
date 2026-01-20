@@ -65,19 +65,21 @@ SQLRETURN LimitlessPlugin::Connect(
         return SQL_ERROR;
     }
 
-    const bool limitless_enabled =
-        dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS) &&
-        dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE;
+    if (!dbc->conn_attr.contains(KEY_RDS_TEST_CONN) || dbc->conn_attr.at(KEY_RDS_TEST_CONN) != VALUE_BOOL_TRUE)
+    {
+        const bool limitless_enabled = dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS) && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE;
 
-    if (limitless_enabled) {
-        dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
+        if (limitless_enabled) {
+            dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
 
-        if (!this->limitless_router_service_) {
-            this->limitless_router_service_ = std::make_shared<LimitlessRouterService>(limitless_dialect, dbc->conn_attr, this->odbc_helper_, this->limitless_query_helper_);
+            if (!this->limitless_router_service_) {
+                this->limitless_router_service_ =
+                    std::make_shared<LimitlessRouterService>(limitless_dialect, dbc->conn_attr, this->odbc_helper_, this->limitless_query_helper_);
+            }
+
+            limitless_router_service_->StartMonitoring(dbc, limitless_dialect);
+            return limitless_router_service_->EstablishConnection(next_plugin, dbc);
         }
-
-        limitless_router_service_->StartMonitoring(dbc, limitless_dialect);
-        return limitless_router_service_->EstablishConnection(next_plugin, dbc);
     }
 
     return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);

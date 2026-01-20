@@ -421,10 +421,6 @@ std::string GetDsn(bool test_conn)
     }
 
     for (const auto& keys : FAILOVER_KEYS) {
-        if (test_conn) {
-            // Skip Failover for ODBC GUI Test Connections to prevent deadlock on DSN
-            break;
-        }
         value = GetControlValue(failover_tab, keys.second);
         if (!value.empty()) {
             conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
@@ -432,15 +428,13 @@ std::string GetDsn(bool test_conn)
     }
 
     for (const auto& keys : LIMITLESS_KEYS) {
-        if (test_conn) {
-            // Skip Limitless for ODBC GUI Test Connections to prevent deadlock on DSN
-            break;
-        }
         value = GetControlValue(limitless_tab, keys.second);
         if (!value.empty()) {
             conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
         }
     }
+
+    conn_str = AddKeyToConnectionString(conn_str, KEY_RDS_TEST_CONN, VALUE_BOOL_TRUE, test_conn);
 
     return conn_str;
 }

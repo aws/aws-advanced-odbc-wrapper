@@ -97,7 +97,10 @@ SQLRETURN FailoverPlugin::Connect(
 {
     LOG(INFO) << "Entering Connect";
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    topology_monitor_->StartMonitor(dbc->plugin_head);
+    if (!dbc->conn_attr.contains(KEY_RDS_TEST_CONN) || dbc->conn_attr.at(KEY_RDS_TEST_CONN) != VALUE_BOOL_TRUE)
+    {
+        topology_monitor_->StartMonitor(dbc->plugin_head);
+    }
     return next_plugin->Connect(
         ConnectionHandle,
         WindowHandle,
