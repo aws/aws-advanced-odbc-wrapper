@@ -8,7 +8,8 @@ catch signal SIGSEGV
 commands
   silent
   echo "\n* Segmentation fault detected *\n"
-  backtrace
+  thread
+  thread apply all bt
   quit 1
 end
 
