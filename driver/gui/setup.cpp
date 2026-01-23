@@ -45,7 +45,8 @@ enum ControlType {
 enum TabSelection {
     AWS_AUTH,
     FAILOVER,
-    LIMITLESS
+    LIMITLESS,
+    CUSTOM_ENDPOINT
 };
 
 enum AuthModeSelection {
@@ -135,6 +136,16 @@ const std::map<std::string, std::pair<int, ControlType>> LIMITLESS_KEYS = {
     {KEY_ROUTER_MAX_RETRIES, {IDC_ROUTER_RETRIES, EDIT_TEXT}}
 };
 
+const std::map<std::string, std::pair<int, ControlType>> CUSTOM_ENDPOINT_KEYS = {
+    {KEY_ENABLE_CUSTOM_ENDPOINT, {IDC_ENABLE_CUSTOM_ENDPOINT, CHECK}},
+    {KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO, {IDC_WAIT_FOR_CUSTOM_ENDPOINT_INFO, CHECK}},
+    {KEY_CUSTOM_ENDPOINT_REGION, {IDC_CUSTOM_ENDPOINT_REGION, EDIT_TEXT}},
+    {KEY_CUSTOM_ENDPOINT_INTERVAL_MS, {IDC_CUSTOM_ENDPOINT_MONITOR_INTERVAL_MS, EDIT_TEXT}},
+    {KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS, {IDC_CUSTOM_ENDPOINT_MAX_MONITOR_INTERVAL_MS, EDIT_TEXT}},
+    {KEY_CUSTOM_ENDPOINT_BACKOFF_RATE, {IDC_CUSTOM_ENDPOINT_MONITOR_BACKOFF, EDIT_TEXT}},
+    {KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS, {IDC_WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS, EDIT_TEXT}}
+};
+
 const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
@@ -181,6 +192,7 @@ HWND tab_control;
 HWND aws_auth_tab;
 HWND failover_tab;
 HWND limitless_tab;
+HWND custom_endpoint_tab;
 HWND main_win;
 
 std::string driver;
@@ -434,6 +446,13 @@ std::string GetDsn(bool test_conn)
         }
     }
 
+    for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
+        value = GetControlValue(custom_endpoint_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
     conn_str = AddKeyToConnectionString(conn_str, KEY_RDS_TEST_CONN, VALUE_BOOL_TRUE, test_conn);
 
     return conn_str;
@@ -539,6 +558,9 @@ bool SaveDsn()
             for (const auto& keys : LIMITLESS_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(limitless_tab, keys.second).c_str());
             }
+            for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(custom_endpoint_tab, keys.second).c_str());
+            }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
             if (new_dsn) {
@@ -599,6 +621,60 @@ BOOL LimitlessTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     }
 
     HandleEnableLimitless(hwnd);
+
+    return false;
+}
+
+void HandleEnableCustomEndpoint(HWND hwnd) {
+    HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_CUSTOM_ENDPOINT);
+    LRESULT state = Button_GetCheck(check_box);
+    bool show_all = false;
+    if (state == BST_CHECKED) {
+        show_all = true;
+    }
+
+    for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
+        if (keys.first != KEY_ENABLE_CUSTOM_ENDPOINT) {
+            HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+            EnableWindow(ctrl, (show_all) ? TRUE : FALSE);
+        }
+    }
+}
+
+void HandleCustomEndpointInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+    case IDC_ENABLE_CUSTOM_ENDPOINT:
+        HandleEnableCustomEndpoint(hwnd);
+        break;
+    default:
+        break;
+    }
+}
+
+BOOL CustomEndpointTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleEnableCustomEndpoint(hwnd);
+
+    return false;
+}
+
+BOOL CustomEndpointDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, CustomEndpointTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleCustomEndpointInteraction);
+    default:
+        break;
+    }
 
     return false;
 }
@@ -843,6 +919,7 @@ void OnSelChange(HWND hwnd)
     ShowWindow(aws_auth_tab, (selection == AWS_AUTH) ? SW_SHOW : SW_HIDE);
     ShowWindow(failover_tab, (selection == FAILOVER) ? SW_SHOW : SW_HIDE);
     ShowWindow(limitless_tab, (selection == LIMITLESS) ? SW_SHOW : SW_HIDE);
+    ShowWindow(custom_endpoint_tab, (selection == CUSTOM_ENDPOINT) ? SW_SHOW : SW_HIDE);
 }
 
 BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
@@ -851,6 +928,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     aws_auth_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_AWS_AUTH), tab_control, (DLGPROC)AuthDlgProc);
     failover_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_FAILOVER), tab_control, (DLGPROC)FailoverDlgProc);
     limitless_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_LIMITLESS), tab_control, (DLGPROC)LimitlessDlgProc);
+    custom_endpoint_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_CUSTOM_ENDPOINT), tab_control, (DLGPROC)CustomEndpointDlgProc);
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
@@ -878,6 +956,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     AddTabToTabControl("Authentication", tab_control, AWS_AUTH);
     AddTabToTabControl("Failover Settings", tab_control, FAILOVER);
     AddTabToTabControl("Limitless", tab_control, LIMITLESS);
+    AddTabToTabControl("Custom Endpoint", tab_control, CUSTOM_ENDPOINT);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);

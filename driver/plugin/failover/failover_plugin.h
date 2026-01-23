@@ -24,6 +24,7 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/sliding_cache_map.h"
 #include "../../util/odbc_helper.h"
+#include "../../util/topology_service.h"
 
 typedef enum {
     STRICT_READER,
@@ -48,6 +49,7 @@ public:
         BasePlugin* next_plugin,
         FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect,
         const std::shared_ptr<HostSelector>& host_selector,
+        const std::shared_ptr<TopologyService>& topology_service,
         const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
         const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor,
         const std::shared_ptr<OdbcHelper> &odbc_helper
@@ -96,9 +98,7 @@ private:
     std::shared_ptr<ClusterTopologyMonitor> topology_monitor_;
     FailoverMode failover_mode_ = UNKNOWN_FAILOVER_MODE;
     std::shared_ptr<OdbcHelper> odbc_helper_;
-
-    static inline std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>> topology_map_
-        = std::make_shared<SlidingCacheMap<std::string, std::vector<HostInfo>>>();
+    std::shared_ptr<TopologyService> topology_service_;
 
     static std::mutex topology_monitors_mutex_;
     static std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> topology_monitors_;

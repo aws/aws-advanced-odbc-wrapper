@@ -144,6 +144,11 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withCustomEndpoint(const bool& custom_endpoint_enabled) {
+        length += sprintf(conn_in + length, "ENABLE_CUSTOM_ENDPOINT=%d;", custom_endpoint_enabled ? 1 : 0);
+        return *this;
+    }
+
     std::string getString() const {
         return conn_in;
     }

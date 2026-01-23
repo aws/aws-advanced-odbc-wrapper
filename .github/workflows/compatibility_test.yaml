@@ -397,7 +397,7 @@ jobs:
           && sudo installer -pkg "${MOUNTDIR}/"*.pkg -target /
       - name: Setup Local MySQL
         run: |
-          brew install mysql@9.5
+          brew install mysql
           brew services restart mysql
           mysql.server start
           mysql -u root < ./scripts/init_local_mysql_query.sql

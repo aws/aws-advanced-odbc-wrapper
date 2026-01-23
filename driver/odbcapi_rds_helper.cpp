@@ -21,6 +21,10 @@
 #include <cwchar>
 #include <unordered_set>
 
+#include "plugin/base_plugin.h"
+#include "plugin/default_plugin.h"
+
+#include "plugin/custom_endpoint/custom_endpoint_plugin.h"
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
@@ -35,6 +39,7 @@
 #include "util/odbc_dsn_helper.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
+#include "util/topology_service.h"
 
 #ifdef WIN32
     #include "gui/setup.h"
@@ -113,7 +118,10 @@ SQLRETURN RDS_AllocDbc(
     dbc->env = env;
     *ConnectionHandlePointer = dbc;
 
-    env->dbc_list.emplace_back(dbc);
+    {
+        const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        env->dbc_list.emplace_back(dbc);
+    }
 
     return SQL_SUCCESS;
 }
@@ -281,7 +289,10 @@ SQLRETURN RDS_FreeConnect(
     ENV* env = dbc->env;
 
     // Remove connection from environment
-    env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
+    {
+        const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
+    }
 
     // Cleanup tracked statements
     const std::list<STMT*> stmt_list = dbc->stmt_list;
@@ -322,7 +333,10 @@ SQLRETURN RDS_FreeDesc(
     const ENV* env = dbc->env;
 
     // Remove descriptor from connection
-    dbc->desc_list.remove(desc);
+    {
+        const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        dbc->desc_list.remove(desc);
+    }
 
     // Clean underlying Descriptors
     if (desc->wrapped_desc) {
@@ -399,7 +413,10 @@ SQLRETURN RDS_FreeStmt(
         default:
             {
                 // Remove statement from connection
-                dbc->stmt_list.remove(stmt);
+                {
+                    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                    dbc->stmt_list.remove(stmt);
+                }
 
                 // Clean underlying Statements
                 if (stmt->wrapped_stmt) {
@@ -2028,8 +2045,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     // Initialize Plugins
     try {
+        if (!dbc->topology_service) {
+            // Create Topology Service
+            const std::string cluster_id = TopologyService::InitClusterId(dbc->conn_attr);
+            dbc->topology_service = std::make_shared<TopologyService>(cluster_id);
+        }
         if (!dbc->plugin_head) {
-            BasePlugin* plugin_head = new BasePlugin(dbc);
+            BasePlugin* plugin_head = new DefaultPlugin(dbc);
             BasePlugin* next_plugin;
 
             // Auth Plugins
@@ -2072,6 +2094,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
                 && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
             {
                 next_plugin = new FailoverPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Custom Endpoint
+            if (dbc->conn_attr.contains(KEY_ENABLE_CUSTOM_ENDPOINT)
+                && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new CustomEndpointPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

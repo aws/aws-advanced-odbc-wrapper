@@ -31,6 +31,7 @@
 #define IDC_APP_ARN                     1005
 #define IDC_BASE_DRIVER                 1005
 #define IDC_FAILOVER_TIME               1005
+#define IDC_TAB_CUSTOM_ENDPOINT         1005
 #define IDC_PWD                         1006
 #define IDC_IAM_HOST                    1006
 #define IDC_CLUSTER_ID                  1006
@@ -79,15 +80,22 @@
 #define IDC_MFA_PORT                    1063
 #define IDC_MFA_TIMEOUT                 1064
 #define IDC_MFA_TYPE                    1065
-
+#define IDC_ENABLE_CUSTOM_ENDPOINT      1066
+#define IDC_WAIT_FOR_CUSTOM_ENDPOINT_INFO 1067
+#define IDC_CUSTOM_ENDPOINT_REGION      1068
+#define IDC_CUSTOM_ENDPOINT_MONITOR_INTERVAL_MS 1069
+#define WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS 1070
+#define IDC_WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS 1071
+#define IDC_CUSTOM_ENDPOINT_MAX_MONITOR_INTERVAL_MS 1072
+#define IDC_CUSTOM_ENDPOINT_MONITOR_BACKOFF 1073
 
 // Next default values for new objects
-// 
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        126
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1066
+#define _APS_NEXT_CONTROL_VALUE         1074
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

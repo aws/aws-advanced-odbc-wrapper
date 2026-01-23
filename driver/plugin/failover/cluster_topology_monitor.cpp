@@ -29,14 +29,14 @@
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
     DBC* dbc,
-    const std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>>& topology_map,
+    const std::shared_ptr<TopologyService>& topology_service,
     const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
     const std::shared_ptr<Dialect> &dialect,
     const std::shared_ptr<OdbcHelper> &odbc_helper)
     : query_helper_{ query_helper },
       lib_loader_{ dbc->env->driver_lib_loader },
       connection_attributes_{ dbc->conn_attr },
-      topology_map_{ topology_map },
+      topology_service_{ topology_service },
       dialect_{ dialect },
       odbc_helper_{odbc_helper}
 {
@@ -109,7 +109,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
     const std::chrono::steady_clock::time_point ignore_topology = ignore_topology_request_end_ms_.load();
     if (ignore_topology != epoch_ && now > ignore_topology) {
         // Previous failover has just completed. We can use results of it without triggering a new topology update.
-        if (std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_); !hosts.empty()) {
+        if (std::vector<HostInfo> hosts = topology_service_->GetHosts(); !hosts.empty()) {
             return hosts;
         }
     }
@@ -122,7 +122,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
 
     std::vector<HostInfo> hosts = WaitForTopologyUpdate(timeout_ms);
     if (!hosts.empty()) {
-        topology_map_->Put(cluster_id_, hosts);
+        topology_service_->SetHosts(hosts);
     }
     return hosts;
 }
@@ -169,7 +169,7 @@ void ClusterTopologyMonitor::Run() {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t timeout_ms) {
-    std::vector<HostInfo> curr_hosts = topology_map_->Get(cluster_id_);
+    std::vector<HostInfo> curr_hosts = topology_service_->GetHosts();
     std::vector<HostInfo> new_hosts = curr_hosts;
     {
         const std::lock_guard<std::mutex> lock(request_update_topology_mutex_);
@@ -189,7 +189,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     // Current implementation does not support comparing curr_hosts and new_hosts by their references.
     while (curr_time < end && curr_hosts == new_hosts) {
         topology_updated_.wait_for(topology_lock, TOPOLOGY_UPDATE_WAIT_MS);
-        new_hosts = topology_map_->Get(cluster_id_);
+        new_hosts = topology_service_->GetHosts();
         curr_time = std::chrono::steady_clock::now();
     }
     LOG(INFO) << "New hosts have been updated";
@@ -242,7 +242,7 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     const std::unique_lock<std::mutex> update_lock(topology_updated_mutex_);
 
     // Update topology and notify threads
-    topology_map_->Put(cluster_id_, hosts);
+    topology_service_->SetHosts(hosts);
     request_update_topology_.store(false);
     topology_updated_.notify_all();
     request_update_topology_cv_.notify_one();
@@ -379,7 +379,7 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
     node_threads_writer_host_info_ = nullptr;
     node_threads_latest_topology_ = nullptr;
 
-    std::vector<HostInfo> hosts = topology_map_->Get(cluster_id_);
+    std::vector<HostInfo> hosts = topology_service_->GetHosts();
     if (hosts.empty()) {
         hosts = OpenAnyConnGetHosts();
     }
@@ -445,8 +445,8 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
     this->host_info_ = host_info;
     this->writer_host_info_ = writer_host_info;
     this->odbc_helper_ = odbc_helper;
-    node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     odbc_helper_->AllocDbc(monitor->henv_, hdbc_);
+    node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
 
@@ -512,7 +512,11 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
     DBC *local_dbc = static_cast<DBC*>(hdbc_);;
     local_dbc->conn_attr = conn_info_;
-    main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    if (!SQL_SUCCEEDED(rc)) {
+        odbc_helper_->DisconnectAndFree(&hdbc_);
+        hdbc_ = SQL_NULL_HDBC;
+    }
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::HandleWriterConn() {

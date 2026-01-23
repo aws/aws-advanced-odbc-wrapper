@@ -39,18 +39,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include ""winres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "\r\n"
     "\0"
@@ -237,6 +237,25 @@ BEGIN
     EDITTEXT        IDC_ROUTER_RETRIES,122,83,131,14,ES_AUTOHSCROLL
 END
 
+IDC_TAB_CUSTOM_ENDPOINT DIALOGEX 5, 15, 386, 243
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    EDITTEXT        IDC_CUSTOM_ENDPOINT_REGION,127,38,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_CUSTOM_ENDPOINT_MONITOR_INTERVAL_MS,127,57,149,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS,127,119,149,14,ES_AUTOHSCROLL
+    LTEXT           "Custom Endpoint Region:",IDC_STATIC,7,39,113,8,0,WS_EX_RIGHT
+    LTEXT           "Custom Endpoint Monitor Refresh (ms):",IDC_STATIC,7,55,113,17,0,WS_EX_RIGHT
+    LTEXT           "Wait for Custom Endpoint Info Timeout (ms):",IDC_STATIC,7,117,113,17,0,WS_EX_RIGHT
+    CONTROL         "",IDC_ENABLE_CUSTOM_ENDPOINT,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | WS_TABSTOP,126,7,10,10
+    LTEXT           "Enable Custom Endpoint:",IDC_STATIC,7,7,113,8,0,WS_EX_RIGHT
+    CONTROL         "",IDC_WAIT_FOR_CUSTOM_ENDPOINT_INFO,"Button",BS_AUTOCHECKBOX | BS_LEFTTEXT | WS_TABSTOP,126,23,10,10
+    LTEXT           "Wait for Custom Endpoint Info:",IDC_STATIC,7,23,113,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_CUSTOM_ENDPOINT_MAX_MONITOR_INTERVAL_MS,127,77,149,14,ES_AUTOHSCROLL
+    LTEXT           "Max Custom Endpoint Monitor Refresh (ms):",IDC_STATIC,7,75,113,17,0,WS_EX_RIGHT
+    EDITTEXT        IDC_CUSTOM_ENDPOINT_MONITOR_BACKOFF,127,98,149,14,ES_AUTOHSCROLL
+    LTEXT           "Throttle Exponential Backoff Rate:",IDC_STATIC,7,100,113,9,0,WS_EX_RIGHT
+END
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -293,6 +312,17 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 194
     END
+
+    IDC_TAB_CUSTOM_ENDPOINT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 315
+        VERTGUIDE, 116
+        VERTGUIDE, 122
+        VERTGUIDE, 253
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 194
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -322,6 +352,11 @@ BEGIN
     0
 END
 
+IDC_TAB_CUSTOM_ENDPOINT AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -336,4 +371,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

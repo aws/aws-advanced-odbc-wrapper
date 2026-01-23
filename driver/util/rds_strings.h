@@ -95,10 +95,10 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
 
 #ifdef UNICODE
     #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(ConvertUTF8ToUTF16(str).data()))
-    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<uint16_t *>(str)).c_str()
+    #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<uint16_t *>(str)).data()
     #define RDS_TSTR(str) ConvertUTF8ToWString(str)
 #else
-    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.c_str()))
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.data()))
     #define AS_UTF8_CSTR(str) reinterpret_cast<const char *>(str)
     #define RDS_TSTR(str) str
 #endif

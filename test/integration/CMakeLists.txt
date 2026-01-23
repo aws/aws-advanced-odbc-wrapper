@@ -45,6 +45,7 @@ set(TEST_SUITE
 if(BUILD_FAILOVER)
     list(APPEND TEST_SUITE
         ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_integration_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/failover_integration_test.cpp
     )
 elseif(BUILD_LIMITLESS)

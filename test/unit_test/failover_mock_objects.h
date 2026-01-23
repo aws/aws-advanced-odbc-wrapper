@@ -19,6 +19,7 @@
 
 #include "../../driver/dialect/dialect.h"
 #include "../../driver/util/rds_lib_loader.h"
+#include "../../driver/util/topology_service.h"
 #include "../../driver/host_selector/host_selector.h"
 #include "../../driver/plugin/failover/cluster_topology_query_helper.h"
 #include "../../driver/plugin/failover/cluster_topology_monitor.h"
@@ -42,6 +43,13 @@ class MockHostSelector : public HostSelector {
         HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer, std::unordered_map<std::string, std::string> properties) override {
             return HostInfo();
         }
+};
+
+class MockTopologyService : public TopologyService {
+    public:
+        MockTopologyService() : TopologyService("") {}
+        std::vector<HostInfo> GetHosts() override { return {}; }
+        void SetHosts(const std::vector<HostInfo>&) override {}
 };
 
 class MockClusterTopologyQueryHelper : public ClusterTopologyQueryHelper {

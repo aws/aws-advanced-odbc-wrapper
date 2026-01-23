@@ -12,20 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef BASE_PLUGIN_H_
-#define BASE_PLUGIN_H_
+#ifndef DEFAULT_PLUGIN_H_
+#define DEFAULT_PLUGIN_H_
 
-#include "../driver.h"
+#include "base_plugin.h"
 
-struct DBC;
-struct STMT;
-
-class BasePlugin {
+class DefaultPlugin : public BasePlugin {
 public:
-    BasePlugin() = default;
-    BasePlugin(DBC* dbc);
-    BasePlugin(DBC* dbc, BasePlugin* next_plugin);
-    virtual ~BasePlugin();
+    DefaultPlugin() = default;
+    DefaultPlugin(DBC* dbc);
+    DefaultPlugin(DBC* dbc, DefaultPlugin* next_plugin);
 
     virtual SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
@@ -41,11 +37,8 @@ public:
         SQLINTEGER     TextLength = -1);
 
 protected:
-    // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
-    BasePlugin* next_plugin = nullptr;
     std::string plugin_name;
-
 private:
 };
 
-#endif // BASE_PLUGIN_H_
+#endif // DEFAULT_PLUGIN_H_

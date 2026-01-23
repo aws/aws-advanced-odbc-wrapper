@@ -33,6 +33,10 @@ set(INC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.h
+    ## Custom Endpoint
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
     ## Failover
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.h
@@ -56,18 +60,19 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/topology_service.h
 
     # Dialects
     ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect_aurora_mysql.h
@@ -101,6 +106,9 @@ set(SRC
 
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
@@ -119,16 +127,17 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/topology_service.cpp
 
     # Core
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
