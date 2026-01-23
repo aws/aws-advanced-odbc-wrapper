@@ -119,7 +119,7 @@ SQLRETURN RDS_AllocDbc(
     *ConnectionHandlePointer = dbc;
 
     {
-        std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
         env->dbc_list.emplace_back(dbc);
     }
 
@@ -290,7 +290,7 @@ SQLRETURN RDS_FreeConnect(
 
     // Remove connection from environment
     {
-        std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
         env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
     }
 
@@ -334,7 +334,7 @@ SQLRETURN RDS_FreeDesc(
 
     // Remove descriptor from connection
     {
-        std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
         dbc->desc_list.remove(desc);
     }
 
@@ -414,7 +414,7 @@ SQLRETURN RDS_FreeStmt(
             {
                 // Remove statement from connection
                 {
-                    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                    const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                     dbc->stmt_list.remove(stmt);
                 }
 

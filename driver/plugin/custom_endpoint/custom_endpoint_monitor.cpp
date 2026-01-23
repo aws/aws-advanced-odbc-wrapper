@@ -97,6 +97,7 @@ void CustomEndpointMonitor::Run() {
                         filter.blocked_host_ids.insert(host);
                     }
                 }
+                filter.endpoint_type = endpoint_info.GetEndpointType();
 
                 const HostFilter cached_filter = endpoint_cache.Get(endpoint_identifier_);
                 if (cached_filter != filter) {

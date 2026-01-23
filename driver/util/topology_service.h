@@ -30,11 +30,13 @@ static inline std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>
 struct HostFilter {
     std::set<std::string> allowed_host_ids;
     std::set<std::string> blocked_host_ids;
+    std::string endpoint_type;
 
     bool operator==(const HostFilter& other) const
     {
         return allowed_host_ids == other.allowed_host_ids
-            && blocked_host_ids == other.blocked_host_ids;
+            && blocked_host_ids == other.blocked_host_ids
+            && endpoint_type == other.endpoint_type;
     }
 };
 

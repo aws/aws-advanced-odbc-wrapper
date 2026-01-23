@@ -29,7 +29,8 @@ std::vector<HostInfo> TopologyService::GetFilteredHosts() {
                 return host_filter.allowed_host_ids.contains(host_id);
             }
             if (!host_filter.blocked_host_ids.empty()) {
-                return !host_filter.blocked_host_ids.contains(host_id);
+                return !(host_filter.endpoint_type == "READER" && host.IsHostWriter())
+                    && !host_filter.blocked_host_ids.contains(host_id);
             }
             return true;
         }

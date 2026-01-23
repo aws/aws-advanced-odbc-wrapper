@@ -35,7 +35,7 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
-    if (!dbc || !dbc->wrapped_dbc) {
+    if (!dbc || !dbc->wrapped_dbc || dbc->conn_status != CONN_CONNECTED) {
         return "";
     }
 
