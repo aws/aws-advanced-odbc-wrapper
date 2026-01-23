@@ -512,7 +512,11 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
     DBC *local_dbc = static_cast<DBC*>(hdbc_);;
     local_dbc->conn_attr = conn_info_;
-    main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    if (!SQL_SUCCEEDED(rc)) {
+        odbc_helper_->DisconnectAndFree(&hdbc_);
+        hdbc_ = SQL_NULL_HDBC;
+    }
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::HandleWriterConn() {

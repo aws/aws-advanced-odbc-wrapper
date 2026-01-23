@@ -118,7 +118,10 @@ SQLRETURN RDS_AllocDbc(
     dbc->env = env;
     *ConnectionHandlePointer = dbc;
 
-    env->dbc_list.emplace_back(dbc);
+    {
+        std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        env->dbc_list.emplace_back(dbc);
+    }
 
     return SQL_SUCCESS;
 }
@@ -286,7 +289,10 @@ SQLRETURN RDS_FreeConnect(
     ENV* env = dbc->env;
 
     // Remove connection from environment
-    env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
+    {
+        std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
+    }
 
     // Cleanup tracked statements
     const std::list<STMT*> stmt_list = dbc->stmt_list;
@@ -327,7 +333,10 @@ SQLRETURN RDS_FreeDesc(
     const ENV* env = dbc->env;
 
     // Remove descriptor from connection
-    dbc->desc_list.remove(desc);
+    {
+        std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        dbc->desc_list.remove(desc);
+    }
 
     // Clean underlying Descriptors
     if (desc->wrapped_desc) {
@@ -404,7 +413,10 @@ SQLRETURN RDS_FreeStmt(
         default:
             {
                 // Remove statement from connection
-                dbc->stmt_list.remove(stmt);
+                {
+                    std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+                    dbc->stmt_list.remove(stmt);
+                }
 
                 // Clean underlying Statements
                 if (stmt->wrapped_stmt) {
