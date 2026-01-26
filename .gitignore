@@ -51,3 +51,8 @@ aws_sdk/*
 odbc.ini
 odbcinst.ini
 *.log
+
+# Installer Files
+scripts/macOS/postflight.sh
+scripts/macOS/ReadMe.html
+scripts/macOS/Welcome.html

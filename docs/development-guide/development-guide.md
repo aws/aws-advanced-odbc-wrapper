@@ -96,6 +96,16 @@ cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_
 cmake --build build
 ```
 
+#### Building the Installer
+
+When the wrapper is built, the installer can be built via the following:
+
+```
+cd build
+cpack
+```
+
+
 ## Build and Run Tests
 
 There are multiple types of test, each type will be in its own folder under `test`.

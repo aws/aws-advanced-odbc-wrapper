@@ -45,3 +45,39 @@ jobs:
           name: windows-installer
           path: ${{ github.workspace }}/installer/*.msi
           if-no-files-found: error
+
+  build-macos:
+    name: MacOS - Build Installer
+    runs-on: macos-15
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v4
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk-cpp
+        uses: actions/cache@v4
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build ANSI and UNICODE aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_ANSI=ON -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Build installer
+        run: |
+          cd build
+          cpack
+      - name: Upload Mac installer as artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-*.pkg
+          if-no-files-found: error
