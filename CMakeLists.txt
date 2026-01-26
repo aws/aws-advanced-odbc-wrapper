@@ -129,3 +129,42 @@ add_subdirectory(driver)
 if(BUILD_UNIT_TEST)
     add_subdirectory(test/unit_test)
 endif()
+
+# CPACK ------------------------------------------------------------------------------------------------------
+SET(WRAPPER_VERSION "1.0.0")
+
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AWS Advanced ODBC Wrapper")
+SET(CPACK_PACKAGE_NAME "aws-advanced-odbc-wrapper")
+SET(CPACK_PACKAGE_VENDOR "Amazon")
+
+SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
+SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.txt")
+SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-src")
+
+IF(APPLE)
+    SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-macos")
+    SET(CPACK_GENERATOR "productbuild")
+    SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY}")
+    SET(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local/${CPACK_PACKAGE_FILE_NAME}")
+
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html @ONLY)
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html @ONLY)
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh.in ${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh @ONLY)
+    SET(CPACK_RESOURCE_FILE_WELCOME "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macOS/Welcome.html")
+    SET(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html")
+    SET(CPACK_POSTFLIGHT_WRAPPER_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh")
+ENDIF()
+
+set(CPACK_COMPONENTS_ALL "Wrapper")
+
+INSTALL(FILES LICENSE.txt COMPONENT Wrapper DESTINATION .)
+INSTALL(FILES README.txt COMPONENT Wrapper DESTINATION .)
+INSTALL(
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build/driver/"
+    DESTINATION "./lib"
+    COMPONENT Wrapper
+    FILES_MATCHING PATTERN "*.dylib"
+    PATTERN "CMakeFiles" EXCLUDE
+)
+
+include (CPack)
