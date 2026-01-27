@@ -97,10 +97,10 @@ SQLRETURN RDS_ProcessLibRes(
 SQLRETURN RDS_AllocEnv(
     SQLHENV *      EnvironmentHandlePointer)
 {
-    LoggerWrapper::Initialize();
     ENV* env;
 
     env = new ENV();
+    env->logger_wrapper = std::make_shared<LoggerWrapper>();
     *EnvironmentHandlePointer = env;
 
     return SQL_SUCCESS;
@@ -381,7 +381,6 @@ SQLRETURN RDS_FreeEnv(
     CLEAR_ENV_ERROR(env);
     delete env;
     EnvironmentHandle = nullptr;
-    LoggerWrapper::Shutdown();
     return SQL_SUCCESS;
 }
 

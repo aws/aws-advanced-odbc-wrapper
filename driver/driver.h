@@ -108,6 +108,7 @@ struct ENV {
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map; // Key, <Value, Length>
     ERR_INFO*                   err = nullptr;
     char                        sql_error_called = 0;
+    std::shared_ptr<LoggerWrapper> logger_wrapper;
 
     SQLHENV                     wrapped_env;
 
@@ -118,6 +119,7 @@ struct ENV {
                delete err;
           }
           err = nullptr;
+          logger_wrapper = nullptr;
      }
 }; // ENV
 
