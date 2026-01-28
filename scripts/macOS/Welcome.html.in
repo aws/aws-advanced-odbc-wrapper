@@ -1,0 +1,33 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Welcome</title>
+</head>
+<body>
+
+<font face="Helvetica">
+
+<h2>
+  Amazon Web Services (AWS) Advanced ODBC Wrapper Installer
+</h2>
+
+<p>
+  This is the macOS installer for the Amazon Web Services (AWS) Advanced ODBC Wrapper.
+
+<p>
+  The AWS Advanced ODBC Wrapper is complementary to existing ODBC drivers and aims to extend the functionality of these
+  driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In
+  other words, the AWS Advanced ODBC Wrapper does not connect directly to any database, but enables support of AWS and
+  Aurora functionalities on top of an underlying ODBC driver of the user's choice. This approach enables
+  service-specific enhancements, without requiring users to change their workflow and existing ODBC driver tooling.
+</p>
+
+<p>
+  Please visit the <a href="https://github.com/aws/aws-advanced-odbc-wrapper">AWS Advanced ODBC Wrapper repository</a> for more information.
+</p>
+
+</font>
+
+</body>
+</html>
