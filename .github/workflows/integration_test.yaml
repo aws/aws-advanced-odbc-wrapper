@@ -154,7 +154,8 @@ jobs:
   build-macos-mysql:
     name: MacOS - Build MySQL Connector ODBC
     if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
+    runs-on:
+      - codebuild-odbc-wrapper-macos-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
