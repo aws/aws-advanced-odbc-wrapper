@@ -18,11 +18,9 @@
 #include "gmock/gmock.h"
 
 #include "../../driver/dialect/dialect.h"
+#include "../../driver/util/plugin_service.h"
 #include "../../driver/util/rds_lib_loader.h"
-#include "../../driver/util/topology_service.h"
 #include "../../driver/host_selector/host_selector.h"
-#include "../../driver/plugin/failover/cluster_topology_query_helper.h"
-#include "../../driver/plugin/failover/cluster_topology_monitor.h"
 #include "../../driver/plugin/failover/failover_plugin.h"
 
 class MockDialect : public Dialect {};
@@ -45,17 +43,11 @@ class MockHostSelector : public HostSelector {
         }
 };
 
-class MockTopologyService : public TopologyService {
+class MockPluginService : public PluginService {
     public:
-        MockTopologyService() : TopologyService("") {}
+        MockPluginService() : PluginService(nullptr, {}, "") {}
         std::vector<HostInfo> GetHosts() override { return {}; }
         void SetHosts(const std::vector<HostInfo>&) override {}
-};
-
-class MockClusterTopologyQueryHelper : public ClusterTopologyQueryHelper {
-    public:
-        MockClusterTopologyQueryHelper() : ClusterTopologyQueryHelper(nullptr, 0, "", "", "", "", std::make_shared<OdbcHelper>(nullptr)) {}
-        std::vector<HostInfo> QueryTopology(SQLHDBC hdbc) override { return {}; }
 };
 
 #endif // FAILOVER_MOCK_OBJECTS_H_

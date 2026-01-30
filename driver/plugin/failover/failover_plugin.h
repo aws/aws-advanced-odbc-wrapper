@@ -16,15 +16,14 @@
 #define FAILOVER_PLUGIN_H_
 
 #include "../base_plugin.h"
-#include "cluster_topology_monitor.h"
 #include "../../driver.h"
 #include "../../dialect/dialect.h"
 #include "../../host_selector/host_selector.h"
 #include "../../host_info.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/sliding_cache_map.h"
+#include "../../util/plugin_service.h"
 #include "../../util/odbc_helper.h"
-#include "../../util/topology_service.h"
 
 typedef enum {
     STRICT_READER,
@@ -44,17 +43,6 @@ public:
     FailoverPlugin() = default;
     explicit FailoverPlugin(DBC* dbc);
     FailoverPlugin(DBC* dbc, BasePlugin* next_plugin);
-    FailoverPlugin(
-        DBC* dbc,
-        BasePlugin* next_plugin,
-        FailoverMode failover_mode, const std::shared_ptr<Dialect>& dialect,
-        const std::shared_ptr<HostSelector>& host_selector,
-        const std::shared_ptr<TopologyService>& topology_service,
-        const std::shared_ptr<ClusterTopologyQueryHelper>& topology_query_helper,
-        const std::shared_ptr<ClusterTopologyMonitor>& topology_monitor,
-        const std::shared_ptr<OdbcHelper> &odbc_helper
-    );
-    ~FailoverPlugin() override;
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
@@ -68,8 +56,6 @@ public:
         SQLHSTMT       StatementHandle,
         SQLTCHAR *     StatementText,
         SQLINTEGER     TextLength) override;
-
-    static unsigned int GetTopologyMonitorCount(const std::string& cluster_id);
 private:
     static constexpr int MAX_STATE_LENGTH = 32;
     static constexpr int MAX_MSG_LENGTH = 1024;
@@ -82,26 +68,17 @@ private:
     bool FailoverWriter(DBC* hdbc);
     static bool ConnectToHost(DBC* hdbc, const std::string& host_string, const std::shared_ptr<OdbcHelper> &odbc_helper);
 
-    static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
     static FailoverMode InitFailoverMode(std::map<std::string, std::string>& conn_info);
-    std::shared_ptr<HostSelector> InitHostSelectorStrategy(std::map<std::string, std::string>& conn_info);
-    std::shared_ptr<ClusterTopologyQueryHelper> InitQueryHelper(DBC* dbc);
-    std::shared_ptr<ClusterTopologyMonitor> InitTopologyMonitor(DBC* dbc);
 
     HostInfo curr_host_;
     std::chrono::milliseconds failover_timeout_ms_;
     std::string cluster_id_;
     std::shared_ptr<Dialect> dialect_;
-    HostSelectorStrategies host_selector_strategy_;
     std::shared_ptr<HostSelector> host_selector_;
-    std::shared_ptr<ClusterTopologyQueryHelper> topology_query_helper_;
-    std::shared_ptr<ClusterTopologyMonitor> topology_monitor_;
     FailoverMode failover_mode_ = UNKNOWN_FAILOVER_MODE;
     std::shared_ptr<OdbcHelper> odbc_helper_;
-    std::shared_ptr<TopologyService> topology_service_;
-
-    static std::mutex topology_monitors_mutex_;
-    static std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>> topology_monitors_;
+    std::shared_ptr<TopologyUtil> topology_util_;
+    std::shared_ptr<PluginService> plugin_service_;
 };
 
 #endif // FAILOVER_PLUGIN_H_

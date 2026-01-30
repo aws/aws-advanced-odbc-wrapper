@@ -40,6 +40,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/map_utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
@@ -50,7 +51,6 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/topology_service_test.cpp
 )
 
 set(TEST_RUNNER

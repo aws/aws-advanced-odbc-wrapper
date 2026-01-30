@@ -36,11 +36,11 @@ CustomEndpointPlugin::CustomEndpointPlugin(DBC* dbc, BasePlugin* next_plugin) : 
 CustomEndpointPlugin::CustomEndpointPlugin(
     DBC* dbc,
     BasePlugin* next_plugin,
-    const std::shared_ptr<TopologyService>& topology_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<CustomEndpointMonitor>& endpoint_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "CUSTOM_ENDPOINT";
-    this->topology_service_ = topology_service ? topology_service : dbc->topology_service;
+    this->plugin_service_ = plugin_service ? plugin_service : dbc->plugin_service;
 
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
     this->host_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
@@ -142,7 +142,7 @@ std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor
         LOG(INFO) << "Incremented Endpoint Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
     } else {
         monitor = std::make_shared<CustomEndpointMonitor>(
-            this->topology_service_,
+            this->plugin_service_,
             this->host_,
             this->region_,
             this->refresh_rate_ms_,

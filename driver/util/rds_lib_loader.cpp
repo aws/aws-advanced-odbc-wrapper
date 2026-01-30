@@ -24,10 +24,12 @@ RdsLibLoader::RdsLibLoader(std::string library_path)
 
 RdsLibLoader::~RdsLibLoader()
 {
-    if (driver_handle) {
-        RDS_FREE_MODULE(driver_handle);
-        driver_handle = nullptr;
-    }
+    /*
+        Intentionally empty / Not calling RDS_FREE_MODULE(..)
+        let OS cleanup on process termination to prevent incorrect unloading order of loaded library's dependencies
+    */
+    driver_handle = nullptr;
+    function_cache.clear();
 }
 
 std::string RdsLibLoader::GetDriverPath()

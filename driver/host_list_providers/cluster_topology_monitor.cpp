@@ -17,40 +17,28 @@
 #include <iostream>
 #include <sqlext.h>
 
-#include "cluster_topology_query_helper.h"
+#include "topology_util.h"
 
-#include "../../odbcapi_rds_helper.h"
-#include "../../util/cluster_helper.h"
-#include "../../util/connection_string_helper.h"
-#include "../../util/connection_string_keys.h"
-#include "../../util/logger_wrapper.h"
-#include "../../util/odbc_helper.h"
-#include "../../util/rds_utils.h"
+#include "../odbcapi_rds_helper.h"
+#include "../util/cluster_helper.h"
+#include "../util/connection_string_helper.h"
+#include "../util/connection_string_keys.h"
+#include "../util/logger_wrapper.h"
+#include "../util/odbc_helper.h"
+#include "../util/rds_utils.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    DBC* dbc,
-    const std::shared_ptr<TopologyService>& topology_service,
-    const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
-    const std::shared_ptr<Dialect> &dialect,
-    const std::shared_ptr<OdbcHelper> &odbc_helper)
-    : query_helper_{ query_helper },
-      lib_loader_{ dbc->env->driver_lib_loader },
-      connection_attributes_{ dbc->conn_attr },
-      topology_service_{ topology_service },
-      dialect_{ dialect },
-      odbc_helper_{odbc_helper}
+    PluginService* plugin_service,
+    const std::shared_ptr<TopologyUtil>& topology_util)
+    : topology_util_{ topology_util },
+      plugin_service_{ plugin_service },
+      connection_attributes_{ plugin_service->GetOriginalConnAttr() },
+      cluster_id_{ plugin_service->GetClusterId() },
+      dialect_{ plugin_service->GetDialect() },
+      odbc_helper_{ plugin_service->GetOdbcHelper() },
+      initial_host_{ plugin_service->GetInitialHostInfo() },
+      template_host_{ plugin_service->GetTemplateHostInfo() }
 {
-    if (connection_attributes_.contains(KEY_CLUSTER_ID)) {
-        cluster_id_ = connection_attributes_.at(KEY_CLUSTER_ID);
-    } else {
-        std::string generated_id = RdsUtils::GetRdsClusterId(connection_attributes_.at(KEY_SERVER));
-        if (generated_id.empty()) {
-            generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
-        }
-        LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        connection_attributes_.insert_or_assign(KEY_CLUSTER_ID, generated_id);
-        cluster_id_ = generated_id;
-    }
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
             connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST).c_str(), nullptr, 0));
@@ -67,14 +55,12 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
     // Create ENV local to cluster topology monitor
     odbc_helper_->AllocEnv(&henv_);
     ENV* henv = static_cast<ENV*>(henv_);
-    const RdsLibResult res = odbc_helper->BaseAllocEnv(henv);
+    const RdsLibResult res = odbc_helper_->BaseAllocEnv(henv);
     if (!SQL_SUCCEEDED(res.fn_result)) {
         LOG(ERROR) << "Cluster Topology Monitor failed to create new Underlying Environment";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Cluster Topology Monitor failed to create new Underlying Environment", ERR_NO_UNDER_LYING_FUNCTION);
     }
-    odbc_helper_->SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-    henv->driver_lib_loader = lib_loader_;
+    odbc_helper_->SetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+    henv->driver_lib_loader = odbc_helper_->GetLibLoader();
 }
 
 ClusterTopologyMonitor::~ClusterTopologyMonitor() {
@@ -109,7 +95,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
     const std::chrono::steady_clock::time_point ignore_topology = ignore_topology_request_end_ms_.load();
     if (ignore_topology != epoch_ && now > ignore_topology) {
         // Previous failover has just completed. We can use results of it without triggering a new topology update.
-        if (std::vector<HostInfo> hosts = topology_service_->GetHosts(); !hosts.empty()) {
+        if (std::vector<HostInfo> hosts = plugin_service_->GetHosts(); !hosts.empty()) {
             return hosts;
         }
     }
@@ -122,7 +108,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
 
     std::vector<HostInfo> hosts = WaitForTopologyUpdate(timeout_ms);
     if (!hosts.empty()) {
-        topology_service_->SetHosts(hosts);
+        plugin_service_->SetHosts(hosts);
     }
     return hosts;
 }
@@ -137,9 +123,9 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(SQLHDBC hdbc, const u
     return FetchTopologyUpdateCache(hdbc);
 }
 
-void ClusterTopologyMonitor::StartMonitor(BasePlugin* plugin_head) {
+void ClusterTopologyMonitor::StartMonitor() {
     if (!is_running_.load()) {
-        plugin_head_ = plugin_head;
+        plugin_head_ = this->plugin_service_->GetPluginChain();
         is_running_.store(true);
         this->monitoring_thread_ = std::make_shared<std::thread>(&ClusterTopologyMonitor::Run, this);
     }
@@ -169,7 +155,7 @@ void ClusterTopologyMonitor::Run() {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t timeout_ms) {
-    std::vector<HostInfo> curr_hosts = topology_service_->GetHosts();
+    std::vector<HostInfo> curr_hosts = plugin_service_->GetHosts();
     std::vector<HostInfo> new_hosts = curr_hosts;
     {
         const std::lock_guard<std::mutex> lock(request_update_topology_mutex_);
@@ -189,7 +175,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     // Current implementation does not support comparing curr_hosts and new_hosts by their references.
     while (curr_time < end && curr_hosts == new_hosts) {
         topology_updated_.wait_for(topology_lock, TOPOLOGY_UPDATE_WAIT_MS);
-        new_hosts = topology_service_->GetHosts();
+        new_hosts = plugin_service_->GetHosts();
         curr_time = std::chrono::steady_clock::now();
     }
     LOG(INFO) << "New hosts have been updated";
@@ -226,7 +212,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQL
         LOG(ERROR) << "Cluster Monitor invalid connection for querying for ClusterId: " << cluster_id_;
         return hosts;
     }
-    hosts = query_helper_->QueryTopology(hdbc);
+    hosts = topology_util_->QueryTopology(hdbc, initial_host_, template_host_);
     if (hosts.empty()) {
         LOG(ERROR) << "Cluster Monitor queried and found no topology for ClusterId: " << cluster_id_;
     } else {
@@ -242,7 +228,7 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     const std::unique_lock<std::mutex> update_lock(topology_updated_mutex_);
 
     // Update topology and notify threads
-    topology_service_->SetHosts(hosts);
+    plugin_service_->SetHosts(hosts);
     request_update_topology_.store(false);
     topology_updated_.notify_all();
     request_update_topology_cv_.notify_one();
@@ -280,13 +266,17 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         const std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
         if (!main_hdbc_) {
             main_hdbc_ = std::make_shared<SQLHDBC>(local_hdbc);
-            const std::string writer_id = query_helper_->GetWriterId(local_dbc);
+            const std::string writer_id = topology_util_->GetWriterId(local_dbc);
             if (!writer_id.empty()) {
                 thread_writer_verified = true;
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
                 const std::lock_guard host_info_lock(node_threads_writer_hdbc_mutex_);
-                main_writer_host_info_ = std::make_shared<HostInfo>(query_helper_->CreateHost(AS_SQLTCHAR(writer_id), true, 0, 0));
+                main_writer_host_info_ = std::make_shared<HostInfo>(
+                    topology_util_->CreateHost(
+                        writer_id, template_host_.GetPort(), UP, WRITER, 0, std::chrono::steady_clock::now()
+                    )
+                );
             }
         } else {
             // Connection already set, close local HDBC
@@ -379,7 +369,7 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
     node_threads_writer_host_info_ = nullptr;
     node_threads_latest_topology_ = nullptr;
 
-    std::vector<HostInfo> hosts = topology_service_->GetHosts();
+    std::vector<HostInfo> hosts = plugin_service_->GetHosts();
     if (hosts.empty()) {
         hosts = OpenAnyConnGetHosts();
     }
@@ -399,7 +389,7 @@ bool ClusterTopologyMonitor::GetPossibleWriterConn() {
     const std::lock_guard<std::mutex> hostinfo_lock(node_threads_writer_host_info_mutex_);
     auto* local_hdbc = node_threads_writer_hdbc_ ?
         static_cast<SQLHDBC>(*node_threads_writer_hdbc_) : SQL_NULL_HDBC;
-    const HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, false);
+    const HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, READER);
     if (SQL_NULL_HDBC != local_hdbc && !GetNodeId(local_hdbc, dialect_).empty() && local_hostinfo.IsHostUp()) {
         LOG(INFO) << "The writer host detected by the node monitors was picked up by the topology monitor: " << local_hostinfo;
         const std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
@@ -482,7 +472,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
                 HandleReconnect();
             } else {
                 // Get Writer ID
-                const std::string writer_id = main_monitor_->query_helper_->GetWriterId(hdbc_);
+                const std::string writer_id = main_monitor_->topology_util_->GetWriterId(hdbc_);
                 if (!writer_id.empty()) { // Connected to a Writer
                     LOG(WARNING) << "Writer " << writer_id << " detected by node monitoring thread: " << thread_host;
                     HandleWriterConn();
@@ -572,7 +562,8 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
         return;
     };
     // Query for hosts
-    const std::vector<HostInfo> hosts = main_monitor_->query_helper_->QueryTopology(local_hdbc);
+    const std::vector<HostInfo> hosts = main_monitor_->topology_util_->QueryTopology(
+        local_hdbc, main_monitor_->initial_host_, main_monitor_->template_host_);
 
     // Share / update topology to main monitor
     {

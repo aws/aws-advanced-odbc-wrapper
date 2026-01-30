@@ -115,7 +115,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
             dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
-        odbc_helper_->SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+        odbc_helper_->SetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
         env->driver_lib_loader = monitor->lib_loader_;
 
         do {

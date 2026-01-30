@@ -26,6 +26,8 @@
 #include "../odbcapi.h"
 #include "rds_strings.h"
 
+#include "rds_lib_loader.h"
+
 std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
     const std::string node_id_query = dialect->GetNodeIdQuery();
 

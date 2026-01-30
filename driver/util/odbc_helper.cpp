@@ -16,6 +16,8 @@
 
 #include "../odbcapi_rds_helper.h"
 
+#include "rds_lib_loader.h"
+
 OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
 }
@@ -56,7 +58,7 @@ SQLRETURN OdbcHelper::AllocDbc(SQLHENV &henv, SQLHDBC &hdbc) {
     return RDS_AllocDbc(henv, &hdbc);
 }
 
-RdsLibResult OdbcHelper::SQLSetEnvAttr(
+RdsLibResult OdbcHelper::SetEnvAttr(
     const ENV *henv,
     const SQLINTEGER attribute,
     SQLPOINTER pointer,
@@ -67,14 +69,14 @@ RdsLibResult OdbcHelper::SQLSetEnvAttr(
     );
 }
 
-RdsLibResult OdbcHelper::SQLFetch(SQLHSTMT* stmt)
+RdsLibResult OdbcHelper::Fetch(SQLHSTMT* stmt)
 {
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         *stmt
     );
 }
 
-RdsLibResult OdbcHelper::SQLBindCol(
+RdsLibResult OdbcHelper::BindCol(
     const SQLHSTMT* stmt,
     const int column,
     const int type,
@@ -87,7 +89,7 @@ RdsLibResult OdbcHelper::SQLBindCol(
     );
 }
 
-RdsLibResult OdbcHelper::SQLExecDirect(const SQLHSTMT* stmt, const std::string &query) {
+RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query) {
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );
@@ -109,4 +111,8 @@ RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
         SQL_HANDLE_STMT, *stmt
     );
+}
+
+std::shared_ptr<RdsLibLoader> OdbcHelper::GetLibLoader() {
+    return this->lib_loader_;
 }

@@ -30,37 +30,34 @@
 #include <sql.h>
 #include <sqltypes.h>
 
-#include "cluster_topology_query_helper.h"
+#include "topology_util.h"
 
-#include "../base_plugin.h"
-#include "../../driver.h"
-#include "../../host_info.h"
+#include "../plugin/base_plugin.h"
+#include "../driver.h"
+#include "../host_info.h"
 
-#include "../../dialect/dialect.h"
+#include "../dialect/dialect.h"
 
-#include "../../util/logger_wrapper.h"
-#include "../../util/odbc_helper.h"
-#include "../../util/rds_strings.h"
-#include "../../util/sliding_cache_map.h"
-#include "../../util/topology_service.h"
+#include "../util/logger_wrapper.h"
+#include "../util/odbc_helper.h"
+#include "../util/plugin_service.h"
+#include "../util/rds_strings.h"
+#include "../util/sliding_cache_map.h"
 
 struct DBC;
 struct ENV;
 
 class ClusterTopologyMonitor {
 public:
-    ClusterTopologyMonitor(DBC* dbc,
-        const std::shared_ptr<TopologyService>& topology_service,
-        const std::shared_ptr<ClusterTopologyQueryHelper>& query_helper,
-        const std::shared_ptr<Dialect> &dialect_,
-        const std::shared_ptr<OdbcHelper> &odbc_helper);
+    ClusterTopologyMonitor(PluginService* plugin_service,
+        const std::shared_ptr<TopologyUtil>& topology_util);
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms);
     virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, uint32_t timeout_ms);
 
-    virtual void StartMonitor(BasePlugin* plugin_head);
+    virtual void StartMonitor();
 
 protected:
     void Run();
@@ -72,7 +69,7 @@ protected:
 
 private:
     class NodeMonitoringThread;
-    std::shared_ptr<ClusterTopologyQueryHelper> query_helper_;
+    std::shared_ptr<TopologyUtil> topology_util_;
     bool InPanicMode() const;
     std::vector<HostInfo> OpenAnyConnGetHosts();
     void CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc);
@@ -83,14 +80,14 @@ private:
     void InitNodeMonitors();
     bool GetPossibleWriterConn();
 
-    std::shared_ptr<RdsLibLoader> lib_loader_;
     BasePlugin* plugin_head_;
-    std::shared_ptr<OdbcHelper> odbc_helper_;    // Topology Tracking
+    std::shared_ptr<OdbcHelper> odbc_helper_;
     std::string cluster_id_;
+    HostInfo initial_host_;
+    HostInfo template_host_;
     std::map<std::string, std::string> connection_attributes_;
 
-    // SlidingCacheMap internally is thread safe
-    std::shared_ptr<TopologyService> topology_service_;
+    PluginService* plugin_service_;
 
     // Track Update Request
     std::atomic<bool> request_update_topology_;

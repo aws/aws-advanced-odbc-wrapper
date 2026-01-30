@@ -15,6 +15,7 @@
 #ifndef HOST_INFO_H_
 #define HOST_INFO_H_
 
+#include <chrono>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -23,6 +24,12 @@ typedef enum {
     UP,
     DOWN
 } HOST_STATE;
+
+typedef enum {
+    READER,
+    WRITER,
+    UNKNOWN
+} HOST_ROLE;
 
 class HostInfo {
 public:
@@ -34,48 +41,57 @@ public:
 
     HostInfo(
         std::string host,
-        int port,
-        HOST_STATE state,
-        bool is_writer,
-        uint64_t weight = DEFAULT_WEIGHT
+        int port = NO_PORT,
+        HOST_STATE state = DOWN,
+        HOST_ROLE role = UNKNOWN,
+        uint64_t weight = DEFAULT_WEIGHT,
+        std::chrono::steady_clock::time_point last_update = std::chrono::steady_clock::now()
     );
 
     ~HostInfo() = default;
-
-    bool EqualHostPortPair(const HostInfo& hi) const;
-    bool IsHostDown() const;
-    bool IsHostUp() const;
-    bool IsHostWriter() const;
-
-    void MarkAsWriter(bool writer);
 
     std::string GetHost() const;
     int GetPort() const;
     std::string GetHostId() const;
     std::string GetHostPortPair() const;
     uint64_t GetWeight() const;
+    HOST_STATE GetHostState() const;
+    HOST_ROLE GetHostRole() const;
+    std::chrono::steady_clock::time_point GetLastUpdate() const;
 
     void SetHostState(HOST_STATE state);
-    HOST_STATE GetHostState() const;
+    void SetHostRole(HOST_ROLE state);
+
+    bool IsHostWriter() const;
+    bool IsHostUp() const;
 
     bool operator==(const HostInfo& other) const {
-        return this->EqualHostPortPair(other) && this->weight == other.GetWeight() && this->is_writer == other.IsHostWriter();
+        return this->host_ == other.GetHost()
+            && this->port_ == other.GetPort()
+            && this->weight_ == other.GetWeight()
+            && this->state_ == other.GetHostState()
+            && this->role_ == other.GetHostRole();
     }
 
 private:
-    std::string host_port_separator = ":";
+    static constexpr char HOST_PORT_SEPARATOR = ':';
     std::string host_;
     std::string host_id_;
-    int port = NO_PORT;
-    uint64_t weight = DEFAULT_WEIGHT;
+    int port_ = NO_PORT;
+    uint64_t weight_ = DEFAULT_WEIGHT;
 
-    HOST_STATE host_state;
-    bool is_writer;
+    HOST_ROLE role_;
+    HOST_STATE state_;
+
+    std::chrono::steady_clock::time_point last_update_;
 };
 
 inline std::ostream& operator<<(std::ostream& str, const HostInfo& v) {
     char buf[HostInfo::MAX_HOST_INFO_BUFFER_SIZE];
-    sprintf(buf, "HostInfo[host=%s, port=%d, %s]", v.GetHost().c_str(), v.GetPort(), v.IsHostWriter() ? "WRITER" : "READER");
+    sprintf(buf, "HostInfo[host=%s, port=%d, %s]",
+        v.GetHost().c_str(),
+        v.GetPort(),
+        v.GetHostRole() == WRITER ? "WRITER" : "READER");
     return str << std::string(buf);
 }
 

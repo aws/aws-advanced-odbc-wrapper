@@ -24,6 +24,13 @@ set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(INC
+    # Host List Providers
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/aurora_topology_util.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/cluster_topology_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/host_list_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/rds_host_list_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/topology_util.h
+
     # Host Selectors
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/highest_weight_host_selector.h
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/host_selector.h
@@ -38,8 +45,6 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
     ## Failover
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.h
     ## Federated
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
@@ -68,12 +73,12 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/topology_service.h
 
     # Dialects
     ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect_aurora_mysql.h
@@ -100,6 +105,12 @@ set(INC
 )
 
 set(SRC
+    # Host List Providers
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/aurora_topology_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/cluster_topology_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/rds_host_list_provider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/topology_util.cpp
+
     # Host Selectors
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/highest_weight_host_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/random_host_selector.cpp
@@ -108,17 +119,21 @@ set(SRC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
+    ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_monitor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/cluster_topology_query_helper.cpp
+    ## Failover
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
+    ## Federated Auth
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp
+    ## IAM
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
+    ## Secrets Manager
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/secrets_manager/secrets_manager_plugin.cpp
+    ## Limitless
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_query_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.cpp
@@ -135,13 +150,14 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/topology_service.cpp
 
     # Core
+    ${CMAKE_CURRENT_SOURCE_DIR}/driver.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_info.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_common.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_rds_helper.cpp
