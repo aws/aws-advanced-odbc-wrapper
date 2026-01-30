@@ -16,6 +16,7 @@
 #define BASE_PLUGIN_H_
 
 #include "../driver.h"
+#include "../error.h"
 
 struct DBC;
 struct STMT;

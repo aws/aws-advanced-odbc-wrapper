@@ -16,34 +16,29 @@
 
 #include "odbcapi_rds_helper.h"
 
-
 #include <cstdio>
-#include <cwchar>
 #include <unordered_set>
 
+#include "error.h"
 #include "plugin/base_plugin.h"
-#include "plugin/default_plugin.h"
-
 #include "plugin/custom_endpoint/custom_endpoint_plugin.h"
+#include "plugin/default_plugin.h"
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/limitless/limitless_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
-
 #include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/logger_wrapper.h"
 #include "util/odbc_dsn_helper.h"
+#include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
-#include "util/rds_strings.h"
-#include "util/topology_service.h"
 
 #ifdef WIN32
     #include "gui/setup.h"
-    #include "gui/resource.h"
 #endif
 
 SQLRETURN RDS_ProcessLibRes(
@@ -316,8 +311,6 @@ SQLRETURN RDS_FreeConnect(
         dbc->wrapped_dbc = nullptr;
     }
 
-    delete dbc->plugin_head;
-    dbc->plugin_head = nullptr;
     CLEAR_DBC_ERROR(dbc);
     delete dbc;
     ConnectionHandle = nullptr;
@@ -667,7 +660,7 @@ SQLRETURN RDS_SQLConnect(
 #endif
         load_len = NameLength1 == SQL_NTS ? conn_str_utf8.length() : NameLength1;
         OdbcDsnHelper::LoadAll(conn_str_utf8.substr(0, load_len), dbc->conn_attr);
-        ret = RDS_InitializeConnection(dbc);
+        ret = RDS_InitializeConnection(dbc, conn_str_utf8);
     } else {
         // Error, no DSN
         // TODO - Load default DSN?
@@ -824,7 +817,7 @@ SQLRETURN RDS_SQLDriverConnect(
         conn_out_str_utf8 = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
     }
 
-    ret = RDS_InitializeConnection(dbc);
+    ret = RDS_InitializeConnection(dbc, conn_str_utf8);
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
@@ -1967,7 +1960,7 @@ SQLRETURN RDS_SQLTables(
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
-SQLRETURN RDS_InitializeConnection(DBC* dbc)
+SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
 {
     ENV* env = dbc->env;
 
@@ -2044,11 +2037,12 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
     // Initialize Plugins
     try {
-        if (!dbc->topology_service) {
-            // Create Topology Service
-            const std::string cluster_id = TopologyService::InitClusterId(dbc->conn_attr);
-            dbc->topology_service = std::make_shared<TopologyService>(cluster_id);
+        if (!dbc->plugin_service) {
+            // Create Plugin Service
+            PluginService::InitClusterId(dbc->conn_attr);
+            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, dbc->conn_attr, conn_str);
         }
+        // Plugin Builder
         if (!dbc->plugin_head) {
             BasePlugin* plugin_head = new DefaultPlugin(dbc);
             BasePlugin* next_plugin;
@@ -2106,7 +2100,11 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc)
 
             // Finalize and track in DBC
             dbc->plugin_head = plugin_head;
+            dbc->plugin_service->SetPluginChain(plugin_head);
         }
+
+        dbc->plugin_service->InitHostListProvider();
+        dbc->plugin_service->RefreshHosts();
     } catch (const std::exception& ex) {
         const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;

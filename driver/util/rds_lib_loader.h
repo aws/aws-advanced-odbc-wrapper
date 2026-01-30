@@ -69,8 +69,9 @@ protected:
 private:
     std::string driver_path;
 
-    std::shared_mutex cache_lock;
     MODULE_HANDLE driver_handle;
+
+    std::shared_mutex cache_lock;
     std::unordered_map<std::string, FUNC_HANDLE> function_cache;
 };
 

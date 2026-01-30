@@ -15,11 +15,6 @@
 #include "base_plugin.h"
 
 #include "../driver.h"
-#include "../odbcapi.h"
-#include "../util/connection_string_helper.h"
-#include "../util/logger_wrapper.h"
-#include "../util/rds_lib_loader.h"
-#include "../util/sql_query_analyzer.h"
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 

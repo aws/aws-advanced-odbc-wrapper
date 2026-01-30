@@ -17,6 +17,8 @@
 
 #include "../base_plugin.h"
 
+#include <regex>
+
 #ifndef SECRETS_MANAGER_PLUGIN_H_
 #define SECRETS_MANAGER_PLUGIN_H_
 

@@ -31,15 +31,16 @@ public:
     virtual SQLRETURN FreeEnv(SQLHENV *henv);
     virtual SQLRETURN AllocDbc(SQLHENV &henv, SQLHDBC &hdbc);
 
-    virtual RdsLibResult SQLSetEnvAttr(const ENV *henv, SQLINTEGER attribute, SQLPOINTER pointer, int length);
-    virtual RdsLibResult SQLFetch(SQLHSTMT *stmt);
-    virtual RdsLibResult SQLBindCol(const SQLHSTMT *stmt, int column, int type, void *value, size_t size, SQLLEN *len);
-    virtual RdsLibResult SQLExecDirect(const SQLHSTMT *stmt, const std::string &query);
+    virtual RdsLibResult SetEnvAttr(const ENV *henv, SQLINTEGER attribute, SQLPOINTER pointer, int length);
+    virtual RdsLibResult Fetch(SQLHSTMT *stmt);
+    virtual RdsLibResult BindCol(const SQLHSTMT *stmt, int column, int type, void *value, size_t size, SQLLEN *len);
+    virtual RdsLibResult ExecDirect(const SQLHSTMT *stmt, const std::string &query);
 
     virtual RdsLibResult BaseAllocEnv(ENV *env);
     virtual RdsLibResult BaseAllocStmt(const SQLHDBC *wrapped_dbc, SQLHSTMT *stmt);
     virtual RdsLibResult BaseFreeStmt(SQLHSTMT *stmt);
 
+    virtual std::shared_ptr<RdsLibLoader> GetLibLoader();
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
 };

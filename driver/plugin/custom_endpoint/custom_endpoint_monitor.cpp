@@ -29,13 +29,13 @@
 SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache;
 
 CustomEndpointMonitor::CustomEndpointMonitor(
-    const std::shared_ptr<TopologyService>& topology_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     const std::string& endpoint,
     std::string region,
     std::chrono::milliseconds refresh_rate_ms,
     std::chrono::milliseconds max_refresh_rate_ms,
     int exponential_backoff_rate)
-    : topology_service_{ topology_service },
+    : plugin_service_{ plugin_service },
       endpoint_{ endpoint },
       endpoint_identifier_{ RdsUtils::GetRdsClusterId(endpoint) },
       region_{ std::move(region) },
@@ -102,7 +102,7 @@ void CustomEndpointMonitor::Run() {
                 const HostFilter cached_filter = endpoint_cache.Get(endpoint_identifier_);
                 if (cached_filter != filter) {
                     LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_identifier_;
-                    this->topology_service_->SetHostFilter(filter);
+                    this->plugin_service_->SetHostFilter(filter);
                     endpoint_cache.Put(this->endpoint_identifier_, filter);
                     DecreaseDelay();
                 }

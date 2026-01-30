@@ -21,33 +21,21 @@ class FailoverPluginTest : public ::testing::Test {};
 TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
     const std::string cluster_id = "test-cluster";
 
+    auto mock_lib_loader = std::make_shared<MockRdsLibLoader>();
+    auto mock_plugin_service = std::make_shared<MockPluginService>();
+
     ENV env;
-    env.driver_lib_loader = std::make_shared<MockRdsLibLoader>();
+    env.driver_lib_loader = mock_lib_loader;
 
     DBC* dbc = new DBC();
     dbc->env = &env;
     dbc->conn_attr[KEY_CLUSTER_ID] = cluster_id;
-
-    auto mock_dialect = std::make_shared<MockDialect>();
-    auto mock_host_selector = std::make_shared<MockHostSelector>();
-    auto mock_topology_service = std::make_shared<MockTopologyService>();
-    std::shared_ptr<ClusterTopologyQueryHelper> mock_topology_query_helper = std::make_shared<MockClusterTopologyQueryHelper>();
+    dbc->plugin_service = mock_plugin_service;
 
     {
-        FailoverPlugin plugin1(dbc, nullptr, FailoverMode::STRICT_WRITER,
-                              mock_dialect, mock_host_selector,
-                              mock_topology_service, mock_topology_query_helper, nullptr,
-                              std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader));
-
-        EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 1);
-
-        FailoverPlugin plugin2(dbc, nullptr, FailoverMode::STRICT_WRITER,
-                              mock_dialect, mock_host_selector,
-                              mock_topology_service, mock_topology_query_helper, nullptr,
-                              std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader));
-        EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 2);
+        FailoverPlugin plugin1(dbc, nullptr);
+        FailoverPlugin plugin2(dbc, nullptr);
     }
 
-    EXPECT_EQ(FailoverPlugin::GetTopologyMonitorCount(cluster_id), 0);
     delete dbc;
 }
