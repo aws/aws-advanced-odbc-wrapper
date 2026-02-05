@@ -21,6 +21,7 @@
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
 #include "../../util/rds_utils.h"
 #include "saml_util.h"
 
@@ -41,8 +42,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
     if (auth_provider) {
         this->auth_provider = auth_provider;
     } else {
-        std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            dbc->conn_attr.at(KEY_REGION) : "";
+        std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
         if (region.empty()) {
             region = dbc->conn_attr.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
@@ -74,29 +74,22 @@ SQLRETURN AdfsAuthPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
-        dbc->conn_attr.at(KEY_SERVER) : "";
-    const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
-        dbc->conn_attr.at(KEY_IAM_HOST) : server;
-    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        dbc->conn_attr.at(KEY_REGION) : "";
+    const std::string server = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
+    const std::string iam_host = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_HOST, server);
+    std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
     if (region.empty()) {
         region = dbc->conn_attr.contains(KEY_SERVER) ?
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = dbc->conn_attr.contains(KEY_IAM_PORT) ?
-        dbc->conn_attr.at(KEY_IAM_PORT) : "";
+    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
     if (port.empty()) {
-        port = dbc->conn_attr.contains(KEY_PORT) ?
-        dbc->conn_attr.at(KEY_PORT) : "";
+        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
     }
-    const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
-        dbc->conn_attr.at(KEY_DB_USERNAME) : "";
+    const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;
-    const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
-        dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
+    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         LOG(ERROR) << "Missing required parameters for ADFS Authentication";
@@ -137,8 +130,7 @@ AdfsSamlUtil::AdfsSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
-    std::string relaying_party_id = connection_attributes.contains(KEY_RELAY_PARTY_ID) ?
-        connection_attributes.at(KEY_RELAY_PARTY_ID) : "";
+    std::string relaying_party_id = MapUtils::GetStringValue(connection_attributes, KEY_RELAY_PARTY_ID, "");
     if (relaying_party_id.empty()) {
         LOG(INFO) << "Relaying party ID not supplied, using default: " << DEFAULT_RELAY_ID;
         relaying_party_id = DEFAULT_RELAY_ID;

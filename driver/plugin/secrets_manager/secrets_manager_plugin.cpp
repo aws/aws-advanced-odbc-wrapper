@@ -19,6 +19,7 @@
 
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
+#include "../../util/map_utils.h"
 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc) : SecretsManagerPlugin(dbc, nullptr) {}
 
@@ -28,20 +29,14 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
 {
     this->plugin_name = "SECRETS_MANAGER";
 
-    const std::string secret_id = dbc->conn_attr.contains(KEY_SECRET_ID) ?
-        dbc->conn_attr.at(KEY_SECRET_ID) : "";
-    std::string region = dbc->conn_attr.contains(KEY_SECRET_REGION) ?
-        dbc->conn_attr.at(KEY_SECRET_REGION) : "";
-    const std::string endpoint = dbc->conn_attr.contains(KEY_SECRET_ENDPOINT) ?
-        dbc->conn_attr.at(KEY_SECRET_ENDPOINT) : "";
+    const std::string secret_id = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ID, "");
+    std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_REGION, "");
+    const std::string endpoint = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ENDPOINT, "");
 
-    expiration_ms = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : DEFAULT_EXPIRATION_MS;
+    expiration_ms = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_TOKEN_EXPIRATION, DEFAULT_EXPIRATION_MS);
 
-    username_key =
-        dbc->conn_attr.contains(KEY_SECRET_USERNAME_PROPERTY) ? dbc->conn_attr.at(KEY_SECRET_USERNAME_PROPERTY) : DEFAULT_SECRET_USERNAME_KEY;
-    password_key =
-        dbc->conn_attr.contains(KEY_SECRET_PASSWORD_PROPERTY) ? dbc->conn_attr.at(KEY_SECRET_PASSWORD_PROPERTY) : DEFAULT_SECRET_PASSWORD_KEY;
+    username_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_USERNAME_PROPERTY, DEFAULT_SECRET_USERNAME_KEY);
+    password_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);
 
     if (username_key.empty() || password_key.empty()) {
         throw std::runtime_error("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.");

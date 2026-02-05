@@ -47,7 +47,7 @@ protected:
     std::shared_ptr<Aws::STS::STSClient> sts_client;
 
 private:
-    void ParseIdpConfig(std::map<std::string, std::string> connection_attributes);
+    void ParseIdpConfig(const std::map<std::string, std::string> &connection_attributes);
 };
 
 #endif // FEDERATION_H_

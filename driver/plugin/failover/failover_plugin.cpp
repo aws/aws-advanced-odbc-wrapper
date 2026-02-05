@@ -31,6 +31,7 @@
 #include "../../host_selector/host_selector.h"
 #include "../../host_selector/random_host_selector.h"
 #include "../../host_selector/round_robin_host_selector.h"
+#include "../../util/map_utils.h"
 
 // Initialize static members
 std::mutex FailoverPlugin::topology_monitors_mutex_;
@@ -397,7 +398,7 @@ FailoverMode FailoverPlugin::InitFailoverMode(std::map<std::string, std::string>
     }
 
     if (mode == UNKNOWN_FAILOVER_MODE) {
-        const std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
+        const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
         mode = RdsUtils::IsRdsReaderClusterDns(host) ? READER_OR_WRITER : STRICT_WRITER;
     }
 
@@ -427,15 +428,13 @@ std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC*
 {
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
-    std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? conn_info.at(KEY_ENDPOINT_TEMPLATE) : "";
-    const std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
+    std::string endpoint_template = MapUtils::GetStringValue(conn_info, KEY_ENDPOINT_TEMPLATE, "");
+    const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
     if (endpoint_template.empty()) {
         endpoint_template = RdsUtils::GetRdsInstanceHostPattern(host);
     }
 
-    const int port = conn_info.contains(KEY_PORT) ?
-        static_cast<int>(std::strtol(conn_info.at(KEY_PORT).c_str(), nullptr, 0)) :
-        dialect_->GetDefaultPort();
+    const int port = MapUtils::GetIntValue(conn_info, KEY_PORT, dialect_->GetDefaultPort());
 
     return std::make_shared<ClusterTopologyQueryHelper>(
         dbc->env->driver_lib_loader, port, endpoint_template,

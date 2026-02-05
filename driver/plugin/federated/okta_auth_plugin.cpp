@@ -27,6 +27,7 @@
 
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
 
@@ -47,8 +48,8 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
     if (auth_provider) {
         this->auth_provider = auth_provider;
     } else {
-        std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-            dbc->conn_attr.at(KEY_REGION) : "";
+        std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
+
         if (region.empty()) {
             region = dbc->conn_attr.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
@@ -80,30 +81,23 @@ SQLRETURN OktaAuthPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    const std::string server = dbc->conn_attr.contains(KEY_SERVER) ?
-        dbc->conn_attr.at(KEY_SERVER) : "";
-    const std::string iam_host = dbc->conn_attr.contains(KEY_IAM_HOST) ?
-        dbc->conn_attr.at(KEY_IAM_HOST) : server;
-    std::string region = dbc->conn_attr.contains(KEY_REGION) ?
-        dbc->conn_attr.at(KEY_REGION) : "";
+    const std::string server = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
+    const std::string iam_host = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_HOST, server);
+    std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
     if (region.empty()) {
         region = dbc->conn_attr.contains(KEY_SERVER) ?
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = dbc->conn_attr.contains(KEY_IAM_PORT) ?
-        dbc->conn_attr.at(KEY_IAM_PORT) : "";
+    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
     if (port.empty()) {
-        port = dbc->conn_attr.contains(KEY_PORT) ?
-        dbc->conn_attr.at(KEY_PORT) : "";
+        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
     }
-    const std::string username = dbc->conn_attr.contains(KEY_DB_USERNAME) ?
-        dbc->conn_attr.at(KEY_DB_USERNAME) : "";
+    const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0))
         : AuthProvider::DEFAULT_EXPIRATION_MS;
-    const bool extra_url_encode = dbc->conn_attr.contains(KEY_EXTRA_URL_ENCODE) ?
-        dbc->conn_attr.at(KEY_EXTRA_URL_ENCODE) == VALUE_BOOL_TRUE : false;
+    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         LOG(ERROR) << "Missing required parameters for Okta Authentication";
@@ -144,23 +138,19 @@ OktaSamlUtil::OktaSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
-    const std::string app_id = connection_attributes.contains(KEY_APP_ID) ?
-        connection_attributes.at(KEY_APP_ID) : "";
+    const std::string app_id = MapUtils::GetStringValue(connection_attributes, KEY_APP_ID, "");
     if (app_id.empty()) {
         throw std::runtime_error("Missing required parameters for Okta Authentication");
     }
     sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
     session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
 
-    const std::string mfa_type_str = connection_attributes.contains(KEY_MFA_TYPE) ?
-        connection_attributes.at(KEY_MFA_TYPE) : "";
+    const std::string mfa_type_str = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "");
     if (mfa_type_table.contains(mfa_type_str)) {
         mfa_type = mfa_type_table.at(mfa_type_str);
     }
-    mfa_port = connection_attributes.contains(KEY_MFA_PORT) ?
-        connection_attributes.at(KEY_MFA_PORT) : DEFAULT_PORT;
-    mfa_timeout = connection_attributes.contains(KEY_MFA_TIMEOUT) ?
-        connection_attributes.at(KEY_MFA_TIMEOUT) : DEFAULT_MFA_TIMEOUT;
+    mfa_port = MapUtils::GetStringValue(connection_attributes, KEY_MFA_PORT, DEFAULT_PORT);
+    mfa_timeout = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TIMEOUT, DEFAULT_MFA_TIMEOUT);
 }
 
 std::string OktaSamlUtil::GetSamlAssertion()
