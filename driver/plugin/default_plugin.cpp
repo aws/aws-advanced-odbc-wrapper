@@ -89,6 +89,7 @@ SQLRETURN DefaultPlugin::Connect(
     // Successful Connection, but bad environment and/or connection attribute setting
     if (SQL_SUCCEEDED(ret)) {
         dbc->conn_status = CONN_CONNECTED;
+        dbc->conn_attr.erase(KEY_RDS_INIT_CONN);
         if (has_conn_attr_errors) {
             ret = SQL_SUCCESS_WITH_INFO;
         }

@@ -29,6 +29,8 @@
 #include "../../driver/util/auth_provider.h"
 #include "../../driver/util/aws_sdk_helper.h"
 
+#include <sqlext.h>
+
 class MOCK_SAML_UTIL : public SamlUtil {
 public:
     MOCK_SAML_UTIL() : SamlUtil() { AwsSdkHelper::Init(); };

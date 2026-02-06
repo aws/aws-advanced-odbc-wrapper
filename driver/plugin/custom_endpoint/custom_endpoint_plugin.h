@@ -21,7 +21,7 @@
 
 #include "../../driver.h"
 #include "../../util/rds_utils.h"
-#include "../../util/topology_service.h"
+#include "../../util/plugin_service.h"
 
 #include <chrono>
 #include <memory>
@@ -34,7 +34,7 @@ public:
     CustomEndpointPlugin(
         DBC* dbc,
         BasePlugin* next_plugin,
-        const std::shared_ptr<TopologyService>& topology_service,
+        const std::shared_ptr<PluginService>& topology_service,
         const std::shared_ptr<CustomEndpointMonitor>& custom_endpoint_monitor);
     ~CustomEndpointPlugin() override;
 
@@ -61,7 +61,7 @@ private:
     std::shared_ptr<CustomEndpointMonitor> InitEndpointMonitor();
     bool WaitForInfo();
 
-    std::shared_ptr<TopologyService> topology_service_;
+    std::shared_ptr<PluginService> plugin_service_;
 
     std::string cluster_id_;
     std::string region_;

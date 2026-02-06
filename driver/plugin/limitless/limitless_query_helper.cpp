@@ -32,7 +32,6 @@ LimitlessQueryHelper::LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_hel
     this->odbc_helper_ = odbc_helper;
 }
 
-
 std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(
     const SQLHDBC conn, const int host_port_to_map,
     const std::shared_ptr<DialectLimitless> &dialect)
@@ -52,14 +51,14 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(
     SQLTCHAR load_value[LOAD_LENGTH] = {};
     SQLLEN len = 0;
 
-    this->odbc_helper_->SQLBindCol(&stmt, 1, SQL_C_TCHAR, &router_endpoint_value, sizeof(router_endpoint_value), &len);
-    this->odbc_helper_->SQLBindCol(&stmt, 2, SQL_C_TCHAR, &load_value, sizeof(load_value), &len);
+    this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &router_endpoint_value, sizeof(router_endpoint_value), &len);
+    this->odbc_helper_->BindCol(&stmt, 2, SQL_C_TCHAR, &load_value, sizeof(load_value), &len);
 
-    this->odbc_helper_->SQLExecDirect(&stmt, limitless_router_endpoint_query);
+    this->odbc_helper_->ExecDirect(&stmt, limitless_router_endpoint_query);
 
     std::vector<HostInfo> limitless_routers;
 
-    while (SQL_SUCCEEDED(this->odbc_helper_->SQLFetch(&stmt).fn_result)) {
+    while (SQL_SUCCEEDED(this->odbc_helper_->Fetch(&stmt).fn_result)) {
         const HostInfo host_info = CreateHost(load_value, router_endpoint_value, host_port_to_map);
         limitless_routers.push_back(host_info);
     }
@@ -85,7 +84,7 @@ HostInfo LimitlessQueryHelper::CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpo
         router_endpoint_str,
         host_port_to_map,
         UP,
-        true,
+        WRITER,
         weight
     };
 }

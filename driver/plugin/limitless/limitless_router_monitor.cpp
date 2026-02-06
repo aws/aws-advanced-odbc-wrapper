@@ -63,7 +63,7 @@ void LimitlessRouterMonitor::Open(
     odbc_helper_->AllocEnv(&henv);
     ENV* env = static_cast<ENV*>(henv);
     const RdsLibResult res = odbc_helper_->BaseAllocEnv(env);
-    odbc_helper_->SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+    odbc_helper_->SetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
     env->driver_lib_loader = lib_loader_;
 
     if (block_and_query_immediately) {

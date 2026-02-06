@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include "host_info.h"
-#include "util/rds_utils.h"
 
-HostInfo::HostInfo(std::string host, int port, HOST_STATE state, bool is_writer, uint64_t weight) :
+HostInfo::HostInfo(std::string host, int port, HOST_STATE state, HOST_ROLE role, uint64_t weight, std::chrono::steady_clock::time_point last_update) :
     host_ { std::move(host) },
-    port { port },
-    host_state { state },
-    is_writer { is_writer },
-    weight { weight }
+    port_ { port },
+    state_ { state },
+    role_ { role },
+    weight_ { weight },
+    last_update_ {last_update}
 {
     auto idx = host_.find('.');
     if (idx != std::string::npos) {
@@ -33,8 +33,7 @@ HostInfo::HostInfo(std::string host, int port, HOST_STATE state, bool is_writer,
  *
  * @return the host
  */
-std::string HostInfo::GetHost() const
-{
+std::string HostInfo::GetHost() const {
     return host_;
 }
 
@@ -43,9 +42,8 @@ std::string HostInfo::GetHost() const
  *
  * @return the port
  */
-int HostInfo::GetPort() const
-{
-    return port;
+int HostInfo::GetPort() const {
+    return port_;
 }
 
 /**
@@ -62,9 +60,8 @@ std::string HostInfo::GetHostId() const {
  *
  * @return the weight
  */
-uint64_t HostInfo::GetWeight() const
-{
-    return weight;
+uint64_t HostInfo::GetWeight() const {
+    return weight_;
 }
 
 /**
@@ -72,42 +69,34 @@ uint64_t HostInfo::GetWeight() const
  *
  * @return the host:port representation of this host
  */
-std::string HostInfo::GetHostPortPair() const
-{
-    return host_ + host_port_separator + std::to_string(port);
+std::string HostInfo::GetHostPortPair() const {
+    return host_ + HOST_PORT_SEPARATOR + std::to_string(port_);
 }
 
-bool HostInfo::EqualHostPortPair(const HostInfo& hi) const
-{
-    return GetHostPortPair() == hi.GetHostPortPair();
+HOST_STATE HostInfo::GetHostState() const {
+    return state_;
 }
 
-HOST_STATE HostInfo::GetHostState() const
-{
-    return host_state;
+HOST_ROLE HostInfo::GetHostRole() const {
+    return role_;
 }
 
-void HostInfo::SetHostState(HOST_STATE state)
-{
-    host_state = state;
+std::chrono::steady_clock::time_point HostInfo::GetLastUpdate() const {
+    return last_update_;
 }
 
-bool HostInfo::IsHostUp() const
-{
-    return host_state == UP;
+void HostInfo::SetHostState(HOST_STATE state) {
+    state_ = state;
 }
 
-bool HostInfo::IsHostDown() const
-{
-    return host_state == DOWN;
+void HostInfo::SetHostRole(HOST_ROLE role) {
+    role_ = role;
 }
 
-bool HostInfo::IsHostWriter() const
-{
-    return is_writer;
+bool HostInfo::IsHostWriter() const {
+    return role_ == WRITER;
 }
 
-void HostInfo::MarkAsWriter(bool writer)
-{
-    is_writer = writer;
+bool HostInfo::IsHostUp() const {
+    return state_ == UP;
 }

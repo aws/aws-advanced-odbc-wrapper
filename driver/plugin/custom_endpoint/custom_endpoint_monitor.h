@@ -15,7 +15,7 @@
 #ifndef CUSTOM_ENDPOINT_MONITOR_H_
 #define CUSTOM_ENDPOINT_MONITOR_H_
 
-#include "../../util/topology_service.h"
+#include "../../util/plugin_service.h"
 #include "../../util/sliding_cache_map.h"
 
 #include <thread>
@@ -24,7 +24,7 @@
 class CustomEndpointMonitor {
 public:
     CustomEndpointMonitor(
-        const std::shared_ptr<TopologyService>& topology_service,
+        const std::shared_ptr<PluginService>& plugin_service,
         const std::string& endpoint,
         std::string region,
         std::chrono::milliseconds refresh_rate_ms,
@@ -44,7 +44,7 @@ private:
     std::shared_ptr<std::thread> monitoring_thread_;
     std::atomic<bool> is_running_;
 
-    std::shared_ptr<TopologyService> topology_service_;
+    std::shared_ptr<PluginService> plugin_service_;
     std::string endpoint_;
     std::string endpoint_identifier_;
     std::string region_;
