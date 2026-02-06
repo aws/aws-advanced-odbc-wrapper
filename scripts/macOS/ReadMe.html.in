@@ -1,0 +1,61 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <title>Read Me</title>
+</head>
+<body>
+
+<font face="Helvetica">
+
+<h2>
+  Amazon Web Services (AWS) Advanced ODBC Wrapper
+</h2>
+
+<p>
+  The Amazon Web Services (AWS) Advanced ODBC Wrapper is complementary to existing ODBC drivers and aims to extend the functionality of these driver to enable applications to take full advantage of the features of clustered databases such as Amazon Aurora. In other words, the AWS Advanced ODBC Wrapper does not connect directly to any database, but enables support of AWS and Aurora functionalities on top of an underlying ODBC driver of the user's choice. This approach enables service-specific enhancements, without requiring users to change their workflow and existing ODBC driver tooling.
+</p>
+
+<p>
+  The AWS Advanced ODBC Wrapper is targeted to work with any existing ODBC driver. Currently, the AWS Advanced ODBC Wrapper has been validated to support <a href="https://github.com/postgresql-interfaces/psqlodbc">psqlodbc</a>, a PostgreSQL ODBC Driver.
+</p>
+
+<h4>
+Installer
+</h4>
+
+<p>
+This package contains a release of the AWS Advanced ODBC Wrapper @WRAPPER_VERSION@.
+</p>
+
+<p>
+  This installer will:
+  <ol>
+    <li>Place the wrapper's required files in the <code>@CPACK_PACKAGING_INSTALL_PREFIX@</code> directory. </li>
+    <li>Register the ansi and unicode versions of the wrapper in the user and system <code>odbcinst.ini</code> files at the <code>~/Library/ODBC/</code> and <code>/Library/ODBC/</code> directories respectively.</li>
+  </ol>
+</p>
+
+<h4>
+  Documentation
+</h4>
+
+<p>
+Technical documentation regarding the functionality of the AWS Advanced ODBC Wrapper will be maintained in the <a href="https://github.com/aws/aws-advanced-odbc-wrapper">GitHub repository</a>. Since the AWS Advanced ODBC Wrapper requires an underlying ODBC driver, please refer to the individual driver's documentation for driver-specific information.
+</p>
+
+<h4>
+Getting Help & Opening Issues
+</h4>
+
+<p>
+If you encounter a bug with the AWS Advanced ODBC Wrapper, we would like to hear about it. Please search the <a href="https://github.com/aws/aws-advanced-odbc-wrapper/issues">existing issues</a> to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.
+</p>
+
+<p>
+When opening a new issue, please fill in all required fields in the issue template to help expedite the investigation process.
+</p>
+</font>
+
+</body>
+</html>

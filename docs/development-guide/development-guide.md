@@ -74,6 +74,15 @@ cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_
 cmake --build build
 ```
 
+#### Building the Installer
+
+When the wrapper is built, the installer can be built via the following:
+
+```
+cd build
+cpack
+```
+
 ### Linux (Debian/Ubuntu based systems)
 
 #### Prerequisites
@@ -95,6 +104,7 @@ cmake --build build
 cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
+
 
 ## Build and Run Tests
 

@@ -1,0 +1,80 @@
+#!/bin/sh
+
+usr_odbc_path=~/Library/ODBC/
+sys_odbc_path=/Library/ODBC/
+usr_odbcini_path=~/Library/ODBC/odbc.ini
+usr_odbcinst_path=~/Library/ODBC/odbcinst.ini
+sys_odbcini_path=/Library/ODBC/odbc.ini
+sys_odbcinst_path=/Library/ODBC/odbcinst.ini
+odbc_data_sources="[ODBC Data Sources]"
+odbc_drivers="[ODBC Drivers]"
+ansi="Ansi"
+unicode="Unicode"
+ansi_driver_location=@CPACK_PACKAGING_INSTALL_PREFIX@/lib/@CPACK_PACKAGE_NAME@-a.dylib
+unicode_driver_location=@CPACK_PACKAGING_INSTALL_PREFIX@/lib/@CPACK_PACKAGE_NAME@-w.dylib
+
+for dir in ${usr_odbc_path} ${sys_odbc_path}; do
+  if [ ! -d ${dir} ]; then
+    mkdir ${dir}
+  fi
+  chmod 775 ${dir}
+  chown root:admin ${dir}
+done
+
+for file in ${usr_odbcini_path} ${sys_odbcini_path}; do
+  if [ ! -e ${file} ]; then
+    touch ${file}
+  fi
+  chmod 775 ${file}
+  chown root:admin ${file}
+
+  lines=$(wc -l < "${file}")
+  if [ $lines -eq 0 ]; then
+    echo "" >> ${file}
+  fi
+
+  search="\[ODBC Data Sources\]"
+  if ! grep -xq "$search" ${file}; then
+    sed -i '' "1s/^/$odbc_data_sources/" ${file}
+  fi
+done
+
+for file in ${usr_odbcinst_path} ${sys_odbcinst_path}; do
+  echo ${file};
+  if [ ! -e ${file} ]; then
+    touch ${file}
+  fi
+
+  chmod 775 ${file}
+  chown root:admin ${file}
+  lines=$(wc -l < "${file}")
+  if [ $lines -eq 0 ]; then
+    echo "" >> ${file}
+  fi
+
+  search="\[ODBC Drivers\]"
+  if ! grep -xq "$search" ${file}; then
+    sed -i '' "1s/^/$odbc_drivers/" ${file}
+  fi
+
+  for type in ${ansi} ${unicode}; do
+    search="AWS Advanced ODBC Wrapper ${type}[[:space:]]*= Installed"
+    if ! grep -xq "$search" ${file}; then
+      sed -i '' "/\[ODBC Drivers\]/a\\
+AWS Advanced ODBC Wrapper $type = Installed" ${file}
+    fi
+  done
+
+  if [ ! -z "$(tail -c 1 < ${file})" ]; then
+    echo "" >> ${file}
+  fi
+
+  search="\[AWS Advanced ODBC Wrapper ${ansi}\]"
+  if ! grep -xq "$search" ${file}; then
+    echo "\n[AWS Advanced ODBC Wrapper ${ansi}]\nDriver=${ansi_driver_location}" >> ${file}
+  fi
+  search="\[AWS Advanced ODBC Wrapper ${unicode}\]"
+  if ! grep -xq "$search" ${file}; then
+    echo "\n[AWS Advanced ODBC Wrapper ${unicode}]\nDriver=${unicode_driver_location}" >> ${file}
+  fi
+done
