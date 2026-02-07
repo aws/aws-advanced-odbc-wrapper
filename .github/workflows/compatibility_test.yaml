@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -60,13 +60,13 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
@@ -89,13 +89,13 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
@@ -126,7 +126,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
@@ -143,7 +143,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -160,7 +160,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -180,10 +180,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -192,7 +192,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
       - name: Install WiX
         shell: cmd
         run: |
@@ -208,7 +208,7 @@ jobs:
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -229,7 +229,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
@@ -329,7 +329,7 @@ jobs:
           pip3 install deepdiff
           python test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-windows
@@ -345,14 +345,14 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -368,7 +368,7 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
@@ -384,7 +384,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -453,7 +453,7 @@ jobs:
           pip3 install deepdiff
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-macos
@@ -469,14 +469,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -491,7 +491,7 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
@@ -507,7 +507,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -571,7 +571,7 @@ jobs:
           pip3 install deepdiff
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-linux
