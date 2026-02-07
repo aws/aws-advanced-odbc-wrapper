@@ -30,10 +30,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -63,14 +63,14 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -104,14 +104,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
