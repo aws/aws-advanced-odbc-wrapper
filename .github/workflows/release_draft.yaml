@@ -47,14 +47,14 @@ jobs:
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Configure AWS credentials OIDC
-        uses: aws-actions/configure-aws-credentials@v4.0.2
+        uses: aws-actions/configure-aws-credentials@v6.0.0
         with:
           role-skip-session-tagging: true
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: aws-odbc-win-signer
       - name: Configure AWS credentials Signer
-        uses: aws-actions/configure-aws-credentials@v4.0.2
+        uses: aws-actions/configure-aws-credentials@v6.0.0
         with:
           role-skip-session-tagging: true
           role-chaining: true
@@ -216,7 +216,7 @@ jobs:
           pattern: installers-*
           merge-multiple: true
       - name: Extract release notes
-        uses: ffurrer2/extract-release-notes@v2
+        uses: ffurrer2/extract-release-notes@v3
         with:
           release_notes_file: RELEASE_DETAILS.md
       - name: Append Checksums

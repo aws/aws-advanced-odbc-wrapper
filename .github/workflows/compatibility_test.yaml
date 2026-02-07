@@ -219,7 +219,7 @@ jobs:
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v7
+        uses: ikalnytskyi/action-setup-postgres@v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
@@ -374,7 +374,7 @@ jobs:
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v7
+        uses: ikalnytskyi/action-setup-postgres@v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
@@ -497,7 +497,7 @@ jobs:
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v7
+        uses: ikalnytskyi/action-setup-postgres@v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
