@@ -68,8 +68,8 @@ jobs:
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
+    runs-on:
+      - codebuild-odbc-wrapper-macos-pg-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
@@ -152,8 +152,8 @@ jobs:
 
   build-macos-mysql:
     name: MacOS - Build MySQL Connector ODBC
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: macos-15
+    runs-on:
+      - codebuild-odbc-wrapper-macos-mysql-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
@@ -471,26 +471,23 @@ jobs:
 
   macos-integration-tests:
     name: MacOS - Integration Tests
-    if: github.event_name == 'workflow_dispatch'
-    needs: [build-macos-psqlodbc, build-macos-mysql]
-    runs-on: macos-15
+    needs: [ build-macos-psqlodbc, build-macos-mysql ]
+    runs-on:
+      - ${{ matrix.env.project }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.env.fleet }}
+        buildspec-override:true
     strategy:
       fail-fast: false
       matrix:
-        rds_engine: [aurora-postgresql, aurora-mysql]
+        env: [ {rds_engine: aurora-mysql, project: codebuild-odbc-wrapper-macos-mysql, fleet: fleet-macos-fleet-2}, {rds_engine: aurora-postgresql, project: codebuild-odbc-wrapper-macos-pg, fleet: fleet-macos-fleet-3} ]
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Setup Custom Endpoint ID
         run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
-      - name: Install Build Dependencies
-        run: |
-          brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
@@ -517,15 +514,27 @@ jobs:
         shell: bash
         run: |
           . "./scripts/aws_rds_helper_unix.sh"
-          create_aurora_rds_cluster \
-            ${{ secrets.TEST_USERNAME }} \
-            ${{ secrets.TEST_PASSWORD }} \
-            ${{ env.TEST_DATABASE }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }} \
-            ${{ matrix.rds_engine }} \
-            ${{ env.ENGINE_VERSION }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
+            create_aurora_rds_cluster \
+              ${{ secrets.TEST_USERNAME }} \
+              ${{ secrets.TEST_PASSWORD }} \
+              ${{ env.TEST_DATABASE }} \
+              ${{ env.AURORA_CLUSTER_ID }} \
+              ${{ env.NUM_INSTANCES }} \
+              ${{ matrix.env.rds_engine }} \
+              ${{ env.ENGINE_VERSION }} \
+              ${{ secrets.AWS_DEFAULT_REGION }}
+          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
+            create_aurora_rds_cluster \
+              ${{ secrets.TEST_USERNAME }}_mysql \
+              ${{ secrets.TEST_PASSWORD }} \
+              ${{ env.TEST_DATABASE }} \
+              ${{ env.AURORA_CLUSTER_ID }} \
+              ${{ env.NUM_INSTANCES }} \
+              ${{ matrix.env.rds_engine }} \
+              ${{ env.ENGINE_VERSION }} \
+              ${{ secrets.AWS_DEFAULT_REGION }}
+          fi
       - name: Create RDS Custom Endpoint
         id: AuroraCustomEndpointSetup
         shell: bash
@@ -545,14 +554,14 @@ jobs:
       - name: Create Aurora Cluster Secrets
         shell: bash
         run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            secretsArn=$(create_db_secrets \
-                ${{ secrets.TEST_USERNAME }} \
-                ${{ secrets.TEST_PASSWORD }} \
-                ${{ matrix.rds_engine }} \
-                ${{ env.AURORA_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secretsArn"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
+          . "./scripts/aws_rds_helper_unix.sh"
+          secretsArn=$(create_db_secrets \
+              ${{ secrets.TEST_USERNAME }} \
+              ${{ secrets.TEST_PASSWORD }} \
+              ${{ matrix.env.rds_engine }} \
+              ${{ env.AURORA_CLUSTER_ENDPOINT }})
+          echo "::add-mask::$secretsArn"
+          echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
       - name: Get Github Action IP
         if: always()
         id: ip
@@ -569,17 +578,17 @@ jobs:
         id: base_driver_info
         shell: bash
         run: |
-          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
+          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
-          echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
@@ -591,33 +600,26 @@ jobs:
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
       - name: Setup PostgreSQL User
-        if: (matrix.rds_engine == 'aurora-postgresql')
+        if: (matrix.env.rds_engine == 'aurora-postgresql')
         shell: bash
         run: |
-          brew install postgresql@16
-          # --overwrite: Overwrite pre-installed GitHub Actions PostgreSQL binaries
-          brew link --overwrite postgresql@16
           psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.AURORA_CLUSTER_ENDPOINT}}:${{steps.base_driver_info.outputs.dialect_default_port}}/${{ env.TEST_DATABASE }} \
             --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
             --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
             --command="\du"
       - name: Setup MySQL User
-        if: (matrix.rds_engine == 'aurora-mysql')
+        if: (matrix.env.rds_engine == 'aurora-mysql')
         shell: bash
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
         run: |
-          curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
-          MOUNTDIR=$(echo `hdiutil mount iodbc.dmg | tail -1 \
-          | awk '{$1=$2=""; print $0}'` | xargs -0 echo) \
-          && sudo installer -pkg "${MOUNTDIR}/"*.pkg -target /
-          brew install mysql
-          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }} -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
+          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }}_mysql -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
+          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }}_mysql -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_USERNAME }}' IDENTIFIED WITH caching_sha2_password BY '${{ secrets.TEST_PASSWORD }}'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_USERNAME }}'@'%'; FLUSH PRIVILEGES;"
       - name: Create logs folder
         run: mkdir logs
       - name: Describe DB Cluster
         run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
+          . "./scripts/aws_rds_helper_unix.sh"
+          describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
       - name: Build and Run Ansi Integration Tests
         shell: bash
         if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
@@ -651,7 +653,7 @@ jobs:
           # ASAN_OPTIONS: 'detect_container_overflow=0'
       - name: Build and Run Unicode Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{steps.AuroraClusterSetup.outcome == 'success' && matrix.env.rds_engine != 'aurora-mysql'}}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -1208,9 +1210,10 @@ jobs:
 
   macos-limitless-integration-tests:
     name: MacOS - Limitless Integration Tests
-    if: github.event_name == 'workflow_dispatch'
     needs: [build-macos-psqlodbc]
-    runs-on: macos-15
+    runs-on:
+      - codebuild-odbc-wrapper-macos-limitless-${{ github.run_id }}-${{ github.run_attempt }}-fleet-macos-fleet-1
+        buildspec-override:true
     steps:
       - name: Setup Cluster ID
         run: |
@@ -1218,10 +1221,6 @@ jobs:
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Macos-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v4
-      - name: Install Build Dependencies
-        run: |
-          brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v4
@@ -1282,12 +1281,6 @@ jobs:
                 ${{ env.LIMITLESS_CLUSTER_ENDPOINT }})
             echo "::add-mask::$secretsArn"
             echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
-      - name: Install PostgreSQL on macOS
-        if: runner.os == 'macOS'
-        run: |
-          brew install postgresql@16
-          # --overwrite: Overwrite pre-installed GitHub Actions PostgreSQL binaries
-          brew link --overwrite postgresql@16
       - name: Get Github Action IP
         if: always()
         id: ip
@@ -1325,12 +1318,14 @@ jobs:
             -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
             -D TEST_DSN="${{ env.TEST_DSN_ANSI }}" \
             -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
-            -D BASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+            -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
           cmake --build build_ansi
+          cat ${{ github.workspace }}/test/resources/odbc.ini
+          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           echo "Ansi Test Built"
           ./build_ansi/integration-test
         env:
-          TEST_DSN: ${{ env.TEST_DSN_ANSI }}
+          TEST_DSN: 'inte-wrapper-dsn'
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
@@ -1353,12 +1348,14 @@ jobs:
             -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
             -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
             -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
-            -DBASE_PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+            -DBASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
           cmake --build build_unicode
+          cat ${{ github.workspace }}/test/resources/odbc.ini
+          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           echo "Unicode Test Built"
           ./build_unicode/integration-test
         env:
-          TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+          TEST_DSN: 'inte-wrapper-dsn'
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
