@@ -356,8 +356,8 @@ std::string OktaSamlUtil::VerifyPushChallenge(
     const std::string &verify_url,
     const std::string &state_token)
 {
-    const std::chrono::time_point<std::chrono::system_clock> end_time = std::chrono::system_clock::now() + std::chrono::seconds(std::strtol(mfa_timeout.c_str(), nullptr, 0));
-    while (std::chrono::system_clock::now() < end_time) {
+    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + std::chrono::seconds(std::strtol(mfa_timeout.c_str(), nullptr, 0));
+    while (std::chrono::steady_clock::now() < end_time) {
         const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
             verify_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
         Aws::Utils::Json::JsonValue json_body;
@@ -379,16 +379,13 @@ std::string OktaSamlUtil::VerifyPushChallenge(
             const Aws::Utils::Json::JsonValue json_val(response->GetResponseBody());
             if (!json_val.WasParseSuccessful()) {
                 LOG(ERROR) << "Unable to parse JSON from response";
-                continue;
-            }
-
-            const Aws::Utils::Json::JsonView json_view = json_val.View();
-            if (!json_view.KeyExists("sessionToken")) {
+            } else {
+                const Aws::Utils::Json::JsonView json_view = json_val.View();
+                if (json_view.KeyExists("sessionToken")) {
+                    return json_view.GetString("sessionToken");
+                }
                 LOG(ERROR) << "Could not find session token in JSON";
-                continue;
             }
-
-            return json_view.GetString("sessionToken");
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(VERIFY_PUSH_INTERVAL));

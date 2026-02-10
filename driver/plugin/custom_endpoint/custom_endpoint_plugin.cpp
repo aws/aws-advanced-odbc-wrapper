@@ -93,7 +93,7 @@ SQLRETURN CustomEndpointPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     LOG(INFO) << "Entering Connect";
-    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string host = dbc->conn_attr.contains(KEY_SERVER) ?
         dbc->conn_attr.at(KEY_SERVER) : "";

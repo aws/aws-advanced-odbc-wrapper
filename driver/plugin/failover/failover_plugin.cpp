@@ -425,7 +425,7 @@ std::shared_ptr<HostSelector> FailoverPlugin::InitHostSelectorStrategy(std::map<
 
 std::shared_ptr<ClusterTopologyQueryHelper> FailoverPlugin::InitQueryHelper(DBC* dbc)
 {
-    std::map<std::string, std::string> conn_info = dbc->conn_attr;
+    const std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
     std::string endpoint_template = conn_info.contains(KEY_ENDPOINT_TEMPLATE) ? conn_info.at(KEY_ENDPOINT_TEMPLATE) : "";
     const std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
