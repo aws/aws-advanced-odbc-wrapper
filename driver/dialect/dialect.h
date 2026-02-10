@@ -44,6 +44,8 @@ public:
     virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
     virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
+    virtual DatabaseDialectType GetDialectType() { return DatabaseDialectType::UNKNOWN_DIALECT; };
+
     static DatabaseDialectType DatabaseDialectFromString(const std::string &database_dialect) {
         std::string local_str = database_dialect;
         std::string upper_local_str = RDS_STR_UPPER(local_str);

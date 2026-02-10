@@ -139,11 +139,7 @@ std::vector<HostInfo> TopologyUtil::VerifyWriter(const std::vector<HostInfo>& al
         LOG(WARNING) << "No writers found within list of hosts.";
         return {};
     }
-
-    hosts.insert(
-        hosts.begin() + static_cast<int64_t>(std::min<size_t>(1, hosts.size())),
-        *newest_writer
-    );
+    hosts.push_back(*newest_writer);
 
     return hosts;
 }

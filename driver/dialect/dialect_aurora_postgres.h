@@ -45,6 +45,8 @@ public:
         });
     };
 
+    virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
+
 private:
     const int DEFAULT_POSTGRES_PORT = 5432;
     const std::string TOPOLOGY_QUERY =
@@ -83,6 +85,7 @@ private:
 class DialectAuroraPostgresLimitless : public DialectLimitless, public DialectAuroraPostgres {
 public:
     std::string GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS; };
 
 private:
     const std::string LIMITLESS_ROUTER_ENDPOINT_QUERY = "SELECT router_endpoint, load FROM pg_catalog.aurora_limitless_router_endpoints()";

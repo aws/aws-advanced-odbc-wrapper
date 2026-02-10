@@ -16,6 +16,7 @@
 
 #include "rds_utils.h"
 
+#include "../dialect/dialect.h"
 #include "../dialect/dialect_aurora_mysql.h"
 #include "../dialect/dialect_aurora_postgres.h"
 
@@ -24,6 +25,7 @@
 #include "../host_selector/round_robin_host_selector.h"
 
 #include "../host_list_providers/aurora_topology_util.h"
+#include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str) :
@@ -168,7 +170,15 @@ void PluginService::SetPluginChain(BasePlugin* plugin_chain) {
 }
 
 void PluginService::InitHostListProvider() {
-    this->host_list_provider_ = std::make_shared<RdsHostListProvider>(this->topology_util_, this);
+    switch (this->dialect_->GetDialectType()) {
+        case DatabaseDialectType::AURORA_POSTGRESQL:
+        case DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS:
+        case DatabaseDialectType::AURORA_MYSQL:
+            this->host_list_provider_ = std::make_shared<RdsHostListProvider>(this->topology_util_, this);
+            break;
+        default:
+            this->host_list_provider_ = std::make_shared<HostListProvider>(this->cluster_id_);
+    }
 }
 
 std::shared_ptr<HostSelector> PluginService::InitHostSelector(const std::map<std::string, std::string>& conn_info) {

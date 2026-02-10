@@ -25,7 +25,7 @@ RdsLibLoader::RdsLibLoader(std::string library_path)
 RdsLibLoader::~RdsLibLoader()
 {
     /*
-        Intentionally empty / Not calling RDS_FREE_MODULE(..)
+        Not calling RDS_FREE_MODULE(..),
         let OS cleanup on process termination to prevent incorrect unloading order of loaded library's dependencies
     */
     driver_handle = nullptr;

@@ -124,7 +124,8 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(SQLHDBC hdbc, const u
 }
 
 void ClusterTopologyMonitor::StartMonitor() {
-    if (!is_running_.load()) {
+    bool expected = false;
+    if (is_running_.compare_exchange_strong(expected, true)) {
         plugin_head_ = this->plugin_service_->GetPluginChain();
         is_running_.store(true);
         this->monitoring_thread_ = std::make_shared<std::thread>(&ClusterTopologyMonitor::Run, this);

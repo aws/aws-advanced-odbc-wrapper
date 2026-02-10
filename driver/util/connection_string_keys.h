@@ -39,7 +39,6 @@
 #define ODBC_DATA_SOURCES "ODBC Data Sources"
 
 #define KEY_RDS_TEST_CONN "RDS_TEST_CONN"
-#define KEY_RDS_INIT_CONN "RDS_INIT_CONN"
 
 /* Auth */
 #define KEY_AUTH_TYPE "RDS_AUTH_TYPE"

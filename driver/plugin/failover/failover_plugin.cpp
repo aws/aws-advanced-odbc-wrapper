@@ -25,10 +25,10 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/init_plugin_helper.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
-#include "../../util/map_utils.h"
 
 FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
@@ -60,7 +60,6 @@ SQLRETURN FailoverPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     LOG(INFO) << "Entering Connect";
-    const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     return next_plugin->Connect(
         ConnectionHandle,
         WindowHandle,
