@@ -16,10 +16,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -28,7 +28,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
       - name: Install WiX
         shell: cmd
         run: |
@@ -40,7 +40,7 @@ jobs:
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Upload Windows installer as artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-installer
           path: ${{ github.workspace }}/installer/*.msi
@@ -51,14 +51,14 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -76,7 +76,7 @@ jobs:
           cpack
       - name: Upload Mac installer as artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-installer
           path: ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-*.pkg
