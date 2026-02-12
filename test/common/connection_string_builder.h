@@ -149,6 +149,11 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withAuroraInitialConnectionStrategy(const bool& aurora_initial_connection_strategy_enabled) {
+        length += sprintf(conn_in + length, "ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY=%d;", aurora_initial_connection_strategy_enabled ? 1 : 0);
+        return *this;
+    }
+
     std::string getString() const {
         return conn_in;
     }
