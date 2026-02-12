@@ -1,0 +1,18 @@
+## Aurora Initial Connection Strategy Plugin for the AWS Advanced ODBC Wrapper
+
+The Aurora Initial Connection Strategy Plugin allows users to configure their initial connection strategy, and it can also be used to obtain a connection more reliably if DNS is updating by replacing an out of date endpoint. When the Aurora Initial Connection Strategy Plugin attempts to make a connection, it may retry the connection attempt if there is a failure. Users are able to configure how often to retry a connection and the maximum allowed time to obtain a connection using the connection parameters.
+
+When this plugin is enabled, if the initial connection is to a reader cluster endpoint, the connected reader host will be chosen based on the configured strategy. The initial connection strategy specifies how the driver determines which available reader to connect to.
+
+This plugin also helps retrieve connections more reliably. When a user connects to a cluster endpoint, the actual instance for a new connection is resolved by DNS. During failover, the cluster elects another instance to be the writer. While DNS is updating, which can take up to 40-60 seconds, if a user tries to connect to the cluster endpoint, they may be connecting to an old node. This plugin helps by replacing the out of date endpoint if DNS is updating.
+
+## Aurora Initial Connection Strategy Connection Parameters
+
+The following properties can be used to configure the Aurora Initial Connection Strategy Plugin.
+
+| Field                                       | Connection Option Key                  | Required | Description                                                                                                                                                                            | Default Value | Sample Value     |
+|---------------------------------------------|----------------------------------------|:--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|------------------|
+| Reader Host Selector Strategy               | `HOST_SELECTOR_STRATEGY`               |    No    | The strategy that will be used to select a new reader host when opening a new connection. <br><br> Currently supported strategies are: `RANDOM_HOST`, `ROUND_ROBIN`, `HIGHEST_WEIGHT`. | `RANDOM`      | `HIGHEST_WEIGHT` |
+| Verify Initial Connection Type              | `VERIFY_INITIAL_CONNECTION_TYPE`       |    No    | Force the verified opened connection to be either `WRITER` or `READER`.                                                                                                                |               |                  |
+| Initial Connection Retry Timeout (ms)       | `INITIAL_CONNECTION_RETRY_TIMEOUT_MS`  |    No    | The maximum allowed time for retries when opening a connection in milliseconds.                                                                                                        | `30000`       | `40000`          |
+| Initial Connection Retry Interval Time (ms) | `INITIAL_CONNECTION_RETRY_INTERVAL_MS` |    No    | The time between retries when opening a connection in milliseconds.                                                                                                                    | `1000`        | `2000`           |

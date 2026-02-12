@@ -22,6 +22,7 @@ set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_mocks.h
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_mock_objects.h
@@ -31,6 +32,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/adfs_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/adfs_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/attribute_validator_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_plugin_test.cpp
