@@ -17,6 +17,7 @@
 #include "../odbcapi_rds_helper.h"
 
 #include "rds_lib_loader.h"
+#include "rds_strings.h"
 
 OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
@@ -140,4 +141,14 @@ void OdbcHelper::SetUse4BytesBaseDriver(const bool use_4_bytes) {
 
 void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
     this->use_4_bytes_user_app_ = use_4_bytes;
+}
+
+std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
+    SQLSMALLINT stmt_length;
+    SQLINTEGER native_error;
+    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
+    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
+    RDS_SQLError(nullptr, static_cast<SQLHDBC>(dbc), nullptr, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length, true);
+    LOG(WARNING) << "SQL State: " << AS_UTF8_CSTR(sql_state) << ". Message: " << AS_UTF8_CSTR(message);
+    return AS_UTF8_CSTR(sql_state);
 }

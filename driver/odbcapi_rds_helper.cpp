@@ -20,6 +20,7 @@
 #include <unordered_set>
 
 #include "error.h"
+#include "plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h"
 #include "plugin/base_plugin.h"
 #include "plugin/custom_endpoint/custom_endpoint_plugin.h"
 #include "plugin/default_plugin.h"
@@ -2181,6 +2182,13 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
             {
                 next_plugin = new FailoverPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Aurora Initial Connection Strategy
+            if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
+                && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
+                next_plugin = new AuroraInitialConnectionStrategyPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
