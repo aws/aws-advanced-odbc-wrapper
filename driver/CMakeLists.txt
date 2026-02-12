@@ -41,6 +41,8 @@ set(INC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.h
+    ## Aurora Initial Connection Strategy
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h
     ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
@@ -117,6 +119,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/host_selector/round_robin_host_selector.cpp
 
     # Plugins
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
     ## Custom Endpoint

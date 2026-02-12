@@ -41,7 +41,11 @@ public:
     virtual RdsLibResult BaseFreeStmt(SQLHSTMT *stmt);
 
     virtual std::shared_ptr<RdsLibLoader> GetLibLoader();
+
+    virtual const char * GetSqlState(DBC *dbc);
 private:
+    static constexpr int MAX_STATE_LENGTH = 32;
+    static constexpr int MAX_MSG_LENGTH = 1024;
     std::shared_ptr<RdsLibLoader> lib_loader_;
 };
 

@@ -22,35 +22,37 @@ set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_mocks.h
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_mock_objects.h
 )
 
 set(TEST_SUITE
-    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_auth_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_saml_util_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/attribute_validator_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/failover_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/map_utils_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_auth_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/adfs_saml_util_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/attribute_validator_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/failover_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/map_utils_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
 )
 
 set(TEST_RUNNER

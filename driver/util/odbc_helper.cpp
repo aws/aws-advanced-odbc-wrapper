@@ -14,9 +14,10 @@
 
 #include "odbc_helper.h"
 
-#include "../odbcapi_rds_helper.h"
+#include "../odbcapi_rds_helper.h"'
 
 #include "rds_lib_loader.h"
+#include "rds_strings.h"
 
 OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
@@ -115,4 +116,13 @@ RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
 
 std::shared_ptr<RdsLibLoader> OdbcHelper::GetLibLoader() {
     return this->lib_loader_;
+}
+
+const char * OdbcHelper::GetSqlState(DBC* dbc) {
+    SQLSMALLINT stmt_length;
+    SQLINTEGER native_error;
+    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
+    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
+    RDS_SQLError(nullptr, static_cast<SQLHDBC>(dbc), nullptr, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
+    return AS_UTF8_CSTR(sql_state);
 }

@@ -180,3 +180,13 @@ HostInfo TopologyUtil::CreateHost(
 {
     return {std::move(host), port, state, role, weight, last_update};
 }
+
+HostInfo TopologyUtil::GetWriter(const std::vector<HostInfo>& hosts) {
+    for (const HostInfo& host : hosts) {
+        if (host.IsHostWriter()) {
+            return host;
+        }
+    }
+    LOG(WARNING) << "No writers found within list of hosts.";
+    return {};
+}
