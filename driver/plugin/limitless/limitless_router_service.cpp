@@ -20,6 +20,7 @@
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
 
+#include "../../util/map_utils.h"
 #include "limitless_query_helper.h"
 #include "limitless_router_monitor.h"
 
@@ -33,18 +34,10 @@ LimitlessRouterService::LimitlessRouterService(
     const std::shared_ptr<OdbcHelper> &odbc_helper,
     const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper) {
     this->dialect_ = dialect;
-    this->limitless_monitor_interval_ms_ = conn_attr.contains(KEY_LIMITLESS_MONITOR_INTERVAL_MS) ?
-        static_cast<int>(std::strtol(conn_attr.at(KEY_LIMITLESS_MONITOR_INTERVAL_MS).c_str(), nullptr, 0)) :
-        LimitlessDefault::MONITOR_INTERVAL_MS;
-    this->max_router_retries_ = conn_attr.contains(KEY_ROUTER_MAX_RETRIES) ?
-        static_cast<int>(std::strtol(conn_attr.at(KEY_ROUTER_MAX_RETRIES).c_str(), nullptr, 0)) :
-        LimitlessDefault::CONNECT_RETRY_ATTEMPTS;
-    this->max_connect_retries_ = conn_attr.contains(KEY_LIMITLESS_MAX_RETRIES) ?
-        static_cast<int>(std::strtol(conn_attr.at(KEY_LIMITLESS_MAX_RETRIES).c_str(), nullptr, 0)) :
-        LimitlessDefault::CONNECT_RETRY_ATTEMPTS;
-    this->host_port_ = conn_attr.contains(KEY_PORT) ?
-        static_cast<int>(std::strtol(conn_attr.at(KEY_PORT).c_str(), nullptr, 0)) :
-        dialect_->GetDefaultPort();
+    this->limitless_monitor_interval_ms_ = MapUtils::GetIntValue(conn_attr, KEY_LIMITLESS_MONITOR_INTERVAL_MS, LimitlessDefault::MONITOR_INTERVAL_MS);
+    this->max_router_retries_ = MapUtils::GetIntValue(conn_attr, KEY_ROUTER_MAX_RETRIES, LimitlessDefault::CONNECT_RETRY_ATTEMPTS);
+    this->max_connect_retries_ = MapUtils::GetIntValue(conn_attr, KEY_LIMITLESS_MAX_RETRIES, LimitlessDefault::CONNECT_RETRY_ATTEMPTS);
+    this->host_port_ = MapUtils::GetIntValue(conn_attr, KEY_PORT, dialect_->GetDefaultPort());
     this->odbc_helper_ = odbc_helper;
     this->limitless_query_helper_ = limitless_query_helper;
 }
@@ -71,7 +64,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
 {
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect, odbc_helper_, limitless_query_helper_);
 
-    const std::string host = conn_attr.contains(KEY_SERVER) ? conn_attr.at(KEY_SERVER) : "";
+    const std::string host = MapUtils::GetStringValue(conn_attr, KEY_SERVER, "");
     std::string service_id = RdsUtils::GetRdsClusterId(host);
 
     if (service_id.empty()) {
@@ -80,8 +73,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     }
 
     bool block_and_query_immediately = true;
-    const std::string limitless_mode = conn_attr.contains(KEY_LIMITLESS_MODE) ?
-        conn_attr.at(KEY_LIMITLESS_MODE) : VALUE_LIMITLESS_MODE_IMMEDIATE;
+    const std::string limitless_mode = MapUtils::GetStringValue(conn_attr, KEY_LIMITLESS_MODE, VALUE_LIMITLESS_MODE_IMMEDIATE);
     const std::string upper_local_str = RDS_STR_UPPER(limitless_mode);
     if (upper_local_str == VALUE_LIMITLESS_MODE_LAZY) {
         block_and_query_immediately = false;

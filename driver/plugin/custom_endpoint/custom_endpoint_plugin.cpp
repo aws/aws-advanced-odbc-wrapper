@@ -16,6 +16,7 @@
 
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
 
 #include <memory>
 #include <unordered_map>
@@ -42,29 +43,26 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     this->topology_service_ = topology_service ? topology_service : dbc->topology_service;
 
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
-    this->host_ = dbc->conn_attr.contains(KEY_SERVER) ?
-        dbc->conn_attr.at(KEY_SERVER) : "";
-    this->region_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_REGION) ?
-        dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_REGION) : RdsUtils::GetRdsRegion(this->host_);
-
+    this->host_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
+    this->region_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_CUSTOM_ENDPOINT_REGION, RdsUtils::GetRdsRegion(this->host_));
     if (this->region_.empty()) {
         throw std::runtime_error("Unable to determine connection region. If you are using a non-standard RDS URL, please set the 'CUSTOM_ENDPOINT_REGION' property");
     }
 
-    this->wait_for_info_ = dbc->conn_attr.contains(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO) ?
-        dbc->conn_attr.at(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO) == VALUE_BOOL_TRUE : false;
-    this->wait_duration_ms_ = dbc->conn_attr.contains(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS) ?
-        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS).c_str(), nullptr, 0))) :
-        CustomEndpointPlugin::DEFAULT_WAIT_FOR_INFO_TIMEOUT_MS;
-    this->refresh_rate_ms_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_INTERVAL_MS) ?
-        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_INTERVAL_MS).c_str(), nullptr, 0))) :
-        CustomEndpointPlugin::DEFAULT_MONITORING_INTERVAL_MS;
-    this->max_refresh_rate_ms_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS) ?
-        std::chrono::milliseconds(static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS).c_str(), nullptr, 0))) :
-        CustomEndpointPlugin::DEFAULT_MAX_MONITORING_INTERVAL_MS;
-    this->exponential_backoff_rate_ = dbc->conn_attr.contains(KEY_CUSTOM_ENDPOINT_BACKOFF_RATE) ?
-        static_cast<int>(std::strtol(dbc->conn_attr.at(KEY_CUSTOM_ENDPOINT_BACKOFF_RATE).c_str(), nullptr, 0)) :
-        DEFAULT_EXPONENTIAL_BACKOFF_RATE;
+    this->wait_for_info_ = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO, false);
+    this->wait_duration_ms_ = MapUtils::GetMillisecondsValue(
+        dbc->conn_attr,
+        KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS,
+        CustomEndpointPlugin::DEFAULT_WAIT_FOR_INFO_TIMEOUT_MS);
+    this->refresh_rate_ms_ = MapUtils::GetMillisecondsValue(
+        dbc->conn_attr,
+        KEY_CUSTOM_ENDPOINT_INTERVAL_MS,
+        CustomEndpointPlugin::DEFAULT_MONITORING_INTERVAL_MS);
+    this->max_refresh_rate_ms_ = MapUtils::GetMillisecondsValue(
+        dbc->conn_attr,
+        KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS,
+        CustomEndpointPlugin::DEFAULT_MAX_MONITORING_INTERVAL_MS);
+    this->exponential_backoff_rate_ = MapUtils::GetIntValue(dbc->conn_attr, KEY_CUSTOM_ENDPOINT_BACKOFF_RATE, DEFAULT_EXPONENTIAL_BACKOFF_RATE);
 
     this->endpoint_monitor_ = endpoint_monitor ? endpoint_monitor : InitEndpointMonitor();
 }
@@ -95,8 +93,7 @@ SQLRETURN CustomEndpointPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    const std::string host = dbc->conn_attr.contains(KEY_SERVER) ?
-        dbc->conn_attr.at(KEY_SERVER) : "";
+    const std::string host = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
 
     if (!RdsUtils::IsRdsDns(host)) {
         return next_plugin->Connect(

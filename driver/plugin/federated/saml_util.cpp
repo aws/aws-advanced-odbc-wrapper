@@ -19,6 +19,7 @@
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
 
@@ -53,8 +54,7 @@ SamlUtil::SamlUtil(
     if (sts_client) {
         this->sts_client = sts_client;
     } else {
-        std::string region = connection_attributes.contains(KEY_REGION) ?
-            connection_attributes.at(KEY_REGION) : "";
+        std::string region = MapUtils::GetStringValue(connection_attributes, KEY_REGION, "");
         if (region.empty()) {
             region = connection_attributes.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(connection_attributes.at(KEY_SERVER))
@@ -99,20 +99,14 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
     return credentials;
 }
 
-void SamlUtil::ParseIdpConfig(std::map<std::string, std::string> connection_attributes)
+void SamlUtil::ParseIdpConfig(const std::map<std::string, std::string> &connection_attributes)
 {
-    idp_endpoint = connection_attributes.contains(KEY_IDP_ENDPOINT) ?
-        connection_attributes.at(KEY_IDP_ENDPOINT) : "";
-    idp_port = connection_attributes.contains(KEY_IDP_PORT) ?
-        connection_attributes.at(KEY_IDP_PORT) : "443";
-    idp_username = connection_attributes.contains(KEY_IDP_USERNAME) ?
-        connection_attributes.at(KEY_IDP_USERNAME) : "";
-    idp_password = connection_attributes.contains(KEY_IDP_PASSWORD) ?
-        connection_attributes.at(KEY_IDP_PASSWORD) : "";
-    idp_role_arn = connection_attributes.contains(KEY_IDP_ROLE_ARN) ?
-        connection_attributes.at(KEY_IDP_ROLE_ARN) : "";
-    idp_saml_arn = connection_attributes.contains(KEY_IDP_SAML_ARN) ?
-        connection_attributes.at(KEY_IDP_SAML_ARN) : "";
+    idp_endpoint = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ENDPOINT, "");
+    idp_port = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PORT, "443");
+    idp_username = MapUtils::GetStringValue(connection_attributes, KEY_IDP_USERNAME, "443");
+    idp_password = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PASSWORD, "");
+    idp_role_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ROLE_ARN, "");
+    idp_saml_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_SAML_ARN, "");
 
 
     if (idp_endpoint.empty() || idp_username.empty() || idp_password.empty() || idp_role_arn.empty() || idp_saml_arn.empty()) {
