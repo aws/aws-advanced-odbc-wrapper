@@ -52,7 +52,7 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -73,13 +73,13 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
@@ -102,13 +102,13 @@ jobs:
     steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
@@ -139,7 +139,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
@@ -157,7 +157,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -174,7 +174,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -204,10 +204,10 @@ jobs:
         run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -216,7 +216,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
       - name: Install WiX
         shell: cmd
         run: |
@@ -231,7 +231,7 @@ jobs:
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -301,7 +301,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -456,14 +456,14 @@ jobs:
       #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'windows-${{matrix.rds_engine}}-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'windows-${{matrix.rds_engine}}-psql-logs'
           path: logs
@@ -487,10 +487,10 @@ jobs:
         run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -504,7 +504,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -594,7 +594,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -721,14 +721,14 @@ jobs:
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'mac-${{matrix.rds_engine}}-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'mac-${{matrix.rds_engine}}-psql-logs'
           path: logs
@@ -750,14 +750,14 @@ jobs:
         run: |
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -770,7 +770,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -848,7 +848,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -975,14 +975,14 @@ jobs:
             ${{ secrets.AWS_DEFAULT_REGION }}
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'linux-${{matrix.rds_engine}}-test-logs'
           path: /tmp/aws-odbc-wrapper/
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'linux-${{matrix.rds_engine}}-psql-logs'
           path: logs/
@@ -998,10 +998,10 @@ jobs:
           echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Win-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -1010,7 +1010,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
       - name: Install WiX
         shell: cmd
         run: |
@@ -1021,7 +1021,7 @@ jobs:
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -1036,7 +1036,7 @@ jobs:
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1195,14 +1195,14 @@ jobs:
       #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'windows-limitless-integration-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'windows-limitless-psql-logs'
           path: logs
@@ -1220,10 +1220,10 @@ jobs:
           echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Macos-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Macos-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -1238,13 +1238,13 @@ jobs:
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1400,14 +1400,14 @@ jobs:
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'mac-limitless-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'mac-limitless-psql-logs'
           path: logs/
@@ -1423,14 +1423,14 @@ jobs:
           echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Linux-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Linux-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -1444,13 +1444,13 @@ jobs:
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1601,14 +1601,14 @@ jobs:
       #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'linux-limitless-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
           retention-days: 3
       - name: Archive psql logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: 'linux-limitless-psql-logs'
           path: logs
