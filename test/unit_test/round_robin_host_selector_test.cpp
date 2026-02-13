@@ -24,11 +24,11 @@
 
 namespace {
     const int base_port = 1234;
-    HostInfo writer_host_info_a("writer", base_port, HOST_STATE::UP, true, 1);
-    HostInfo reader_host_info_a("reader_a", base_port, HOST_STATE::UP, false, 1);
-    HostInfo reader_host_info_b("reader_b", base_port, HOST_STATE::UP, false, 1);
-    HostInfo reader_host_info_c("reader_c", base_port, HOST_STATE::UP, false, 1);
-    HostInfo reader_host_info_down("reader_down", base_port, HOST_STATE::DOWN, false, 1);
+    HostInfo writer_host_info_a("writer", base_port, UP, WRITER, 1);
+    HostInfo reader_host_info_a("reader_a", base_port, UP, READER, 1);
+    HostInfo reader_host_info_b("reader_b", base_port, UP, READER, 1);
+    HostInfo reader_host_info_c("reader_c", base_port, UP, READER, 1);
+    HostInfo reader_host_info_down("reader_down", base_port, DOWN, READER, 1);
 }
 
 class RoundRobinHostSelectorTest : public testing::Test {

@@ -12,23 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "util/auth_provider.h"
-
-#include "odbcapi.h"
-
-#include "plugin/iam/iam_auth_plugin.h"
-
-#include "util/connection_string_helper.h"
-#include "util/connection_string_keys.h"
-#include "util/logger_wrapper.h"
-#include "util/odbc_dsn_helper.h"
-#include "util/rds_lib_loader.h"
-#include "util/rds_strings.h"
-
-#include "driver.h"
+#include "error.h"
 #include "odbcapi_rds_helper.h"
-
-#include <cstring>
+#include "plugin/base_plugin.h"
+#include "util/rds_lib_loader.h"
 
 // Common ODBC Functions
 SQLRETURN SQL_API SQLAllocConnect(

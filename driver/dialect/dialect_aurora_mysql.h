@@ -45,6 +45,8 @@ public:
         });
     };
 
+    virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
+
 private:
     const int DEFAULT_MYSQL_PORT = 3306;
     const std::string TOPOLOGY_QUERY =

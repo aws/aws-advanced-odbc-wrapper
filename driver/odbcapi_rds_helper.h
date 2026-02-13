@@ -393,6 +393,6 @@ SQLRETURN RDS_SQLTables(
     SQLTCHAR *     TableType,
     SQLSMALLINT    NameLength4);
 
-SQLRETURN RDS_InitializeConnection(DBC* dbc);
+SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str);
 
 #endif // ODBCAPI_RDS_HELPER_H_
