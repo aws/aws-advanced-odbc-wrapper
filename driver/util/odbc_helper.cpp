@@ -90,6 +90,15 @@ RdsLibResult OdbcHelper::BindCol(
 }
 
 RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query) {
+#if UNICODE
+    if (this->GetUse4BytesBaseDriver()) {
+        const std::wstring wide_conn(query.begin(), query.end());
+        SQLTCHAR* conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
+        return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+            *stmt, conn_in_sqltchar, SQL_NTS
+        );
+    }
+#endif
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );
@@ -115,4 +124,20 @@ RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
 
 std::shared_ptr<RdsLibLoader> OdbcHelper::GetLibLoader() {
     return this->lib_loader_;
+}
+
+bool OdbcHelper::GetUse4BytesBaseDriver() const {
+    return this->use_4_bytes_base_driver_;
+}
+
+bool OdbcHelper::GetUse4BytesUserApp() const {
+    return this->use_4_bytes_user_app_;
+}
+
+void OdbcHelper::SetUse4BytesBaseDriver(const bool use_4_bytes) {
+    this->use_4_bytes_base_driver_ = use_4_bytes;
+}
+
+void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
+    this->use_4_bytes_user_app_ = use_4_bytes;
 }

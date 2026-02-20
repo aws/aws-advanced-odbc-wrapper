@@ -14,6 +14,8 @@
 
 #include "cluster_helper.h"
 
+#include "odbc_helper.h"
+
 #ifdef WIN32
     #include <windows.h>
 #endif
@@ -28,11 +30,11 @@
 
 #include "rds_lib_loader.h"
 
-std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
+std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<OdbcHelper> &odbc_helper) {
     const std::string node_id_query = dialect->GetNodeIdQuery();
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR node_id[MAX_HOST_SIZE] = {};
+    SQLTCHAR node_id[MAX_HOST_SIZE * 2] = {};
     SQLLEN rt = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -46,12 +48,10 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt, AS_SQLTCHAR(node_id_query), SQL_NTS
-        );
+        odbc_helper->ExecDirect(&stmt, node_id_query);
 
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
-            stmt, 1, SQL_C_TCHAR, &node_id, sizeof(node_id), &rt
+            stmt, 1, SQL_C_TCHAR, &node_id, MAX_HOST_SIZE, &rt
         );
 
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
@@ -62,6 +62,11 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
             SQL_HANDLE_STMT, stmt
         );
     }
+
+#if UNICODE
+    Convert4To2ByteString(odbc_helper->GetUse4BytesBaseDriver(), node_id, nullptr, MAX_HOST_SIZE);
+    return AS_UTF8_CSTR(node_id);
+#endif
 
     return AS_UTF8_CSTR(node_id);
 }

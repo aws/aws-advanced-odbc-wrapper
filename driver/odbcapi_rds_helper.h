@@ -181,7 +181,8 @@ SQLRETURN RDS_SQLError(
     SQLINTEGER *   NativeErrorPtr,
     SQLTCHAR *     MessageText,
     SQLSMALLINT    BufferLength,
-    SQLSMALLINT *  TextLengthPtr);
+    SQLSMALLINT *  TextLengthPtr,
+    bool           WrapperCall);
 
 SQLRETURN RDS_SQLExecDirect(
     SQLHSTMT       StatementHandle,
@@ -259,7 +260,8 @@ SQLRETURN RDS_SQLGetDiagRec(
     SQLINTEGER *   NativeErrorPtr,
     SQLTCHAR *     MessageText,
     SQLSMALLINT    BufferLength,
-    SQLSMALLINT *  TextLengthPtr);
+    SQLSMALLINT *  TextLengthPtr,
+    bool           WrapperCall);
 
 SQLRETURN RDS_SQLGetInfo(
     SQLHDBC        ConnectionHandle,
