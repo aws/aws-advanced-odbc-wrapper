@@ -78,7 +78,7 @@ SQLRETURN ODBC_HELPER::ExecuteQuery(SQLHSTMT stmt, std::string query) {
     SQLTCHAR buffer[STRING_HELPER::MAX_SQLCHAR] = { 0 };
     STRING_HELPER::AnsiToUnicode(query.c_str(), buffer);
 
-    SQLRETURN ret = SQLExecDirect(stmt, buffer, SQL_NTS);
+    SQLRETURN ret = SQLExecDirect(stmt, buffer, query.length());
 
     if (!SQL_SUCCEEDED(ret)) {
         PrintHandleError(stmt, SQL_HANDLE_STMT);

@@ -39,7 +39,12 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
+#if UNICODE
+    SQLTCHAR writer_id[BUFFER_SIZE*2] = {0};
+    SQLTCHAR writer_id_final[BUFFER_SIZE] = {0};
+#else
     SQLTCHAR writer_id[BUFFER_SIZE] = {0};
+#endif
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -52,14 +57,19 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery());
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery(), dbc->env->use_4_bytes);
 
         if (SQL_SUCCEEDED(res.fn_result)) {
-            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &len);
+            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, BUFFER_SIZE, &len);
             this->odbc_helper_->Fetch(&stmt);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
+
+#if UNICODE
+    Convert4To2ByteString(dbc->env->use_4_bytes, writer_id, writer_id_final, BUFFER_SIZE);
+    return AS_UTF8_CSTR(writer_id_final);
+#endif
 
     return AS_UTF8_CSTR(writer_id);
 }
@@ -67,7 +77,12 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR writer_id[BUFFER_SIZE] = {0};
+#if UNICODE
+    SQLTCHAR instance_id[BUFFER_SIZE*2] = {0};
+    SQLTCHAR instance_id_final[BUFFER_SIZE] = {0};
+#else
+    SQLTCHAR instance_id[BUFFER_SIZE] = {0};
+#endif
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -80,16 +95,21 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery());
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery(), dbc->env->use_4_bytes);
 
         if (SQL_SUCCEEDED(res.fn_result)) {
-            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &len);
+            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &instance_id, BUFFER_SIZE, &len);
             this->odbc_helper_->Fetch(&stmt);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
 
-    return AS_UTF8_CSTR(writer_id);
+#if UNICODE
+    Convert4To2ByteString(dbc->env->use_4_bytes, instance_id, instance_id_final, BUFFER_SIZE);
+    return AS_UTF8_CSTR(instance_id_final);
+#endif
+
+    return AS_UTF8_CSTR(instance_id);
 }
 
 std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template)
@@ -106,9 +126,9 @@ std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& 
     RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery());
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery(), dbc->env->use_4_bytes);
         if (SQL_SUCCEEDED(res.fn_result)) {
-            hosts = GetHosts(stmt, initial_host, host_template);
+            hosts = GetHosts(stmt, initial_host, host_template, dbc->env->use_4_bytes);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
@@ -160,7 +180,7 @@ HOST_ROLE TopologyUtil::GetConnectionRole(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery());
+        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery(), dbc->env->use_4_bytes);
 
         this->odbc_helper_->BindCol(&stmt, IS_READER_COL, SQL_BIT, &is_reader, sizeof(is_reader), &len);
         this->odbc_helper_->Fetch(&stmt);

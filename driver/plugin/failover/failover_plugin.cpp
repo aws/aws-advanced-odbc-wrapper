@@ -86,9 +86,9 @@ SQLRETURN FailoverPlugin::Execute(
 
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
-    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
-    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
-    RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LEN, &stmt_length);
     if (!CheckShouldFailover(AS_UTF8_CSTR(sql_state))) {
         return ret;
     }

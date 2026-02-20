@@ -22,14 +22,19 @@
 
 AuroraTopologyUtil::AuroraTopologyUtil(const std::shared_ptr<OdbcHelper>& odbc_helper, const std::shared_ptr<Dialect>& dialect) : TopologyUtil(odbc_helper, dialect) {}
 
-std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template) {
+std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template, bool use_4_bytes) {
+#if UNICODE
+    SQLTCHAR node_id[BUFFER_SIZE*2] = {0};
+    SQLTCHAR node_id_final[BUFFER_SIZE] = {0};
+#else
     SQLTCHAR node_id[BUFFER_SIZE] = {0};
+#endif
     bool is_writer = false;
     SQLREAL cpu_usage = 0;
     SQLLEN len = 0;
     SQLINTEGER replica_lag_ms = 0;
 
-    this->odbc_helper_->BindCol(&stmt, NODE_ID_COL, SQL_C_TCHAR, &node_id, sizeof(node_id), &len);
+    this->odbc_helper_->BindCol(&stmt, NODE_ID_COL, SQL_C_TCHAR, &node_id, BUFFER_SIZE, &len);
     this->odbc_helper_->BindCol(&stmt, IS_WRITER_COL, SQL_BIT, &is_writer, sizeof(is_writer), &len);
     this->odbc_helper_->BindCol(&stmt, CPU_USAGE_COL, SQL_REAL, &cpu_usage, sizeof(cpu_usage), &len);
     this->odbc_helper_->BindCol(&stmt, REPLICA_LAG_COL, SQL_INTEGER, &replica_lag_ms, sizeof(replica_lag_ms), &len);
@@ -37,7 +42,12 @@ std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo
     std::vector<HostInfo> hosts;
     RdsLibResult res = this->odbc_helper_->Fetch(&stmt);
     while (SQL_SUCCEEDED(res.fn_result)) {
+#if UNICODE
+        Convert4To2ByteString(use_4_bytes, node_id, node_id_final, BUFFER_SIZE);
+        const HostInfo new_host = CreateHost(node_id_final, is_writer, cpu_usage, replica_lag_ms, initial_host, host_template);
+#else
         const HostInfo new_host = CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms, initial_host, host_template);
+#endif
         hosts.push_back(new_host);
         res = this->odbc_helper_->Fetch(&stmt);
     }

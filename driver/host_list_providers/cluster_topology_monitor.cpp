@@ -14,7 +14,6 @@
 
 #include "cluster_topology_monitor.h"
 
-#include <iostream>
 #include <sqlext.h>
 
 #include "topology_util.h"

@@ -28,7 +28,7 @@
 class AuroraTopologyUtil : public TopologyUtil {
 public:
     AuroraTopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect);
-    virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template) override;
+    virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo &initial_host, const HostInfo &host_template, bool use_4_bytes) override;
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLINTEGER replica_lag_ms, const HostInfo& initial_host, const HostInfo& host_template);
 
 private:

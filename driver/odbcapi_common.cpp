@@ -526,9 +526,31 @@ SQLRETURN SQL_API SQLGetData(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
+
+#if UNICODE
+    RdsLibResult res;
+    if (!dbc->env->use_4_bytes_user && TargetType == SQL_C_TCHAR) {
+        SQLTCHAR* buf = reinterpret_cast<SQLTCHAR*>(TargetValuePtr);
+        const size_t buffer_len = GetLenOfSqltcharArray(buf, BufferLength, env->use_4_bytes);
+        std::vector<SQLTCHAR> new_buf_vector(static_cast<size_t>(buffer_len)*2, '\0');
+        SQLTCHAR* new_buf = new_buf_vector.data();
+
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, new_buf, BufferLength, StrLen_or_IndPtr
+        );
+
+        Convert4To2ByteString(dbc->env->use_4_bytes, new_buf, buf, buffer_len);
+    } else {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
+        );
+    }
+#else
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
         stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
