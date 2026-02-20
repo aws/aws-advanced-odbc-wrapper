@@ -622,7 +622,7 @@ jobs:
           describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
       - name: Build and Run Ansi Integration Tests
         shell: bash
-        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
+        if: ${{steps.auroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -653,7 +653,7 @@ jobs:
           # ASAN_OPTIONS: 'detect_container_overflow=0'
       - name: Build and Run Unicode Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success' && matrix.env.rds_engine != 'aurora-mysql'}}
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \

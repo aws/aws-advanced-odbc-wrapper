@@ -1319,6 +1319,12 @@ SQLRETURN RDS_SQLGetDiagRec(
     const ERR_INFO* err = nullptr;
     bool has_underlying_data = false;
 
+#if UNICODE
+    SQLTCHAR new_state_buffer[MAX_SQL_STATE_LEN*2] = {0};
+    std::vector<SQLTCHAR> new_msg_vector(BufferLength*2, '\0');
+    SQLTCHAR* new_msg_buffer = new_msg_vector.data();
+#endif
+
     // Use ERR from Wrapper if exist
     //  otherwise try underlying driver
     switch (HandleType) {
@@ -1333,10 +1339,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*env->err);
                 } else if (env->wrapped_env) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, env->wrapped_env, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+
+                    Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, env->wrapped_env, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+#endif
                 }
             }
             break;
@@ -1352,10 +1368,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*dbc->err);
                 } else if (dbc->wrapped_dbc) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, dbc->wrapped_dbc, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+
+                    Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, dbc->wrapped_dbc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+#endif
                 }
             }
             break;
@@ -1372,10 +1398,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*stmt->err);
                 } else if (stmt->wrapped_stmt) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, stmt->wrapped_stmt, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+
+                    Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, stmt->wrapped_stmt, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+#endif
                 }
             }
             break;
@@ -1392,10 +1428,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*desc->err);
                 } else if (desc->wrapped_desc) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, desc->wrapped_desc, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+
+                    Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, desc->wrapped_desc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+#endif
                 }
             }
             break;

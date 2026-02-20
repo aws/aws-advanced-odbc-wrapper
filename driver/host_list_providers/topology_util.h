@@ -31,7 +31,7 @@ public:
     virtual std::vector<HostInfo> QueryTopology(SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template);
     virtual std::vector<HostInfo> VerifyWriter(const std::vector<HostInfo>& all_hosts);
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc);
-    virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template) = 0;
+    virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo &initial_host, const HostInfo &host_template, bool use_4_bytes) = 0;
     virtual HostInfo CreateHost(std::string host, int port, HOST_STATE state, HOST_ROLE, uint64_t weight, std::chrono::steady_clock::time_point last_update);
 
 protected:

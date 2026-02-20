@@ -33,7 +33,7 @@ void STRING_HELPER::AnsiToUnicode(const char* in, SQLTCHAR* out) {
 char* STRING_HELPER::SqltcharToAnsi(SQLTCHAR* in) {
     char* ansi = (char*) in;
     int i;
-    for (i = 0; in[i]; i ++ ) {
+    for (i = 0; in[i]; i++) {
         ansi[i] = in[i] & 0x00ff;
     }
     ansi[i] = 0;

@@ -32,7 +32,12 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
     const std::string node_id_query = dialect->GetNodeIdQuery();
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
+#if UNICODE
+    SQLTCHAR node_id[MAX_HOST_SIZE*2] = {};
+    SQLTCHAR node_id_final[MAX_HOST_SIZE] = {};
+#else
     SQLTCHAR node_id[MAX_HOST_SIZE] = {};
+#endif
     SQLLEN rt = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -46,9 +51,23 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
+#if UNICODE
+        if (dbc->env->use_4_bytes == false) {
+            NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+                stmt, AS_SQLTCHAR(node_id_query), SQL_NTS
+            );
+        } else {
+            std::wstring wide_conn(node_id_query.begin(), node_id_query.end());
+            SQLTCHAR* query_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
+            NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+                stmt, query_sqltchar, SQL_NTS
+            );
+        }
+#else
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
             stmt, AS_SQLTCHAR(node_id_query), SQL_NTS
         );
+#endif
 
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
             stmt, 1, SQL_C_TCHAR, &node_id, sizeof(node_id), &rt
@@ -62,6 +81,11 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect) {
             SQL_HANDLE_STMT, stmt
         );
     }
+
+#if UNICODE
+    Convert4To2ByteString(dbc->env->use_4_bytes, node_id, node_id_final, MAX_HOST_SIZE);
+    return AS_UTF8_CSTR(node_id_final);
+#endif
 
     return AS_UTF8_CSTR(node_id);
 }

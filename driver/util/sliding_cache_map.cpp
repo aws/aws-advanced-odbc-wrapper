@@ -125,6 +125,4 @@ void SlidingCacheMap<K, V>::Delete(const K& key) {
 template class SlidingCacheMap<std::string, std::shared_ptr<round_robin_property::RoundRobinClusterInfo>>;
 template class SlidingCacheMap<std::string, std::string>;
 template class SlidingCacheMap<std::string, std::vector<HostInfo>>;
-template class SlidingCacheMap<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>>;
-template class SlidingCacheMap<std::string, std::shared_ptr<ClusterTopologyMonitor>>;
 template class SlidingCacheMap<std::string, HostFilter>;

@@ -80,6 +80,7 @@ class PluginService;
 #define NO_DATA_NATIVE_ERR 0
 #define MAX_SQL_STATE_LEN 6
 #define ODBC_VER_SiZE 16
+#define MAX_MSG_LEN 1024
 
 /* Struct Declarations */
 typedef enum { CONN_NOT_CONNECTED, CONN_CONNECTED, CONN_DOWN, CONN_EXECUTING } CONN_STATUS;
@@ -95,6 +96,7 @@ struct ENV {
     ERR_INFO* err = nullptr;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
+    bool use_4_bytes = false;
 
     SQLHENV wrapped_env;
 

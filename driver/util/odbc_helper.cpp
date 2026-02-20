@@ -89,7 +89,16 @@ RdsLibResult OdbcHelper::BindCol(
     );
 }
 
-RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query) {
+RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query, bool use_4_bytes) {
+#if UNICODE
+    if (use_4_bytes) {
+        std::wstring wide_conn(query.begin(), query.end());
+        SQLTCHAR* conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
+        return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+            *stmt, conn_in_sqltchar, SQL_NTS
+        );
+    }
+#endif
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );

@@ -168,4 +168,18 @@ inline std::vector<std::string> SplitStr(std::string &str, std::string &delimite
     return matches;
 }
 
+inline void Convert4To2ByteString(bool use_4_bytes, const SQLTCHAR *in, SQLTCHAR *out, int len) {
+    for (int i = 0; i < len - 1; i++) {
+#if UNICODE
+        if (use_4_bytes) {
+            out[i] = in[i*2];
+        } else {
+            out[i] = in[i];
+        }
+#else
+        out[i] = in[i];
+#endif
+    }
+}
+
 #endif // RDS_STRINGS_H_

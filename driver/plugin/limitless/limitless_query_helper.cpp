@@ -54,7 +54,7 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(
     this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &router_endpoint_value, sizeof(router_endpoint_value), &len);
     this->odbc_helper_->BindCol(&stmt, 2, SQL_C_TCHAR, &load_value, sizeof(load_value), &len);
 
-    this->odbc_helper_->ExecDirect(&stmt, limitless_router_endpoint_query);
+    this->odbc_helper_->ExecDirect(&stmt, limitless_router_endpoint_query, dbc->env->use_4_bytes);
 
     std::vector<HostInfo> limitless_routers;
 
