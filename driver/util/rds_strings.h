@@ -180,6 +180,9 @@ inline void Convert4To2ByteString(bool use_4_bytes, const SQLTCHAR *in, SQLTCHAR
         out[i] = in[i];
 #endif
     }
+    if (len > 0) {
+        out[len-1] = '\0';
+    }
 }
 
 #endif // RDS_STRINGS_H_
