@@ -1345,6 +1345,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
 
+                    std::cout << "Use 4 bytes chars: " << env->use_4_bytes << std::endl;
+                    for (int i = 0; i < MAX_SQL_STATE_LEN; i++) {
+                        std::cout << "state: " << new_state_buffer[i] << " | " << new_msg_buffer[i*2] << std::endl;
+                    }
                     Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
@@ -1374,6 +1378,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
 
+                    std::cout << "Use 4 bytes chars: " << env->use_4_bytes << std::endl;
+                    for (int i = 0; i < MAX_SQL_STATE_LEN; i++) {
+                        std::cout << "state: " << new_state_buffer[i] << " | " << new_msg_buffer[i*2] << std::endl;
+                    }
                     Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
@@ -1404,6 +1412,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 
+                    std::cout << "Use 4 bytes chars: " << env->use_4_bytes << std::endl;
+                    for (int i = 0; i < MAX_SQL_STATE_LEN; i++) {
+                        std::cout << "state: " << new_state_buffer[i] << " | " << new_msg_buffer[i*2] << std::endl;
+                    }
                     Convert4To2ByteString(env->use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(env->use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
