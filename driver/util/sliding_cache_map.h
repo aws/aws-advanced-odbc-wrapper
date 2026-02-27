@@ -16,23 +16,103 @@
 #define SLIDING_CACHE_MAP_H_
 
 #include <chrono>
+#include <shared_mutex>
 #include <mutex>
-#include <unordered_map>
+#include <map>
 
 template <typename K, typename V>
 class SlidingCacheMap {
 public:
     SlidingCacheMap() = default;
+    ~SlidingCacheMap() = default;
 
-    void Put(const K& key, const V& value);
-    void Put(const K& key, const V& value, std::chrono::milliseconds ms_ttl);
-    void PutIfAbsent(const K& key, const V& value);
-    void PutIfAbsent(const K& key, const V& value, std::chrono::milliseconds ms_ttl);
-    V Get(const K& key);
-    bool Find(const K& key);
-    unsigned int Size();
-    void Clear();
-    void Delete(const K& key);
+    void Put(const K& key, const V& value) {
+        Put(key, value, DEFAULT_EXPIRATION_MS);
+    };
+
+    void Put(const K& key, const V& value, std::chrono::milliseconds ms_ttl) {
+        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::chrono::steady_clock::time_point expiry_time =
+            std::chrono::steady_clock::now() + ms_ttl;
+        cache[key] = CacheEntry{value, expiry_time, ms_ttl};
+    }
+
+    void PutIfAbsent(const K& key, const V& value) {
+        PutIfAbsent(key, value, DEFAULT_EXPIRATION_MS);
+    }
+
+    void PutIfAbsent(const K& key, const V& value, std::chrono::milliseconds ms_ttl) {
+        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (auto itr = cache.find(key); itr != cache.end()) {
+            CacheEntry& entry = itr->second;
+            // Already in cache & is not expired
+            if (entry.expiry > now) {
+                // Update TTL & Return value
+                entry.expiry = now + entry.time_to_expire_ms;
+                return;
+            }
+        }
+        // Either not in cache or is expired, put new into cache
+        const std::chrono::steady_clock::time_point expiry_time =
+            std::chrono::steady_clock::now() + ms_ttl;
+        cache[key] = CacheEntry{value, expiry_time, ms_ttl};
+    }
+
+    V Get(const K& key) {
+        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (auto itr = cache.find(key); itr != cache.end()) {
+            CacheEntry& entry = itr->second;
+            if (entry.expiry > now) {
+                // Update TTL & Return value
+                entry.expiry = now + entry.time_to_expire_ms;
+                return entry.value;
+            }
+            // Expired, remove from cache
+            cache.erase(itr);
+        }
+        return {};
+    }
+
+    bool Find(const K& key) {
+        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (auto itr = cache.find(key); itr != cache.end()) {
+            CacheEntry& entry = itr->second;
+            if (entry.expiry > now) {
+                // Update TTL & Return found
+                entry.expiry = now + entry.time_to_expire_ms;
+                return true;
+            }
+            // Expired, remove from cache
+            cache.erase(itr);
+        }
+        return false;
+    }
+
+    unsigned int Size() {
+        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        for (auto itr = cache.begin(); itr != cache.end();) {
+            if (itr->second.expiry < now) {
+                itr = cache.erase(itr);
+            } else {
+                ++itr;
+            }
+        }
+        return cache.size();
+    }
+
+    void Clear() {
+        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        cache.clear();
+    }
+
+    void Delete(const K& key) {
+        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        cache.erase(key);
+    }
 
 private:
     struct CacheEntry {
@@ -42,8 +122,8 @@ private:
     };
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
-    std::unordered_map<K, CacheEntry> cache;
-    std::mutex cache_lock;
+    std::map<K, CacheEntry> cache;
+    mutable std::shared_mutex cache_lock;
 };
 
 #endif // SLIDING_CACHE_MAP_H_
