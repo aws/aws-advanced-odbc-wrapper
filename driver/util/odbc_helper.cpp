@@ -217,6 +217,7 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc, std::string& out_mess
     out_message = AS_UTF8_CSTR(message);
     return AS_UTF8_CSTR(sql_state);
 }
+
 std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
     SQLTCHAR message[MAX_MSG_LEN] = { 0 };
