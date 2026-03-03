@@ -14,6 +14,8 @@
 
 #include "failover_plugin.h"
 
+#include <iostream>
+
 #include "../../odbcapi.h"
 #include "../../odbcapi_rds_helper.h"
 #include "../base_plugin.h"
@@ -210,6 +212,8 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "Connected to a new reader for: " << host_string;
                     curr_host_ = host;
+                    plugin_service_->SetCurrentHostInfo(curr_host_);
+                    plugin_service_->NotifyConnectionChanged();
                     return true;
                 }
                 LOG(INFO) << "Strict Reader Mode, not connected to a reader: " << host_string;
@@ -255,6 +259,8 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
             }
             LOG(INFO) << "Reader failover connected to writer instance for: " << host_string;
             curr_host_ = original_writer;
+            plugin_service_->SetCurrentHostInfo(curr_host_);
+            plugin_service_->NotifyConnectionChanged();
             return true;
         }
         LOG(INFO) << "Failed to connect to host: " << original_writer;
@@ -293,6 +299,8 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         if (!topology_util_->GetWriterId(dbc).empty()) {
             LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
             curr_host_ = host;
+            plugin_service_->SetCurrentHostInfo(curr_host_);
+            plugin_service_->NotifyConnectionChanged();
             return true;
         }
         LOG(ERROR) << "The new writer was identified to be " << host_string << ", but querying the instance for its role returned a reader";

@@ -14,6 +14,7 @@
 
 #include "random_host_selector.h"
 
+#include <iostream>
 #include <algorithm>
 #include <random>
 #include <stdexcept>
@@ -25,7 +26,7 @@ HostInfo RandomHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_writer
     selection.reserve(hosts.size());
 
     std::ranges::copy_if(hosts, std::back_inserter(selection), [&is_writer](const HostInfo& host) {
-        return host.IsHostUp() && (is_writer ? host.IsHostWriter() : true);
+        return host.IsHostUp() && (is_writer ? host.IsHostWriter() : !host.IsHostWriter());
     });
 
     if (selection.empty()) {

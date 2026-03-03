@@ -19,6 +19,9 @@
 
 #include "../../driver/util/sql_query_analyzer.h"
 
+#include "../../driver/dialect/dialect_aurora_mysql.h"
+#include "../../driver/dialect/dialect_aurora_postgres.h"
+
 class SqlQueryAnalyzerTest : public testing::Test {
 protected:
     DBC* dbc_manual_commit;
@@ -102,4 +105,42 @@ TEST_F(SqlQueryAnalyzerTest, IsStatementSettingAutoCommit) {
     // False
     EXPECT_FALSE(SqlQueryAnalyzer::IsStatementSettingAutoCommit("select 1"));
     EXPECT_FALSE(SqlQueryAnalyzer::IsStatementSettingAutoCommit("SELECT 1234"));
+}
+
+TEST_F(SqlQueryAnalyzerTest, DoesSetReadOnlyMysql) {
+    std::shared_ptr<Dialect> dialect = std::make_shared<DialectAuroraMySql>();
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1 ", dialect), (std::pair{false, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select /* COMMENT */ 1 ", dialect), (std::pair{false, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" SET session transaction read only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction read /* COMMENT */ only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" /* COMMENT */ set session transaction read /* COMMENT */ only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" /* COMMENT */ set session transaction /* COMMENT */ read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction /* COMMENT */ read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction read only;,  select 1", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session  /* COMMENT */transaction read only/* COMMENT */; select 1", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1; set session transaction read only; ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction READ ONLY; set session transaction read write; ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction read write; set session transaction read only; ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session transaction read write; select 1", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1; set session transaction read write; select 1", dialect), (std::pair{true, false}));
+}
+
+TEST_F(SqlQueryAnalyzerTest, DoesSetReadOnlyPg) {
+    std::shared_ptr<Dialect> dialect = std::make_shared<DialectAuroraPostgres>();
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1 ", dialect), (std::pair{false, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select /* COMMENT */ 1 ", dialect), (std::pair{false, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" SET session characteristics as transaction read only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction read /* COMMENT */ only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" /* COMMENT */ set session characteristics as transaction read /* COMMENT */ only ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" /* COMMENT */ set session characteristics as transaction /* COMMENT */ read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction /* COMMENT */ read write ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction read only;,  select 1", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session  /* COMMENT */characteristics as transaction read only/* COMMENT */; select 1", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1; set session characteristics as transaction read only; ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction READ ONLY; set session characteristics as transaction read write; ", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction read write; set session characteristics as transaction read only; ", dialect), (std::pair{true, true}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" set session characteristics as transaction read write; select 1", dialect), (std::pair{true, false}));
+    EXPECT_EQ(SqlQueryAnalyzer::DoesSetReadOnly(" select 1; set session characteristics as transaction read write; select 1", dialect), (std::pair{true, false}));
 }

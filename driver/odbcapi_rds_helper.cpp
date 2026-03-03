@@ -29,6 +29,8 @@
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/limitless/limitless_plugin.h"
+#include "plugin/read_write_splitting/read_write_splitting_plugin.h"
+#include "plugin/read_write_splitting/simple_read_write_splitting_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 #include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
@@ -278,7 +280,8 @@ SQLRETURN RDS_SQLEndTran(
 }
 
 SQLRETURN RDS_FreeConnect(
-    SQLHDBC        ConnectionHandle)
+    SQLHDBC        ConnectionHandle,
+    bool           KeepDbc)
 {
     NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -312,9 +315,11 @@ SQLRETURN RDS_FreeConnect(
         dbc->wrapped_dbc = nullptr;
     }
 
-    CLEAR_DBC_ERROR(dbc);
-    delete dbc;
-    ConnectionHandle = nullptr;
+    if (!KeepDbc) {
+        CLEAR_DBC_ERROR(dbc);
+        delete dbc;
+        ConnectionHandle = nullptr;
+    }
     return SQL_SUCCESS;
 }
 
@@ -387,6 +392,7 @@ SQLRETURN RDS_FreeStmt(
     DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
+    return SQL_SUCCESS;
     switch (Option) {
         case SQL_CLOSE:
         case SQL_UNBIND:
@@ -854,6 +860,11 @@ SQLRETURN RDS_SQLDriverConnect(
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
+    }
+
+    if (SQL_SUCCEEDED(ret)) {
+        HostInfo host_info = dbc->plugin_service->GetHostListProvider()->GetConnectionInfo(dbc);
+        dbc->plugin_service->SetCurrentHostInfo(host_info);
     }
 
     conn_out_str_utf8 = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_out_str_utf8);
@@ -2189,6 +2200,20 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
                 && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
                 next_plugin = new AuroraInitialConnectionStrategyPlugin(dbc, plugin_head);
+            }
+
+            // Read Write Splitting
+            if (dbc->conn_attr.contains(KEY_ENABLE_SRW_SPLIT)
+                && dbc->conn_attr.at(KEY_ENABLE_SRW_SPLIT) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new SimpleReadWriteSplittingPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            if (dbc->conn_attr.contains(KEY_ENABLE_RW_SPLIT)
+                && dbc->conn_attr.at(KEY_ENABLE_RW_SPLIT) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new ReadWriteSplittingPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

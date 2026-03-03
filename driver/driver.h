@@ -172,7 +172,7 @@ SQLRETURN RDS_AllocDesc(SQLHDBC ConnectionHandle, SQLHANDLE* DescriptorHandlePoi
 
 SQLRETURN RDS_SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle, SQLSMALLINT CompletionType);
 
-SQLRETURN RDS_FreeConnect(SQLHDBC ConnectionHandle);
+SQLRETURN RDS_FreeConnect(SQLHDBC ConnectionHandle, bool KeepDbc = false);
 
 SQLRETURN RDS_FreeDesc(SQLHDESC DescriptorHandle);
 

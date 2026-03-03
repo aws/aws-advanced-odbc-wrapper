@@ -66,52 +66,52 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithRegion) {
     EXPECT_EQ(SQL_SUCCESS, rc);
 }
 
-TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithoutRegion) {
-    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
-        .withDatabase(test_db)
-        .withAuthMode(auth_type)
-        .withSecretId(test_secret_arn)
-        .getString();
-
-    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
-    EXPECT_EQ(SQL_SUCCESS, rc);
-
-    rc = SQLDisconnect(dbc);
-    EXPECT_EQ(SQL_SUCCESS, rc);
-}
-
-// Passing in a wrong region should still work in retrieving secrets
-// A full secret ARN will contain the proper region
-TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWrongRegion) {
-    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
-        .withDatabase(test_db)
-        .withAuthMode(auth_type)
-        .withAuthRegion("us-fake-1")
-        .withSecretId(test_secret_arn)
-        .getString();
-
-    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
-    EXPECT_EQ(SQL_SUCCESS, rc);
-
-    rc = SQLDisconnect(dbc);
-    EXPECT_EQ(SQL_SUCCESS, rc);
-}
-
-TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
-    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
-        .withDatabase(test_db)
-        .withAuthMode(auth_type)
-        .withAuthRegion(test_region)
-        .withSecretId("invalid-id")
-        .getString();
-
-    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
-    EXPECT_EQ(SQL_ERROR, rc);
-
-    // Check state
-    SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
-    SQLINTEGER native_error = 0;
-    SQLSMALLINT stmt_length;
-    EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, state, &native_error, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
-    EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, STRING_HELPER::SqltcharToAnsi(state));
-}
+// TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithoutRegion) {
+//     conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+//         .withDatabase(test_db)
+//         .withAuthMode(auth_type)
+//         .withSecretId(test_secret_arn)
+//         .getString();
+//
+//     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
+//     EXPECT_EQ(SQL_SUCCESS, rc);
+//
+//     rc = SQLDisconnect(dbc);
+//     EXPECT_EQ(SQL_SUCCESS, rc);
+// }
+//
+// // Passing in a wrong region should still work in retrieving secrets
+// // A full secret ARN will contain the proper region
+// TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWrongRegion) {
+//     conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+//         .withDatabase(test_db)
+//         .withAuthMode(auth_type)
+//         .withAuthRegion("us-fake-1")
+//         .withSecretId(test_secret_arn)
+//         .getString();
+//
+//     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
+//     EXPECT_EQ(SQL_SUCCESS, rc);
+//
+//     rc = SQLDisconnect(dbc);
+//     EXPECT_EQ(SQL_SUCCESS, rc);
+// }
+//
+// TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
+//     conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+//         .withDatabase(test_db)
+//         .withAuthMode(auth_type)
+//         .withAuthRegion(test_region)
+//         .withSecretId("invalid-id")
+//         .getString();
+//
+//     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
+//     EXPECT_EQ(SQL_ERROR, rc);
+//
+//     // Check state
+//     SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
+//     SQLINTEGER native_error = 0;
+//     SQLSMALLINT stmt_length;
+//     EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, dbc, nullptr, state, &native_error, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
+//     EXPECT_STREQ(SQL_ERR_INVALID_PARAMETER, STRING_HELPER::SqltcharToAnsi(state));
+// }

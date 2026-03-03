@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #include "error.h"
 #include "odbcapi_rds_helper.h"
 #include "plugin/base_plugin.h"

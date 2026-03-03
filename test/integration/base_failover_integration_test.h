@@ -112,7 +112,7 @@ protected:
         instance_endpoint =
             test_server.substr(cluster_id_prefix_index + cluster_prefix.size(), test_server.size());
         db_conn_str_suffix = "." + instance_endpoint;
-        cluster_ro_url = ".cluster-ro-" + instance_endpoint;
+        cluster_ro_url = cluster_id + ".cluster-ro-" + instance_endpoint;
 
         if (test_dialect == "AURORA_POSTGRESQL") {
             SERVER_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier();";
@@ -180,6 +180,13 @@ protected:
         EXPECT_EQ(SQL_SUCCESS, SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, SQL_MAX_MESSAGE_LENGTH, &buflen));
         EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
         return std::string(STRING_HELPER::SqltcharToAnsi(buf));
+    }
+
+    void Query(SQLHDBC dbc, std::string query) const {
+        SQLHSTMT hstmt;
+        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+        EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(hstmt, query));
+        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
     }
 
     int QueryCountTableRows(const SQLHSTMT handle) {

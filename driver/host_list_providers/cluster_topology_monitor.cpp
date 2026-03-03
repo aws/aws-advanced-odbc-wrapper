@@ -469,7 +469,9 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
 
     try {
         while (!main_monitor_->node_threads_stop_.load()) {
-            if (GetNodeId(hdbc_, main_monitor_->dialect_, odbc_helper_).empty()) {
+            // if (GetNodeId(hdbc_, main_monitor_->dialect_, odbc_helper_).empty()) {
+            std::string temp = GetNodeId(hdbc_, main_monitor_->dialect_, odbc_helper_);
+            if (temp.empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
                     LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect";

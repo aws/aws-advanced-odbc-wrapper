@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include "rds_host_list_provider.h"
 
 #include "../util/logger_wrapper.h"

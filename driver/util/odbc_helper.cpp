@@ -16,6 +16,7 @@
 
 #include "../odbcapi_rds_helper.h"
 
+#include<iostream>
 #include "rds_lib_loader.h"
 #include "rds_strings.h"
 
@@ -23,8 +24,8 @@ OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
 }
 
-void OdbcHelper::Disconnect(const DBC* dbc) {
-    if (dbc && dbc->wrapped_dbc) {
+void OdbcHelper::Disconnect(DBC* dbc) {
+    if (dbc != nullptr && dbc->wrapped_dbc != nullptr) {
         try {
             NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
                 dbc->wrapped_dbc
@@ -36,13 +37,18 @@ void OdbcHelper::Disconnect(const DBC* dbc) {
 }
 
 void OdbcHelper::Disconnect(SQLHDBC* hdbc) {
-    const DBC* local_dbc = static_cast<DBC*>(*hdbc);
+    DBC* local_dbc = static_cast<DBC*>(*hdbc);
     Disconnect(local_dbc);
 }
 
-void OdbcHelper::DisconnectAndFree(SQLHDBC* hdbc) {
+void OdbcHelper::DisconnectAndFree(SQLHDBC* hdbc, bool keep_dbc) {
     Disconnect(hdbc);
-    RDS_FreeConnect(*hdbc);
+    RDS_FreeConnect(*hdbc, keep_dbc);
+}
+
+void OdbcHelper::DisconnectAndFreeDBC(DBC* dbc, bool keep_dbc) {
+    Disconnect(dbc);
+    RDS_FreeConnect(dbc, keep_dbc);
 }
 
 SQLRETURN OdbcHelper::AllocEnv(SQLHENV* henv) {

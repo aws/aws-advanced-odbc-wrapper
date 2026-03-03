@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include "sql_query_analyzer.h"
 
 #include "rds_strings.h"
@@ -39,14 +40,26 @@ std::vector<std::string> SqlQueryAnalyzer::ParseMultiStatement(const std::string
         return {};
     }
 
-    // Remove spaces
     local_statement = TrimStr(local_statement);
     if (local_statement.empty()) {
         return {};
     }
 
+    // Remove comments
+    const std::regex comment(R"(--[^\r\n]*|/\*[\s\S]*?\*/)");
+    local_statement = std::regex_replace(local_statement, comment, "");
+
+    // Remove spaces
+    local_statement = std::regex_replace(local_statement, std::regex(" +"), " ");
+
     std::string delimiter = ";";
-    return SplitStr(local_statement, delimiter);
+    std::vector<std::string> stmts = SplitStr(local_statement, delimiter);
+
+    for (auto & stmt : stmts) {
+        stmt = TrimStr(stmt);
+    }
+
+    return stmts;
 }
 
 bool SqlQueryAnalyzer::DoesOpenTransaction(const std::string &statement)
@@ -68,7 +81,8 @@ bool SqlQueryAnalyzer::DoesCloseTransaction(DBC* dbc, const std::string &stateme
 bool SqlQueryAnalyzer::IsStatementStartingTransaction(const std::string &statement)
 {
     return statement.starts_with("BEGIN")
-        || statement.starts_with("START TRANSACTION");
+        || statement.starts_with("START TRANSACTION")
+        || statement.starts_with("SET AUTOCOMMIT = 0"); // TODO: test spacing
 }
 
 bool SqlQueryAnalyzer::IsStatementClosingTransaction(const std::string &statement)
@@ -119,4 +133,17 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const std::string &sta
         std::string::npos != first_statement.find("TRUE")
         || std::string::npos != first_statement.find('1')
         || std::string::npos != first_statement.find("ON");
+}
+
+std::pair<bool, bool> SqlQueryAnalyzer::DoesSetReadOnly(const std::string &statement, std::shared_ptr<Dialect> dialect)
+{
+    const std::vector<std::string> statements = ParseMultiStatement(statement);
+    std::pair<bool, bool> does_set_read_only = {false, false};
+    for (const std::string &stmt : statements) {
+        std::pair pair = dialect->DoesStatementSetReadOnly(RDS_STR_UPPER(stmt));
+        if (pair.first) {
+            does_set_read_only = pair;
+        }
+    }
+    return does_set_read_only;
 }

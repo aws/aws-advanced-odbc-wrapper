@@ -30,6 +30,8 @@ public:
     std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
     std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetSetReadOnlyQuery() override { return SET_READ_ONLY_QUERY; };
+    std::string GetSetReadWriteQuery() override { return SET_READ_WRITE_QUERY; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -47,6 +49,17 @@ public:
 
     virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
 
+    // TODO: move out of aurora dialects?
+    std::pair<bool, bool> DoesStatementSetReadOnly(std::string statement) override {
+        if (statement.starts_with(SET_READ_ONLY_QUERY)) {
+            return std::pair{true, true};
+        }
+        if (statement.starts_with(SET_READ_WRITE_QUERY)) {
+            return std::pair{true, false};
+        }
+        return std::pair{false, false};
+    }
+
 private:
     const int DEFAULT_MYSQL_PORT = 3306;
     const std::string TOPOLOGY_QUERY =
@@ -62,6 +75,10 @@ private:
     const std::string NODE_ID_QUERY = "SELECT @@aurora_server_id";
 
     const std::string IS_READER_QUERY = "SELECT @@innodb_read_only";
+
+    const std::string SET_READ_ONLY_QUERY = "SET SESSION TRANSACTION READ ONLY";
+
+    const std::string SET_READ_WRITE_QUERY = "SET SESSION TRANSACTION READ WRITE";
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",

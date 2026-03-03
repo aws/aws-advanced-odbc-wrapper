@@ -47,6 +47,7 @@ protected:
 
     SQLHENV env = nullptr;
     SQLHDBC dbc = nullptr;
+    SQLHDBC dbc1 = nullptr;
 
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}

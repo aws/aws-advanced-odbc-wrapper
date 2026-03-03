@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include "plugin_service.h"
 
 #include "rds_utils.h"
+#include "utils.h"
 
 #include "../dialect/dialect.h"
 #include "../dialect/dialect_aurora_mysql.h"
@@ -71,6 +73,18 @@ std::map<std::string, std::string> PluginService::GetOriginalConnAttr() {
 }
 
 HostInfo PluginService::GetCurrentHostInfo() {
+    std::vector<HostInfo> hosts = GetHosts();
+    if (this->current_host_ != HostInfo{} || hosts.empty()) {
+        return this->current_host_;
+    }
+
+    HostInfo writer = Utils::GetWriter(hosts);
+    if (writer != HostInfo{}) {
+        this->current_host_ = writer;
+        return writer;
+    }
+
+    this->current_host_ = hosts.at(0);
     return this->current_host_;
 }
 
@@ -111,6 +125,9 @@ std::shared_ptr<TopologyUtil> PluginService::GetTopologyUtil() {
 }
 
 std::shared_ptr<HostListProvider> PluginService::GetHostListProvider() {
+    if (host_list_provider_ == nullptr) {
+        InitHostListProvider();
+    }
     return this->host_list_provider_;
 }
 
@@ -242,4 +259,9 @@ std::shared_ptr<Dialect> PluginService::InitDialect(const std::map<std::string, 
         default:
             return std::make_shared<Dialect>();
     }
+}
+
+void PluginService::NotifyConnectionChanged() {
+    BasePlugin* plugin_head = GetPluginChain();
+    plugin_head->NotifyConnectionChanged();
 }

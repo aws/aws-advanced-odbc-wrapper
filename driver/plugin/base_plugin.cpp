@@ -62,3 +62,5 @@ SQLRETURN BasePlugin::Execute(
     }
     return SQL_ERROR;
 }
+
+void BasePlugin::NotifyConnectionChanged() {}

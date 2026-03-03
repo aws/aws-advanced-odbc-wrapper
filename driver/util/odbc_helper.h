@@ -23,9 +23,12 @@ class OdbcHelper {
 public:
     OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader);
 
-    virtual void Disconnect(const DBC *dbc);
+    virtual void Disconnect(DBC *dbc);
     virtual void Disconnect(SQLHDBC *hdbc);
-    virtual void DisconnectAndFree(SQLHDBC *hdbc);
+    virtual void DisconnectAndFree(SQLHDBC *hdbc, bool keep_dbc = false);
+    virtual void DisconnectAndFreeDBC(DBC *dbc, bool keep_dbc = false);
+
+    // void DisconnectAndFree(DBC *dbc, bool keep_dbc);
 
     virtual SQLRETURN AllocEnv(SQLHENV *henv);
     virtual SQLRETURN FreeEnv(SQLHENV *henv);

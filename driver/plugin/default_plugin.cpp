@@ -14,6 +14,8 @@
 
 #include "default_plugin.h"
 
+#include <iostream>
+
 #include "../driver.h"
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"

@@ -34,6 +34,7 @@ protected:
         BaseFailoverIntegrationTest::SetUpTestSuite();
         Aws::InitAPI(options);
     }
+
     static void TearDownTestSuite() {
         Aws::ShutdownAPI(options);
         BaseFailoverIntegrationTest::TearDownTestSuite();

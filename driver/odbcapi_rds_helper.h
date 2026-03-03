@@ -49,7 +49,8 @@ SQLRETURN RDS_SQLEndTran(
     SQLSMALLINT    CompletionType);
 
 SQLRETURN RDS_FreeConnect(
-    SQLHDBC        ConnectionHandle);
+    SQLHDBC        ConnectionHandle,
+    bool           KeepDbc);
 
 SQLRETURN RDS_FreeDesc(
     SQLHDESC       DescriptorHandle);

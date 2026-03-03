@@ -19,6 +19,21 @@
 #include <mutex>
 #include <map>
 
+template <typename V>
+struct CacheEntry {
+    V value;
+    std::chrono::steady_clock::time_point expiry;
+    std::chrono::milliseconds time_to_expire_ms;
+
+    V Get() {
+        const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        if (expiry > now || time_to_expire_ms == std::chrono::milliseconds::zero()) {
+            return value;
+        }
+        return {};
+    }
+};
+
 template <typename K, typename V>
 class SlidingCacheMap {
 public:
@@ -44,7 +59,7 @@ public:
         const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
-            CacheEntry& entry = itr->second;
+            CacheEntry<V> & entry = itr->second;
             // Already in cache & is not expired
             if (entry.expiry > now) {
                 // Update TTL & Return value
@@ -62,7 +77,7 @@ public:
         const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
-            CacheEntry& entry = itr->second;
+            CacheEntry<V> & entry = itr->second;
             if (entry.expiry > now) {
                 // Update TTL & Return value
                 entry.expiry = now + entry.time_to_expire_ms;
@@ -78,7 +93,7 @@ public:
         const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
-            CacheEntry& entry = itr->second;
+            CacheEntry<V> & entry = itr->second;
             if (entry.expiry > now) {
                 // Update TTL & Return found
                 entry.expiry = now + entry.time_to_expire_ms;
@@ -114,14 +129,9 @@ public:
     }
 
 private:
-    struct CacheEntry {
-        V value;
-        std::chrono::steady_clock::time_point expiry;
-        std::chrono::milliseconds time_to_expire_ms;
-    };
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
-    std::map<K, CacheEntry> cache;
+    std::map<K, CacheEntry<V>> cache;
     mutable std::mutex cache_lock;
 };
 
