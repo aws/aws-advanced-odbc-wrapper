@@ -29,6 +29,8 @@
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/limitless/limitless_plugin.h"
+#include "plugin/read_write_splitting/read_write_splitting_plugin.h"
+#include "plugin/read_write_splitting/simple_read_write_splitting_plugin.h"
 #include "plugin/secrets_manager/secrets_manager_plugin.h"
 #include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
@@ -288,6 +290,10 @@ SQLRETURN RDS_FreeConnect(
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
         env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
+    }
+
+    if (dbc->plugin_head) {
+        dbc->plugin_head->ReleaseResources();
     }
 
     // Cleanup tracked statements
@@ -854,6 +860,10 @@ SQLRETURN RDS_SQLDriverConnect(
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
+    }
+
+    if (SQL_SUCCEEDED(ret)) {
+        dbc->plugin_service->SetCurrentHostInfo(dbc->plugin_service->GetHostListProvider()->GetConnectionInfo(dbc));
     }
 
     conn_out_str_utf8 = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_out_str_utf8);
@@ -2189,6 +2199,26 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
                 && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
                 next_plugin = new AuroraInitialConnectionStrategyPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Read Write Splitting
+            bool srw_enabled = false;
+            if (dbc->conn_attr.contains(KEY_ENABLE_SRW_SPLIT)
+                && dbc->conn_attr.at(KEY_ENABLE_SRW_SPLIT) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new SimpleReadWriteSplittingPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+                srw_enabled = true;
+            }
+
+            if (dbc->conn_attr.contains(KEY_ENABLE_RW_SPLIT)
+                && dbc->conn_attr.at(KEY_ENABLE_RW_SPLIT) == VALUE_BOOL_TRUE)
+            {
+                if (srw_enabled) {
+                    throw std::runtime_error("Only one of the Read Write Splitting and Simple Read Write Splitting plugins should be enabled at a time.");
+                }
+                next_plugin = new ReadWriteSplittingPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

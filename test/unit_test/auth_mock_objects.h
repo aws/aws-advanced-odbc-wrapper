@@ -74,6 +74,9 @@ public:
     MOCK_METHOD(SQLRETURN, Connect,
         (SQLHDBC ConnectionHandle, SQLHWND WindowHandle, SQLTCHAR *OutConnectionString, SQLSMALLINT BufferLength,
         SQLSMALLINT *StringLengthPtr, SQLUSMALLINT DriverCompletion), ());
+
+    MOCK_METHOD(SQLRETURN, Execute,
+        (SQLHSTMT StatementHandle, SQLTCHAR* StatementText, SQLINTEGER TextLength), ());
 };
 
 class MOCK_HTTP_RESP : public Aws::Http::HttpResponse {

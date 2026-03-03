@@ -62,3 +62,10 @@ SQLRETURN BasePlugin::Execute(
     }
     return SQL_ERROR;
 }
+
+// codechecker_suppress [misc-no-recursion]
+void BasePlugin::ReleaseResources() {
+    if (next_plugin && next_plugin != this) {
+        next_plugin->ReleaseResources();
+    }
+}

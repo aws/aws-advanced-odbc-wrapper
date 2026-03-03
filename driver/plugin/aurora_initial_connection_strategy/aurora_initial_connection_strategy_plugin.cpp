@@ -128,7 +128,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
             LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
-                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc, nullptr).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                     odbc_helper_->Disconnect(dbc);
                     std::this_thread::sleep_for(retry_delay_ms_);
@@ -154,7 +154,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
         rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
         if (!SQL_SUCCEEDED(rc)) {
-            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc, nullptr).c_str())) {
                 LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                 odbc_helper_->Disconnect(dbc);
                 std::this_thread::sleep_for(retry_delay_ms_);
@@ -194,7 +194,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
-                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc, nullptr).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                     odbc_helper_->Disconnect(dbc);
                     std::this_thread::sleep_for(retry_delay_ms_);
@@ -232,7 +232,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
         dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_candidate.GetHost());
         rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
         if (!SQL_SUCCEEDED(rc)) {
-            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc, nullptr).c_str())) {
                 LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                 odbc_helper_->Disconnect(dbc);
                 std::this_thread::sleep_for(retry_delay_ms_);
