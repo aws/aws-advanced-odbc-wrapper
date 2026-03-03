@@ -39,14 +39,26 @@ std::vector<std::string> SqlQueryAnalyzer::ParseMultiStatement(const std::string
         return {};
     }
 
-    // Remove spaces
     local_statement = TrimStr(local_statement);
     if (local_statement.empty()) {
         return {};
     }
 
+    // Remove comments
+    const std::regex comment(R"(\s*/\*(.*?)\*/\s*)");
+    local_statement = std::regex_replace(local_statement, comment, " ");
+
+    // Remove spaces
+    local_statement = std::regex_replace(local_statement, std::regex(" +"), " ");
+
     std::string delimiter = ";";
-    return SplitStr(local_statement, delimiter);
+    std::vector<std::string> stmts = SplitStr(local_statement, delimiter);
+
+    for (auto & stmt : stmts) {
+        stmt = TrimStr(stmt);
+    }
+
+    return stmts;
 }
 
 bool SqlQueryAnalyzer::DoesOpenTransaction(const std::string &statement)
@@ -68,7 +80,8 @@ bool SqlQueryAnalyzer::DoesCloseTransaction(DBC* dbc, const std::string &stateme
 bool SqlQueryAnalyzer::IsStatementStartingTransaction(const std::string &statement)
 {
     return statement.starts_with("BEGIN")
-        || statement.starts_with("START TRANSACTION");
+        || statement.starts_with("START TRANSACTION")
+        || statement.starts_with("SET AUTOCOMMIT = 0");
 }
 
 bool SqlQueryAnalyzer::IsStatementClosingTransaction(const std::string &statement)
@@ -119,4 +132,16 @@ bool SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(const std::string &sta
         std::string::npos != first_statement.find("TRUE")
         || std::string::npos != first_statement.find('1')
         || std::string::npos != first_statement.find("ON");
+}
+
+std::optional<bool> SqlQueryAnalyzer::DoesSetReadOnly(const std::string &statement, std::shared_ptr<Dialect> dialect)
+{
+    const std::vector<std::string> statements = ParseMultiStatement(statement);
+    std::optional<bool> does_set_read_only = {};
+    for (const std::string &stmt : statements) {
+        if (const std::optional<bool> ret = dialect->DoesStatementSetReadOnly(RDS_STR_UPPER(stmt)); ret.has_value()) {
+            does_set_read_only = ret;
+        }
+    }
+    return does_set_read_only;
 }

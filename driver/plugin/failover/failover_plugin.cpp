@@ -93,17 +93,22 @@ SQLRETURN FailoverPlugin::Execute(
         return ret;
     }
 
-    // Invalidate statements, but don't fully clean up
-    for (STMT* stmt : dbc->stmt_list) {
-        stmt->wrapped_stmt = nullptr;
-        CLEAR_STMT_ERROR(stmt);
-        stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
-    }
-    // and descriptors
-    for (DESC* desc : dbc->desc_list) {
-        desc->wrapped_desc = nullptr;
-        CLEAR_DESC_ERROR(desc);
-        desc->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+    {
+        const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc->lock);
+        // Invalidate statements, but don't fully clean up
+        for (STMT* stmt : dbc->stmt_list) {
+            const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
+            stmt->wrapped_stmt = nullptr;
+            CLEAR_STMT_ERROR(stmt);
+            stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+        }
+        // and descriptors
+        for (DESC* desc : dbc->desc_list) {
+            const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
+            desc->wrapped_desc = nullptr;
+            CLEAR_DESC_ERROR(desc);
+            desc->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+        }
     }
 
     bool failover_result = false;
@@ -122,15 +127,20 @@ SQLRETURN FailoverPlugin::Execute(
         } else {
             err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         }
-        // Set failover error messages for all related statements
-        for (STMT* stmt : dbc->stmt_list) {
-            CLEAR_STMT_ERROR(stmt);
-            stmt->err = new ERR_INFO(*err_info);
-        }
-        // and descriptors
-        for (DESC* desc : dbc->desc_list) {
-            CLEAR_DESC_ERROR(desc);
-            desc->err = new ERR_INFO(*err_info);
+        {
+            const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc->lock);
+            // Set failover error messages for all related statements
+            for (STMT* stmt : dbc->stmt_list) {
+                const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
+                CLEAR_STMT_ERROR(stmt);
+                stmt->err = new ERR_INFO(*err_info);
+            }
+            // and descriptors
+            for (DESC* desc : dbc->desc_list) {
+                const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
+                CLEAR_DESC_ERROR(desc);
+                desc->err = new ERR_INFO(*err_info);
+            }
         }
         delete err_info;
     }
@@ -211,7 +221,9 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 const bool is_reader = topology_util_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "Connected to a new reader for: " << host_string;
-                    curr_host_ = host;
+                    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+                        service->SetCurrentHostInfo(host);
+                    }
                     return true;
                 }
                 LOG(INFO) << "Strict Reader Mode, not connected to a reader: " << host_string;
@@ -256,7 +268,9 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 }
             }
             LOG(INFO) << "Reader failover connected to writer instance for: " << host_string;
-            curr_host_ = original_writer;
+            if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+                service->SetCurrentHostInfo(original_writer);
+            }
             return true;
         }
         LOG(INFO) << "Failed to connect to host: " << original_writer;
@@ -297,7 +311,9 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
         if (!topology_util_->GetWriterId(dbc).empty()) {
             LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
-            curr_host_ = host;
+            if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+                service->SetCurrentHostInfo(host);
+            }
             return true;
         }
         LOG(ERROR) << "The new writer was identified to be " << host_string << ", but querying the instance for its role returned a reader";

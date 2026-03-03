@@ -48,7 +48,8 @@ enum TabSelection {
     LIMITLESS,
     CUSTOM_ENDPOINT,
     AURORA_INITIAL_CONNECTION_STRATEGY,
-    BLUE_GREEN
+    BLUE_GREEN,
+    RW_SPLITTING
 };
 
 enum AuthModeSelection {
@@ -57,6 +58,12 @@ enum AuthModeSelection {
     SECRETS_MANAGER,
     ADFS,
     OKTA
+};
+
+enum RwSplitModeSelection {
+    RW_SPLIT_NONE,
+    RW_SPLIT_RW,
+    RW_SPLIT_SRW
 };
 
 static const std::regex SPECIAL_CHAR = std::regex(R"([\\\[\]\{\},;?\*=!@]+)");
@@ -165,6 +172,21 @@ const std::map<std::string, std::pair<int, ControlType>> BLUE_GREEN_KEYS = {
     {KEY_BG_SWITCH_TIMEOUT_MS, {IDC_BG_SWITCH_TIMEOUT, EDIT_TEXT}}
 };
 
+const std::map<std::string, std::pair<int, ControlType>> RW_SPLITTING_KEYS = {
+    {KEY_ENABLE_RW_SPLIT, {IDC_RW_SPLIT_MODE, COMBO}},
+    {KEY_RW_HOST_SELECTOR_STRATEGY, {IDC_RW_HOST_SELECTOR, COMBO}},
+    {KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS, {IDC_RW_CACHED_READER_TIMEOUT, EDIT_TEXT}}
+};
+
+const std::map<std::string, std::pair<int, ControlType>> SRW_SPLITTING_KEYS = {
+    {KEY_SRW_WRITE_ENDPOINT, {IDC_SRW_WRITE_ENDPOINT, EDIT_TEXT}},
+    {KEY_SRW_READ_ENDPOINT, {IDC_SRW_READ_ENDPOINT, EDIT_TEXT}},
+    {KEY_SRW_VERIFY_CONNS, {IDC_SRW_VERIFY_CONNS, CHECK}},
+    {KEY_SRW_VERIFY_INITIAL_CONN_TYPE, {IDC_SRW_VERIFY_INITIAL_CONN, CHECK}},
+    {KEY_SRW_CONN_TIMEOUT_MS, {IDC_SRW_CONN_TIMEOUT, EDIT_TEXT}},
+    {KEY_SRW_CONN_INTERVAL_MS, {IDC_SRW_CONN_INTERVAL, EDIT_TEXT}}
+};
+
 const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
@@ -212,6 +234,19 @@ const std::vector<std::pair<std::string, std::string>> INITIAL_CONNECTION_TYPES 
     {"Reader", VALUE_INITIAL_CONNECTION_TYPE_READER}
 };
 
+const std::vector<std::pair<std::string, std::string>> RW_SPLIT_MODES = {
+    {"None", ""},
+    {"Read/Write Splitting", VALUE_BOOL_TRUE},
+    {"Simple Read/Write Splitting", VALUE_BOOL_TRUE}
+};
+
+const std::vector<std::pair<std::string, std::string>> RW_HOST_SELECTOR_MODES = {
+    {"", ""},
+    {"Random", VALUE_RANDOM_HOST_SELECTOR},
+    {"Round Robin", VALUE_ROUND_ROBIN_HOST_SELECTOR},
+    {"Highest Weight", VALUE_HIGHEST_WEIGHT_HOST_SELECTOR}
+};
+
 HINSTANCE ghInstance;
 HWND tab_control;
 HWND aws_auth_tab;
@@ -220,6 +255,7 @@ HWND limitless_tab;
 HWND custom_endpoint_tab;
 HWND aurora_initial_connection_strategy_tab;
 HWND blue_green_tab;
+HWND rw_splitting_tab;
 HWND main_win;
 
 std::string driver;
@@ -307,6 +343,10 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return MFA_TYPES[selection].second;
                     case IDC_VERIFY_INITIAL_CONNECTION_TYPE:
                         return INITIAL_CONNECTION_TYPES[selection].second;
+                    case IDC_RW_SPLIT_MODE:
+                        return RW_SPLIT_MODES[selection].second;
+                    case IDC_RW_HOST_SELECTOR:
+                        return RW_HOST_SELECTOR_MODES[selection].second;
                     default:
                         break;
                 }
@@ -493,6 +533,33 @@ std::string GetDsn(bool test_conn)
         }
     }
 
+    HWND rw_mode_ctrl = GetDlgItem(rw_splitting_tab, IDC_RW_SPLIT_MODE);
+    if (IsWindowEnabled(rw_mode_ctrl)) {
+        int rw_selection = ComboBox_GetCurSel(rw_mode_ctrl);
+        if (rw_selection == RW_SPLIT_RW) {
+            conn_str = AddKeyToConnectionString(conn_str, KEY_ENABLE_RW_SPLIT, VALUE_BOOL_TRUE, test_conn);
+        } else if (rw_selection == RW_SPLIT_SRW) {
+            conn_str = AddKeyToConnectionString(conn_str, KEY_ENABLE_SRW_SPLIT, VALUE_BOOL_TRUE, test_conn);
+        }
+    }
+
+    for (const auto& keys : RW_SPLITTING_KEYS) {
+        if (keys.first == KEY_ENABLE_RW_SPLIT) {
+            continue;
+        }
+        value = GetControlValue(rw_splitting_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
+    for (const auto& keys : SRW_SPLITTING_KEYS) {
+        value = GetControlValue(rw_splitting_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
     conn_str = AddKeyToConnectionString(conn_str, KEY_RDS_TEST_CONN, VALUE_BOOL_TRUE, test_conn);
 
     return conn_str;
@@ -604,8 +671,31 @@ bool SaveDsn()
             for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(aurora_initial_connection_strategy_tab, keys.second).c_str());
             }
+
             for (const auto& keys : BLUE_GREEN_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(blue_green_tab, keys.second).c_str());
+            }
+
+            // Save RW splitting mode
+            HWND rw_mode_ctrl = GetDlgItem(rw_splitting_tab, IDC_RW_SPLIT_MODE);
+            int rw_selection = ComboBox_GetCurSel(rw_mode_ctrl);
+            if (rw_selection == RW_SPLIT_RW) {
+                SaveKey(dsn.c_str(), KEY_ENABLE_RW_SPLIT, VALUE_BOOL_TRUE);
+                SaveKey(dsn.c_str(), KEY_ENABLE_SRW_SPLIT, VALUE_BOOL_FALSE);
+            } else if (rw_selection == RW_SPLIT_SRW) {
+                SaveKey(dsn.c_str(), KEY_ENABLE_RW_SPLIT, VALUE_BOOL_FALSE);
+                SaveKey(dsn.c_str(), KEY_ENABLE_SRW_SPLIT, VALUE_BOOL_TRUE);
+            } else {
+                SaveKey(dsn.c_str(), KEY_ENABLE_RW_SPLIT, VALUE_BOOL_FALSE);
+                SaveKey(dsn.c_str(), KEY_ENABLE_SRW_SPLIT, VALUE_BOOL_FALSE);
+            }
+
+            for (const auto& keys : RW_SPLITTING_KEYS) {
+                if (keys.first == KEY_ENABLE_RW_SPLIT) continue;
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(rw_splitting_tab, keys.second).c_str());
+            }
+            for (const auto& keys : SRW_SPLITTING_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(rw_splitting_tab, keys.second).c_str());
             }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
@@ -850,6 +940,123 @@ BOOL LimitlessDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return false;
 }
 
+void HandleRwSplitModeSelection(HWND hwnd) {
+    HWND mode_box = GetDlgItem(hwnd, IDC_RW_SPLIT_MODE);
+    int selection = ComboBox_GetCurSel(mode_box);
+
+    bool enable_rw = (selection == RW_SPLIT_RW);
+    bool enable_srw = (selection == RW_SPLIT_SRW);
+    bool enable_any = enable_rw || enable_srw;
+
+    // RW splitting controls (excluding the mode combo)
+    for (const auto& keys : RW_SPLITTING_KEYS) {
+        if (keys.first == KEY_ENABLE_RW_SPLIT) {
+            continue;
+        }
+        HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+        EnableWindow(ctrl, enable_rw ? TRUE : FALSE);
+    }
+
+    HWND cached_timeout = GetDlgItem(hwnd, IDC_RW_CACHED_READER_TIMEOUT);
+    EnableWindow(cached_timeout, enable_any ? TRUE : FALSE);
+
+    // SRW splitting controls
+    for (const auto& keys : SRW_SPLITTING_KEYS) {
+        HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+        EnableWindow(ctrl, enable_srw ? TRUE : FALSE);
+    }
+}
+
+void HandleRwSplitInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_RW_SPLIT_MODE:
+            if (codeNotify == CBN_SELCHANGE) {
+                HandleRwSplitModeSelection(hwnd);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+BOOL RwSplitTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    HWND mode_box = GetDlgItem(hwnd, IDC_RW_SPLIT_MODE);
+    for (int i = 0; i < RW_SPLIT_MODES.size(); i++) {
+        ComboBox_InsertString(mode_box, i, RDS_TSTR(RW_SPLIT_MODES[i].first).c_str());
+    }
+
+    HWND host_selector = GetDlgItem(hwnd, IDC_RW_HOST_SELECTOR);
+    for (int i = 0; i < RW_HOST_SELECTOR_MODES.size(); i++) {
+        ComboBox_InsertString(host_selector, i, RDS_TSTR(RW_HOST_SELECTOR_MODES[i].first).c_str());
+    }
+
+    // Determine initial mode from saved DSN values
+    int initial_mode = RW_SPLIT_NONE;
+    TCHAR buff[MAX_KEY_SIZE] = {};
+    if (!current_dsn.empty()) {
+        if (!driver_connect) {
+            RDS_SQLGetPrivateProfileString(current_dsn, std::string(KEY_ENABLE_RW_SPLIT), std::string(""), buff, ODBC_INI);
+        } else {
+            WORD cbDriver;
+            RDS_SQLReadFileDSN(current_dsn, ODBC, std::string(KEY_ENABLE_RW_SPLIT), buff, &cbDriver);
+        }
+#ifdef UNICODE
+        if (wcscmp(buff, RDS_TSTR(VALUE_BOOL_TRUE).c_str()) == 0) {
+#else
+        if (strcmp(buff, VALUE_BOOL_TRUE) == 0) {
+#endif
+            initial_mode = RW_SPLIT_RW;
+        } else {
+            TCHAR buff2[MAX_KEY_SIZE] = {};
+            if (!driver_connect) {
+                RDS_SQLGetPrivateProfileString(current_dsn, std::string(KEY_ENABLE_SRW_SPLIT), std::string(""), buff2, ODBC_INI);
+            } else {
+                WORD cbDriver;
+                RDS_SQLReadFileDSN(current_dsn, ODBC, std::string(KEY_ENABLE_SRW_SPLIT), buff2, &cbDriver);
+            }
+#ifdef UNICODE
+            if (wcscmp(buff2, RDS_TSTR(VALUE_BOOL_TRUE).c_str()) == 0) {
+#else
+            if (strcmp(buff2, VALUE_BOOL_TRUE) == 0) {
+#endif
+                initial_mode = RW_SPLIT_SRW;
+            }
+        }
+    }
+    ComboBox_SetCurSel(mode_box, initial_mode);
+
+    // Initialize RW splitting controls
+    SetInitialComboBoxValue(hwnd, IDC_RW_HOST_SELECTOR, KEY_RW_HOST_SELECTOR_STRATEGY, RW_HOST_SELECTOR_MODES);
+    SetInitialEditTextValue(hwnd, IDC_RW_CACHED_READER_TIMEOUT, KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS, "");
+
+    // Initialize SRW splitting controls
+    for (const auto& keys : SRW_SPLITTING_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleRwSplitModeSelection(hwnd);
+
+    return false;
+}
+
+BOOL RwSplitDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, RwSplitTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleRwSplitInteraction);
+        default:
+            break;
+    }
+
+    return false;
+}
+
 void HandleEnableFailover(HWND hwnd) {
     HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_FAILOVER);
     LRESULT state = Button_GetCheck(check_box);
@@ -1081,6 +1288,7 @@ void OnSelChange(HWND hwnd)
     ShowWindow(custom_endpoint_tab, (selection == CUSTOM_ENDPOINT) ? SW_SHOW : SW_HIDE);
     ShowWindow(aurora_initial_connection_strategy_tab, (selection == AURORA_INITIAL_CONNECTION_STRATEGY) ? SW_SHOW : SW_HIDE);
     ShowWindow(blue_green_tab, (selection == BLUE_GREEN) ? SW_SHOW : SW_HIDE);
+    ShowWindow(rw_splitting_tab, (selection == RW_SPLITTING) ? SW_SHOW : SW_HIDE);
 }
 
 BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
@@ -1092,6 +1300,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     custom_endpoint_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_CUSTOM_ENDPOINT), tab_control, (DLGPROC)CustomEndpointDlgProc);
     aurora_initial_connection_strategy_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_AURORA_INITIAL_CONNECTION_STRATEGY), tab_control, (DLGPROC)AuroraInitialConnectionStrategyDlgProc);
     blue_green_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_BLUE_GREEN), tab_control, (DLGPROC)BlueGreenDlgProc);
+    rw_splitting_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_RW_SPLITTING), tab_control, (DLGPROC)RwSplitDlgProc);
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
@@ -1122,6 +1331,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     AddTabToTabControl("Custom Endpoint", tab_control, CUSTOM_ENDPOINT);
     AddTabToTabControl("Aurora Initial Connection Strategy", tab_control, AURORA_INITIAL_CONNECTION_STRATEGY);
     AddTabToTabControl("Blue Green", tab_control, BLUE_GREEN);
+    AddTabToTabControl("Read/Write Splitting", tab_control, RW_SPLITTING);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);

@@ -29,7 +29,8 @@ static std::unordered_set<std::string> const sensitive_key_set = {
 
 static std::unordered_set<std::string> const internal_wrapper_key_set = {
     KEY_RDS_TEST_CONN,
-    KEY_MONITORING_CONN_UUID
+    KEY_MONITORING_CONN_UUID,
+    KEY_SRW_SKIP
 };
 
 static std::unordered_set<std::string> const aws_odbc_key_set = {
@@ -81,6 +82,18 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_BG_INCREASED_REFRESH_MS,
     KEY_BG_HIGH_REFRESH_MS,
     KEY_BG_SWITCH_TIMEOUT_MS,
+    KEY_MONITORING_CONN_UUID,
+    KEY_ENABLE_RW_SPLIT,
+    KEY_RW_HOST_SELECTOR_STRATEGY,
+    KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS,
+    KEY_ENABLE_SRW_SPLIT,
+    KEY_SRW_VERIFY_CONNS,
+    KEY_SRW_READ_ENDPOINT,
+    KEY_SRW_WRITE_ENDPOINT,
+    KEY_SRW_CONN_TIMEOUT_MS,
+    KEY_SRW_CONN_INTERVAL_MS,
+    KEY_SRW_VERIFY_INITIAL_CONN_TYPE,
+    KEY_SRW_SKIP
 };
 
 static std::unordered_map<std::string, std::string> const alias_to_real_map = {

@@ -40,6 +40,8 @@ public:
     virtual std::string GetWriterIdQuery() { return ""; };
     virtual std::string GetNodeIdQuery() { return ""; };
     virtual std::string GetIsReaderQuery() { return ""; };
+    virtual std::string GetSetReadOnlyQuery() { return ""; };
+    virtual std::string GetSetReadWriteQuery() { return ""; };
 
     virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
     virtual bool IsSqlStateAccessError(const char* sql_state, const std::string& error_message) {
@@ -48,6 +50,8 @@ public:
     virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
     virtual DatabaseDialectType GetDialectType() { return DatabaseDialectType::UNKNOWN_DIALECT; };
+
+    virtual std::optional<bool> DoesStatementSetReadOnly(std::string statement) { return {}; };
 
     static DatabaseDialectType DatabaseDialectFromString(const std::string &database_dialect) {
         std::string local_str = database_dialect;

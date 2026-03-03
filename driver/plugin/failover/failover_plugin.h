@@ -68,7 +68,6 @@ private:
 
     static FailoverMode InitFailoverMode(std::map<std::string, std::string>& conn_info);
 
-    HostInfo curr_host_;
     std::chrono::milliseconds failover_timeout_ms_;
     std::string cluster_id_;
     std::shared_ptr<Dialect> dialect_;

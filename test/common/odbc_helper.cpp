@@ -20,6 +20,7 @@
 
 #include <sqlext.h>
 
+#include <gtest/gtest.h>
 #include <string>
 #include <sstream>
 #include <iostream>
@@ -138,4 +139,11 @@ bool ODBC_HELPER::TestSimpleQuery(SQLHDBC hdbc) {
     CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HENV, hstmt);
 
     return SQL_SUCCEEDED(ret);
+}
+
+void ODBC_HELPER::Query(SQLHDBC dbc, std::string query) {
+    SQLHSTMT hstmt;
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+    EXPECT_EQ(SQL_SUCCESS, ExecuteQuery(hstmt, query));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
 }

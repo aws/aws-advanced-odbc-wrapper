@@ -25,6 +25,12 @@ HostInfo HighestWeightHostSelector::GetHost(std::vector<HostInfo> hosts, bool is
         return host.IsHostUp() && is_writer == host.IsHostWriter();
     });
 
+    if (eligible_hosts.empty() && !is_writer) {
+        std::ranges::copy_if(hosts, std::back_inserter(eligible_hosts), [&is_writer](const HostInfo& host) {
+            return host.IsHostUp();
+        });
+    }
+
     if (eligible_hosts.empty()) {
         throw std::runtime_error("No eligible hosts found in list");
     }

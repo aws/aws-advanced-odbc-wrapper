@@ -149,10 +149,16 @@ RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &que
             *stmt, conn_in_sqltchar, SQL_NTS
         );
     }
-#endif
+    const std::vector<uint16_t> query_vector = ConvertUTF8ToUTF16(query);
+    SQLTCHAR* query_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(query_vector.data()));
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+        *stmt, query_sqltchar, SQL_NTS
+    );
+#else
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );
+#endif
 }
 
 RdsLibResult OdbcHelper::CloseCursor(SQLHSTMT stmt) {
@@ -213,10 +219,18 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc, std::string& out_mess
     // sql_error_called flag. RDS_SQLError sets this flag, which prevents subsequent
     // external SQLError calls from retrieving the diagnostic record.
     RDS_SQLGetDiagRec(SQL_HANDLE_DBC, static_cast<SQLHDBC>(dbc), 1, sql_state, &native_error, message, MAX_MSG_LEN, &stmt_length, true);
-    LOG(WARNING) << "SQL State: " << AS_UTF8_CSTR(sql_state) << ". Message: " << AS_UTF8_CSTR(message);
-    out_message = AS_UTF8_CSTR(message);
-    return AS_UTF8_CSTR(sql_state);
+#if UNICODE
+    const std::string state_str = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(sql_state));
+    const std::string message_str = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(message));
+#else
+    const std::string state_str = reinterpret_cast<const char*>(sql_state);
+    const std::string message_str = reinterpret_cast<const char*>(message);
+#endif
+    LOG(WARNING) << "SQL State: " << state_str << ". Message: " << message_str;
+    out_message = message_str;
+    return state_str;
 }
+
 std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
     SQLTCHAR message[MAX_MSG_LEN] = { 0 };
@@ -225,7 +239,11 @@ std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
         SQL_HANDLE_STMT, stmt, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length);
     if (SQL_SUCCEEDED(res.fn_result)) {
-        return AS_UTF8_CSTR(message);
+#if UNICODE
+        return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(message));
+#else
+        return {reinterpret_cast<const char*>(message)};
+#endif
     }
     return "";
 }
