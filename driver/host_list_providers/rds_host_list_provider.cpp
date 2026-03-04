@@ -14,13 +14,34 @@
 
 #include "rds_host_list_provider.h"
 
+#include "../util/connection_string_keys.h"
+#include "../util/rds_utils.h"
 #include "../util/logger_wrapper.h"
 
-RdsHostListProvider::RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service) :
-    topology_util_{ std::move(topology_util) },
-    plugin_service_{ plugin_service },
-    HostListProvider(plugin_service->GetClusterId())
+RdsHostListProvider::RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service) :
+    RdsHostListProvider(topology_util, plugin_service, plugin_service->GetOriginalConnAttr(), plugin_service->GetClusterId()) {}
+
+RdsHostListProvider::RdsHostListProvider(
+    const std::shared_ptr<TopologyUtil>& topology_util,
+    const std::shared_ptr<PluginService>& plugin_service,
+    std::map<std::string, std::string> conn_attr,
+    std::string cluster_id)
+    : topology_util_{ topology_util },
+      plugin_service_{ plugin_service },
+      conn_attr_{ std::move(conn_attr) },
+    HostListProvider(std::move(cluster_id))
 {
+    this->initial_host_info_ = HostInfo(
+        conn_attr_.contains(KEY_SERVER) ?
+            conn_attr_.at(KEY_SERVER) : "",
+        conn_attr_.contains(KEY_PORT) ?
+            static_cast<int>(std::strtol(conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
+    );
+    this->template_host_info_ = HostInfo(
+        RdsUtils::GetRdsInstanceHostPattern(this->initial_host_info_.GetHost()),
+        this->initial_host_info_.GetPort()
+    );
+    this->conn_attr_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
     this->monitor_ = GetOrCreateMonitor();
 }
 
@@ -50,7 +71,7 @@ std::vector<HostInfo> RdsHostListProvider::Refresh() {
     return hosts;
 }
 
-std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, uint32_t timeout_ms) {
+std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) {
     return this->monitor_->ForceRefresh(verify_writer, timeout_ms);
 }
 
@@ -85,7 +106,7 @@ std::shared_ptr<ClusterTopologyMonitor> RdsHostListProvider::GetOrCreateMonitor(
         LOG(INFO) << "Incremented Cluster Topology Monitor count for: " << this->cluster_id_ << ", to: " << pair.first;
     } else {
         monitor = std::make_shared<ClusterTopologyMonitor>(
-            this->plugin_service_, this->topology_util_
+            this->plugin_service_, this->topology_util_, this->conn_attr_, this->cluster_id_, this->initial_host_info_, this->template_host_info_
         );
         const std::pair pair = {1, monitor};
         if (!this->plugin_service_->GetOriginalConnAttr().contains(KEY_RDS_TEST_CONN)) {

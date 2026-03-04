@@ -64,7 +64,7 @@ Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeMissi
 
 class SecretsManagerPluginTest : public testing::Test {
 protected:
-    MOCK_BASE_PLUGIN* mock_base_plugin;
+    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
     std::shared_ptr<MOCK_SECRETS_MANAGER_CLIENT> mock_sm_client;
     DBC* dbc;
 
@@ -78,7 +78,7 @@ protected:
 
     void SetUp() override {
         mock_sm_client = std::make_shared<MOCK_SECRETS_MANAGER_CLIENT>();
-        mock_base_plugin = new MOCK_BASE_PLUGIN();
+        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         EXPECT_CALL(
             *mock_base_plugin,
             Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
@@ -87,7 +87,6 @@ protected:
     }
 
     void TearDown() override {
-        // mock_base_plugin should be cleaned up by plugin chain
         if (mock_sm_client) mock_sm_client.reset();
         if (dbc) delete dbc;
     }

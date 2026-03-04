@@ -27,7 +27,7 @@ std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<CustomEn
 
 CustomEndpointPlugin::CustomEndpointPlugin(DBC* dbc) : CustomEndpointPlugin(dbc, nullptr) {}
 
-CustomEndpointPlugin::CustomEndpointPlugin(DBC* dbc, BasePlugin* next_plugin) : CustomEndpointPlugin(
+CustomEndpointPlugin::CustomEndpointPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : CustomEndpointPlugin(
     dbc,
     next_plugin,
     nullptr,
@@ -35,7 +35,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(DBC* dbc, BasePlugin* next_plugin) : 
 
 CustomEndpointPlugin::CustomEndpointPlugin(
     DBC* dbc,
-    BasePlugin* next_plugin,
+    std::shared_ptr<BasePlugin> next_plugin,
     const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<CustomEndpointMonitor>& endpoint_monitor) : BasePlugin(dbc, next_plugin)
 {

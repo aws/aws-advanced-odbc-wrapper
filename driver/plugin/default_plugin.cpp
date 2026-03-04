@@ -25,7 +25,7 @@
 
 DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
-DefaultPlugin::DefaultPlugin(DBC *dbc, DefaultPlugin *next_plugin) : plugin_name("DefaultPlugin") {
+DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : plugin_name("DefaultPlugin") {
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 }
 
@@ -50,6 +50,16 @@ SQLRETURN DefaultPlugin::Connect(
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
             SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
         );
+    }
+
+    // Apply pre-connect attributes to the wrapped DBC before SQLDriverConnect.
+    // Attributes like SQL_ATTR_LOGIN_TIMEOUT must be set before connecting to take effect.
+    for (auto const& [key, val] : dbc->attr_map) {
+        if (key == SQL_ATTR_LOGIN_TIMEOUT || key == SQL_ATTR_CONNECTION_TIMEOUT) {
+            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+                dbc->wrapped_dbc, key, val.first, val.second
+            );
+        }
     }
 
     // DSN should be read from the original input

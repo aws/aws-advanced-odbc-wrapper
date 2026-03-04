@@ -17,7 +17,7 @@
 
 #include "../../util/auth_provider.h"
 
-#include "../base_plugin.h"
+#include "base_saml_auth_plugin.h"
 
 #include "saml_util.h"
 
@@ -43,24 +43,14 @@ private:
     static inline const std::regex URL_PATTERN = std::regex("^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']");
 };
 
-class AdfsAuthPlugin : public BasePlugin {
+class AdfsAuthPlugin : public BaseSamlAuthPlugin {
 public:
     AdfsAuthPlugin(DBC* dbc);
-    AdfsAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
-    ~AdfsAuthPlugin() override;
-
-    SQLRETURN Connect(
-        SQLHDBC        ConnectionHandle,
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
-
-private:
-    std::shared_ptr<AuthProvider> auth_provider;
-    std::shared_ptr<SamlUtil> saml_util;
+    AdfsAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
+    AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
+                   const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider,
+                   std::shared_ptr<Dialect> dialect, std::shared_ptr<OdbcHelper> odbc_helper);
 };
 
 #endif // ADFS_AUTH_PLUGIN_H_

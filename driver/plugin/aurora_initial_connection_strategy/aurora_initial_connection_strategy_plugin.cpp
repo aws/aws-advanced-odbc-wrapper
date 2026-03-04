@@ -25,7 +25,7 @@
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc) : AuroraInitialConnectionStrategyPlugin(dbc, nullptr) {}
 
-AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin) : AuroraInitialConnectionStrategyPlugin(
+AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : AuroraInitialConnectionStrategyPlugin(
     dbc,
     next_plugin,
     dbc->plugin_service,
@@ -36,7 +36,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     DBC* dbc,
-    BasePlugin* next_plugin,
+    std::shared_ptr<BasePlugin> next_plugin,
     std::shared_ptr<PluginService> plugin_service,
     std::shared_ptr<HostSelector> host_selector,
     std::shared_ptr<Dialect> dialect,
@@ -80,8 +80,10 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             DriverCompletion);
     }
 
-    if (plugin_service_->GetHosts().empty()) {
-        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        if (service->GetHosts().empty()) {
+            service->ForceRefreshHosts(false, retry_timeout_ms_);
+        }
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
@@ -119,14 +121,41 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
     SQLUSMALLINT   DriverCompletion)
 {
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
-    while (std::chrono::steady_clock::now() < end_time) {
-        SQLRETURN rc = SQL_ERROR;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
+        while (std::chrono::steady_clock::now() < end_time) {
+            SQLRETURN rc = SQL_ERROR;
 
-        HostInfo writer_candidate = topology_util_->GetWriter(plugin_service_->GetHosts());
-        if (writer_candidate.GetHost().empty()) {
-            LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
+            HostInfo writer_candidate = topology_util_->GetWriter(service->GetHosts());
+            if (writer_candidate.GetHost().empty()) {
+                LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
+                rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                if (!SQL_SUCCEEDED(rc)) {
+                    if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                        LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
+                        odbc_helper_->Disconnect(dbc);
+                        std::this_thread::sleep_for(retry_delay_ms_);
+                        continue;
+                    }
+                    odbc_helper_->Disconnect(dbc);
+                    return rc;
+                }
+                service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
+                writer_candidate = service->GetHostListProvider()->GetConnectionInfo(dbc);
+
+                if (writer_candidate.GetHost().empty() || writer_candidate.GetHostRole() != WRITER) {
+                    LOG(WARNING) << "Candidate writer connection is invalid. Retrying connection.";
+                    odbc_helper_->Disconnect(dbc);
+                    std::this_thread::sleep_for(retry_delay_ms_);
+                    continue;
+                }
+
+                return rc;
+            }
+
+            dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_candidate.GetHost());
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+
             if (!SQL_SUCCEEDED(rc)) {
                 if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
@@ -135,34 +164,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
                     continue;
                 }
                 odbc_helper_->Disconnect(dbc);
-                return rc;
             }
-            plugin_service_->ForceRefreshHosts(false, 0);
-            writer_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
-
-            if (writer_candidate.GetHost().empty() || writer_candidate.GetHostRole() != WRITER) {
-                LOG(WARNING) << "Candidate writer connection is invalid. Retrying connection.";
-                odbc_helper_->Disconnect(dbc);
-                std::this_thread::sleep_for(retry_delay_ms_);
-                continue;
-            }
-
             return rc;
         }
-
-        dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_candidate.GetHost());
-        rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-
-        if (!SQL_SUCCEEDED(rc)) {
-            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
-                LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
-                odbc_helper_->Disconnect(dbc);
-                std::this_thread::sleep_for(retry_delay_ms_);
-                continue;
-            }
-            odbc_helper_->Disconnect(dbc);
-        }
-        return rc;
     }
     LOG(WARNING) << "Retry timeout exceeded and unable to find a writer host. Attempting connection with default connection parameters.";
     return next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
@@ -177,7 +181,6 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
     SQLUSMALLINT   DriverCompletion)
 {
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
 
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
     if (region.empty()) {
@@ -186,12 +189,53 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             : "";
     }
 
-    while (std::chrono::steady_clock::now() < end_time) {
-        SQLRETURN rc = SQL_ERROR;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
 
-        HostInfo reader_candidate = this->GetReader(region);
-        if (reader_candidate.GetHost().empty()) {
-            LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
+        while (std::chrono::steady_clock::now() < end_time) {
+            SQLRETURN rc = SQL_ERROR;
+
+            HostInfo reader_candidate = this->GetReader(region);
+            if (reader_candidate.GetHost().empty()) {
+                LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
+                rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                if (!SQL_SUCCEEDED(rc)) {
+                    if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                        LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
+                        odbc_helper_->Disconnect(dbc);
+                        std::this_thread::sleep_for(retry_delay_ms_);
+                        continue;
+                    }
+                    odbc_helper_->Disconnect(dbc);
+                    return rc;
+                }
+                service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
+                reader_candidate = service->GetHostListProvider()->GetConnectionInfo(dbc);
+
+                if (reader_candidate.GetHost().empty()) {
+                    LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
+                    odbc_helper_->Disconnect(dbc);
+                    std::this_thread::sleep_for(retry_delay_ms_);
+                    continue;
+                }
+
+                if (reader_candidate.GetHostRole() != READER) {
+                    if (this->HasNoReadersAndTopologyIsHealthy()) {
+                        // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
+                        // and return the current (writer) connection.
+                        LOG(WARNING) << "Unable to find a reader host. Attempting connection with default connection parameters.";
+                        return rc;
+                    }
+                    LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
+                    odbc_helper_->Disconnect(dbc);
+                    std::this_thread::sleep_for(retry_delay_ms_);
+                    continue;
+                }
+
+                return rc;
+            }
+            LOG(INFO) << "Connecting to reader host: " << reader_candidate.GetHost();
+            dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_candidate.GetHost());
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
                 if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
@@ -203,17 +247,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                 odbc_helper_->Disconnect(dbc);
                 return rc;
             }
-            plugin_service_->ForceRefreshHosts(false, 0);
-            reader_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
 
-            if (reader_candidate.GetHost().empty()) {
-                LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
-                odbc_helper_->Disconnect(dbc);
-                std::this_thread::sleep_for(retry_delay_ms_);
-                continue;
-            }
-
-            if (reader_candidate.GetHostRole() != READER) {
+            if (service->GetHostListProvider()->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
+                service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
                 if (this->HasNoReadersAndTopologyIsHealthy()) {
                     // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
                     // and return the current (writer) connection.
@@ -228,43 +264,16 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
 
             return rc;
         }
-        LOG(INFO) << "Connecting to reader host: " << reader_candidate.GetHost();
-        dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_candidate.GetHost());
-        rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-        if (!SQL_SUCCEEDED(rc)) {
-            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
-                LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
-                odbc_helper_->Disconnect(dbc);
-                std::this_thread::sleep_for(retry_delay_ms_);
-                continue;
-            }
-            odbc_helper_->Disconnect(dbc);
-            return rc;
-        }
-
-        if (plugin_service_->GetHostListProvider()->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
-            plugin_service_->ForceRefreshHosts(false, 0);
-            if (this->HasNoReadersAndTopologyIsHealthy()) {
-                // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
-                // and return the current (writer) connection.
-                LOG(WARNING) << "Unable to find a reader host. Attempting connection with default connection parameters.";
-                return rc;
-            }
-            LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
-            odbc_helper_->Disconnect(dbc);
-            std::this_thread::sleep_for(retry_delay_ms_);
-            continue;
-        }
-
-        return rc;
     }
     LOG(WARNING) << "Retry timeout exceeded and unable to find a reader host. Using default connection parameters.";
     return next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 }
 
 HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string region) {
-
-    std::vector<HostInfo> hosts = plugin_service_->GetHosts();
+    std::vector<HostInfo> hosts;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        hosts = service->GetHosts();
+    }
     std::vector<HostInfo> filtered_hosts;
 
     if (region.empty()) {
@@ -285,12 +294,17 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string regi
 }
 
 bool AuroraInitialConnectionStrategyPlugin::HasNoReadersAndTopologyIsHealthy() {
-    if (plugin_service_->GetHosts().empty()) {
+    std::vector<HostInfo> hosts;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        hosts = service->GetHosts();
+    }
+
+    if (hosts.empty()) {
         // Topology inconclusive/corrupted.
         return false;
     }
 
-    if (std::ranges::all_of(plugin_service_->GetHosts(), [](const HostInfo& host) {return host.GetHostRole() == WRITER;})) {
+    if (std::ranges::all_of(hosts, [](const HostInfo& host) {return host.GetHostRole() == WRITER;})) {
         return false;
     }
 

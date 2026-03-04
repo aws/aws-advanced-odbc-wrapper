@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "../../util/auth_provider.h"
+
 #include "limitless_router_service.h"
 
 #include <chrono>
+#include <memory>
 
 #include "../../util/logger_wrapper.h"
+#include "../../util/plugin_chain_builder.h"
+#include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
 
@@ -58,11 +63,17 @@ LimitlessRouterService::~LimitlessRouterService() {
 
 std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     const std::map<std::string, std::string> &conn_attr,
-    BasePlugin* plugin_head,
+    std::shared_ptr<BasePlugin> plugin_head,
     DBC* dbc,
     const std::shared_ptr<DialectLimitless>& dialect) const
 {
-    std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(plugin_head, dialect, odbc_helper_, limitless_query_helper_);
+    const std::shared_ptr<PluginService> monitor_plugin_service =
+        std::make_shared<PluginService>(dbc->env->driver_lib_loader, conn_attr);
+    const std::shared_ptr<BasePlugin> monitoring_plugin_head =
+        PluginChainBuilder::MonitoringBuild(conn_attr, monitor_plugin_service);
+    monitor_plugin_service->SetPluginChain(monitoring_plugin_head);
+
+    std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(monitoring_plugin_head, dialect, odbc_helper_, limitless_query_helper_);
 
     const std::string host = MapUtils::GetStringValue(conn_attr, KEY_SERVER, "");
     std::string service_id = RdsUtils::GetRdsClusterId(host);
@@ -87,7 +98,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     return monitor;
 }
 
-SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
+SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin> next_plugin, DBC* dbc)
 {
     if (dbc == nullptr) {
         LOG(ERROR) << "Null DBC passed to EstablishConnection";
@@ -209,7 +220,6 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
-    BasePlugin* plugin_head = dbc->plugin_head;
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
     const std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
@@ -225,7 +235,7 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
         pair.first++;
         LOG(INFO) << "Incremented Limitless Monitor usage count for: " << router_monitor_key_ << ", to: " << pair.first;
     } else {
-        const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, plugin_head, dbc, dialect);
+        const std::shared_ptr<LimitlessRouterMonitor> monitor = CreateMonitor(conn_attr, nullptr, dbc, dialect);
         const std::pair pair = {1, monitor};
         limitless_router_monitors_.insert_or_assign(router_monitor_key_, pair);
         LOG(INFO) << "Created Limitless Monitor for: " << router_monitor_key_;

@@ -25,7 +25,7 @@
 
 class LimitlessPluginTest : public testing::Test {
 protected:
-    MOCK_BASE_PLUGIN* mock_base_plugin;
+    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
     DBC* dbc;
 
     // Runs once per suite
@@ -34,11 +34,10 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = new MOCK_BASE_PLUGIN();
+        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         dbc = new DBC();
     }
     void TearDown() override {
-        // mock_base_plugin should be cleaned up by plugin chain
         if (dbc) delete dbc;
     }
 };

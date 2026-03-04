@@ -14,12 +14,14 @@
 
 #ifndef PLUGIN_SERVICE_H_
 #define PLUGIN_SERVICE_H_
+
 #include "sliding_cache_map.h"
 
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/topology_util.h"
 #include "../host_selector/host_selector.h"
 
+#include <chrono>
 #include <map>
 #include <set>
 
@@ -38,6 +40,7 @@ struct HostFilter {
 class PluginService {
    public:
     PluginService() = default;
+    PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr);
     PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str);
     ~PluginService();
 
@@ -59,15 +62,15 @@ class PluginService {
     virtual std::shared_ptr<HostListProvider> GetHostListProvider();
 
     virtual void RefreshHosts();
-    virtual void ForceRefreshHosts(bool verify_writer, uint32_t timeout_ms);
+    virtual void ForceRefreshHosts(bool verify_writer, std::chrono::milliseconds timeout_ms);
 
     virtual std::vector<HostInfo> GetHosts();
     virtual void SetHosts(const std::vector<HostInfo>& hosts);
     virtual std::vector<HostInfo> GetFilteredHosts();
     virtual void SetHostFilter(const HostFilter& filter);
 
-    virtual BasePlugin* GetPluginChain();
-    virtual void SetPluginChain(BasePlugin* plugin_chain);
+    virtual std::shared_ptr<BasePlugin> GetPluginChain();
+    virtual void SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain);
 
     virtual void InitHostListProvider();
 
@@ -89,8 +92,7 @@ class PluginService {
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
-
-    BasePlugin* plugin_chain_;
+    std::shared_ptr<BasePlugin> plugin_chain_;
 
     // Shared resources
     // SlidingCacheMap internally thread safe

@@ -42,6 +42,9 @@ public:
     virtual std::string GetIsReaderQuery() { return ""; };
 
     virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
+    virtual bool IsSqlStateAccessError(const char* sql_state, const std::string& error_message) {
+        return IsSqlStateAccessError(sql_state);
+    };
     virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
     virtual DatabaseDialectType GetDialectType() { return DatabaseDialectType::UNKNOWN_DIALECT; };
@@ -59,6 +62,12 @@ public:
 class DialectLimitless : virtual public Dialect {
 public:
     virtual std::string GetLimitlessRouterEndpointQuery() { return ""; };
+};
+
+class DialectBlueGreen : virtual public Dialect {
+public:
+    virtual std::string GetBlueGreenStatusAvailableQuery() { return ""; };
+    virtual std::string GetBlueGreenStatusQuery() { return ""; };
 };
 
 #endif // DIALECT_H

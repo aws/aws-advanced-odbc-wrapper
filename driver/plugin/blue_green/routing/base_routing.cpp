@@ -1,0 +1,59 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "base_routing.h"
+
+#include "../blue_green_status.h"
+
+#include "../../../util/concurrent_map.h"
+
+#include <chrono>
+#include <format>
+#include <thread>
+
+BaseRouting::BaseRouting(std::string host_port, BlueGreenRole role) : host_port_{ host_port }, role_{ role }, route_class_{ "BaseRouting" } {}
+
+void BaseRouting::Delay(
+    std::chrono::milliseconds delay_ms,
+    BlueGreenStatus status,
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
+    std::string id)
+{
+    const std::chrono::steady_clock::time_point start = GetCurrTime();
+    const std::chrono::steady_clock::time_point end = start + delay_ms;
+    const std::chrono::milliseconds min_delay = delay_ms < MIN_SLEEP_MS ? delay_ms : MIN_SLEEP_MS;
+
+    BlueGreenStatus cached_status = status_cache->Get(id);
+
+    if (cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
+        std::this_thread::sleep_for(delay_ms);
+    } else {
+        do {
+            std::this_thread::sleep_for(min_delay);
+        } while ((cached_status = status_cache->Get(id)) == status && GetCurrTime() < end);
+    }
+}
+
+std::chrono::steady_clock::time_point BaseRouting::GetCurrTime() const {
+    return std::chrono::steady_clock::now();
+}
+
+std::string BaseRouting::ToString() const {
+    return std::format("{}, {}, {}", route_class_, host_port_, role_.ToString());
+}
+
+bool BaseRouting::IsMatch(const std::string& host_port, BlueGreenRole host_role) const {
+    return (host_port_.empty() || host_port_ == host_port)
+        && (role_.GetRole() == BlueGreenRole::UNKNOWN || role_ == host_role);
+}

@@ -18,6 +18,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 
+#include "concurrent_map.h"
 #include "rds_strings.h"
 
 #include "../odbcapi.h"
@@ -71,8 +72,7 @@ private:
 
     MODULE_HANDLE driver_handle;
 
-    std::shared_mutex cache_lock;
-    std::unordered_map<std::string, FUNC_HANDLE> function_cache;
+    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache;
 };
 
 template <typename RDS_Func, typename... Args>
@@ -81,10 +81,9 @@ RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... ar
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache
     {
-        std::shared_lock lock(cache_lock);
-        if (function_cache.contains(func_name)) {
+        if (function_cache->Contains(func_name)) {
             try {
-                driver_function = function_cache.at(func_name);
+                driver_function = function_cache->Get(func_name);
             } catch (const std::out_of_range&) {
                 // Should not happen but done to satisfy clang-tidy
                 driver_function = nullptr;

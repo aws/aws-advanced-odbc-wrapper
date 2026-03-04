@@ -940,7 +940,7 @@ jobs:
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_limitless_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
-            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_ansi --config ${{env.BUILD_CONFIG}}
           echo "Limitless Ansi Test Built"
           gdb -q -x ./.gdbinit .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -960,7 +960,7 @@ jobs:
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_limitless_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
-            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_unicode --config ${{env.BUILD_CONFIG}}
           echo "Limitless Unicode Test Built"
           gdb -q -x ./.gdbinit .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -1335,5 +1335,520 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: 'linux-limitless-test-logs'
+          path: /tmp/aws-odbc-wrapper/
+          retention-days: 7
+
+# Blue Green
+  windows-bg-integration-tests:
+    # MySQL disabled until IAM is resolved
+    name: Windows - Blue/Green Integration Tests
+    needs: [build-win-psqlodbc]
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rds_engine: [aurora-postgresql]
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-BG-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+      - name: Setup Dotnet for WiX
+        uses: actions/setup-dotnet@v5
+      - name: Install WiX
+        shell: cmd
+        run: |
+          dotnet tool install --global wix --version ${{env.WIX_VERSION}}
+          wix extension add --global WixToolset.UI.wixext/${{env.WIX_VERSION}}
+      - name: Run build installer script
+        shell: pwsh
+        run: |
+          ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
+      - name: Install driver
+        shell: pwsh
+        working-directory: installer
+        run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-win-inte
+          role-duration-seconds: 43200
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/Scripts/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources with Blue/Green Deployment
+        id: AuroraClusterSetup
+        shell: bash
+        run: |
+          source .venv/Scripts/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --blue-green \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
+        shell: bash
+        run: |
+          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
+            echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
+            echo "cache_path=mysql-connector" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9a.dll" >> $GITHUB_OUTPUT
+            echo "driver_path_unicode=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9w.dll" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+          fi
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Install PostgreSQL ODBC Driver
+        if: (matrix.rds_engine == 'aurora-postgresql')
+        id: pg_driver_paths
+        shell: pwsh
+        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
+        run: |
+          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+          $ansi = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc30a.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $unicode = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc35w.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ansi -or -not $unicode) {
+            Write-Host "psqlODBC DLLs not found under C:\Program Files\psqlODBC"
+            Get-ChildItem "C:\Program Files\psqlODBC" -Recurse | Format-Table FullName
+            exit 1
+          }
+          Write-Host "Ansi driver: $($ansi.FullName)"
+          Write-Host "Unicode driver: $($unicode.FullName)"
+          echo "driver_path_ansi=$($ansi.FullName)" >> $env:GITHUB_OUTPUT
+          echo "driver_path_unicode=$($unicode.FullName)" >> $env:GITHUB_OUTPUT
+      - name: Setup PostgreSQL
+        if: (matrix.rds_engine == 'aurora-postgresql')
+        shell: bash
+        run: |
+          echo "$PGBIN" >> $GITHUB_PATH
+      - name: Install MySQL
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: pwsh
+        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
+        run: |
+          Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
+      - name: Resolve Driver Paths
+        id: resolved_drivers
+        shell: pwsh
+        run: |
+          if ("${{ matrix.rds_engine }}" -eq "aurora-postgresql") {
+            echo "driver_path_ansi=${{ steps.pg_driver_paths.outputs.driver_path_ansi }}" >> $env:GITHUB_OUTPUT
+            echo "driver_path_unicode=${{ steps.pg_driver_paths.outputs.driver_path_unicode }}" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "driver_path_ansi=${{ steps.base_driver_info.outputs.driver_path_ansi }}" >> $env:GITHUB_OUTPUT
+            echo "driver_path_unicode=${{ steps.base_driver_info.outputs.driver_path_unicode }}" >> $env:GITHUB_OUTPUT
+          }
+      - name: Install Ansi DSNs
+        shell: pwsh
+        run: |
+            Add-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=${{steps.resolved_drivers.outputs.driver_path_ansi}}")
+      - name: Install Unicode DSNs
+        shell: pwsh
+        run: |
+            Add-OdbcDsn -Name ${{ env.TEST_DSN_UNICODE }} `
+              -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
+              "SSLMode=prefer", `
+              "BASE_DRIVER=${{steps.resolved_drivers.outputs.driver_path_unicode}}")
+      - name: Verify DSN Configuration
+        shell: pwsh
+        run: |
+            Write-Host "Registered DSNs:"
+            Get-OdbcDsn | Format-Table Name, DriverName, DsnType, Platform
+            Write-Host "Ansi DSN properties:"
+            Get-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} | Select-Object -ExpandProperty PropertyValue
+      - name: Setup GDB
+        run: |
+          choco install mingw
+          echo "set auto-load safe-path /" > "$HOME/.gdbinit"
+      - name: Build and Run Blue/Green Ansi Integration Tests
+        shell: pwsh
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_bg_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON
+          cmake --build build_bg_ansi --config ${{env.BUILD_CONFIG}}
+          echo "Blue/Green Ansi Test Built"
+          gdb -q -x ./.gdbinit .\build_bg_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+        env:
+          TEST_DSN: ${{ env.TEST_DSN_ANSI }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.BG_CLUSTER_ENDPOINT }}
+          TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          TEST_BG_RESOURCE_ID: ${{ env.BG_RESOURCE_ID }}
+      - name: Destroy Aurora Resources
+        if: always()
+        shell: bash
+        run: |
+          source .venv/Scripts/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --blue-green \
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      # Make sure IP is always deleted
+      - name: Get Github Action IP
+        if: always()
+        id: ip
+        uses: haythem/public-ip@v1.3
+      - name: Remove Github Action IP
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress `
+            --group-name default `
+            --protocol tcp `
+            --port 0-65535 `
+            --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
+           *> $null;
+      - name: Get log location
+        if: always()
+        id: log_location
+        shell: pwsh
+        run: |
+          echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
+      - name: Archive log results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 'windows-${{matrix.rds_engine}}-test-logs'
+          path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
+          retention-days: 7
+
+  macos-bg-integration-tests:
+    # MySQL disabled until IAM is resolved
+    name: MacOS - Blue/Green Integration Tests
+    needs: [ build-macos-psqlodbc ]
+    runs-on:
+      - ${{ matrix.env.project }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.env.fleet }}
+        buildspec-override:true
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [ {rds_engine: aurora-postgresql, project: codebuild-odbc-wrapper-macos-pg, fleet: fleet-macos-fleet-3} ]
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-BG-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-macos-inte
+          role-duration-seconds: 43200
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources with Blue/Green Deployment
+        id: AuroraClusterSetup
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          python3 scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.env.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --blue-green \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
+        shell: bash
+        run: |
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
+            echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
+            echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
+            echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
+            echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+          fi
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Build and Run Blue/Green Ansi Integration Tests
+        shell: bash
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_bg_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_ansi}}" \
+            -D TEST_SERVER="${{ env.BG_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
+          cmake --build build_bg_ansi
+          echo "Blue/Green Ansi Test Built"
+          ./build_bg_ansi/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.BG_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_BG_RESOURCE_ID: ${{ env.BG_RESOURCE_ID }}
+      - name: Get log location
+        id: log_location
+        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+      - name: Destroy Aurora Resources
+        if: always()
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          python3 scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --blue-green \
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      - name: Archive log results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 'mac-${{matrix.env.rds_engine}}-test-logs'
+          path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
+          retention-days: 7
+
+  linux-bg-integration-tests:
+    name: Linux Ubuntu - Blue/Green Integration Tests
+    needs: [build-linux-psqlodbc]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rds_engine: [aurora-postgresql]
+    steps:
+      - name: Setup Cluster ID
+        run: |
+          echo "AURORA_CLUSTER_ID=ODBC-BG-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-linux-inte
+          role-duration-seconds: 43200
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources with Blue/Green Deployment
+        id: AuroraClusterSetup
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          python3 scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --blue-green \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
+        shell: bash
+        run: |
+          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
+            echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
+            echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
+            echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "driver_path_ansi='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so'" >> $GITHUB_OUTPUT
+            echo "driver_path_unicode='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so'" >> $GITHUB_OUTPUT
+            echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
+            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+          fi
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Install MySQL
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: bash
+        run: |
+          sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
+      - name: Setup GDB
+        run: |
+          echo "set auto-load safe-path $PWD" > ~/.gdbinit
+      - name: Build and Run Blue/Green Ansi Integration Tests
+        shell: bash
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_bg_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_ansi}}" \
+            -D TEST_SERVER="${{ env.BG_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
+          cmake --build build_bg_ansi
+          echo "Blue/Green Ansi Test Built"
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_bg_ansi/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.BG_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_BG_RESOURCE_ID: ${{ env.BG_RESOURCE_ID }}
+      - name: Destroy Aurora Resources
+        if: always()
+        shell: bash
+        run: |
+          source .venv/bin/activate
+          python3 scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --blue-green \
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
+            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+      - name: Archive log results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: 'linux-${{matrix.rds_engine}}-test-logs'
           path: /tmp/aws-odbc-wrapper/
           retention-days: 7

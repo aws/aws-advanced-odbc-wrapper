@@ -20,6 +20,7 @@ RdsLibLoader::RdsLibLoader(std::string library_path)
 {
     driver_path = std::move(library_path);
     driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
+    function_cache = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
 }
 
 RdsLibLoader::~RdsLibLoader()
@@ -29,7 +30,10 @@ RdsLibLoader::~RdsLibLoader()
         let OS cleanup on process termination to prevent incorrect unloading order of loaded library's dependencies
     */
     driver_handle = nullptr;
-    function_cache.clear();
+    if (function_cache) {
+        function_cache->Clear();
+        function_cache = nullptr;
+    }
 }
 
 std::string RdsLibLoader::GetDriverPath()
@@ -41,8 +45,7 @@ FUNC_HANDLE RdsLibLoader::GetFunction(const std::string &func_name)
 {
     const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, func_name.c_str());
     if (driver_function) {
-        const std::unique_lock lock(cache_lock);
-        function_cache.insert_or_assign(func_name, const_cast<FUNC_HANDLE>(driver_function));
+        function_cache->InsertOrAssign(func_name, const_cast<FUNC_HANDLE>(driver_function));
     }
     return const_cast<FUNC_HANDLE>(driver_function);
 }
