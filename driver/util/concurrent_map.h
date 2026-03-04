@@ -15,9 +15,9 @@
 #ifndef CONCURRENT_MAP_H_
 #define CONCURRENT_MAP_H_
 
-#include <shared_mutex>
-#include <mutex>
 #include <map>
+#include <mutex>
+#include <shared_mutex>
 
 template <typename Key, typename Value>
 class ConcurrentMap {
@@ -26,14 +26,35 @@ public:
     ~ConcurrentMap() = default;
 
     ConcurrentMap(const ConcurrentMap& other) {
-        std::unique_lock<std::shared_mutex> lock(mutex_);
         std::shared_lock<std::shared_mutex> other_lock(other.mutex_);
-        map_(other.map_);
+        map_ = other.map_;
+    };
+
+    ConcurrentMap& operator=(const ConcurrentMap& other) {
+        if (this == &other) {
+            return *this;
+        }
+
+        std::scoped_lock<std::shared_mutex, std::shared_mutex> lock(mutex_, other.mutex_);
+        map_ = other.map_;
+
+        return *this;
     };
 
     void InsertOrAssign(const Key& key, const Value& value) {
         std::unique_lock<std::shared_mutex> lock(mutex_);
         map_.insert_or_assign(key, value);
+    };
+
+    bool TryEmplace(const Key& key, const Value& value) {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        auto itr_pair = map_.try_emplace(key, value);
+        return itr_pair.second;
+    };
+
+    void CopyMap(std::map<Key, Value> other) {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        map_.insert(other.begin(), other.end());
     };
 
     Value Get(const Key& key) const {
@@ -42,6 +63,13 @@ public:
             return itr->second;
         }
         return {};
+    };
+
+    std::map<Key, Value> GetMapCopy() const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        std::map<Key, Value> map_copy;
+        map_copy.insert(map_.begin(), map_.end());
+        return map_copy;
     };
 
     void Erase(const Key& key) {

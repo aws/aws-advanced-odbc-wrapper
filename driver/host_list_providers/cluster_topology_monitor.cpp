@@ -30,14 +30,29 @@
 ClusterTopologyMonitor::ClusterTopologyMonitor(
     PluginService* plugin_service,
     const std::shared_ptr<TopologyUtil>& topology_util)
-    : topology_util_{ topology_util },
-      plugin_service_{ plugin_service },
-      connection_attributes_{ plugin_service->GetOriginalConnAttr() },
-      cluster_id_{ plugin_service->GetClusterId() },
+    : ClusterTopologyMonitor(
+        plugin_service,
+        topology_util,
+        plugin_service->GetOriginalConnAttr(),
+        plugin_service->GetClusterId(),
+        plugin_service->GetInitialHostInfo(),
+        plugin_service->GetTemplateHostInfo()) {}
+
+ClusterTopologyMonitor::ClusterTopologyMonitor(
+    PluginService* plugin_service,
+    const std::shared_ptr<TopologyUtil>& topology_util,
+    std::map<std::string, std::string> conn_attr,
+    std::string cluster_id,
+    HostInfo initial_host,
+    HostInfo template_host)
+    : plugin_service_{ plugin_service },
+      topology_util_{ topology_util },
+      connection_attributes_{ conn_attr },
+      cluster_id_{ cluster_id },
+      initial_host_{ initial_host },
+      template_host_{ template_host },
       dialect_{ plugin_service->GetDialect() },
-      odbc_helper_{ plugin_service->GetOdbcHelper() },
-      initial_host_{ plugin_service->GetInitialHostInfo() },
-      template_host_{ plugin_service->GetTemplateHostInfo() }
+      odbc_helper_{ plugin_service->GetOdbcHelper() }
 {
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
