@@ -56,3 +56,6 @@ odbcinst.ini
 scripts/macOS/postflight.sh
 scripts/macOS/ReadMe.html
 scripts/macOS/Welcome.html
+
+# Test Files
+test/generated/*

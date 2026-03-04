@@ -31,6 +31,11 @@
 class RdsHostListProvider : public HostListProvider {
 public:
     RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service);
+    RdsHostListProvider(
+        std::shared_ptr<TopologyUtil> topology_util,
+        PluginService* plugin_service,
+        std::map<std::string, std::string> conn_attr,
+        std::string cluster_id);
     ~RdsHostListProvider();
     virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host);
     virtual std::vector<HostInfo> Refresh() override;
@@ -45,6 +50,7 @@ private:
     std::shared_ptr<ClusterTopologyMonitor> monitor_;
     std::shared_ptr<TopologyUtil> topology_util_;
     PluginService* plugin_service_;
+    std::map<std::string, std::string> conn_attr_;
     HostInfo initial_host_info_;
     HostInfo template_host_info_;
 

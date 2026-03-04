@@ -22,6 +22,7 @@
 #include "error.h"
 #include "plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h"
 #include "plugin/base_plugin.h"
+#include "plugin/blue_green/blue_green_plugin.h"
 #include "plugin/custom_endpoint/custom_endpoint_plugin.h"
 #include "plugin/default_plugin.h"
 #include "plugin/failover/failover_plugin.h"
@@ -2197,6 +2198,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
             {
                 next_plugin = new CustomEndpointPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Blue Green
+            if (dbc->conn_attr.contains(KEY_ENABLE_BLUE_GREEN)
+                && dbc->conn_attr.at(KEY_ENABLE_BLUE_GREEN) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new BlueGreenPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

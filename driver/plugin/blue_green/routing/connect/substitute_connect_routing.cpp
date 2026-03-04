@@ -1,0 +1,65 @@
+﻿// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "substitute_connect_routing.h"
+
+#include "../../../base_plugin.h"
+
+#include "../../../../util/connection_string_keys.h"
+#include "../../../../util/logger_wrapper.h"
+#include "../../../../util/rds_utils.h"
+
+#include <map>
+
+SQLRETURN SubstituteConnectRouting::Connect(
+    DBC* dbc,
+    HostInfo info,
+    std::shared_ptr<OdbcHelper> odbc_helper,
+    const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache)
+{
+    BasePlugin* plugin_head_ = dbc->plugin_head;
+    odbc_helper->Disconnect(dbc);
+
+    std::string host = this->substitute_info_.GetHost();
+    bool using_ip_host = RdsUtils::IsIpv4(host);
+    bool using_iam = dbc->conn_attr.contains(KEY_AUTH_TYPE) && dbc->conn_attr.at(KEY_AUTH_TYPE) == VALUE_AUTH_IAM;
+
+    // Connect as usual if not using IAM
+    if (!using_ip_host || !using_iam) {
+        return plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    }
+
+    // IAM Host needed to generate token when connecting with IP
+    if (!this->iam_hosts_.empty()) {
+        return SQL_ERROR;
+    }
+
+    for (HostInfo iam_info : this->iam_hosts_) {
+        dbc->conn_attr.insert_or_assign(KEY_IAM_HOST, iam_info.GetHost());
+        if (iam_info.GetPort() != HostInfo::NO_PORT) {
+            dbc->conn_attr.insert_or_assign(KEY_IAM_PORT, std::to_string(iam_info.GetPort()));
+        };
+        SQLRETURN rt = plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        if (!SQL_SUCCEEDED(rt)) {
+            odbc_helper->Disconnect(dbc);
+        } else {
+            if (iam_connect_notify_) {
+                iam_connect_notify_(iam_info.GetHost());
+            }
+            return rt;
+        }
+    }
+
+    return SQL_ERROR;
+}

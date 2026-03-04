@@ -1,3 +1,8 @@
+//{{NO_DEPENDENCIES}}
+// Microsoft Visual C++ generated include file.
+// Used by odbcsetup.rc
+//
+
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,10 +17,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
-// Used by odbcsetup.rc
-//
 #define IDC_IDP_ARN                     5
 #define IDD_DIALOG_MAIN                 101
 #define IDC_TAB_LIMITLESS               124
@@ -35,6 +36,7 @@
 #define IDC_PWD                         1006
 #define IDC_IAM_HOST                    1006
 #define IDC_CLUSTER_ID                  1006
+#define IDC_TAB_BLUE_GREEN              1006
 #define IDC_PORT                        1007
 #define IDC_IAM_PORT                    1007
 #define IDC_HIGH_TRR                    1007
@@ -93,14 +95,21 @@
 #define IDC_INITIAL_CONNECTION_RETRY_TIMEOUT_MS 1076
 #define IDC_VERIFY_INITIAL_CONNECTION_TYPE 1077
 #define IDC_TAB_AURORA_INITIAL_CONNECTION_STRATEGY 1078
+#define IDC_ENABLE_BLUE_GREEN           1079
+#define IDC_BG_ID                       1080
+#define IDC_BG_CONNECT_TIMEOUT          1081
+#define IDC_BG_BASE_REFRESH             1082
+#define IDC_BG_INCREASED_REFRESH        1083
+#define IDC_BG_HIGH_REFRESH             1084
+#define IDC_BG_SWITCH_TIMEOUT           1085
 
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        126
+#define _APS_NEXT_RESOURCE_VALUE        129
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1079
+#define _APS_NEXT_CONTROL_VALUE         1086
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
