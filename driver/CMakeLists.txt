@@ -41,6 +41,23 @@ set(INC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.h
+    ## Blue Green
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/base_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/reject_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/substitute_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_until_node_found_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/base_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/close_connection_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/suspend_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_role.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status.h
     ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
@@ -120,6 +137,23 @@ set(SRC
     # Plugins
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
+    ## Blue Green
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/reject_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/substitute_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_until_node_found_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/close_connection_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/suspend_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/base_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/base_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_role.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status_provider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status.cpp
     ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.cpp

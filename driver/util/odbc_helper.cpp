@@ -22,12 +22,13 @@ OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
 }
 
-void OdbcHelper::Disconnect(const DBC* dbc) {
+void OdbcHelper::Disconnect(DBC* dbc) {
     if (dbc && dbc->wrapped_dbc) {
         try {
-            NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+            NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
                 dbc->wrapped_dbc
             );
+            dbc->wrapped_dbc = SQL_NULL_HDBC;
         } catch (const std::exception& ex) {
             LOG(ERROR) << "Exception while disconnecting: " << ex.what();
         }
@@ -35,13 +36,31 @@ void OdbcHelper::Disconnect(const DBC* dbc) {
 }
 
 void OdbcHelper::Disconnect(SQLHDBC* hdbc) {
-    const DBC* local_dbc = static_cast<DBC*>(*hdbc);
+    DBC* local_dbc = static_cast<DBC*>(*hdbc);
     Disconnect(local_dbc);
 }
 
 void OdbcHelper::DisconnectAndFree(SQLHDBC* hdbc) {
     Disconnect(hdbc);
     RDS_FreeConnect(*hdbc);
+    *hdbc = SQL_NULL_HDBC;
+}
+
+bool OdbcHelper::IsClosed(SQLHDBC hdbc) {
+    const DBC* local_dbc = static_cast<DBC*>(hdbc);
+    if (hdbc == SQL_NULL_HDBC || local_dbc->wrapped_dbc == SQL_NULL_HDBC) {
+        return true;
+    }
+    SQLUINTEGER connection_state = SQL_CD_FALSE;
+    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+        local_dbc->wrapped_dbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, 0, nullptr
+    );
+
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        return connection_state == SQL_CD_TRUE;
+    }
+
+    return true;
 }
 
 SQLRETURN OdbcHelper::AllocEnv(SQLHENV* henv) {
@@ -64,14 +83,14 @@ RdsLibResult OdbcHelper::SetEnvAttr(
     SQLPOINTER pointer,
     const int length)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
         henv->wrapped_env, attribute, pointer, length
     );
 }
 
 RdsLibResult OdbcHelper::Fetch(SQLHSTMT* stmt)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         *stmt
     );
 }
@@ -84,31 +103,37 @@ RdsLibResult OdbcHelper::BindCol(
     const size_t size,
     SQLLEN* len)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
         *stmt, column, type, value, size, len
     );
 }
 
 RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );
 }
 
+RdsLibResult OdbcHelper::CloseCursor(SQLHSTMT stmt) {
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+        stmt
+    );
+}
+
 RdsLibResult OdbcHelper::BaseAllocEnv(ENV* env) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_ENV, nullptr, &env->wrapped_env
     );
 }
 
 RdsLibResult OdbcHelper::BaseAllocStmt(const SQLHDBC* wrapped_dbc, SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_STMT, *wrapped_dbc, stmt
     );
 }
 
 RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
         SQL_HANDLE_STMT, *stmt
     );
 }

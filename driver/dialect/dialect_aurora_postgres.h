@@ -23,13 +23,14 @@
 
 #include "../util/rds_strings.h"
 
-class DialectAuroraPostgres : virtual public Dialect {
+class DialectAuroraPostgres : virtual public Dialect, DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
     std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
-    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetBlueGreenStatusAvailableQuery() override { return BG_TOPOLOGY_EXISTS_QUERY; };
+    std::string GetBlueGreenStatusQuery() override { return BG_STATUS_QUERY; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -63,6 +64,13 @@ private:
     const std::string NODE_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier()";
 
     const std::string IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
+
+    const std::string BG_TOPOLOGY_EXISTS_QUERY =
+        "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+
+    // "id", "endpoint", "port", "role", "status", "version", "update_stamp"
+    const std::string BG_STATUS_QUERY =
+        "SELECT * FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_odbc_driver-1.0.0')";
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
