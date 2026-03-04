@@ -23,13 +23,15 @@
 
 #include "../util/rds_strings.h"
 
-class DialectAuroraMySql : virtual public Dialect {
+class DialectAuroraMySql : virtual public Dialect, DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_MYSQL_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
     std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
     std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetBlueGreenStatusAvailableQuery() override { return BG_TOPOLOGY_EXISTS_QUERY; };
+    std::string GetBlueGreenStatusQuery() override { return BG_STATUS_QUERY; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -62,6 +64,13 @@ private:
     const std::string NODE_ID_QUERY = "SELECT @@aurora_server_id";
 
     const std::string IS_READER_QUERY = "SELECT @@innodb_read_only";
+
+    const std::string BG_TOPOLOGY_EXISTS_QUERY =
+        "SELECT 1 AS tmp FROM information_schema.tables WHERE \
+        table_schema = 'mysql' AND table_name = 'rds_topology'";
+
+    const std::string BG_STATUS_QUERY =
+        "SELECT * FROM mysql.rds_topology";
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
