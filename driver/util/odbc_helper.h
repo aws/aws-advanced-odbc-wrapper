@@ -34,15 +34,22 @@ public:
     virtual RdsLibResult SetEnvAttr(const ENV *henv, SQLINTEGER attribute, SQLPOINTER pointer, int length);
     virtual RdsLibResult Fetch(SQLHSTMT *stmt);
     virtual RdsLibResult BindCol(const SQLHSTMT *stmt, int column, int type, void *value, size_t size, SQLLEN *len);
-    virtual RdsLibResult ExecDirect(const SQLHSTMT *stmt, const std::string &query, bool use_4_bytes);
+    virtual RdsLibResult ExecDirect(const SQLHSTMT *stmt, const std::string &query);
 
     virtual RdsLibResult BaseAllocEnv(ENV *env);
     virtual RdsLibResult BaseAllocStmt(const SQLHDBC *wrapped_dbc, SQLHSTMT *stmt);
     virtual RdsLibResult BaseFreeStmt(SQLHSTMT *stmt);
 
     virtual std::shared_ptr<RdsLibLoader> GetLibLoader();
+
+    bool GetUse4BytesBaseDriver() const;
+    bool GetUse4BytesUserApp() const;
+    void SetUse4BytesBaseDriver(bool use_4_bytes);
+    void SetUse4BytesUserApp(bool use_4_bytes);
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
+    bool use_4_bytes_base_driver_ = false;
+    bool use_4_bytes_user_app_ = false;
 };
 
 #endif //ODBC_HELPER_H

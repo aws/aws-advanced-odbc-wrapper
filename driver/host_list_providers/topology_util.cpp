@@ -52,7 +52,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery(), dbc->env->use_4_bytes_base_driver);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery());
 
         if (SQL_SUCCEEDED(res.fn_result)) {
             this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, BUFFER_SIZE, &len);
@@ -62,7 +62,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
     }
 
 #if UNICODE
-    Convert4To2ByteString(dbc->env->use_4_bytes_base_driver, writer_id, nullptr, BUFFER_SIZE);
+    Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), writer_id, nullptr, BUFFER_SIZE);
     return AS_UTF8_CSTR(writer_id);
 #endif
 
@@ -85,7 +85,7 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery(), dbc->env->use_4_bytes_base_driver);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery());
 
         if (SQL_SUCCEEDED(res.fn_result)) {
             this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &instance_id, BUFFER_SIZE, &len);
@@ -95,7 +95,7 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     }
 
 #if UNICODE
-    Convert4To2ByteString(dbc->env->use_4_bytes_base_driver, instance_id, nullptr, BUFFER_SIZE);
+    Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), instance_id, nullptr, BUFFER_SIZE);
 #endif
 
     return AS_UTF8_CSTR(instance_id);
@@ -115,9 +115,9 @@ std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& 
     RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery(), dbc->env->use_4_bytes_base_driver);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery());
         if (SQL_SUCCEEDED(res.fn_result)) {
-            hosts = GetHosts(stmt, initial_host, host_template, dbc->env->use_4_bytes_base_driver);
+            hosts = GetHosts(stmt, initial_host, host_template);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
@@ -169,7 +169,7 @@ HOST_ROLE TopologyUtil::GetConnectionRole(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery(), dbc->env->use_4_bytes_base_driver);
+        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery());
 
         this->odbc_helper_->BindCol(&stmt, IS_READER_COL, SQL_BIT, &is_reader, sizeof(is_reader), &len);
         this->odbc_helper_->Fetch(&stmt);

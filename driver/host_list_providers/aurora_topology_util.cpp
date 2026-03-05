@@ -22,7 +22,7 @@
 
 AuroraTopologyUtil::AuroraTopologyUtil(const std::shared_ptr<OdbcHelper>& odbc_helper, const std::shared_ptr<Dialect>& dialect) : TopologyUtil(odbc_helper, dialect) {}
 
-std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template, bool use_4_bytes) {
+std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template) {
     SQLTCHAR node_id[BUFFER_SIZE * 2] = {0};
     bool is_writer = false;
     SQLREAL cpu_usage = 0;
@@ -38,7 +38,7 @@ std::vector<HostInfo> AuroraTopologyUtil::GetHosts(SQLHSTMT stmt, const HostInfo
     RdsLibResult res = this->odbc_helper_->Fetch(&stmt);
     while (SQL_SUCCEEDED(res.fn_result)) {
 #if UNICODE
-        Convert4To2ByteString(use_4_bytes, node_id, nullptr, BUFFER_SIZE);
+        Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), node_id, nullptr, BUFFER_SIZE);
         const HostInfo new_host = CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms, initial_host, host_template);
 #else
         const HostInfo new_host = CreateHost(node_id, is_writer, cpu_usage, replica_lag_ms, initial_host, host_template);

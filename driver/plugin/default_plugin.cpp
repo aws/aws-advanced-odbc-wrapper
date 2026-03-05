@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include "default_plugin.h"
 
 #include "../driver.h"
@@ -19,13 +20,14 @@
 #include "../util/connection_string_helper.h"
 #include "../util/logger_wrapper.h"
 #include "../util/odbc_helper.h"
+#include "../util/plugin_service.h"
 #include "../util/rds_lib_loader.h"
 #include "../util/sql_query_analyzer.h"
 
 DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
 DefaultPlugin::DefaultPlugin(DBC *dbc, DefaultPlugin *next_plugin) : plugin_name("DefaultPlugin") {
-    this->odbc_helper_ = std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader);
+    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 }
 
 SQLRETURN DefaultPlugin::Connect(
@@ -55,7 +57,6 @@ SQLRETURN DefaultPlugin::Connect(
     // and a new connection string should be built without DSN & Driver
     const std::string conn_in = ConnectionStringHelper::BuildMinimumConnectionString(dbc->conn_attr);
     DLOG(INFO) << "Built minimum connection string for underlying driver: " << ConnectionStringHelper::MaskSensitiveInformation(conn_in);
-
     SQLTCHAR *conn_in_sqltchar;
 #if UNICODE
     const std::vector<uint16_t> conn_in_vec = ConvertUTF8ToUTF16(conn_in);
@@ -85,11 +86,11 @@ SQLRETURN DefaultPlugin::Connect(
 
                 for (int i = MAX_SQL_STATE_LEN; i < MAX_SQL_STATE_LEN * 2; i++) {
                     if (state[i] != '\0') {
-                        dbc->env->use_4_bytes_base_driver = true;
+                        this->odbc_helper_->SetUse4BytesBaseDriver(true);
                     }
                 }
 
-                if (dbc->env->use_4_bytes_base_driver) {
+                if (this->odbc_helper_->GetUse4BytesBaseDriver()) {
                     // Try connecting again with 4-byte characters
                     const std::wstring wide_conn(conn_in.begin(), conn_in.end());
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
@@ -172,7 +173,7 @@ SQLRETURN DefaultPlugin::Execute(
             stmt->wrapped_stmt
         );
     } else {
-        res = this->odbc_helper_->ExecDirect(&stmt->wrapped_stmt, query, dbc->env->use_4_bytes_base_driver);
+        res = this->odbc_helper_->ExecDirect(&stmt->wrapped_stmt, query);
     }
 
     // Supports checking for transaction changes only if it was a direct execute

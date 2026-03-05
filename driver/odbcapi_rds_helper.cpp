@@ -805,6 +805,7 @@ SQLRETURN RDS_SQLDriverConnect(
     // Parse connection string, load input DSN followed by Base DSN
     ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
+    bool use_4_bytes_user_app = false;
 #if UNICODE
      if (!dbc->conn_attr.contains(KEY_DRIVER) || !dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
          bool end_found = false;
@@ -827,7 +828,7 @@ SQLRETURN RDS_SQLDriverConnect(
          ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
          if (dbc->conn_attr.contains(KEY_DRIVER) && dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
-             dbc->env->use_4_bytes_user_app = true;
+             use_4_bytes_user_app = true;
          }
      }
 #endif
@@ -844,6 +845,9 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     ret = RDS_InitializeConnection(dbc, conn_str_utf8);
+    if (use_4_bytes_user_app) {
+        dbc->plugin_service->GetOdbcHelper()->SetUse4BytesUserApp(true);
+    }
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
@@ -944,10 +948,10 @@ SQLRETURN RDS_SQLExecDirect(
 
     SQLTCHAR* stmt_text = StatementText;
 #if UNICODE
-    size_t buffer_len = GetLenOfSqltcharArray(StatementText, TextLength, dbc->env->use_4_bytes_user_app);
+    size_t buffer_len = GetLenOfSqltcharArray(StatementText, TextLength, dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp());
     std::vector<SQLTCHAR> stmt_buf_vector(buffer_len, '\0');
     stmt_text = stmt_buf_vector.data();
-    Convert4To2ByteString(dbc->env->use_4_bytes_user_app, StatementText, stmt_text, buffer_len);
+    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), StatementText, stmt_text, buffer_len);
 #endif
 
     if (dbc->plugin_head) {
@@ -1379,8 +1383,11 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
 
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_msg_buffer, MessageText, BufferLength);
+                    if (!env->dbc_list.empty()) {
+                        DBC* dbc = env->dbc_list.front();
+                        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
+                    }
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, env->wrapped_env, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1408,8 +1415,8 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
 
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_msg_buffer, MessageText, BufferLength);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, dbc->wrapped_dbc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1438,8 +1445,8 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_msg_buffer, MessageText, BufferLength);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, stmt->wrapped_stmt, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1468,8 +1475,8 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
 
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
-                    Convert4To2ByteString(env->use_4_bytes_base_driver, new_msg_buffer, MessageText, BufferLength);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, desc->wrapped_desc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr

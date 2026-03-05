@@ -96,8 +96,6 @@ struct ENV {
     ERR_INFO* err = nullptr;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
-    bool use_4_bytes_base_driver = false;
-    bool use_4_bytes_user_app = false;
 
     SQLHENV wrapped_env;
 

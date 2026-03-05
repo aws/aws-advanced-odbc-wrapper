@@ -48,7 +48,7 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, std
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        odbc_helper->ExecDirect(&stmt, node_id_query, dbc->env->use_4_bytes_base_driver);
+        odbc_helper->ExecDirect(&stmt, node_id_query);
 
         NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
             stmt, 1, SQL_C_TCHAR, &node_id, MAX_HOST_SIZE, &rt
@@ -64,7 +64,7 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, std
     }
 
 #if UNICODE
-    Convert4To2ByteString(dbc->env->use_4_bytes_base_driver, node_id, nullptr, MAX_HOST_SIZE);
+    Convert4To2ByteString(odbc_helper->GetUse4BytesBaseDriver(), node_id, nullptr, MAX_HOST_SIZE);
     return AS_UTF8_CSTR(node_id);
 #endif
 

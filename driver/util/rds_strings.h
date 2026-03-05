@@ -202,7 +202,7 @@ inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_
         int i = 0;
 
         while (!end_found) {
-            if (!use_4_bytes){
+            if (!use_4_bytes) {
                 if (in[i] == '\0') {
                     end_found = true;
                 }
