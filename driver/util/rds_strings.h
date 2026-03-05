@@ -168,48 +168,58 @@ inline std::vector<std::string> SplitStr(std::string &str, std::string &delimite
     return matches;
 }
 
-inline void Convert4To2ByteString(bool use_4_bytes, const SQLTCHAR *in, SQLTCHAR *out, size_t len) {
-    if (in != nullptr && out != nullptr && len > 0) {
+inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out, size_t len) {
+    if (in != nullptr && len > 0) {
         for (int i = 0; i < len - 1; i++) {
-    #if UNICODE
             if (use_4_bytes) {
-                out[i] = in[i*2];
+                if (out != nullptr) {
+                    out[i] = in[i * 2];
+                } else {
+                    in[i] = in[i * 2];
+                }
             } else {
-                out[i] = in[i];
+                if (out != nullptr) {
+                    out[i] = in[i];
+                }
             }
-    #else
-            out[i] = in[i];
-    #endif
         }
-        out[len-1] = '\0';
+        if (out != nullptr) {
+            out[len-1] = '\0';
+        } else {
+            in[len-1] = '\0';
+        }
     }
 }
 
 inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
-    if (buffer_len >= 0) {
-        return static_cast<int>(buffer_len);
+    if (buffer_len > 0) {
+        return static_cast<int>(buffer_len) + 1;
     }
 
-    bool end_found = false;
-    size_t len = 0;
-    int i = 0;
+    if (buffer_len == SQL_NTS) {
+        bool end_found = false;
+        size_t len = 0;
+        int i = 0;
 
-    while (!end_found) {
-        if (!use_4_bytes){
-            if (in[i] == '\0') {
-                end_found = true;
+        while (!end_found) {
+            if (!use_4_bytes){
+                if (in[i] == '\0') {
+                    end_found = true;
+                }
+                i++;
+            } else {
+                if (in[i] == '\0' && in[i + 1] == '\0') {
+                    end_found = true;
+                }
+                i += 2;
             }
-            i++;
-        } else {
-            if (in[i] == '\0' && in[i + 1] == '\0') {
-                end_found = true;
-            }
-            i+=2;
+            len++;
         }
-        len++;
+
+        return len;
     }
 
-    return len;
+    return 0;
 }
 
 #endif // RDS_STRINGS_H_

@@ -18,12 +18,15 @@
 #include "../odbcapi.h"
 #include "../util/connection_string_helper.h"
 #include "../util/logger_wrapper.h"
+#include "../util/odbc_helper.h"
 #include "../util/rds_lib_loader.h"
 #include "../util/sql_query_analyzer.h"
 
 DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
-DefaultPlugin::DefaultPlugin(DBC *dbc, DefaultPlugin *next_plugin) : plugin_name("DefaultPlugin") {}
+DefaultPlugin::DefaultPlugin(DBC *dbc, DefaultPlugin *next_plugin) : plugin_name("DefaultPlugin") {
+    this->odbc_helper_ = std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader);
+}
 
 SQLRETURN DefaultPlugin::Connect(
     SQLHDBC        ConnectionHandle,
@@ -72,21 +75,21 @@ SQLRETURN DefaultPlugin::Connect(
 #if UNICODE
             if (dbc->wrapped_dbc) {
                 SQLINTEGER native_error;
-                SQLTCHAR state[MAX_SQL_STATE_LEN*2] = {0};
-                SQLTCHAR text[MAX_MSG_LEN*2] = {0};
+                SQLTCHAR state[MAX_SQL_STATE_LEN * 2] = {0};
+                SQLTCHAR text[MAX_MSG_LEN * 2] = {0};
                 SQLSMALLINT len;
 
                 NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                     SQL_HANDLE_DBC, dbc->wrapped_dbc, 1, state, &native_error, text, MAX_MSG_LEN, &len
                 );
 
-                for (int i = MAX_SQL_STATE_LEN; i < MAX_SQL_STATE_LEN*2; i++) {
+                for (int i = MAX_SQL_STATE_LEN; i < MAX_SQL_STATE_LEN * 2; i++) {
                     if (state[i] != '\0') {
-                        dbc->env->use_4_bytes = true;
+                        dbc->env->use_4_bytes_base_driver = true;
                     }
                 }
 
-                if (dbc->env->use_4_bytes) {
+                if (dbc->env->use_4_bytes_base_driver) {
                     // Try connecting again with 4-byte characters
                     const std::wstring wide_conn(conn_in.begin(), conn_in.end());
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
@@ -169,23 +172,7 @@ SQLRETURN DefaultPlugin::Execute(
             stmt->wrapped_stmt
         );
     } else {
-#if UNICODE
-        if (dbc->env->use_4_bytes) {
-            const std::wstring wide_conn(query.begin(), query.end());
-            SQLTCHAR* conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-                stmt->wrapped_stmt, conn_in_sqltchar, TextLength
-            );
-        } else {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-                stmt->wrapped_stmt, StatementText, TextLength
-            );
-        }
-#else
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
-            stmt->wrapped_stmt, StatementText, TextLength
-        );
-#endif
+        res = this->odbc_helper_->ExecDirect(&stmt->wrapped_stmt, query, dbc->env->use_4_bytes_base_driver);
     }
 
     // Supports checking for transaction changes only if it was a direct execute

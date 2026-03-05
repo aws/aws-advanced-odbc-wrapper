@@ -39,12 +39,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-#if UNICODE
-    SQLTCHAR writer_id[BUFFER_SIZE*2] = {0};
-    SQLTCHAR writer_id_final[BUFFER_SIZE] = {0};
-#else
-    SQLTCHAR writer_id[BUFFER_SIZE] = {0};
-#endif
+    SQLTCHAR writer_id[BUFFER_SIZE * 2] = {0};
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -57,7 +52,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery(), dbc->env->use_4_bytes);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery(), dbc->env->use_4_bytes_base_driver);
 
         if (SQL_SUCCEEDED(res.fn_result)) {
             this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, BUFFER_SIZE, &len);
@@ -67,8 +62,8 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
     }
 
 #if UNICODE
-    Convert4To2ByteString(dbc->env->use_4_bytes, writer_id, writer_id_final, BUFFER_SIZE);
-    return AS_UTF8_CSTR(writer_id_final);
+    Convert4To2ByteString(dbc->env->use_4_bytes_base_driver, writer_id, nullptr, BUFFER_SIZE);
+    return AS_UTF8_CSTR(writer_id);
 #endif
 
     return AS_UTF8_CSTR(writer_id);
@@ -77,12 +72,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-#if UNICODE
-    SQLTCHAR instance_id[BUFFER_SIZE*2] = {0};
-    SQLTCHAR instance_id_final[BUFFER_SIZE] = {0};
-#else
-    SQLTCHAR instance_id[BUFFER_SIZE] = {0};
-#endif
+    SQLTCHAR instance_id[BUFFER_SIZE * 2] = {0};
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -95,7 +85,7 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery(), dbc->env->use_4_bytes);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery(), dbc->env->use_4_bytes_base_driver);
 
         if (SQL_SUCCEEDED(res.fn_result)) {
             this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &instance_id, BUFFER_SIZE, &len);
@@ -105,8 +95,7 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     }
 
 #if UNICODE
-    Convert4To2ByteString(dbc->env->use_4_bytes, instance_id, instance_id_final, BUFFER_SIZE);
-    return AS_UTF8_CSTR(instance_id_final);
+    Convert4To2ByteString(dbc->env->use_4_bytes_base_driver, instance_id, nullptr, BUFFER_SIZE);
 #endif
 
     return AS_UTF8_CSTR(instance_id);
@@ -116,7 +105,7 @@ std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& 
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     std::vector<HostInfo> hosts;
-    const DBC* dbc = static_cast<DBC*>(hdbc);
+    DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         LOG(ERROR) << "Topology Query passed in null DBC";
@@ -126,9 +115,9 @@ std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& 
     RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery(), dbc->env->use_4_bytes);
+        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery(), dbc->env->use_4_bytes_base_driver);
         if (SQL_SUCCEEDED(res.fn_result)) {
-            hosts = GetHosts(stmt, initial_host, host_template, dbc->env->use_4_bytes);
+            hosts = GetHosts(stmt, initial_host, host_template, dbc->env->use_4_bytes_base_driver);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
@@ -180,7 +169,7 @@ HOST_ROLE TopologyUtil::GetConnectionRole(SQLHDBC hdbc) {
     res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
 
     if (SQL_SUCCEEDED(res.fn_result)) {
-        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery(), dbc->env->use_4_bytes);
+        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery(), dbc->env->use_4_bytes_base_driver);
 
         this->odbc_helper_->BindCol(&stmt, IS_READER_COL, SQL_BIT, &is_reader, sizeof(is_reader), &len);
         this->odbc_helper_->Fetch(&stmt);
