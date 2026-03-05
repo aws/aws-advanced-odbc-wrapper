@@ -39,7 +39,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR writer_id[BUFFER_SIZE] = {0};
+    SQLTCHAR writer_id[BUFFER_SIZE * 2] = {0};
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -55,11 +55,16 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
         res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetWriterIdQuery());
 
         if (SQL_SUCCEEDED(res.fn_result)) {
-            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &len);
+            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, BUFFER_SIZE, &len);
             this->odbc_helper_->Fetch(&stmt);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
+
+#if UNICODE
+    Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), writer_id, nullptr, BUFFER_SIZE);
+    return AS_UTF8_CSTR(writer_id);
+#endif
 
     return AS_UTF8_CSTR(writer_id);
 }
@@ -67,7 +72,7 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
     SQLRETURN rc;
     SQLHSTMT stmt = SQL_NULL_HANDLE;
-    SQLTCHAR writer_id[BUFFER_SIZE] = {0};
+    SQLTCHAR instance_id[BUFFER_SIZE * 2] = {0};
     SQLLEN len = 0;
     RdsLibResult res;
     const DBC* dbc = static_cast<DBC*>(hdbc);
@@ -83,20 +88,24 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
         res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetNodeIdQuery());
 
         if (SQL_SUCCEEDED(res.fn_result)) {
-            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &writer_id, sizeof(writer_id), &len);
+            this->odbc_helper_->BindCol(&stmt, 1, SQL_C_TCHAR, &instance_id, BUFFER_SIZE, &len);
             this->odbc_helper_->Fetch(&stmt);
         }
         this->odbc_helper_->BaseFreeStmt(&stmt);
     }
 
-    return AS_UTF8_CSTR(writer_id);
+#if UNICODE
+    Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), instance_id, nullptr, BUFFER_SIZE);
+#endif
+
+    return AS_UTF8_CSTR(instance_id);
 }
 
 std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template)
 {
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     std::vector<HostInfo> hosts;
-    const DBC* dbc = static_cast<DBC*>(hdbc);
+    DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         LOG(ERROR) << "Topology Query passed in null DBC";

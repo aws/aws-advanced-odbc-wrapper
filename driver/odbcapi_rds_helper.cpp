@@ -752,6 +752,8 @@ SQLRETURN RDS_SQLDriverConnect(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion)
 {
+    NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
+    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     std::string conn_str_utf8;
     std::string conn_out_str_utf8;
 
@@ -788,9 +790,6 @@ SQLRETURN RDS_SQLDriverConnect(
 #endif
     }
 
-    NULL_CHECK_ENV_ACCESS_DBC(ConnectionHandle);
-    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-
     const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
     CLEAR_DBC_ERROR(dbc);
 
@@ -806,6 +805,34 @@ SQLRETURN RDS_SQLDriverConnect(
     // Parse connection string, load input DSN followed by Base DSN
     ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
+    bool use_4_bytes_user_app = false;
+#if UNICODE
+     if (!dbc->conn_attr.contains(KEY_DRIVER) || !dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
+         bool end_found = false;
+         int i = 0;
+         std::vector<SQLTCHAR> conn_in_vector;
+         while (!end_found) {
+             if (BufferLength > 0 && i > BufferLength) {
+                 break;
+             }
+             if (InConnectionString[i] == '\0' && InConnectionString[i + 1] == '\0') {
+                 end_found = true;
+             }
+             conn_in_vector.push_back(InConnectionString[i]);
+             i += 2;
+         }
+
+         SQLTCHAR* conn_in_w = conn_in_vector.data();
+
+         std::string conn_str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_w));
+         ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
+
+         if (dbc->conn_attr.contains(KEY_DRIVER) && dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
+             use_4_bytes_user_app = true;
+         }
+     }
+#endif
+
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {
         OdbcDsnHelper::LoadAll(dbc->conn_attr.at(KEY_DSN), dbc->conn_attr);
@@ -818,6 +845,9 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     ret = RDS_InitializeConnection(dbc, conn_str_utf8);
+    if (use_4_bytes_user_app) {
+        dbc->plugin_service->GetOdbcHelper()->SetUse4BytesUserApp(true);
+    }
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
@@ -916,8 +946,16 @@ SQLRETURN RDS_SQLExecDirect(
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
+    SQLTCHAR* stmt_text = StatementText;
+#if UNICODE
+    size_t buffer_len = GetLenOfSqltcharArray(StatementText, TextLength, dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp());
+    std::vector<SQLTCHAR> stmt_buf_vector(buffer_len, '\0');
+    stmt_text = stmt_buf_vector.data();
+    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), StatementText, stmt_text, buffer_len);
+#endif
+
     if (dbc->plugin_head) {
-        return dbc->plugin_head->Execute(StatementHandle, StatementText, TextLength);
+        return dbc->plugin_head->Execute(StatementHandle, stmt_text, TextLength);
     }
 
     LOG(ERROR) << "Cannot execute without an open connection";
@@ -1319,6 +1357,12 @@ SQLRETURN RDS_SQLGetDiagRec(
     const ERR_INFO* err = nullptr;
     bool has_underlying_data = false;
 
+#if UNICODE
+    SQLTCHAR new_state_buffer[MAX_SQL_STATE_LEN * 2] = {0};
+    std::vector<SQLTCHAR> new_msg_vector(BufferLength * 2, '\0');
+    SQLTCHAR* new_msg_buffer = new_msg_vector.data();
+#endif
+
     // Use ERR from Wrapper if exist
     //  otherwise try underlying driver
     switch (HandleType) {
@@ -1333,10 +1377,23 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*env->err);
                 } else if (env->wrapped_env) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, env->wrapped_env, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+
+                    if (!env->dbc_list.empty()) {
+                        DBC* dbc = env->dbc_list.front();
+                        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
+                    }
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, env->wrapped_env, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+#endif
                 }
             }
             break;
@@ -1352,10 +1409,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*dbc->err);
                 } else if (dbc->wrapped_dbc) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, dbc->wrapped_dbc, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, dbc->wrapped_dbc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+#endif
                 }
             }
             break;
@@ -1372,10 +1439,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*stmt->err);
                 } else if (stmt->wrapped_stmt) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, stmt->wrapped_stmt, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, stmt->wrapped_stmt, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+#endif
                 }
             }
             break;
@@ -1392,10 +1469,20 @@ SQLRETURN RDS_SQLGetDiagRec(
                     err = new ERR_INFO(*desc->err);
                 } else if (desc->wrapped_desc) {
                     has_underlying_data = true;
+#if UNICODE
+                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                        HandleType, desc->wrapped_desc, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
+                    );
+                    ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
+                    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_msg_buffer, MessageText, BufferLength);
+#else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, desc->wrapped_desc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+#endif
                 }
             }
             break;

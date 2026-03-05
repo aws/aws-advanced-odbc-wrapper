@@ -16,6 +16,7 @@
 #define DEFAULT_PLUGIN_H_
 
 #include "base_plugin.h"
+#include "../util/odbc_helper.h"
 
 class DefaultPlugin : public BasePlugin {
 public:
@@ -39,6 +40,7 @@ public:
 protected:
     std::string plugin_name;
 private:
+    std::shared_ptr<OdbcHelper>odbc_helper_;
 };
 
 #endif // DEFAULT_PLUGIN_H_
