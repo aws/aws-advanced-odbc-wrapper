@@ -27,8 +27,8 @@
 namespace {
     const std::string idp_endpoint("endpoint.com");
     const std::string idp_port("1234");
-    const std::string idp_role_arn("arn:aws:iam::012345678910:role/adfs_iam_role");
-    const std::string idp_saml_arn("arn:aws:iam::012345678910:saml-provider/adfs");
+    const std::string idp_role_arn("arn:aws:iam::012345678910:role/okta_iam_role");
+    const std::string idp_saml_arn("arn:aws:iam::012345678910:saml-provider/okta");
     const std::string idp_username("my_user");
     const std::string idp_password("my_pass");
     const std::string idp_app_id("abc123def456");
