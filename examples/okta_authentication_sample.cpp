@@ -73,8 +73,8 @@ int main() {
         "IDP_SAML_ARN=arn:aws:iam::123412341234:saml-provider/OKTA-AWS-IAM;"
         "APP_ID=my-okta-app-id;"
         // Optional Flags
-        "HTTP_SOCKET_TIMEOUT=30000;"    // Socket timeout for retrieving responses from the ADFS Instance
-        "HTTP_CONNECT_TIMEOUT=30000;"   // Connect timeout for connecting to the ADFS Instance
+        "HTTP_SOCKET_TIMEOUT=30000;"    // Socket timeout for retrieving responses from the OKTA Instance
+        "HTTP_CONNECT_TIMEOUT=30000;"   // Connect timeout for connecting to the OKTA Instance
         "REGION=us-west-2;"             // Region of the database to generate RDS IAM Token for
         "TOKEN_EXPIRATION=10000;"       // Token cache expiration in milliseconds
         "EXTRA_URL_ENCODE=1;"           // Encodes % into %25, for underlying drivers which convert automatically
