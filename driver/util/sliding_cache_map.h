@@ -16,7 +16,6 @@
 #define SLIDING_CACHE_MAP_H_
 
 #include <chrono>
-#include <shared_mutex>
 #include <mutex>
 #include <map>
 
@@ -31,7 +30,7 @@ public:
     };
 
     void Put(const K& key, const V& value, std::chrono::milliseconds ms_ttl) {
-        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point expiry_time =
             std::chrono::steady_clock::now() + ms_ttl;
         cache[key] = CacheEntry{value, expiry_time, ms_ttl};
@@ -42,7 +41,7 @@ public:
     }
 
     void PutIfAbsent(const K& key, const V& value, std::chrono::milliseconds ms_ttl) {
-        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
             CacheEntry& entry = itr->second;
@@ -60,7 +59,7 @@ public:
     }
 
     V Get(const K& key) {
-        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
             CacheEntry& entry = itr->second;
@@ -76,7 +75,7 @@ public:
     }
 
     bool Find(const K& key) {
-        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (auto itr = cache.find(key); itr != cache.end()) {
             CacheEntry& entry = itr->second;
@@ -92,7 +91,7 @@ public:
     }
 
     unsigned int Size() {
-        const std::shared_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         for (auto itr = cache.begin(); itr != cache.end();) {
             if (itr->second.expiry < now) {
@@ -105,12 +104,12 @@ public:
     }
 
     void Clear() {
-        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         cache.clear();
     }
 
     void Delete(const K& key) {
-        const std::unique_lock<std::shared_mutex> lock(cache_lock);
+        const std::lock_guard<std::mutex> lock(cache_lock);
         cache.erase(key);
     }
 
@@ -123,7 +122,7 @@ private:
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
     std::map<K, CacheEntry> cache;
-    mutable std::shared_mutex cache_lock;
+    mutable std::mutex cache_lock;
 };
 
 #endif // SLIDING_CACHE_MAP_H_
