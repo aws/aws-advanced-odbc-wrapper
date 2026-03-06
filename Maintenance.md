@@ -2,6 +2,7 @@
 
 | Release Date      | Release                                                                              |
 |-------------------|--------------------------------------------------------------------------------------|
+| March 9, 2026     | [Release 1.1.0](https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/1.1.0) |
 | November 25, 2025 | [Release 1.0.0](https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/1.0.0) |
 
 `aws-advanced-odbc-wrapper` [follows semver](https://semver.org/#semantic-versioning-200) which means we will only
@@ -55,4 +56,4 @@ from the updated source after the PRs are merged.
 
 | Major Version | Latest Minor Version | Status      | Initial Release | Maintenance Window Start | Maintenance Window End |
 |---------------|----------------------|-------------|-----------------|--------------------------|------------------------|
-| 1             | 1.0.0                | Maintenance | Nov 20, 2025    | Nov 20, 2025             | N/A                    |
+| 1             | 1.1.0                | Current     | Nov 20, 2025    | N/A                      | N/A                    |
