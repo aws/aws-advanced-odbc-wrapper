@@ -120,6 +120,24 @@ jobs:
         shell: bash
         run:
           ls -l ${{ github.workspace }}/build/driver/
+      - name: Install gnu-tar
+        run: brew install gnu-tar
+      - name: Configure AWS credentials OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-skip-session-tagging: true
+          aws-region: us-west-1
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: aws-odbc-mac-signer
+      - name: Sign macOS artifacts
+        env:
+          MAC_SIGNER_S3_BUCKET: ${{ secrets.AWS_MAC_SIGNER_S3_BUCKET }}
+          MAC_SIGNER_PRESIGNED_PREFIX: ${{ secrets.AWS_MAC_SIGNER_PRESIGNED_PREFIX }}
+          MAC_SIGNER_SIGNED_PREFIX: ${{ secrets.AWS_MAC_SIGNER_SIGNED_PREFIX }}
+          MAC_SIGNER_DYLIBS_DIR: ${{ secrets.AWS_MAC_SIGNER_DYLIBS_DIR }}
+          MAC_SIGNER_PKG_DIR: ${{ secrets.AWS_MAC_SIGNER_PKG_DIR }}
+        run: |
+          ./scripts/macOS/sign_artifacts_mac.sh ${{ github.ref_name }}
       - name: Package Drivers as Zip
         run:
           zip -ryj "aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip" ${{ github.workspace }}/build/driver/*.dylib
@@ -129,6 +147,7 @@ jobs:
           name: installers-macos
           path: |
             aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip
+            ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.pkg
           retention-days: 5
           if-no-files-found: error
 
@@ -237,4 +256,4 @@ jobs:
           draft: true
           name: "AWS Advanced ODBC Wrapper - v${{ github.ref_name }}"
           bodyFile: RELEASE_DETAILS.md
-          artifacts: "*/*.zip, */*.msi, */*.tar.gz"
+          artifacts: "*/*.zip, */*.msi, */*.tar.gz, */*.pkg"
