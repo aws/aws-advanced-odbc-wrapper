@@ -99,14 +99,23 @@ wait_for_s3_object() {
 }
 
 extract_archive() {
-    # Extracts a tar.gz archive
+    # Extracts a tar.gz or zip archive
     local archive="$1"
     local dest="$2"
 
     local tar_cmd
     tar_cmd=$(get_tar_cmd)
     cd "$dest"
-    $tar_cmd -xzf "$archive"
+
+    # Item of the signer that we get back is of type zip.
+    local file_type
+    file_type=$(file -b "$archive")
+    if echo "$file_type" | grep -qi "zip"; then
+        unzip -o "$archive"
+    else
+        $tar_cmd -xzf "$archive"
+    fi
+
     if [ -f "$dest/artifact.gz" ]; then
         $tar_cmd -xzf "$dest/artifact.gz"
         rm -f "$dest/artifact.gz"
