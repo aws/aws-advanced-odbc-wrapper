@@ -9,15 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- 2FA for Okta Authentication Plugin
-- Ability to specify the username and password keys for Secret Manager Plugin
-- AWS Custom Endpoint Plugin
+- 2FA for Okta Authentication Plugin [(PR #72)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/72)
+- Ability to specify the username and password keys for Secret Manager Plugin [(PR #84)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/84)
+- AWS Custom Endpoint Plugin [(PR #82)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/82)
 
 ### Fixed
 
-- Aliased keywords for Server, Username, Password from base DSNs preventing authentication plugins from functioning properly
-- ODBC Data Source Administrator GUI Deadlocks when testing connections
-- Incorrect deletions of limitless and cluster topology monitors
+- Aliased keywords for Server, Username, Password from base DSNs preventing authentication plugins from functioning properly [(PR #76)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/76)
+- ODBC Data Source Administrator GUI Deadlocks when testing connections [(PR #83)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/83)
+- Incorrect deletions of Limitless and cluster topology monitors [(PR #81)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/81)
 
 ## [1.0.0] - 2025-11-25
 
