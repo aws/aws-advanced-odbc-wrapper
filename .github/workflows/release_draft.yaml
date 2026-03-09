@@ -138,15 +138,11 @@ jobs:
           MAC_SIGNER_PKG_DIR: ${{ secrets.AWS_MAC_SIGNER_PKG_DIR }}
         run: |
           ./scripts/macOS/sign_artifacts_mac.sh ${{ github.ref_name }}
-      - name: Package Drivers as Zip
-        run:
-          zip -ryj "aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip" ${{ github.workspace }}/build/driver/*.dylib
       - name: Upload the ANSI & Unicode driver
         uses: actions/upload-artifact@v6
         with:
           name: installers-macos
           path: |
-            aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip
             ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.pkg
           retention-days: 5
           if-no-files-found: error
@@ -256,4 +252,4 @@ jobs:
           draft: true
           name: "AWS Advanced ODBC Wrapper - v${{ github.ref_name }}"
           bodyFile: RELEASE_DETAILS.md
-          artifacts: "*/*.zip, */*.msi, */*.tar.gz, */*.pkg"
+          artifacts: "*/*.msi, */*.tar.gz, */*.pkg"

@@ -17,6 +17,7 @@ project("aws-advanced-odbc-wrapper")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(WRAPPER_VERSION "1.0.0")
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
@@ -131,12 +132,10 @@ if(BUILD_UNIT_TEST)
 endif()
 
 # CPACK ------------------------------------------------------------------------------------------------------
-SET(WRAPPER_VERSION "1.0.0")
-SET(CPACK_PACKAGE_VERSION "${WRAPPER_VERSION}")
-
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AWS Advanced ODBC Wrapper")
 SET(CPACK_PACKAGE_NAME "aws-advanced-odbc-wrapper")
 SET(CPACK_PACKAGE_VENDOR "Amazon")
+SET(CPACK_PACKAGE_VERSION "${WRAPPER_VERSION}")
 
 SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.txt")
@@ -175,5 +174,3 @@ INSTALL(
 )
 
 include (CPack)
-
-

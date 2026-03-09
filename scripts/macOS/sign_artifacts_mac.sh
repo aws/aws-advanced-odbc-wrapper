@@ -41,12 +41,11 @@ mkdir -p "$OUTPUT_DIR"
 # ── Helper functions ─────────────────────────────────────────────────────────
 
 get_tar_cmd() {
-    if command -v gtar &>/dev/null; then
-        echo "gtar"
-    else
-        echo "    gtar not found, falling back to tar (brew install gnu-tar recommended)" >&2
-        echo "tar"
+    if ! command -v gtar &>/dev/null; then
+        echo "ERROR: gtar not found. Install it with: brew install gnu-tar" >&2
+        exit 1
     fi
+    echo "gtar"
 }
 
 upload_to_s3() {
@@ -94,24 +93,17 @@ wait_for_s3_object() {
 }
 
 extract_archive() {
-    # Extracts a tar.gz or zip
+    # Extracts a tar.gz archive
     local archive="$1"
     local dest="$2"
 
-    local file_type
-    file_type=$(file -b "$archive")
+    local tar_cmd
+    tar_cmd=$(get_tar_cmd)
     cd "$dest"
-    if echo "$file_type" | grep -qi "zip"; then
-        echo "    Detected zip archive, extracting with unzip..."
-        unzip -o "$archive"
-    else
-        local tar_cmd
-        tar_cmd=$(get_tar_cmd)
-        $tar_cmd -xzf "$archive"
-        if [ -f "$dest/artifact.gz" ]; then
-            $tar_cmd -xzf "$dest/artifact.gz"
-            rm -f "$dest/artifact.gz"
-        fi
+    $tar_cmd -xzf "$archive"
+    if [ -f "$dest/artifact.gz" ]; then
+        $tar_cmd -xzf "$dest/artifact.gz"
+        rm -f "$dest/artifact.gz"
     fi
 }
 
@@ -147,6 +139,8 @@ package_dylibs() {
     dylib_count=$(ls "$staging/$app_name.app/Contents/Frameworks/"*.dylib | wc -l | tr -d ' ')
     echo "    Copied $dylib_count dylibs into Contents/Frameworks/"
 
+    # Compress the dylibs in gz file.
+    # Note: We need to double-zip this.
     local tar_cmd
     tar_cmd=$(get_tar_cmd)
     cd "$staging"
@@ -210,6 +204,9 @@ rebuild_pkg_with_signed_dylibs() {
     tar_cmd=$(get_tar_cmd)
     cd "$staging"
     $tar_cmd -czf "$OUTPUT_DIR/artifact.gz" -C artifact .
+
+    # Compress the package to gz file.
+    # Note: We need to double-zip this.
     cd "$OUTPUT_DIR"
     $tar_cmd -czf "$OUTPUT_DIR/${PRODUCT_NAME}-${VERSION}-unsigned.tar.gz" artifact.gz
     rm -f artifact.gz
@@ -290,4 +287,10 @@ echo "════════════════════════�
 
 echo ""
 echo "==> Verifying .pkg signature..."
-pkgutil --check-signature "$FINAL_PKG"
+if pkgutil --check-signature "$FINAL_PKG"; then
+    echo "==> Signature verification passed."
+    exit 0
+else
+    echo "ERROR: Signature verification failed for $FINAL_PKG"
+    exit 1
+fi
