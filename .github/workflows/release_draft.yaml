@@ -129,6 +129,14 @@ jobs:
           aws-region: us-west-1
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: aws-odbc-mac-signer
+      - name: Configure AWS credentials Signer
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-skip-session-tagging: true
+          role-chaining: true
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: ${{ secrets.AWS_SIGNER_ROLE }}
+          role-external-id: ${{ secrets.AWS_SIGNER_ROLE_ID }}
       - name: Sign macOS artifacts
         env:
           MAC_SIGNER_S3_BUCKET: ${{ secrets.AWS_MAC_SIGNER_S3_BUCKET }}

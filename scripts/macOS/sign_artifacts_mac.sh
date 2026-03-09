@@ -55,11 +55,14 @@ upload_to_s3() {
     local key="$3"
 
     local response
-    response=$(aws s3api put-object \
+    if ! response=$(aws s3api put-object \
         --bucket "$bucket" \
         --key "$key" \
         --body "$src" \
-        --output json)
+        --output json); then
+        echo "ERROR: Failed to upload $src to s3://$bucket/$key" >&2
+        exit 1
+    fi
 
     local vid
     vid=$(echo "$response" | jq -r '.VersionId // empty')
@@ -79,7 +82,10 @@ wait_for_s3_object() {
     while [ $elapsed -lt $POLL_TIMEOUT ]; do
         if aws s3api head-object --bucket "$bucket" --key "$key" &>/dev/null; then
             echo "    Found after ${elapsed}s. Downloading..."
-            aws s3 cp "s3://$bucket/$key" "$dest"
+            if ! aws s3 cp "s3://$bucket/$key" "$dest"; then
+                echo "ERROR: Failed to download s3://$bucket/$key" >&2
+                exit 1
+            fi
             echo "    Downloaded to $dest"
             return 0
         fi
