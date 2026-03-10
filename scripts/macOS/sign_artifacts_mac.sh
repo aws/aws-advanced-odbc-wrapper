@@ -107,7 +107,7 @@ extract_archive() {
     tar_cmd=$(get_tar_cmd)
     cd "$dest"
 
-    # Item of the signer that we get back is of type zip.
+    # Item of the signer that we get back is of type zip in the outer layer.
     local file_type
     file_type=$(file -b "$archive")
     if echo "$file_type" | grep -qi "zip"; then

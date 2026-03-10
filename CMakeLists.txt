@@ -17,7 +17,7 @@ project("aws-advanced-odbc-wrapper")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(WRAPPER_VERSION "1.0.0")
+set(WRAPPER_VERSION "1.1.0")
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")

@@ -104,18 +104,6 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DUNIT_TEST=OFF
           cmake --build build
           ls ./build/driver/
-      - name: Get Ansi Driver Hash
-        id: macos-arm64-ansi
-        run: |
-          hash=$(shasum -a 256 ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib | cut -d' ' -f1)
-          echo "hash=${hash}" >> "$GITHUB_OUTPUT"
-          echo ${HASH}
-      - name: Get Unicode Driver Hash
-        id: macos-arm64-unicode
-        run: |
-          hash=$(shasum -a 256 ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib | cut -d' ' -f1)
-          echo "hash=${hash}" >> "$GITHUB_OUTPUT"
-          echo ${HASH}
       - name: Check Artifacts
         shell: bash
         run:
@@ -225,8 +213,6 @@ jobs:
     env:
       linux_x64_ansi_hash: ${{needs.build-linux.outputs.linux_x64_ansi}}
       linux_x64_unicode_hash: ${{needs.build-linux.outputs.linux_x64_unicode}}
-      macos_arm64_ansi_hash: ${{needs.build-macos.outputs.macos_arm64_ansi}}
-      macos_arm64_unicode_hash: ${{needs.build-macos.outputs.macos_arm64_unicode}}
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
@@ -248,8 +234,6 @@ jobs:
 
           ### SHA256 Checksums
 
-          - macos-arm64-ansi: \`$macos_arm64_ansi_hash\`
-          - macos-arm64-unicode: \`$macos_arm64_unicode_hash\`
           - linux_x64_ansi: \`$linux_x64_ansi_hash\`
           - linux_x64_unicode: \`$linux_x64_unicode_hash\`
 
