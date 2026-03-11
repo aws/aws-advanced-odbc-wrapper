@@ -104,31 +104,42 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DUNIT_TEST=OFF
           cmake --build build
           ls ./build/driver/
-      - name: Get Ansi Driver Hash
-        id: macos-arm64-ansi
-        run: |
-          hash=$(shasum -a 256 ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib | cut -d' ' -f1)
-          echo "hash=${hash}" >> "$GITHUB_OUTPUT"
-          echo ${HASH}
-      - name: Get Unicode Driver Hash
-        id: macos-arm64-unicode
-        run: |
-          hash=$(shasum -a 256 ${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib | cut -d' ' -f1)
-          echo "hash=${hash}" >> "$GITHUB_OUTPUT"
-          echo ${HASH}
       - name: Check Artifacts
         shell: bash
         run:
           ls -l ${{ github.workspace }}/build/driver/
-      - name: Package Drivers as Zip
-        run:
-          zip -ryj "aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip" ${{ github.workspace }}/build/driver/*.dylib
+      - name: Install gnu-tar
+        run: brew install gnu-tar
+      - name: Configure AWS credentials OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-skip-session-tagging: true
+          aws-region: us-west-1
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: aws-odbc-mac-signer
+      - name: Configure AWS credentials Signer
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-skip-session-tagging: true
+          role-chaining: true
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: ${{ secrets.AWS_SIGNER_ROLE }}
+          role-external-id: ${{ secrets.AWS_SIGNER_ROLE_ID }}
+      - name: Sign macOS artifacts
+        env:
+          MAC_SIGNER_S3_BUCKET: ${{ secrets.AWS_MAC_SIGNER_S3_BUCKET }}
+          MAC_SIGNER_PRESIGNED_PREFIX: ${{ secrets.AWS_MAC_SIGNER_PRESIGNED_PREFIX }}
+          MAC_SIGNER_SIGNED_PREFIX: ${{ secrets.AWS_MAC_SIGNER_SIGNED_PREFIX }}
+          MAC_SIGNER_DYLIBS_DIR: ${{ secrets.AWS_MAC_SIGNER_DYLIBS_DIR }}
+          MAC_SIGNER_PKG_DIR: ${{ secrets.AWS_MAC_SIGNER_PKG_DIR }}
+        run: |
+          ./scripts/macOS/sign_artifacts_mac.sh ${{ github.ref_name }}
       - name: Upload the ANSI & Unicode driver
         uses: actions/upload-artifact@v6
         with:
           name: installers-macos
           path: |
-            aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.zip
+            ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-${{ github.ref_name }}-macos-arm64.pkg
           retention-days: 5
           if-no-files-found: error
 
@@ -202,8 +213,6 @@ jobs:
     env:
       linux_x64_ansi_hash: ${{needs.build-linux.outputs.linux_x64_ansi}}
       linux_x64_unicode_hash: ${{needs.build-linux.outputs.linux_x64_unicode}}
-      macos_arm64_ansi_hash: ${{needs.build-macos.outputs.macos_arm64_ansi}}
-      macos_arm64_unicode_hash: ${{needs.build-macos.outputs.macos_arm64_unicode}}
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
@@ -225,8 +234,6 @@ jobs:
 
           ### SHA256 Checksums
 
-          - macos-arm64-ansi: \`$macos_arm64_ansi_hash\`
-          - macos-arm64-unicode: \`$macos_arm64_unicode_hash\`
           - linux_x64_ansi: \`$linux_x64_ansi_hash\`
           - linux_x64_unicode: \`$linux_x64_unicode_hash\`
 
@@ -237,4 +244,4 @@ jobs:
           draft: true
           name: "AWS Advanced ODBC Wrapper - v${{ github.ref_name }}"
           bodyFile: RELEASE_DETAILS.md
-          artifacts: "*/*.zip, */*.msi, */*.tar.gz"
+          artifacts: "*/*.msi, */*.tar.gz, */*.pkg"

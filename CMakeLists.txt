@@ -17,6 +17,7 @@ project("aws-advanced-odbc-wrapper")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(WRAPPER_VERSION "1.1.0")
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
@@ -131,11 +132,10 @@ if(BUILD_UNIT_TEST)
 endif()
 
 # CPACK ------------------------------------------------------------------------------------------------------
-SET(WRAPPER_VERSION "1.0.0")
-
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AWS Advanced ODBC Wrapper")
 SET(CPACK_PACKAGE_NAME "aws-advanced-odbc-wrapper")
 SET(CPACK_PACKAGE_VENDOR "Amazon")
+SET(CPACK_PACKAGE_VERSION "${WRAPPER_VERSION}")
 
 SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
 SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.txt")
@@ -153,12 +153,18 @@ IF(APPLE)
     SET(CPACK_RESOURCE_FILE_WELCOME "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macOS/Welcome.html")
     SET(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html")
     SET(CPACK_POSTFLIGHT_WRAPPER_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh")
+
+    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/Info.plist.in ${CMAKE_BINARY_DIR}/Info.plist @ONLY)
+    SET(CPACK_PRODUCTBUILD_IDENTIFIER "com.amazon.AwsAdvancedOdbcWrapper")
 ENDIF()
 
 set(CPACK_COMPONENTS_ALL "Wrapper")
 
 INSTALL(FILES LICENSE.txt COMPONENT Wrapper DESTINATION .)
 INSTALL(FILES README.txt COMPONENT Wrapper DESTINATION .)
+IF(APPLE)
+    INSTALL(FILES "${CMAKE_BINARY_DIR}/Info.plist" COMPONENT Wrapper DESTINATION .)
+ENDIF()
 INSTALL(
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build/driver/"
     DESTINATION "./lib"
