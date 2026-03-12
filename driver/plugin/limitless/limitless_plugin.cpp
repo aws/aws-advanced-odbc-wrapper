@@ -18,6 +18,7 @@
 #include "../../dialect/dialect_aurora_postgres.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/init_plugin_helper.h"
+#include "../../util/plugin_service.h"
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
 
@@ -26,7 +27,7 @@ LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessP
     next_plugin,
     nullptr,
     nullptr,
-    std::make_shared<OdbcHelper>(dbc->env->driver_lib_loader)) {}
+    dbc->plugin_service->GetOdbcHelper()) {}
 
 LimitlessPlugin::LimitlessPlugin(
     DBC *dbc,

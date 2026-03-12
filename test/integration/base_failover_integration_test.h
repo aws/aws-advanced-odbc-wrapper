@@ -177,10 +177,9 @@ protected:
         EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
         EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(hstmt, SERVER_ID_QUERY));
         EXPECT_EQ(SQL_SUCCESS, SQLFetch(hstmt));
-        EXPECT_EQ(SQL_SUCCESS, SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, sizeof(buf), &buflen));
+        EXPECT_EQ(SQL_SUCCESS, SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, SQL_MAX_MESSAGE_LENGTH, &buflen));
         EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
-        std::string id(STRING_HELPER::SqltcharToAnsi(buf));
-        return id;
+        return std::string(STRING_HELPER::SqltcharToAnsi(buf));
     }
 
     int QueryCountTableRows(const SQLHSTMT handle) {
@@ -315,8 +314,7 @@ protected:
     }
 
     static void FailoverClusterWaitDesiredWriter(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                                                               const Aws::String& initial_writer_id, const Aws::String& target_writer_id = "") {
-
+                                                 const Aws::String& initial_writer_id, const Aws::String& target_writer_id = "") {
         auto cluster_endpoint = GetDbCluster(client, cluster_id).GetEndpoint();
         std::string initial_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
 

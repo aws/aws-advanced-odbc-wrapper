@@ -262,7 +262,8 @@ SQLRETURN SQL_API SQLErrorW(
         NativeErrorPtr,
         MessageText,
         BufferLength,
-        TextLengthPtr
+        TextLengthPtr,
+        false
     );
 }
 
@@ -445,7 +446,8 @@ SQLRETURN SQL_API SQLGetDiagRecW(
         NativeErrorPtr,
         MessageText,
         BufferLength,
-        TextLengthPtr
+        TextLengthPtr,
+        false
     );
 }
 
