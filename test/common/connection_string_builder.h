@@ -25,6 +25,21 @@ public:
 
     ConnectionStringBuilder(const std::string& str) { length += sprintf(conn_in, "%s", str.c_str()); }
 
+    ConnectionStringBuilder& withDSN(const std::string& dsn) {
+        length += sprintf(conn_in + length, "DSN=%s;", dsn.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withServer(const std::string& server) {
+        length += sprintf(conn_in + length, "SERVER=%s;", server.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withPort(const int port) {
+        length += sprintf(conn_in + length, "PORT=%d;", port);
+        return *this;
+    }
+
     ConnectionStringBuilder& withUID(const std::string& uid) {
         length += sprintf(conn_in + length, "UID=%s;", uid.c_str());
         return *this;
@@ -146,6 +161,21 @@ public:
 
     ConnectionStringBuilder& withCustomEndpoint(const bool& custom_endpoint_enabled) {
         length += sprintf(conn_in + length, "ENABLE_CUSTOM_ENDPOINT=%d;", custom_endpoint_enabled ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withBlueGreenEnabled(const bool& bg_enabled) {
+        length += sprintf(conn_in + length, "ENABLE_BLUE_GREEN=%d;", bg_enabled ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withClusterId(const std::string& cluster_id) {
+        length += sprintf(conn_in + length, "CLUSTER_ID=%s;", cluster_id.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withBlueGreenId(const std::string& blue_green_id) {
+        length += sprintf(conn_in + length, "BG_ID=%s;", blue_green_id.c_str());
         return *this;
     }
 
