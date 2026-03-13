@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
 set(BUILD_FAILOVER OFF CACHE BOOL "Build Failover Tests")
 set(BUILD_LIMITLESS OFF CACHE BOOL "Build Limitless Tests")
+set(BUILD_BLUE_GREEN OFF CACHE BOOL "Build Blue Green Tests")
 set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
@@ -43,6 +44,7 @@ set(TEST_SUITE
 )
 
 if(BUILD_FAILOVER)
+    set(USES_AWS_SDK ON)
     list(APPEND TEST_SUITE
         ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
         ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_integration_test.cpp
@@ -51,6 +53,12 @@ if(BUILD_FAILOVER)
 elseif(BUILD_LIMITLESS)
     list(APPEND TEST_SUITE
         ${CMAKE_CURRENT_SOURCE_DIR}/limitless_integration_test.cpp
+    )
+elseif(BUILD_BLUE_GREEN)
+    set(USES_AWS_SDK ON)
+    list(APPEND TEST_SUITE
+        ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/blue_green_integration_test.cpp
     )
 endif()
 
@@ -79,8 +87,7 @@ find_package(ODBC REQUIRED)
 list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
 
 # -- AWS SDK --
-# Used for Failover Integration Tests
-if(BUILD_FAILOVER)
+if(USES_AWS_SDK)
     if(UNIX)
         message("Unix - Adding ZLIB explicitly for AWS SDK")
         find_package(ZLIB REQUIRED)
@@ -143,7 +150,7 @@ target_include_directories(
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 
 # Copy External Dependencies --------------------------------------------------------------------------------
-IF(BUILD_FAILOVER)
+IF(USES_AWS_SDK)
     if(MSVC)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     else()

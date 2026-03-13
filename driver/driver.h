@@ -109,7 +109,7 @@ struct DBC {
     std::list<STMT*> stmt_list;
     uint16_t unnamed_cursor_count;
     std::list<DESC*> desc_list;
-    SQLHDBC wrapped_dbc;
+    SQLHDBC wrapped_dbc = SQL_NULL_HDBC;
     CONN_STATUS conn_status;
     TRANSACTION_STATUS transaction_status;
     bool auto_commit = true;  // By default, drivers will be in auto commit mode

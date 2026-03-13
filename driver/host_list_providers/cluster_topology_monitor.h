@@ -51,6 +51,13 @@ class ClusterTopologyMonitor {
 public:
     ClusterTopologyMonitor(PluginService* plugin_service,
         const std::shared_ptr<TopologyUtil>& topology_util);
+    ClusterTopologyMonitor(PluginService* plugin_service,
+        const std::shared_ptr<TopologyUtil>& topology_util,
+        std::map<std::string, std::string> conn_attr,
+        std::string cluster_id,
+        HostInfo initial_host,
+        HostInfo template_host
+    );
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);

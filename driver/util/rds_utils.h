@@ -21,6 +21,7 @@ class RdsUtils {
 public:
     static bool IsDnsPatternValid(const std::string& host);
     static bool IsRdsDns(const std::string& host);
+    static bool IsRdsInstance(const std::string& host);
     static bool IsRdsClusterDns(const std::string& host);
     static bool IsRdsProxyDns(const std::string& host);
     static bool IsRdsWriterClusterDns(const std::string& host);
@@ -29,6 +30,10 @@ public:
     static bool IsLimitlessDbShardGroupDns(const std::string& host);
     static bool IsIpv4(const std::string& host);
     static bool IsIpv6(const std::string& host);
+
+    /* Blue Green */
+    static bool IsNotOldInstance(const std::string& host);
+    static std::string RemoveGreenInstancePrefix(const std::string& host);
 
     static std::string GetRdsClusterHostUrl(const std::string& host);
     static std::string GetRdsClusterId(const std::string& host);

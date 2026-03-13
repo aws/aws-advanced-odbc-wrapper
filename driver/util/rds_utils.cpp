@@ -55,6 +55,10 @@ namespace {
         R"#(^(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){1}(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){2}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)#");
     const std::regex IPV6_PATTERN(R"#(^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$)#");
     const std::regex IPV6_COMPRESSED_PATTERN(R"#(^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$)#");
+
+    const std::regex BG_GREEN_HOST_PATTERN(R"#(.*(-green-[0-9a-z]{6})\..*)#", std::regex_constants::icase);
+    const std::regex BG_GREEN_HOSTID_PATTERN(R"#((.*)-green-[0-9a-z]{6})#", std::regex_constants::icase);
+    const std::regex BG_OLD_HOST_PATTERN(R"#(.*(-old1)\..*)#", std::regex_constants::icase);
 } // anonymous namespace
 
 bool RdsUtils::IsDnsPatternValid(const std::string& host) {
@@ -63,6 +67,10 @@ bool RdsUtils::IsDnsPatternValid(const std::string& host) {
 
 bool RdsUtils::IsRdsDns(const std::string& host) {
     return std::regex_match(host, AURORA_DNS_PATTERN) || std::regex_match(host, AURORA_CHINA_DNS_PATTERN);
+}
+
+bool RdsUtils::IsRdsInstance(const std::string& host) {
+    return !IsRdsClusterDns(host) && IsRdsDns(host);
 }
 
 bool RdsUtils::IsRdsClusterDns(const std::string& host) {
@@ -87,6 +95,33 @@ bool RdsUtils::IsRdsCustomClusterDns(const std::string& host) {
 
 bool RdsUtils::IsLimitlessDbShardGroupDns(const std::string& host) {
     return std::regex_match(host, AURORA_LIMITLESS_CLUSTER_PATTERN);
+}
+
+bool RdsUtils::IsNotOldInstance(const std::string& host) {
+    return host.empty() || !std::regex_match(host, BG_OLD_HOST_PATTERN);
+}
+
+std::string RdsUtils::RemoveGreenInstancePrefix(const std::string& host) {
+    if (host.empty()) {
+        return host;
+    }
+    std::smatch match;
+    if (!std::regex_match(host, match, BG_GREEN_HOST_PATTERN)) {
+        std::smatch host_id_match;
+        if (!std::regex_match(host, host_id_match, BG_GREEN_HOSTID_PATTERN)) {
+            return host;
+        }
+        return host_id_match.size() > 1 ? host_id_match[1].str() : host;
+    }
+    std::string prefix = match.size() > 1 ? match[1].str() : "";
+    std::string converted_host = host;
+    if (!prefix.empty()) {
+        size_t begin_idx = host.find(prefix);
+        if (begin_idx != std::string::npos) {
+            converted_host = converted_host.replace(begin_idx, begin_idx + prefix.length(), ".");
+        }
+    }
+    return converted_host;
 }
 
 std::string RdsUtils::GetRdsClusterHostUrl(const std::string& host) {

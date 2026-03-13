@@ -46,7 +46,8 @@ enum TabSelection {
     AWS_AUTH,
     FAILOVER,
     LIMITLESS,
-    CUSTOM_ENDPOINT
+    CUSTOM_ENDPOINT,
+    BLUE_GREEN
 };
 
 enum AuthModeSelection {
@@ -146,6 +147,16 @@ const std::map<std::string, std::pair<int, ControlType>> CUSTOM_ENDPOINT_KEYS = 
     {KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS, {IDC_WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS, EDIT_TEXT}}
 };
 
+const std::map<std::string, std::pair<int, ControlType>> BLUE_GREEN_KEYS = {
+    {KEY_ENABLE_BLUE_GREEN, {IDC_ENABLE_BLUE_GREEN, CHECK}},
+    {KEY_BG_ID, {IDC_BG_ID, EDIT_TEXT}},
+    {KEY_BG_CONNECT_TIMEOUT_MS, {IDC_BG_CONNECT_TIMEOUT, EDIT_TEXT}},
+    {KEY_BG_BASELINE_REFRESH_MS, {IDC_BG_BASE_REFRESH, EDIT_TEXT}},
+    {KEY_BG_INCREASED_REFRESH_MS, {IDC_BG_INCREASED_REFRESH, EDIT_TEXT}},
+    {KEY_BG_HIGH_REFRESH_MS, {IDC_BG_HIGH_REFRESH, EDIT_TEXT}},
+    {KEY_BG_SWITCH_TIMEOUT_MS, {IDC_BG_SWITCH_TIMEOUT, EDIT_TEXT}}
+};
+
 const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
@@ -193,6 +204,7 @@ HWND aws_auth_tab;
 HWND failover_tab;
 HWND limitless_tab;
 HWND custom_endpoint_tab;
+HWND blue_green_tab;
 HWND main_win;
 
 std::string driver;
@@ -453,6 +465,13 @@ std::string GetDsn(bool test_conn)
         }
     }
 
+    for (const auto& keys : BLUE_GREEN_KEYS) {
+        value = GetControlValue(blue_green_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
     conn_str = AddKeyToConnectionString(conn_str, KEY_RDS_TEST_CONN, VALUE_BOOL_TRUE, test_conn);
 
     return conn_str;
@@ -561,6 +580,9 @@ bool SaveDsn()
             for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(custom_endpoint_tab, keys.second).c_str());
             }
+            for (const auto& keys : BLUE_GREEN_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(blue_green_tab, keys.second).c_str());
+            }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
             if (new_dsn) {
@@ -621,6 +643,60 @@ BOOL LimitlessTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     }
 
     HandleEnableLimitless(hwnd);
+
+    return false;
+}
+
+void HandleEnableBlueGreen(HWND hwnd) {
+    HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_BLUE_GREEN);
+    LRESULT state = Button_GetCheck(check_box);
+    bool show_all = false;
+    if (state == BST_CHECKED) {
+        show_all = true;
+    }
+
+    for (const auto& keys : BLUE_GREEN_KEYS) {
+        if (keys.first != KEY_ENABLE_BLUE_GREEN) {
+            HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+            EnableWindow(ctrl, (show_all) ? TRUE : FALSE);
+        }
+    }
+}
+
+void HandleBlueGreenInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_ENABLE_BLUE_GREEN:
+            HandleEnableBlueGreen(hwnd);
+            break;
+        default:
+            break;
+    }
+}
+
+BOOL BlueGreenTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    for (const auto& keys : BLUE_GREEN_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleEnableBlueGreen(hwnd);
+
+    return false;
+}
+
+BOOL BlueGreenDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, BlueGreenTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleBlueGreenInteraction);
+    default:
+        break;
+    }
 
     return false;
 }
@@ -920,6 +996,7 @@ void OnSelChange(HWND hwnd)
     ShowWindow(failover_tab, (selection == FAILOVER) ? SW_SHOW : SW_HIDE);
     ShowWindow(limitless_tab, (selection == LIMITLESS) ? SW_SHOW : SW_HIDE);
     ShowWindow(custom_endpoint_tab, (selection == CUSTOM_ENDPOINT) ? SW_SHOW : SW_HIDE);
+    ShowWindow(blue_green_tab, (selection == BLUE_GREEN) ? SW_SHOW : SW_HIDE);
 }
 
 BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
@@ -929,6 +1006,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     failover_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_FAILOVER), tab_control, (DLGPROC)FailoverDlgProc);
     limitless_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_LIMITLESS), tab_control, (DLGPROC)LimitlessDlgProc);
     custom_endpoint_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_CUSTOM_ENDPOINT), tab_control, (DLGPROC)CustomEndpointDlgProc);
+    blue_green_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_BLUE_GREEN), tab_control, (DLGPROC)BlueGreenDlgProc);
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
@@ -957,6 +1035,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     AddTabToTabControl("Failover Settings", tab_control, FAILOVER);
     AddTabToTabControl("Limitless", tab_control, LIMITLESS);
     AddTabToTabControl("Custom Endpoint", tab_control, CUSTOM_ENDPOINT);
+    AddTabToTabControl("Blue Green", tab_control, BLUE_GREEN);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);
