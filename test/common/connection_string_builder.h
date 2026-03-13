@@ -19,11 +19,28 @@
 
 class ConnectionStringBuilder {
 public:
+    ConnectionStringBuilder() : length(0), conn_in("") {}
+
     ConnectionStringBuilder(const std::string& dsn, const std::string& server, int port) {
         length += sprintf(conn_in, "DSN=%s;SERVER=%s;PORT=%d;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;", dsn.c_str(), server.c_str(), port);
     }
 
     ConnectionStringBuilder(const std::string& str) { length += sprintf(conn_in, "%s", str.c_str()); }
+
+    ConnectionStringBuilder& withDSN(const std::string& dsn) {
+        length += sprintf(conn_in + length, "DSN=%s;", dsn.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withServer(const std::string& server) {
+        length += sprintf(conn_in + length, "SERVER=%s;", server.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withPort(const int port) {
+        length += sprintf(conn_in + length, "PORT=%d;", port);
+        return *this;
+    }
 
     ConnectionStringBuilder& withUID(const std::string& uid) {
         length += sprintf(conn_in + length, "UID=%s;", uid.c_str());
@@ -156,6 +173,20 @@ public:
 
     ConnectionStringBuilder& withVerifyInitialConnectionType(const std::string& connection_type) {
         length += sprintf(conn_in + length, "VERIFY_INITIAL_CONNECTION_TYPE=%s;", connection_type.c_str());
+    }
+
+    ConnectionStringBuilder& withBlueGreenEnabled(const bool& bg_enabled) {
+        length += sprintf(conn_in + length, "ENABLE_BLUE_GREEN=%d;", bg_enabled ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withClusterId(const std::string& cluster_id) {
+        length += sprintf(conn_in + length, "CLUSTER_ID=%s;", cluster_id.c_str());
+        return *this;
+    }
+
+    ConnectionStringBuilder& withBlueGreenId(const std::string& blue_green_id) {
+        length += sprintf(conn_in + length, "BG_ID=%s;", blue_green_id.c_str());
         return *this;
     }
 
