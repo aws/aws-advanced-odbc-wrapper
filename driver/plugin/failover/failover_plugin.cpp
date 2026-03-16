@@ -86,9 +86,9 @@ SQLRETURN FailoverPlugin::Execute(
 
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
-    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
-    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
-    RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length);
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    RDS_SQLError(nullptr, nullptr, stmt, sql_state, &native_error, message, MAX_MSG_LEN, &stmt_length, true);
     if (!CheckShouldFailover(AS_UTF8_CSTR(sql_state))) {
         return ret;
     }
@@ -205,7 +205,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 continue;
             }
 
-            if (!GetNodeId(dbc, dialect_).empty()) {
+            if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
                 const bool is_reader = topology_util_->GetWriterId(dbc).empty();
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "Connected to a new reader for: " << host_string;
@@ -241,7 +241,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
         host_string = original_writer.GetHost();
         const bool is_connected = ConnectToHost(dbc, host_string, odbc_helper_);
         if (is_connected) {
-            if (GetNodeId(dbc, dialect_).empty()) {
+            if (GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
                 odbc_helper_->Disconnect(dbc);
                 LOG(WARNING) << "Reconnection to original writer failed";
                 continue;
@@ -289,7 +289,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
     }
-    if (!GetNodeId(dbc, dialect_).empty()) {
+    if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
         if (!topology_util_->GetWriterId(dbc).empty()) {
             LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
             curr_host_ = host;

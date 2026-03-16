@@ -15,6 +15,7 @@
 #include "error.h"
 #include "odbcapi_rds_helper.h"
 #include "plugin/base_plugin.h"
+#include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
 
 // Common ODBC Functions
@@ -526,9 +527,30 @@ SQLRETURN SQL_API SQLGetData(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
+
+#if UNICODE
+    RdsLibResult res;
+    if (!dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp() && TargetType == SQL_C_TCHAR) {
+        SQLTCHAR* buf = reinterpret_cast<SQLTCHAR*>(TargetValuePtr);
+        std::vector<SQLTCHAR> new_buf_vector(static_cast<size_t>(BufferLength) * 2, '\0');
+        SQLTCHAR* new_buf = new_buf_vector.data();
+
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, new_buf, BufferLength, StrLen_or_IndPtr
+        );
+
+        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_buf, buf, BufferLength);
+    } else {
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
+        );
+    }
+#else
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
         stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 

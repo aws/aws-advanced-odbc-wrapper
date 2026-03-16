@@ -125,7 +125,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<std:
             break;
         }
 
-        if (conn == SQL_NULL_HANDLE || GetNodeId(conn, dialect_).empty()) {
+        if (conn == SQL_NULL_HANDLE || GetNodeId(conn, dialect_, odbc_helper_).empty()) {
             if (conn) {
                 odbc_helper_->DisconnectAndFree(&conn);
                 conn = SQL_NULL_HANDLE;

@@ -41,8 +41,15 @@ public:
     virtual RdsLibResult BaseFreeStmt(SQLHSTMT *stmt);
 
     virtual std::shared_ptr<RdsLibLoader> GetLibLoader();
+
+    bool GetUse4BytesBaseDriver() const;
+    bool GetUse4BytesUserApp() const;
+    void SetUse4BytesBaseDriver(bool use_4_bytes);
+    void SetUse4BytesUserApp(bool use_4_bytes);
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
+    bool use_4_bytes_base_driver_ = false;
+    bool use_4_bytes_user_app_ = false;
 };
 
 #endif //ODBC_HELPER_H

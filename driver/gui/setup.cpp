@@ -486,7 +486,7 @@ void TestConnection(HWND hwnd)
         SQLSMALLINT stmt_length;
         SQLINTEGER native_error;
         SQLTCHAR sql_state[MAX_KEY_SIZE] = {}, message[MAX_KEY_SIZE] = {};
-        RDS_SQLError(henv, hdbc, nullptr, sql_state, &native_error, message, MAX_KEY_SIZE, &stmt_length);
+        RDS_SQLError(henv, hdbc, nullptr, sql_state, &native_error, message, MAX_KEY_SIZE, &stmt_length, false);
         if (stmt_length > 1) {
             fail_msg += ": ";
             fail_msg += AS_UTF8_CSTR(message);
