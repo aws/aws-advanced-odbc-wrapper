@@ -116,7 +116,7 @@ bool ODBC_HELPER::IsClosed(SQLHDBC hdbc) {
         return true;
     }
     SQLUINTEGER connection_state = SQL_CD_FALSE;
-    SQLRETURN rc = SQLGetConnectAttr(hdbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, 0, nullptr);
+    SQLRETURN rc = SQLGetConnectAttr(hdbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, sizeof(SQLUINTEGER), nullptr);
 
     if (SQL_SUCCEEDED(rc)) {
         return connection_state == SQL_CD_TRUE;

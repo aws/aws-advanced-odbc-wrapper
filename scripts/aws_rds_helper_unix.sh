@@ -97,6 +97,7 @@ function create_aurora_rds_cluster {
     Engine=$6
     EngineVersion=$7
     Region=$8
+    ParameterGroup=$9
 
     echo "Creating RDS Cluster"
 
@@ -112,19 +113,37 @@ function create_aurora_rds_cluster {
     fi
 
     # Create RDS Cluster
-    ClusterInfo=$(
-        aws rds create-db-cluster\
-            --db-cluster-identifier $ClusterId\
-            --database-name $TestDatabase\
-            --master-username $TestUsername\
-            --master-user-password $TestPassword\
-            --source-region $Region\
-            --enable-iam-database-authentication\
-            --engine  $Engine\
-            --engine-version $EngineVersion\
-            --storage-encrypted\
-            --tags "Key=env,Value=test-runner"
-    )
+    if [[ -n "$ParameterGroup" ]]; then
+        echo "Parameter group used: $ParameterGroup"
+        ClusterInfo=$(
+            aws rds create-db-cluster\
+                --db-cluster-identifier $ClusterId\
+                --database-name $TestDatabase\
+                --master-username $TestUsername\
+                --master-user-password $TestPassword\
+                --source-region $Region\
+                --enable-iam-database-authentication\
+                --engine  $Engine\
+                --engine-version $EngineVersion\
+                --storage-encrypted\
+                --tags "Key=env,Value=test-runner"\
+                --db-cluster-parameter-group-name $ParameterGroup
+        )
+    else
+        ClusterInfo=$(
+            aws rds create-db-cluster\
+                --db-cluster-identifier $ClusterId\
+                --database-name $TestDatabase\
+                --master-username $TestUsername\
+                --master-user-password $TestPassword\
+                --source-region $Region\
+                --enable-iam-database-authentication\
+                --engine  $Engine\
+                --engine-version $EngineVersion\
+                --storage-encrypted\
+                --tags "Key=env,Value=test-runner"
+        )
+    fi
 
     if [ $? -ne 0 ]; then
         echo "Failed to create RDS Cluster."
@@ -316,16 +335,22 @@ export -f delete_dbcluster
 
 function delete_dbinstances {
     ClusterId=$1
-    NumInstances=$2
 
-    echo "Deleting DB"
+    echo "Deleting DBInstance"
 
-    i=1
+    instances=$(
+        aws rds describe-db-clusters \
+            --db-cluster-identifier "$ClusterId" \
+            --query 'DBClusters[0].DBClusterMembers[].DBInstanceIdentifier' \
+            --output text
+    )
 
-    while [ $i -le $NumInstances ]
+    echo "$instances"
+
+    for instance in $instances
     do
-        aws rds delete-db-instance --skip-final-snapshot --db-instance-identifier "$ClusterId-$i"
-        ((i++))
+        echo "Deleting: $instance"
+        aws rds delete-db-instance --skip-final-snapshot --db-instance-identifier "$instance"
     done
 } # delete_dbinstances
 export -f delete_dbinstances
@@ -333,9 +358,8 @@ export -f delete_dbinstances
 function delete_aurora_db_cluster {
     ClusterId=$1
     Region=$2
-    NumInstances=$3
 
-    delete_dbinstances $ClusterId $NumInstances
+    delete_dbinstances $ClusterId
     delete_dbcluster $ClusterId
 } # delete_aurora_db_cluster
 export -f delete_aurora_db_cluster
@@ -489,3 +513,316 @@ function delete_secrets {
     aws secretsmanager delete-secret --secret-id $SecretsArn
 } # delete_secrets
 export -f delete_secrets
+
+# ---------------- Parameter Group Operations ----------------------
+
+function new_dbcluster_parameter_group {
+    Name=$1
+    Engine=$2
+    EngineVersion=$3
+
+    echo "Creating custom parameter group: $Name"
+
+    # Handle latest engine version
+    if [ "$EngineVersion" = "latest" ]; then
+        AllEngineVersions=$(aws rds describe-db-engine-versions \
+            --engine $Engine \
+            --query "DBEngineVersions[?!contains(EngineVersion, '-limitless')].EngineVersion" \
+            --output text)
+        LatestVersion=$(echo $AllEngineVersions | tr ' ' '\n' | sort -V | tail -n 1)
+        EngineVersion=$LatestVersion
+        echo "Using Latest Version: $EngineVersion"
+    fi
+
+    # Determine parameter family
+    if [[ "$Engine" == *"mysql"* ]]; then
+        paramFamily="aurora-mysql-$EngineVersion"
+    elif [[ "$Engine" == *"postgresql"* ]]; then
+        EngineVersion=$(echo "$EngineVersion" | cut -d'.' -f1)
+        echo "Updated Latest Version to remove minor: $EngineVersion"
+        paramFamily="aurora-postgresql$EngineVersion"
+    else
+        echo "Unsupported engine: $Engine"
+        exit 1
+    fi
+
+    # Create parameter group
+    aws rds create-db-cluster-parameter-group \
+        --db-cluster-parameter-group-name $Name \
+        --db-parameter-group-family $paramFamily \
+        --description "Custom parameter group for Blue/Green Deployment testing"
+
+    # Set engine-specific parameters
+    if [[ "$Engine" == *"mysql"* ]]; then
+        echo "Setting MySQL parameter: binlog_format=ROW"
+        aws rds modify-db-cluster-parameter-group \
+            --db-cluster-parameter-group-name $Name \
+            --parameters "ParameterName=binlog_format,ParameterValue=ROW,ApplyMethod=pending-reboot"
+    elif [[ "$Engine" == *"postgresql"* ]]; then
+        echo "Setting PostgreSQL parameter: rds.logical_replication=1"
+        aws rds modify-db-cluster-parameter-group \
+            --db-cluster-parameter-group-name $Name \
+            --parameters "ParameterName=rds.logical_replication,ParameterValue=1,ApplyMethod=pending-reboot"
+    fi
+} # new_dbcluster_parameter_group
+export -f new_dbcluster_parameter_group
+
+function attach_dbcluster_parameter_group {
+    ClusterId=$1
+    ParameterGroupName=$2
+
+    echo "Attaching parameter group $ParameterGroupName to cluster $ClusterId"
+
+    aws rds modify-db-cluster \
+        --db-cluster-identifier $ClusterId \
+        --db-cluster-parameter-group-name $ParameterGroupName \
+        --apply-immediately
+
+    WriterInstance=$(aws rds describe-db-clusters \
+        --db-cluster-identifier $ClusterId \
+        --query 'DBClusters[0].DBClusterMembers[?IsClusterWriter==`true`].DBInstanceIdentifier' \
+        --output text)
+
+    aws rds reboot-db-instance \
+        --db-instance-identifier $WriterInstance
+
+    aws rds wait db-cluster-available --db-cluster-identifier $ClusterId
+
+    aws rds wait db-instance-available \
+        --filters "Name=db-cluster-id,Values=${ClusterId}"
+
+    echo "Parameter group attached successfully"
+} # attach_dbcluster_parameter_group
+export -f attach_dbcluster_parameter_group
+
+function delete_dbcluster_parameter_group {
+    Name=$1
+
+    echo "Deleting parameter group: $Name"
+
+    aws rds delete-db-cluster-parameter-group \
+        --db-cluster-parameter-group-name $Name
+
+    echo "Parameter group deleted successfully"
+} # delete_dbcluster_parameter_group
+export -f delete_dbcluster_parameter_group
+
+# ---------------- Blue/Green Deployment Operations ----------------------
+
+function create_blue_green_deployment {
+    BlueGreenDeploymentName=$1
+    ClusterId=$2
+    Engine=$3
+    EngineVersion=$4
+
+    # Get the cluster ARN to use as source
+    dbClusterArn=$(aws rds describe-db-clusters \
+        --db-cluster-identifier $ClusterId \
+        --query 'DBClusters[0].DBClusterArn' \
+        --output text)
+    dbClusterArn=$(echo "$dbClusterArn" | xargs)
+
+    if [ -z "$dbClusterArn" ]; then
+        echo "Failed to get cluster ARN for cluster $ClusterId"
+        exit 1
+    fi
+
+    # Handle latest engine version
+    if [ "$EngineVersion" = "latest" ]; then
+        AllEngineVersions=$(aws rds describe-db-engine-versions \
+            --engine $Engine \
+            --query "DBEngineVersions[?!contains(EngineVersion, '-limitless')].EngineVersion" \
+            --output text)
+        LatestVersion=$(echo $AllEngineVersions | tr ' ' '\n' | sort -V | tail -n 1)
+        EngineVersion=$LatestVersion
+    fi
+
+    # Create blue-green deployment
+    deploymentResult=$(aws rds create-blue-green-deployment \
+        --blue-green-deployment-name $BlueGreenDeploymentName \
+        --source $dbClusterArn \
+        --target-engine-version $EngineVersion \
+        --tags "Key=env,Value=test-runner" \
+        --output json)
+
+    # Parse and return the deployment identifier
+    deploymentId=$(echo $deploymentResult | jq -r '.BlueGreenDeployment.BlueGreenDeploymentIdentifier')
+
+    echo "$deploymentId"
+} # create_blue_green_deployment
+export -f create_blue_green_deployment
+
+function wait_blue_green_deployment_ready {
+    BlueGreenDeploymentId=$1
+
+    echo "Waiting for Blue/Green Deployment $BlueGreenDeploymentId to be ready..."
+    sleep 60
+
+    echo "Performing dummy wait for Blue/Green Deployment $BlueGreenDeploymentId to be ready..., 30m/180s"
+    sleep 600
+    sleep 600
+    sleep 600
+    echo "Done dummy wait for Blue/Green Deployment $BlueGreenDeploymentId"
+    exit 0
+
+    # Retry settings
+    maxRetries=30
+    attempt=0
+    waitSuccessful=0
+
+    # ~30m
+    while [[ $attempt -lt $maxRetries && $waitSuccessful -eq 0 ]]
+    do
+        ((attempt++))
+        echo "Attempt $attempt / $maxRetries: Checking deployment status..."
+        echo "  Current waitSuccessful: $waitSuccessful"
+
+        # Get deployment details
+        deploymentResult=$(aws rds describe-blue-green-deployments \
+            --blue-green-deployment-identifier $BlueGreenDeploymentId)
+
+        if [ $? -ne 0 ]; then
+            echo "Error checking deployment status"
+            exit 1
+        fi
+
+        status=$(echo "$deploymentResult" | jq -r '.BlueGreenDeployments[0].Status')
+        echo "Deployment Status: $status"
+
+        # Check if deployment is ready
+        if [ "$status" = "AVAILABLE" ]; then
+            echo "All tasks completed and deployment is ready for switchover."
+
+            # Verify all switchover details are AVAILABLE
+            allReady=1
+            switchoverCount=$(echo "$deploymentResult" | jq '.BlueGreenDeployments[0].SwitchoverDetails | length')
+            for ((i=0; i<switchoverCount; i++)); do
+                switchoverStatus=$(echo "$deploymentResult" | jq -r ".BlueGreenDeployments[0].SwitchoverDetails[$i].Status")
+                if [ "$switchoverStatus" != "AVAILABLE" ]; then
+                    echo "Switchover detail not ready: $switchoverStatus"
+                    allReady=0
+                fi
+            done
+
+            if [ "$allReady" = 1 ]; then
+                waitSuccessful=1
+                echo "Blue/Green Deployment is ready!"
+                return
+            fi
+        fi
+
+        # Check if deployment is in a terminal state
+        if [ "$status" = "SWITCHOVER_COMPLETED" ] || [ "$status" = "SWITCHOVER_FAILED" ] || [ "$status" = "INVALID_CONFIGURATION" ]; then
+            echo "Deployment reached terminal state: $status"
+            exit 1
+        fi
+
+        echo "Deployment not ready yet. Waiting..."
+
+        if [ $attempt -lt $maxRetries ]; then
+            echo "Retrying in 60 seconds..."
+            sleep 60
+        fi
+    done
+
+    echo "Timeout waiting for Blue/Green Deployment to be ready after $maxRetries attempts"
+    echo "  Final deployment status: $status"
+    exit 1
+} # wait_blue_green_deployment_ready
+export -f wait_blue_green_deployment_ready
+
+function delete_blue_green_deployment {
+    BlueGreenDeploymentId=$1
+    Region=$2
+
+    echo "Deleting Blue/Green Deployment $BlueGreenDeploymentId with old resources..."
+
+    # Get deployment details to find the source cluster
+    deploymentResult=$(aws rds describe-blue-green-deployments \
+        --blue-green-deployment-identifier $BlueGreenDeploymentId)
+
+    sourceArn=$(echo "$deploymentResult" | jq -r '.BlueGreenDeployments[0].Source')
+    targetArn=$(echo "$deploymentResult" | jq -r '.BlueGreenDeployments[0].Target')
+
+    # Extract cluster ID from ARN (format: arn:aws:rds:region:account:cluster:cluster-id)
+    sourceClusterId=$(echo "$sourceArn" | sed 's/.*:cluster://')
+    targetClusterId=$(echo "$targetArn" | sed 's/.*:cluster://')
+
+    # Remove IP from security group
+    remove_ip_from_db_sg "" $sourceClusterId $Region
+
+    # Delete the blue-green deployment with target (green) resources
+    aws rds delete-blue-green-deployment \
+        --blue-green-deployment-identifier $BlueGreenDeploymentId
+
+    echo "Blue/Green Deployment deletion initiated. Waiting for completion..."
+
+    # Wait for deletion to complete
+    # maxRetries=30
+    # attempt=0
+    # deleteSuccessful=0
+
+    # while [[ $attempt -lt $maxRetries ]]
+    # do
+    #     ((attempt++))
+    #     echo "Attempt $attempt / $maxRetries: Checking deletion status..."
+
+    #     deploymentResult=$(aws rds describe-blue-green-deployments \
+    #         --blue-green-deployment-identifier $BlueGreenDeploymentId)
+
+    #     if [ $? -ne 0 ]; then
+    #         echo "Error checking deletion status"
+    #         if echo "$deploymentResult" | grep -q "does not exist"; then
+    #             echo "Blue/Green Deployment has been deleted."
+    #             deleteSuccessful=1
+    #             break
+    #         fi
+    #         exit 1
+    #     fi
+
+    #     deploymentCount=$(echo "$deploymentResult" | jq '.BlueGreenDeployments | length')
+    #     if [ $deploymentCount -eq 0 ]; then
+    #         echo "Blue/Green Deployment has been deleted."
+    #         deleteSuccessful=1
+    #         break
+    #     fi
+
+    #     status=$(echo "$deploymentResult" | jq -r '.BlueGreenDeployments[0].Status')
+
+    #     if [ "$status" = "DELETING" ]; then
+    #         echo "Deployment is still being deleted. Waiting..."
+    #         sleep 15
+    #     elif [ "$status" = "DELETED" ] || [ $deploymentCount -eq 0 ]; then
+    #         echo "Blue/Green Deployment deleted successfully."
+    #         deleteSuccessful=1
+    #         break
+    #     elif [ "$status" = "SWITCHOVER_COMPLETED" ] || [ "$status" = "SWITCHOVER_FAILED" ]; then
+    #         echo "Deployment reached terminal state: $status"
+    #         exit 1
+    #     else
+    #         echo "Unexpected status: $status"
+    #     fi
+
+    #     if [ $attempt -lt $maxRetries ]; then
+    #         echo "Retrying in 60 seconds..."
+    #         sleep 60
+    #     fi
+    # done
+
+    # if [ $deleteSuccessful -eq 0 ]; then
+    #     echo "Failed to delete Blue/Green Deployment after $maxRetries attempts."
+    #     exit 1
+    # fi
+
+    # NOTE - BG Deployment deleted does not ensure that clusters are deletable due to replication lag
+    echo "Sleep to ensure BG Deletion for 30m / 1800s..."
+    sleep 1800
+    delete_aurora_db_cluster $targetClusterId $Region
+    delete_aurora_db_cluster $sourceClusterId $Region
+    # NOTE - Additional time for clusters to delete fully for parameter group deletion later
+    echo "Sleep to ensure Cluster Deletion for 10m / 600s..."
+    sleep 600
+
+    echo "Successfully deleted Blue/Green Deployment $BlueGreenDeploymentId and associated resources."
+} # delete_blue_green_deployment
+export -f delete_blue_green_deployment

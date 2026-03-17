@@ -54,7 +54,7 @@ bool OdbcHelper::IsClosed(SQLHDBC hdbc) {
     }
     SQLUINTEGER connection_state = SQL_CD_FALSE;
     RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
-        local_dbc->wrapped_dbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, 0, nullptr
+        local_dbc->wrapped_dbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, sizeof(SQLUINTEGER), nullptr
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {

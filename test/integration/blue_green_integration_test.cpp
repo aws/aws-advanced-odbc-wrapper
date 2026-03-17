@@ -33,6 +33,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <deque>
+#include <iostream>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -86,7 +87,6 @@ namespace {
         std::chrono::system_clock::time_point wrapper_blue_idle_lost_connection_time{};
         std::chrono::system_clock::time_point wrapper_green_lost_connection_time{};
         std::chrono::system_clock::time_point dns_blue_changed_time{};
-        std::string dns_blue_error;
         std::chrono::system_clock::time_point dns_green_removed_time{};
         std::chrono::system_clock::time_point green_node_changed_name_time{};
         std::unordered_map<std::string, std::chrono::system_clock::time_point> blue_status_time{};
@@ -131,9 +131,16 @@ namespace ThreadSynchronization {
         std::mutex latch_mutex;
         std::unique_lock<std::mutex> lock(latch_mutex);
         ThreadSynchronization::finish_latch.wait_for(lock, wait_ms, [] {
-            return true;
+            return finish_count == total_threads;
         });
     };
+
+    std::mutex cout_mutex;
+
+    void Print(const std::string& message) {
+        std::lock_guard<std::mutex> lock(cout_mutex);
+        std::cout << message << std::endl;
+    }
 }
 
 class BlueGreenIntegrationTest : public BaseFailoverIntegrationTest {
@@ -234,6 +241,9 @@ protected:
         const auto& deployment = deployments.front();
         blue_endpoints = GetTopologyViaSdk(rds_client, deployment.GetSource());
         green_endpoints = GetTopologyViaSdk(rds_client, deployment.GetTarget());
+
+        endpoints.insert(endpoints.end(), blue_endpoints.begin(), blue_endpoints.end());
+        endpoints.insert(endpoints.end(), green_endpoints.begin(), green_endpoints.end());
 
         return endpoints;
     }
@@ -460,9 +470,9 @@ protected:
                 if (offset > switchover_complete_time
                     && x.error.has_value())
                 {
-                    std::cout << "Unsuccessful connection at offset " << offset
-                        << "ms after switchover at (" << switchover_complete_time << "ms): "
-                        << x.error.value() << std::endl;
+                    ThreadSynchronization::Print("Unsuccessful connection at offset " + std::to_string(offset) +
+                        "ms after switchover at (" + std::to_string(switchover_complete_time) + "ms): " +
+                        x.error.value());
                 }
             }
         }
@@ -473,7 +483,7 @@ protected:
             for (const auto& x : v.blue_wrapper_post_switchover_execute_times) {
                 if (x.error.has_value())
                 {
-                    std::cout << "Unsuccessful execution: " << x.error.value() << std::endl;
+                    ThreadSynchronization::Print("Unsuccessful execution: " + x.error.value());
                 }
             }
         }
@@ -513,8 +523,8 @@ protected:
         size_t switchover_complete_time = GetSwitchoverCompleteTime();
 
         // Log Timing
-        std::cout << "BG Trigger Time: " << bg_trigger_time << std::endl;
-        std::cout << "Switchover Complete Time (ms): " << switchover_complete_time << std::endl;
+        ThreadSynchronization::Print("BG Trigger Time: " + std::to_string(bg_trigger_time.time_since_epoch().count()));
+        ThreadSynchronization::Print("Switchover Complete Time (ms): " + std::to_string(switchover_complete_time));
 
         // Gather Metrics
         size_t successful_connections = CountSuccessfulOperationsAfterSwitchover(
@@ -526,10 +536,10 @@ protected:
         size_t unsuccessful_executions = CountUnsuccessfulOperations();
 
         // Log Metrics
-        std::cout << "Successful Wrapper Connection after Switchover: " << successful_connections << std::endl;
-        std::cout << "Successful Wrapper Execution after Switchover: " << successful_connections << std::endl;
-        std::cout << "Unsuccessful Wrapper Connection after Switchover: " << unsuccessful_connections << std::endl;
-        std::cout << "Unsuccessful Wrapper Execution after Switchover: " << unsuccessful_executions << std::endl;
+        ThreadSynchronization::Print("Successful Wrapper Connection after Switchover: " + std::to_string(successful_connections));
+        ThreadSynchronization::Print("Successful Wrapper Execution after Switchover: " + std::to_string(successful_executions));
+        ThreadSynchronization::Print("Unsuccessful Wrapper Connection after Switchover: " + std::to_string(unsuccessful_connections));
+        ThreadSynchronization::Print("Unsuccessful Wrapper Execution after Switchover: " + std::to_string(unsuccessful_executions));
 
         // Log Details of Unsuccessful Operations
         if (unsuccessful_connections > 0) {
@@ -554,8 +564,8 @@ protected:
         // Latest timepoint where switchover still in progress
         std::chrono::system_clock::time_point switchover_in_process_time = GetSwitchoverInProgressTime(bg_trigger_time);
 
-        std::cout << "Earliest Status for Switchover Initiated: " << switchover_initiated_time << std::endl;
-        std::cout << "Latest Status for Switchover Inprogress: " << switchover_in_process_time << std::endl;
+        ThreadSynchronization::Print("Earliest Status for Switchover Initiated: " + std::to_string(switchover_initiated_time.time_since_epoch().count()) + "ms");
+        ThreadSynchronization::Print("Latest Status for Switchover Inprogress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()) + "ms");
 
         EXPECT_NE(empty_time_point, switchover_initiated_time);
         EXPECT_NE(empty_time_point, switchover_in_process_time);
@@ -604,10 +614,10 @@ protected:
                     total_verifications_after_switchover_initiated += 1;
                     if (host_verification_result.connected_to_blue) {
                         connections_to_blue_after_switchover_initiated += 1;
-                        std::cout << "Connected to old blue cluster at offset: " << offset
-                            << "ms after switchover in progress at: " << in_progress_time_offset
-                            << "ms connected to: " << host_verification_result.connected_host
-                            << ", original blue: " << host_verification_result.original_blue_ip;
+                        ThreadSynchronization::Print("Connected to old blue cluster at offset: " + std::to_string(offset) +
+                             "ms after switchover in progress at: " + std::to_string(in_progress_time_offset) +
+                             "ms connected to: " + host_verification_result.connected_host +
+                             ", original blue: " + host_verification_result.original_blue_ip);
                     } else {
                         connections_to_green_after_switchover_initiated += 1;
                     }
@@ -615,10 +625,10 @@ protected:
             }
         }
 
-        std::cout << "After switchover in progress: " << switchover_in_process_time
-            << "ms, Total Connections: " << total_verifications_after_switchover_initiated
-            << ", to old host: " << connections_to_blue_after_switchover_initiated
-            << ", to new host: " << connections_to_green_after_switchover_initiated;
+        ThreadSynchronization::Print("After switchover in progress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()) +
+            "ms, Total Connections: " + std::to_string(total_verifications_after_switchover_initiated) +
+            ", to old host: " + std::to_string(connections_to_blue_after_switchover_initiated) +
+            ", to new host: " + std::to_string(connections_to_green_after_switchover_initiated));
 
         EXPECT_EQ(0, connections_to_blue_after_switchover_initiated);
         EXPECT_TRUE(total_verifications_after_switchover_initiated > 0);
@@ -627,7 +637,7 @@ protected:
     std::thread CreateDirectBlueIdleConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc;
@@ -638,10 +648,10 @@ protected:
             ThreadSynchronization::ReadyAndWait();
 
             // Work
-            std::cout << "[DirectBlueIdleConnectivityMonitoringThread: " << host_id << "] started monitoring idle connection." << std::endl;
+            ThreadSynchronization::Print("[DirectBlueIdleConnectivityMonitoringThread: " + host_id + "] started monitoring idle connection.");
             while (!ThreadSynchronization::stop_flag) {
                 if (ODBC_HELPER::IsClosed(hdbc)) {
-                    std::cout << "[DirectBlueIdleConnectivityMonitoringThread: " << host_id << "] lost connection." << std::endl;
+                    ThreadSynchronization::Print("[DirectBlueIdleConnectivityMonitoringThread: " + host_id + "] lost connection.");
                     results.direct_blue_idle_lost_connection_time = std::chrono::system_clock::now();
                     break;
                 }
@@ -653,13 +663,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateDirectBlueConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc;
@@ -670,12 +680,12 @@ protected:
             ThreadSynchronization::ReadyAndWait();
 
             // Work
-            std::cout << "[DirectBlueConnectivityMonitoringThread: " << host_id << "] started monitoring connection." << std::endl;
+            ThreadSynchronization::Print("[DirectBlueConnectivityMonitoringThread: " + host_id + "] started monitoring connection.");
             SQLHSTMT hstmt;
             SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
             while (!ThreadSynchronization::stop_flag) {
                 if (!SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(hstmt, simple_select_query))) {
-                    std::cout << "[DirectBlueIdleConnectivityMonitoringThread: " << host_id << "] failed to execute." << std::endl;
+                    ThreadSynchronization::Print("[DirectBlueConnectivityMonitoringThread: " + host_id + "] failed to execute.");
                     results.direct_blue_lost_connection_time = std::chrono::system_clock::now();
                     break;
                 }
@@ -688,13 +698,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateWrapperBlueIdleConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc;
@@ -705,10 +715,10 @@ protected:
             ThreadSynchronization::ReadyAndWait();
 
             // Actual Work
-            std::cout << "[WrapperBlueIdleConnectivityMonitoringThread: " << host_id << "] started monitoring idle connection." << std::endl;
+            ThreadSynchronization::Print("[WrapperBlueIdleConnectivityMonitoringThread: " + host_id + "] started monitoring idle connection.");
             while (!ThreadSynchronization::stop_flag) {
                 if (ODBC_HELPER::IsClosed(hdbc)) {
-                    std::cout << "[WrapperBlueIdleConnectivityMonitoringThread: " << host_id << "] lost connection." << std::endl;
+                    ThreadSynchronization::Print("[WrapperBlueIdleConnectivityMonitoringThread: " + host_id + "] lost connection.");
                     results.wrapper_blue_idle_lost_connection_time = std::chrono::system_clock::now();
                     break;
                 }
@@ -720,13 +730,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateWrapperBlueExecutingConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc;
@@ -737,7 +747,7 @@ protected:
             ThreadSynchronization::ReadyAndWait();
 
             // Work
-            std::cout << "[WrapperBlueExecutingConnectivityMonitoringThread: " << host_id << "] started monitoring connection." << std::endl;
+            ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] started monitoring connection.");
 
             // Phase 1 - Execute until connection closes during switchover
             SQLHSTMT hstmt;
@@ -755,11 +765,10 @@ protected:
                     end_time = std::chrono::system_clock::now();
                     SQLCloseCursor(hstmt);
                     std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
-                    std::cout << "[WrapperBlueExecutingConnectivityMonitoringThread: " << host_id << "] Failed to connect: " << err << std::endl;
+                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Failed to connect: " + err);
                     results.blue_wrapper_pre_switchover_execute_times.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
-                    results.direct_blue_lost_connection_time = std::chrono::system_clock::now();
                     if (ODBC_HELPER::IsClosed(hdbc)) {
                         break;
                     }
@@ -789,7 +798,7 @@ protected:
                     end_time = std::chrono::system_clock::now();
                     SQLCloseCursor(hstmt);
                     std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
-                    std::cout << "[WrapperBlueExecutingConnectivityMonitoringThread: " << host_id << "] Failed to connect: " << err << std::endl;
+                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Failed to connect: " + err);
                     results.blue_wrapper_post_switchover_execute_times.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -805,13 +814,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateWrapperBlueNewConnectionMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc;
@@ -833,7 +842,7 @@ protected:
                 } else {
                     end_time = std::chrono::system_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC);
-                    std::cout << "[WrapperBlueNewConnectionMonitoringThread: " << host_id << "] Failed to connect: " << err << std::endl;
+                    ThreadSynchronization::Print("[WrapperBlueNewConnectionMonitoringThread: " + host_id + "] Failed to connect: " + err);
                     results.blue_wrapper_connect_times.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -848,13 +857,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateWrapperBlueHostVerificationThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc;
@@ -867,7 +876,7 @@ protected:
                 GTEST_FAIL() << "Unable to fetch original blue IP from initial connection.";
             }
 
-            std::cout << "[WrapperBlueHostVerificationThread: " << host_id << "] Original Blue IP: " << original_ip << std::endl;
+            ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Original Blue IP: " + original_ip);
 
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
@@ -880,13 +889,13 @@ protected:
                     HostVerificationResult result = HostVerificationResult::Success(timestamp, latest_ip, original_ip);
                     results.host_verification_results.push_back(result);
                     if (result.connected_to_blue) {
-                        std::cout << "[WrapperBlueHostVerificationThread: " << host_id << "] Connected to Blue Cluster on IP: " << latest_ip << std::endl;
+                        ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Connected to Blue Cluster on IP: " + latest_ip);
                     } else {
-                        std::cout << "[WrapperBlueHostVerificationThread: " << host_id << "] Connected to Green Cluster on IP: " << latest_ip << std::endl;
+                        ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Connected to Green Cluster on IP: " + latest_ip);
                     }
                 } else {
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC);
-                    std::cout << "[WrapperBlueHostVerificationThread: " << host_id << "] Failed to connect: " << err << std::endl;
+                    ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Failed to connect: " + err);
                     results.host_verification_results.push_back(
                         HostVerificationResult::Failure(timestamp, original_ip, err)
                     );
@@ -901,25 +910,25 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateGreenDnsMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
 
             // Work
             const std::string original_ip_address = TEST_UTILS::HostToIp(host);
-            std::cout << "[GreenDnsMonitoringThread: " << host_id << "] IP Address: " << original_ip_address << std::endl;
+            ThreadSynchronization::Print("[GreenDnsMonitoringThread: " + host_id + "] IP Address: " + original_ip_address);
 
             while (!ThreadSynchronization::stop_flag) {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
                 const std::string current_ip = TEST_UTILS::HostToIp(host);
                 if (current_ip != original_ip_address) {
-                    std::cout << "[GreenDnsMonitoringThread: " << host_id << "] IP Address Changed: " << current_ip << std::endl;
+                    ThreadSynchronization::Print("[GreenDnsMonitoringThread: " + host_id + "] IP Address Changed: " + current_ip);
                     results.dns_green_removed_time = std::chrono::system_clock::now();
                     break;
                 }
@@ -927,26 +936,30 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateBlueDnsMonitoringThread(
         const std::string& host_id, const std::string& host,
         BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
 
             // Work
             const std::string original_ip_address = TEST_UTILS::HostToIp(host);
-            std::cout << "[BlueDnsMonitoringThread: " << host_id << "] IP Address: " << original_ip_address << std::endl;
+            ThreadSynchronization::Print("[BlueDnsMonitoringThread: " + host_id + "] IP Address: " + original_ip_address);
 
             while (!ThreadSynchronization::stop_flag) {
                 std::this_thread::sleep_for(std::chrono::seconds(1));
                 const std::string current_ip = TEST_UTILS::HostToIp(host);
                 if (current_ip != original_ip_address) {
-                    std::cout << "[BlueDnsMonitoringThread: " << host_id << "] IP Address Changed: " << current_ip << std::endl;
+                    ThreadSynchronization::Print("[BlueDnsMonitoringThread: " + host_id + "] IP Address Changed: " + current_ip);
+                    results.dns_blue_changed_time = std::chrono::system_clock::now();
+                    break;
+                } else if (current_ip.empty()) {
+                    ThreadSynchronization::Print("[BlueDnsMonitoringThread: " + host_id + "] Unable to retrieve IP");
                     results.dns_blue_changed_time = std::chrono::system_clock::now();
                     break;
                 }
@@ -954,13 +967,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateDirectTopologyMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc;
@@ -973,13 +986,13 @@ protected:
             std::chrono::system_clock::time_point end_time = std::chrono::system_clock::now()
                 + std::chrono::minutes(15);
 
-            std::cout << "[DirectTopologyMonitoringThread: " << host_id << "] Starting BG Status Monitoring." << std::endl;
+            ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Starting BG Status Monitoring.");
 
             while (!ThreadSynchronization::stop_flag && std::chrono::system_clock::now() < end_time) {
                 if (ODBC_HELPER::IsClosed(hdbc)) {
                     SQLDisconnect(hdbc);
                     OpenConnectionWithRetry(hdbc, conn_str);
-                    std::cout << "[DirectTopologyMonitoringThread: " << host_id << "] Connection re-opened." << std::endl;
+                    ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Connection re-opened.");
                 }
 
                 SQLHSTMT hstmt;
@@ -996,13 +1009,13 @@ protected:
                         bool is_green = STRING_HELPER::SqltcharToAnsi(role) == "BLUE_GREEN_DEPLOYMENT_TARGET";
 
                         if (is_green) {
-                            std::cout << "[DirectTopologyMonitoringThread: " << host_id << "] Green Status Changed to: " << status_str << std::endl;
+                            ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Green Status Changed to: " + status_str);
                             results.green_status_time.try_emplace(
                                 status_str,
                                 std::chrono::system_clock::now()
                             );
                         } else {
-                            std::cout << "[DirectTopologyMonitoringThread: " << host_id << "] Blue Status Changed to: " << status_str << std::endl;
+                            ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Blue Status Changed to: " + status_str);
                             results.blue_status_time.try_emplace(
                                 status_str,
                                 std::chrono::system_clock::now()
@@ -1022,13 +1035,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateWrapperGreenConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host){
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc;
@@ -1039,15 +1052,25 @@ protected:
             ThreadSynchronization::ReadyAndWait();
 
             // Work
-            std::cout << "[WrapperGreenConnectivityMonitoringThread: " << host_id << "] started monitoring connection." << std::endl;
+            ThreadSynchronization::Print("[WrapperGreenConnectivityMonitoringThread: " + host_id + "] started monitoring connection.");
             SQLHSTMT hstmt;
             SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+            std::chrono::system_clock::time_point start_time = empty_time_point;
+            std::chrono::system_clock::time_point end_time = empty_time_point;
             while (!ThreadSynchronization::stop_flag) {
+                start_time = std::chrono::system_clock::now();
                 if (!SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(hstmt, simple_select_query))) {
-                    std::cout << "[WrapperGreenConnectivityMonitoringThread: " << host_id << "] failed to execute." << std::endl;
-                    results.wrapper_green_lost_connection_time = std::chrono::system_clock::now();
+                    end_time = std::chrono::system_clock::now();
+                    std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
+                    results.green_wrapper_execute_times.push_back(TimeHolder(start_time, end_time, err));
+                    if (ODBC_HELPER::IsClosed(hdbc)) {
+                        ThreadSynchronization::Print("[WrapperGreenConnectivityMonitoringThread: " + host_id + "] failed to execute.");
+                        results.wrapper_green_lost_connection_time = std::chrono::system_clock::now();
+                    }
                     break;
                 }
+                end_time = std::chrono::system_clock::now();
+                results.green_wrapper_execute_times.push_back(TimeHolder(start_time, end_time));
                 SQLCloseCursor(hstmt);
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
@@ -1057,15 +1080,15 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host);
     }
 
     std::thread CreateGreenIamConnectivityMonitoringThread(
         const std::string& host_id, const std::string& host, BlueGreenResults& results,
-        std::deque<TimeHolder> result_queue, const std::string& iam_host, const std::string& thread_prefix,
+        std::deque<TimeHolder>& result_queue, const std::string& iam_host, const std::string& thread_prefix,
         bool notify_on_first_error, bool exit_on_first_success)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& host_id, const std::string& host, const std::string& iam_host, const std::string& thread_prefix) {
             // Setup
             const std::string iam_conn_str_prefix = ConnectionStringBuilder(conn_str_builder.getString())
                 .withServer(host)
@@ -1076,7 +1099,7 @@ protected:
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
 
-            std::cout << "[GreenIamConnectivityMonitoringThread_" << thread_prefix << ": " << host_id << "] started monitoring connection." << std::endl;
+            ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] started monitoring connection.");
 
             // Work
             SQLHDBC hdbc;
@@ -1089,7 +1112,7 @@ protected:
                     .getString();
 
                 std::chrono::system_clock::time_point start_time = std::chrono::system_clock::now();
-                std::chrono::system_clock::time_point end_time =empty_time_point;
+                std::chrono::system_clock::time_point end_time = empty_time_point;
                 if (SQL_SUCCEEDED(ODBC_HELPER::DriverConnect(hdbc, conn_str))) {
                     end_time = std::chrono::system_clock::now();
                     result_queue.push_back(
@@ -1097,17 +1120,16 @@ protected:
                     );
 
                     if (exit_on_first_success) {
-                        std::cout << "[GreenIamConnectivityMonitoringThread_" << thread_prefix << ": " << host_id << "] Successfully connecting, exiting." << std::endl;
+                        ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] Successfully connecting, exiting.");
                         results.green_node_changed_name_time = results.green_node_changed_name_time == empty_time_point
                             ? std::chrono::system_clock::now()
                             : results.green_node_changed_name_time;
-                        ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
-                        return;
+                        break;
                     }
                 } else {
                     end_time = std::chrono::system_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC);
-                    std::cout << "[GreenIamConnectivityMonitoringThread_" << thread_prefix << ": " << host_id << "] Failed to connect: " << err << std::endl;
+                    ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] Failed to connect: " + err);
                     result_queue.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -1121,9 +1143,8 @@ protected:
                         results.green_node_changed_name_time = results.green_node_changed_name_time == empty_time_point
                             ? std::chrono::system_clock::now()
                             : results.green_node_changed_name_time;
-                        std::cout << "[GreenIamConnectivityMonitoringThread_" << thread_prefix << ": " << host_id << "] Exiting thread, first authentication failed: " << err << std::endl;
-                        ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
-                        return;
+                        ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] Exiting thread, first authentication failed: " + err);
+                        break;
                     }
                 }
 
@@ -1136,13 +1157,13 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, host_id, host, iam_host, thread_prefix);
     }
 
     std::thread CreateBlueGreenSwitchoverTriggerThread(
         const std::string& blue_green_deployment_id, std::unordered_map<std::string, BlueGreenResults>& results)
     {
-        return std::thread([&]{
+        return std::thread([&](const std::string& blue_green_deployment_id) {
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
 
@@ -1158,9 +1179,9 @@ protected:
             request.WithBlueGreenDeploymentIdentifier(blue_green_deployment_id);
             auto outcome = rds_client.SwitchoverBlueGreenDeployment(request);
             if (!outcome.IsSuccess()) {
-                std::cout << "Failed to send Blue Green Switchover request: " << outcome.GetError().GetMessage() << std::endl;
+                ThreadSynchronization::Print("Failed to send Blue Green Switchover request: " + outcome.GetError().GetMessage());
             } else {
-                std::cout << "Successfully sent Blue Green Switchover request." << std::endl;
+                ThreadSynchronization::Print("Successfully sent Blue Green Switchover request.");
             }
 
             std::chrono::system_clock::time_point trigger_time = std::chrono::system_clock::now();
@@ -1170,7 +1191,7 @@ protected:
 
             // Finished
             ThreadSynchronization::ThreadFinished();
-        });
+        }, blue_green_deployment_id);
     }
 };
 
@@ -1182,12 +1203,8 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest)
     global_start_time = start_time;
 
     std::vector<std::thread> threads;
-    for (std::string host : topology_instances) {
-        size_t pos = host.find('.');
-        std::string host_id = pos != std::string::npos
-            ? host_id.substr(0, pos)
-            : "";
-        ASSERT_FALSE(host_id.empty());
+    for (std::string host_id : topology_instances) {
+        std::string host = host_id + db_conn_str_suffix;
 
         results.insert_or_assign(host_id, BlueGreenResults());
         BlueGreenResults& result = results.at(host_id);
@@ -1224,27 +1241,31 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest)
         v.start_time = start_time;
     }
 
+    // Allow threads to finish immediate work
+    ThreadSynchronization::Print("Allow threads setup time");
+    std::this_thread::sleep_for(std::chrono::minutes(3));
+
     // Notify all threads are allocated and ready to start
     ThreadSynchronization::total_threads = threads.size();
     ThreadSynchronization::start_flag = true;
     ThreadSynchronization::start_latch.notify_all();
-    std::cout << "Threads started" << std::endl;
+    ThreadSynchronization::Print("Threads started");
 
     ThreadSynchronization::WaitForFinish(std::chrono::minutes(6));
-    std::cout << "Threads finished" << std::endl;
+    ThreadSynchronization::Print("Threads finished");
 
     // Allow threads to finish immediate work
     std::this_thread::sleep_for(std::chrono::minutes(3));
-    std::cout << "Stopping threads" << std::endl;
+    ThreadSynchronization::Print("Stopping threads");
 
     // Stop threads
     ThreadSynchronization::stop_flag = true;
-    std::cout << "Join threads" << std::endl;
+    ThreadSynchronization::Print("Join threads");
     for (auto& thread : threads) {
         thread.join();
     }
 
-    std::cout << "Tests finished" << std::endl;
+    ThreadSynchronization::Print("Tests finished");
     PrintMetrics();
     AssertTest();
 }
