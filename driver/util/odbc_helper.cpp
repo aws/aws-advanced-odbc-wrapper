@@ -146,9 +146,9 @@ void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
 std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
-    SQLTCHAR sql_state[MAX_STATE_LENGTH] = { 0 };
-    SQLTCHAR message[MAX_MSG_LENGTH] = { 0 };
-    RDS_SQLError(nullptr, static_cast<SQLHDBC>(dbc), nullptr, sql_state, &native_error, message, MAX_MSG_LENGTH, &stmt_length, true);
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    RDS_SQLError(nullptr, static_cast<SQLHDBC>(dbc), nullptr, sql_state, &native_error, message, MAX_MSG_LEN, &stmt_length, true);
     LOG(WARNING) << "SQL State: " << AS_UTF8_CSTR(sql_state) << ". Message: " << AS_UTF8_CSTR(message);
     return AS_UTF8_CSTR(sql_state);
 }

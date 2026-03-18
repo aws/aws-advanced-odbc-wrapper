@@ -46,7 +46,8 @@ enum TabSelection {
     AWS_AUTH,
     FAILOVER,
     LIMITLESS,
-    CUSTOM_ENDPOINT
+    CUSTOM_ENDPOINT,
+    AURORA_INITIAL_CONNECTION_STRATEGY
 };
 
 enum AuthModeSelection {
@@ -146,6 +147,13 @@ const std::map<std::string, std::pair<int, ControlType>> CUSTOM_ENDPOINT_KEYS = 
     {KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS, {IDC_WAIT_FOR_CUSTOM_ENDPOINT_TIMEOUT_MS, EDIT_TEXT}}
 };
 
+const std::map<std::string, std::pair<int, ControlType>> AURORA_INITIAL_CONNECTION_STRATEGY_KEYS = {
+    {KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY, {IDC_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY, CHECK}},
+    {KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, {IDC_INITIAL_CONNECTION_RETRY_INTERVAL_MS, EDIT_TEXT}},
+    {KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, {IDC_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, EDIT_TEXT}},
+    {KEY_VERIFY_INITIAL_CONNECTION_TYPE, {IDC_VERIFY_INITIAL_CONNECTION_TYPE, EDIT_TEXT}}
+};
+
 const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"Database", ""},
     {"IAM", VALUE_AUTH_IAM},
@@ -187,12 +195,19 @@ const std::vector<std::pair<std::string, std::string>> MFA_TYPES = {
     {"Push", VALUE_MFA_PUSH}
 };
 
+const std::vector<std::pair<std::string, std::string>> INITIAL_CONNECTION_TYPES = {
+    {"None", ""},
+    {"Writer", VALUE_INITIAL_CONNECTION_TYPE_WRITER},
+    {"Reader", VALUE_INITIAL_CONNECTION_TYPE_READER}
+};
+
 HINSTANCE ghInstance;
 HWND tab_control;
 HWND aws_auth_tab;
 HWND failover_tab;
 HWND limitless_tab;
 HWND custom_endpoint_tab;
+HWND aurora_initial_connection_strategy_tab;
 HWND main_win;
 
 std::string driver;
@@ -278,6 +293,8 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return DB_DIALECTS[selection].second;
                     case IDC_MFA_TYPE:
                         return MFA_TYPES[selection].second;
+                    case IDC_VERIFY_INITIAL_CONNECTION_TYPE:
+                        return INITIAL_CONNECTION_TYPES[selection].second;
                     default:
                         break;
                 }
@@ -453,6 +470,13 @@ std::string GetDsn(bool test_conn)
         }
     }
 
+    for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
+        value = GetControlValue(aurora_initial_connection_strategy_tab, keys.second);
+        if (!value.empty()) {
+            conn_str = AddKeyToConnectionString(conn_str, keys.first, value, test_conn);
+        }
+    }
+
     conn_str = AddKeyToConnectionString(conn_str, KEY_RDS_TEST_CONN, VALUE_BOOL_TRUE, test_conn);
 
     return conn_str;
@@ -560,6 +584,9 @@ bool SaveDsn()
             }
             for (const auto& keys : CUSTOM_ENDPOINT_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(custom_endpoint_tab, keys.second).c_str());
+            }
+            for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
+                SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(aurora_initial_connection_strategy_tab, keys.second).c_str());
             }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
@@ -673,6 +700,65 @@ BOOL CustomEndpointDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         HANDLE_MSG(hwnd, WM_INITDIALOG, CustomEndpointTabInit);
         HANDLE_MSG(hwnd, WM_COMMAND, HandleCustomEndpointInteraction);
     default:
+        break;
+    }
+
+    return false;
+}
+
+void HandleEnableAuroraInitialConnectionStrategyEndpoint(HWND hwnd) {
+    HWND check_box = GetDlgItem(hwnd, IDC_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY);
+    LRESULT state = Button_GetCheck(check_box);
+    bool show_all = false;
+    if (state == BST_CHECKED) {
+        show_all = true;
+    }
+
+    for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
+        if (keys.first != KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) {
+            HWND ctrl = GetDlgItem(hwnd, keys.second.first);
+            EnableWindow(ctrl, (show_all) ? TRUE : FALSE);
+        }
+    }
+}
+
+void HandleAuroraInitialConnectionStrategyInteraction(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
+{
+    switch (id) {
+        case IDC_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY:
+            HandleEnableAuroraInitialConnectionStrategyEndpoint(hwnd);
+            break;
+        default:
+            break;
+    }
+}
+
+BOOL AuroraInitialConnectionStrategyTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
+{
+    HWND initial_connection_type = GetDlgItem(hwnd, IDC_VERIFY_INITIAL_CONNECTION_TYPE);
+    for (int i = 0; i < INITIAL_CONNECTION_TYPES.size(); i++) {
+        ComboBox_InsertString(initial_connection_type, i, RDS_TSTR(INITIAL_CONNECTION_TYPES[i].first).c_str());
+    }
+
+    for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
+        if (keys.second.second == CHECK) {
+            SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
+        } else {
+            SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
+        }
+    }
+
+    HandleEnableAuroraInitialConnectionStrategyEndpoint(hwnd);
+
+    return false;
+}
+
+BOOL AuroraInitialConnectionStrategyDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+        HANDLE_MSG(hwnd, WM_INITDIALOG, AuroraInitialConnectionStrategyTabInit);
+        HANDLE_MSG(hwnd, WM_COMMAND, HandleAuroraInitialConnectionStrategyInteraction);
+        default:
         break;
     }
 
@@ -920,6 +1006,7 @@ void OnSelChange(HWND hwnd)
     ShowWindow(failover_tab, (selection == FAILOVER) ? SW_SHOW : SW_HIDE);
     ShowWindow(limitless_tab, (selection == LIMITLESS) ? SW_SHOW : SW_HIDE);
     ShowWindow(custom_endpoint_tab, (selection == CUSTOM_ENDPOINT) ? SW_SHOW : SW_HIDE);
+    ShowWindow(aurora_initial_connection_strategy_tab, (selection == AURORA_INITIAL_CONNECTION_STRATEGY) ? SW_SHOW : SW_HIDE);
 }
 
 BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
@@ -929,6 +1016,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     failover_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_FAILOVER), tab_control, (DLGPROC)FailoverDlgProc);
     limitless_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_LIMITLESS), tab_control, (DLGPROC)LimitlessDlgProc);
     custom_endpoint_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_CUSTOM_ENDPOINT), tab_control, (DLGPROC)CustomEndpointDlgProc);
+    aurora_initial_connection_strategy_tab = CreateDialog(ghInstance, MAKEINTRESOURCE(IDC_TAB_AURORA_INITIAL_CONNECTION_STRATEGY), tab_control, (DLGPROC)AuroraInitialConnectionStrategyDlgProc);
 
     if (driver_connect) {
         HWND dsn_text = GetDlgItem(hwnd, IDC_DSN_NAME);
@@ -957,6 +1045,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
     AddTabToTabControl("Failover Settings", tab_control, FAILOVER);
     AddTabToTabControl("Limitless", tab_control, LIMITLESS);
     AddTabToTabControl("Custom Endpoint", tab_control, CUSTOM_ENDPOINT);
+    AddTabToTabControl("Aurora Initial Connection Strategy", tab_control, AURORA_INITIAL_CONNECTION_STRATEGY);
 
     SendMessage(tab_control, TCM_SETCURSEL, 0, 0);
     OnSelChange(hwnd);

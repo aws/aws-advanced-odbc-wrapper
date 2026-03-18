@@ -49,33 +49,21 @@ protected:
     // Runs per test
     void SetUp() override {
         mock_base_plugin = new MOCK_BASE_PLUGIN();
-
         mock_plugin_service = std::make_shared<MOCK_PLUGIN_SERVICE>();
+        mock_host_list_provider = std::make_shared<MOCK_HOST_LIST_PROVIDER>();
+        mock_odbc_helper = std::make_shared<MOCK_ODBC_HELPER>();
+        mock_dialect = std::make_shared<MOCK_DIALECT>();
+        mock_host_selector = std::make_shared<MOCK_HOST_SELECTOR>();
+        mock_topology_util = std::make_shared<MOCK_TOPOLOGY_UTIL>(mock_odbc_helper, mock_dialect);
+        ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
+
+        dbc = new DBC();
+        dbc->plugin_service = mock_plugin_service;
 
         all_hosts.push_back(*writer_host);
         all_hosts.push_back(*reader_host_a);
         all_hosts.push_back(*reader_host_b);
         all_hosts.push_back(*reader_host_c);
-        ON_CALL(*mock_plugin_service, GetHosts).WillByDefault(testing::Return(all_hosts));
-
-        mock_host_list_provider = std::make_shared<MOCK_HOST_LIST_PROVIDER>();
-        ON_CALL(*mock_plugin_service, GetHostListProvider).WillByDefault(testing::Return(mock_host_list_provider));
-
-        mock_odbc_helper = std::make_shared<MOCK_ODBC_HELPER>();
-        ON_CALL(*mock_plugin_service, GetOdbcHelper).WillByDefault(testing::Return(mock_odbc_helper));
-
-        mock_dialect = std::make_shared<MOCK_DIALECT>();
-        ON_CALL(*mock_plugin_service, GetDialect).WillByDefault(testing::Return(mock_dialect));
-
-        mock_host_selector = std::make_shared<MOCK_HOST_SELECTOR>();
-        ON_CALL(*mock_plugin_service, GetHostSelector).WillByDefault(testing::Return(mock_host_selector));
-
-        mock_topology_util = std::make_shared<MOCK_TOPOLOGY_UTIL>(mock_odbc_helper, mock_dialect);
-        ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
-        ON_CALL(*mock_plugin_service, GetTopologyUtil).WillByDefault(testing::Return(mock_topology_util));
-
-        dbc = new DBC();
-        dbc->plugin_service = mock_plugin_service;
     }
     void TearDown() override {
         // mock_base_plugin should be cleaned up by plugin chain
@@ -97,7 +85,15 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_NonRdsCluster_
     .Times(testing::Exactly(0));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, non_rds_url);
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -114,10 +110,21 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_DSN) {
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1));
+    .Times(testing::Exactly(1))
+    .WillOnce(testing::Return(all_hosts));
+
+    EXPECT_CALL(*mock_topology_util, GetWriter).WillOnce(testing::Return(*writer_host));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -133,11 +140,22 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Configu
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1));
+    .Times(testing::Exactly(1))
+    .WillOnce(testing::Return(all_hosts));
+
+    EXPECT_CALL(*mock_topology_util, GetWriter).WillOnce(testing::Return(*writer_host));
 
     dbc->conn_attr.insert_or_assign(KEY_VERIFY_INITIAL_CONNECTION_TYPE, "WRITER");
     dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_cluster_dns);
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -151,10 +169,21 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
     .Times(testing::Exactly(2))
     .WillRepeatedly(testing::Return(SQL_SUCCESS));
 
+    EXPECT_CALL(*mock_plugin_service,
+        GetHosts())
+    .Times(testing::Exactly(2))
+    .WillRepeatedly(testing::Return(all_hosts));
+
     ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
     EXPECT_CALL(*mock_topology_util, GetWriter(testing::_))
         .WillOnce(testing::Return(*empty_host))
         .WillOnce(testing::Return(*writer_host));
+
+    EXPECT_CALL(*mock_host_list_provider, GetConnectionInfo)
+    .WillOnce(testing::Return(*reader_host_a));
+
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    .Times(testing::Exactly(1));
 
     EXPECT_CALL(
         *mock_plugin_service,
@@ -164,7 +193,15 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -188,12 +225,28 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Network
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(2));
+    .Times(testing::Exactly(2))
+    .WillRepeatedly(testing::Return(all_hosts));
+
+    EXPECT_CALL(*mock_topology_util, GetWriter)
+    .Times(testing::Exactly(2))
+    .WillRepeatedly(testing::Return(*writer_host));
+
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    .Times(testing::Exactly(1));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -209,14 +262,23 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_DSN) {
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1));
+    .Times(testing::Exactly(1))
+    .WillOnce(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_host_list_provider,
         GetConnectionRole(testing::_))
     .WillOnce(testing::Return(READER));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_cluster_dns);
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -232,7 +294,8 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Configu
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1));
+    .Times(testing::Exactly(1))
+    .WillOnce(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_host_list_provider,
         GetConnectionRole(testing::_))
@@ -240,7 +303,15 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Configu
 
     dbc->conn_attr.insert_or_assign(KEY_VERIFY_INITIAL_CONNECTION_TYPE, "READER");
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -251,7 +322,6 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
     EXPECT_CALL(
         *mock_base_plugin,
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
-    .Times(testing::Exactly(2))
     .WillOnce(testing::Return(SQL_ERROR))
     .WillOnce(testing::Return(SQL_SUCCESS));
 
@@ -263,12 +333,28 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(2));
+    .Times(testing::Exactly(2))
+    .WillRepeatedly(testing::Return(all_hosts));
+
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    .Times(testing::Exactly(1));
+
+    EXPECT_CALL(*mock_host_list_provider, GetConnectionRole)
+    .Times(testing::Exactly(1))
+    .WillRepeatedly(testing::Return(READER));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_cluster_dns);
      dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
      dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
-    AuroraInitialConnectionStrategyPlugin plugin(dbc, mock_base_plugin);
+    AuroraInitialConnectionStrategyPlugin plugin(
+        dbc,
+        mock_base_plugin,
+        mock_plugin_service,
+        mock_host_list_provider,
+        mock_host_selector,
+        mock_dialect,
+        mock_odbc_helper,
+        mock_topology_util);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);

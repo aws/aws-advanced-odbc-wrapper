@@ -25,15 +25,35 @@
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc) : AuroraInitialConnectionStrategyPlugin(dbc, nullptr) {}
 
-AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin) : BasePlugin(dbc, next_plugin) {
+AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin) : AuroraInitialConnectionStrategyPlugin(
+    dbc,
+    next_plugin,
+    dbc->plugin_service,
+    dbc->plugin_service->GetHostListProvider(),
+    dbc->plugin_service->GetHostSelector(),
+    dbc->plugin_service->GetDialect(),
+    dbc->plugin_service->GetOdbcHelper(),
+    dbc->plugin_service->GetTopologyUtil()) {}
+
+AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
+    DBC* dbc,
+    BasePlugin* next_plugin,
+    std::shared_ptr<PluginService> plugin_service,
+    std::shared_ptr<HostListProvider> host_list_provider,
+    std::shared_ptr<HostSelector> host_selector,
+    std::shared_ptr<Dialect> dialect,
+    std::shared_ptr<OdbcHelper> odbc_helper,
+    std::shared_ptr<TopologyUtil> topology_util) : BasePlugin(dbc, next_plugin) {
+
     this->plugin_name = "INITIAL_CONNECTION";
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
-    this->plugin_service_ = dbc->plugin_service;
-    this->dialect_ = plugin_service_->GetDialect();
-    this->host_selector_ = plugin_service_->GetHostSelector();
-    this->odbc_helper_ = plugin_service_->GetOdbcHelper();
-    this->topology_util_ = plugin_service_->GetTopologyUtil();
+    this->plugin_service_ = plugin_service;
+    this->dialect_ = dialect;
+    this->host_list_provider_ = host_list_provider;
+    this->host_selector_ = host_selector;
+    this->odbc_helper_ = odbc_helper;
+    this->topology_util_ = topology_util;
 
     this->retry_delay_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS);
     this->retry_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, DEFAULT_INITIAL_CONNECTION_RETRY_TIMEOUT_MS);
@@ -47,7 +67,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion) {
-    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
     if (!RdsUtils::IsRdsClusterDns(host)) {
@@ -61,11 +81,11 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             DriverCompletion);
     }
 
-    if (this->verify_initial_connection_type_ == "WRITER") {
+    if (verify_initial_connection_type_ == "WRITER") {
         return this->GetVerifiedWriter(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
-    if (this->verify_initial_connection_type_ == "READER") {
+    if (verify_initial_connection_type_ == "READER") {
         return this->GetVerifiedReader(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
@@ -96,16 +116,16 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
     SQLUSMALLINT   DriverCompletion)
 {
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + this->retry_timeout_ms_;
+    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
     while (std::chrono::steady_clock::now() < end_time) {
         SQLRETURN rc = SQL_ERROR;
 
-        HostInfo writer_candidate = topology_util_->GetWriter(this->plugin_service_->GetHosts());
+        HostInfo writer_candidate = topology_util_->GetWriter(plugin_service_->GetHosts());
         if (writer_candidate.GetHost().empty()) {
             LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
-                if (this->dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                     odbc_helper_->Disconnect(dbc);
                     std::this_thread::sleep_for(retry_delay_ms_);
@@ -114,8 +134,8 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
                 odbc_helper_->Disconnect(dbc);
                 return rc;
             }
-            this->plugin_service_->ForceRefreshHosts(false, 0);
-            writer_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
+            plugin_service_->ForceRefreshHosts(false, 0);
+            writer_candidate = host_list_provider_->GetConnectionInfo(dbc);
 
             if (writer_candidate.GetHost().empty() || writer_candidate.GetHostRole() != WRITER) {
                 LOG(WARNING) << "Candidate writer connection is invalid. Retrying connection.";
@@ -124,8 +144,6 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
                 continue;
             }
 
-            plugin_service_->SetInitialHostInfo(writer_candidate);
-
             return rc;
         }
 
@@ -133,7 +151,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
         rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
         if (!SQL_SUCCEEDED(rc)) {
-            if (this->dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                 LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                 odbc_helper_->Disconnect(dbc);
                 std::this_thread::sleep_for(retry_delay_ms_);
@@ -156,7 +174,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
     SQLUSMALLINT   DriverCompletion)
 {
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + this->retry_timeout_ms_;
+    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
 
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
     if (region.empty()) {
@@ -173,7 +191,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
-                if (this->dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+                if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                     odbc_helper_->Disconnect(dbc);
                     std::this_thread::sleep_for(retry_delay_ms_);
@@ -182,8 +200,8 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                 odbc_helper_->Disconnect(dbc);
                 return rc;
             }
-            this->plugin_service_->ForceRefreshHosts(false, 0);
-            reader_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
+            plugin_service_->ForceRefreshHosts(false, 0);
+            reader_candidate = host_list_provider_->GetConnectionInfo(dbc);
 
             if (reader_candidate.GetHost().empty()) {
                 LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
@@ -197,7 +215,6 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                     // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
                     // and return the current (writer) connection.
                     LOG(WARNING) << "Unable to find a reader host. Attempting connection with default connection parameters.";
-                    this->plugin_service_->SetInitialHostInfo(reader_candidate);
                     return rc;
                 }
                 LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
@@ -206,14 +223,13 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                 continue;
             }
 
-            this->plugin_service_->SetInitialHostInfo(reader_candidate);
             return rc;
         }
         LOG(INFO) << "Connecting to reader host: " << reader_candidate.GetHost();
         dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_candidate.GetHost());
         rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
         if (!SQL_SUCCEEDED(rc)) {
-            if (this->dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
+            if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                 LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
                 odbc_helper_->Disconnect(dbc);
                 std::this_thread::sleep_for(retry_delay_ms_);
@@ -223,13 +239,12 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             return rc;
         }
 
-        if (this->plugin_service_->GetHostListProvider()->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
-            this->plugin_service_->ForceRefreshHosts(false, 0);
+        if (host_list_provider_->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
+            plugin_service_->ForceRefreshHosts(false, 0);
             if (this->HasNoReadersAndTopologyIsHealthy()) {
                 // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
                 // and return the current (writer) connection.
                 LOG(WARNING) << "Unable to find a reader host. Attempting connection with default connection parameters.";
-                this->plugin_service_->SetInitialHostInfo(reader_candidate);
                 return rc;
             }
             LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
@@ -238,7 +253,6 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             continue;
         }
 
-        this->plugin_service_->SetInitialHostInfo(reader_candidate);
         return rc;
     }
     LOG(WARNING) << "Retry timeout exceeded and unable to find a reader host. Using default connection parameters.";
@@ -247,7 +261,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
 
 HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string region) {
 
-    std::vector<HostInfo> hosts = this->plugin_service_->GetHosts();
+    std::vector<HostInfo> hosts = plugin_service_->GetHosts();
     std::vector<HostInfo> filtered_hosts;
 
     if (region.empty()) {
@@ -261,23 +275,19 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string regi
     RoundRobinHostSelector::SetRoundRobinWeight(filtered_hosts, properties);
 
     try {
-        return this->host_selector_->GetHost(filtered_hosts, false, properties);
+        return host_selector_->GetHost(filtered_hosts, false, properties);
     } catch (const std::exception& e) {
-        return HostInfo();
+        return {};
     }
 }
 
 bool AuroraInitialConnectionStrategyPlugin::HasNoReadersAndTopologyIsHealthy() {
-    if (this->plugin_service_->GetHosts().empty()) {
+    if (plugin_service_->GetHosts().empty()) {
         // Topology inconclusive/corrupted.
         return false;
     }
 
-    for (const HostInfo& host : this->plugin_service_->GetHosts()) {
-        if (host.GetHostRole() == WRITER) {
-            continue;
-        }
-        // Found a reader node
+    if (std::ranges::all_of(plugin_service_->GetHosts(), [](const HostInfo& host) {return host.GetHostRole() == WRITER;})) {
         return false;
     }
 

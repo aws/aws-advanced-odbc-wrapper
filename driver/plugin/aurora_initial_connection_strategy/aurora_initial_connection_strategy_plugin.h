@@ -25,6 +25,15 @@ class AuroraInitialConnectionStrategyPlugin : public BasePlugin {
 public:
     AuroraInitialConnectionStrategyPlugin(DBC* dbc);
     AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin);
+    AuroraInitialConnectionStrategyPlugin(
+        DBC* dbc,
+        BasePlugin* next_plugin,
+        std::shared_ptr<PluginService> plugin_service,
+        std::shared_ptr<HostListProvider> host_list_provider,
+        std::shared_ptr<HostSelector> host_selector,
+        std::shared_ptr<Dialect> dialect,
+        std::shared_ptr<OdbcHelper> odbc_helper,
+        std::shared_ptr<TopologyUtil> topology_util);
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
@@ -37,6 +46,7 @@ public:
 protected:
     std::shared_ptr<PluginService> plugin_service_;
     std::shared_ptr<HostSelector> host_selector_;
+    std::shared_ptr<HostListProvider> host_list_provider_;
     std::shared_ptr<Dialect> dialect_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<TopologyUtil> topology_util_;
@@ -61,8 +71,6 @@ protected:
     HostInfo GetReader(const std::string region);
     bool HasNoReadersAndTopologyIsHealthy();
 
-    static constexpr int MAX_STATE_LENGTH = 32;
-    static constexpr int MAX_MSG_LENGTH = 1024;
     static inline const std::chrono::milliseconds DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS = std::chrono::milliseconds(1000);
     static inline const std::chrono::milliseconds DEFAULT_INITIAL_CONNECTION_RETRY_TIMEOUT_MS = std::chrono::milliseconds(30000);
 };
