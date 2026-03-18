@@ -195,6 +195,12 @@ const std::vector<std::pair<std::string, std::string>> MFA_TYPES = {
     {"Push", VALUE_MFA_PUSH}
 };
 
+const std::vector<std::pair<std::string, std::string>> INITIAL_CONNECTION_TYPES = {
+    {"None", ""},
+    {"Writer", VALUE_INITIAL_CONNECTION_TYPE_WRITER},
+    {"Reader", VALUE_INITIAL_CONNECTION_TYPE_READER}
+};
+
 HINSTANCE ghInstance;
 HWND tab_control;
 HWND aws_auth_tab;
@@ -287,6 +293,8 @@ std::string GetControlValue(HWND hwnd, std::pair<int, ControlType> pair)
                         return DB_DIALECTS[selection].second;
                     case IDC_MFA_TYPE:
                         return MFA_TYPES[selection].second;
+                    case IDC_VERIFY_INITIAL_CONNECTION_TYPE:
+                        return INITIAL_CONNECTION_TYPES[selection].second;
                     default:
                         break;
                 }
@@ -727,6 +735,11 @@ void HandleAuroraInitialConnectionStrategyInteraction(HWND hwnd, int id, HWND hw
 
 BOOL AuroraInitialConnectionStrategyTabInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
+    HWND initial_connection_type = GetDlgItem(hwnd, IDC_VERIFY_INITIAL_CONNECTION_TYPE);
+    for (int i = 0; i < INITIAL_CONNECTION_TYPES.size(); i++) {
+        ComboBox_InsertString(initial_connection_type, i, RDS_TSTR(INITIAL_CONNECTION_TYPES[i].first).c_str());
+    }
+
     for (const auto& keys : AURORA_INITIAL_CONNECTION_STRATEGY_KEYS) {
         if (keys.second.second == CHECK) {
             SetInitialCheckBoxValue(hwnd, keys.second.first, keys.first);
