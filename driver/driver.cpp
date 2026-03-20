@@ -27,9 +27,7 @@ ENV::~ENV() {
 }
 
 DBC::~DBC() {
-    plugin_service.reset();
-    delete plugin_head;
-    plugin_head = nullptr;
+    plugin_service = nullptr;
     delete err;
     err = nullptr;
 }

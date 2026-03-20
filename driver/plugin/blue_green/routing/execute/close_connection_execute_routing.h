@@ -22,7 +22,7 @@
 
 #include "../../../../driver.h"
 #include "../../../../util/odbc_helper.h"
-#include "../../../../util/sliding_cache_map.h"
+#include "../../../../util/concurrent_map.h"
 
 #include <memory>
 #include <string>
@@ -36,7 +36,7 @@ public:
     SQLRETURN Execute(
         STMT* stmt,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
 };
 
 #endif // CLOSE_CONNECTION_EXECUTE_ROUTING_H_

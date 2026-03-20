@@ -17,7 +17,7 @@
 SQLRETURN CloseConnectionExecuteRouting::Execute(
     STMT* stmt,
     std::shared_ptr<OdbcHelper> odbc_helper,
-    std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache)
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
     odbc_helper->Disconnect(stmt->dbc);
     return SQL_SUCCESS;

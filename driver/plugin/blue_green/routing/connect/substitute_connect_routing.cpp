@@ -26,14 +26,20 @@ SQLRETURN SubstituteConnectRouting::Connect(
     DBC* dbc,
     HostInfo info,
     std::shared_ptr<OdbcHelper> odbc_helper,
-    const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache)
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
     BasePlugin* plugin_head_ = dbc->plugin_head;
     odbc_helper->Disconnect(dbc);
 
-    std::string host = this->substitute_info_.GetHost();
-    bool using_ip_host = RdsUtils::IsIpv4(host);
+    std::string substitute_host = this->substitute_info_.GetHost();
+    bool using_ip_host = RdsUtils::IsIpv4(substitute_host);
     bool using_iam = dbc->conn_attr.contains(KEY_AUTH_TYPE) && dbc->conn_attr.at(KEY_AUTH_TYPE) == VALUE_AUTH_IAM;
+
+    // Substitute connections
+    dbc->conn_attr.insert_or_assign(KEY_SERVER, substitute_host);
+    if (substitute_info_.GetPort() != HostInfo::NO_PORT) {
+        dbc->conn_attr.insert_or_assign(KEY_PORT, std::to_string(substitute_info_.GetPort()));
+    };
 
     // Connect as usual if not using IAM
     if (!using_ip_host || !using_iam) {
@@ -41,7 +47,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
     }
 
     // IAM Host needed to generate token when connecting with IP
-    if (!this->iam_hosts_.empty()) {
+    if (this->iam_hosts_.empty()) {
         return SQL_ERROR;
     }
 
@@ -50,7 +56,10 @@ SQLRETURN SubstituteConnectRouting::Connect(
         if (iam_info.GetPort() != HostInfo::NO_PORT) {
             dbc->conn_attr.insert_or_assign(KEY_IAM_PORT, std::to_string(iam_info.GetPort()));
         };
+        dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
         SQLRETURN rt = plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        dbc->conn_attr.erase(KEY_MONITORING_CONN_UUID);
+        // TODO - Early return on Access Errors
         if (!SQL_SUCCEEDED(rt)) {
             odbc_helper->Disconnect(dbc);
         } else {

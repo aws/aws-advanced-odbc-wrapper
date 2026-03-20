@@ -30,10 +30,10 @@
 
 class RdsHostListProvider : public HostListProvider {
 public:
-    RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service);
+    RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service);
     RdsHostListProvider(
-        std::shared_ptr<TopologyUtil> topology_util,
-        PluginService* plugin_service,
+        const std::shared_ptr<TopologyUtil>& topology_util,
+        const std::shared_ptr<PluginService>& plugin_service,
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id);
     ~RdsHostListProvider();
@@ -49,7 +49,7 @@ private:
 
     std::shared_ptr<ClusterTopologyMonitor> monitor_;
     std::shared_ptr<TopologyUtil> topology_util_;
-    PluginService* plugin_service_;
+    std::shared_ptr<PluginService> plugin_service_;
     std::map<std::string, std::string> conn_attr_;
     HostInfo initial_host_info_;
     HostInfo template_host_info_;

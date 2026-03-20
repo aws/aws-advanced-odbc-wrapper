@@ -31,7 +31,7 @@ RdsLibLoader::~RdsLibLoader()
     */
     driver_handle = nullptr;
     function_cache->Clear();
-    function_cache.reset();
+    function_cache = nullptr;
 }
 
 std::string RdsLibLoader::GetDriverPath()

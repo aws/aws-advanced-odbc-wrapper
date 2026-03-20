@@ -74,7 +74,7 @@ private:
 
     static std::mutex provider_lock_;
     static std::map<std::string, std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>> status_providers_map_;
-    static std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_map_;
+    static std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_map_;
 };
 
 #endif // BLUE_GREEN_PLUGIN_H_

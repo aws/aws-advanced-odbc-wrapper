@@ -820,8 +820,8 @@ function delete_blue_green_deployment {
     delete_aurora_db_cluster $targetClusterId $Region
     delete_aurora_db_cluster $sourceClusterId $Region
     # NOTE - Additional time for clusters to delete fully for parameter group deletion later
-    echo "Sleep to ensure Cluster Deletion for 10m / 600s..."
-    sleep 600
+    echo "Sleep to ensure Cluster Deletion for 30m / 1800s..."
+    sleep 1800
 
     echo "Successfully deleted Blue/Green Deployment $BlueGreenDeploymentId and associated resources."
 } # delete_blue_green_deployment

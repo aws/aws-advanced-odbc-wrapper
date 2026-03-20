@@ -22,7 +22,7 @@
 
 #include "../../../../driver.h"
 #include "../../../../util/odbc_helper.h"
-#include "../../../../util/sliding_cache_map.h"
+#include "../../../../util/concurrent_map.h"
 
 #include <memory>
 #include <string>
@@ -35,7 +35,7 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        const std::shared_ptr<SlidingCacheMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache);
 };
 
 #endif // REJECT_CONNECT_ROUTING_H_

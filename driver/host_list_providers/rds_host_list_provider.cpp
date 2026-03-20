@@ -18,15 +18,15 @@
 #include "../util/rds_utils.h"
 #include "../util/logger_wrapper.h"
 
-RdsHostListProvider::RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service) :
+RdsHostListProvider::RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service) :
     RdsHostListProvider(topology_util, plugin_service, plugin_service->GetOriginalConnAttr(), plugin_service->GetClusterId()) {}
 
 RdsHostListProvider::RdsHostListProvider(
-    std::shared_ptr<TopologyUtil> topology_util,
-    PluginService* plugin_service,
+    const std::shared_ptr<TopologyUtil>& topology_util,
+    const std::shared_ptr<PluginService>& plugin_service,
     std::map<std::string, std::string> conn_attr,
     std::string cluster_id)
-    : topology_util_{ std::move(topology_util) },
+    : topology_util_{ topology_util },
       plugin_service_{ plugin_service },
       conn_attr_{ conn_attr },
     HostListProvider(cluster_id)
@@ -41,7 +41,7 @@ RdsHostListProvider::RdsHostListProvider(
         RdsUtils::GetRdsInstanceHostPattern(this->initial_host_info_.GetHost()),
         this->initial_host_info_.GetPort()
     );
-    this->conn_attr_.insert_or_assign(KEY_INTERNAL_BG_FORCE_CONNECT, VALUE_BOOL_TRUE);
+    this->conn_attr_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
     this->monitor_ = GetOrCreateMonitor();
 }
 

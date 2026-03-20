@@ -24,16 +24,17 @@
 
 std::mutex BlueGreenPlugin::provider_lock_;
 std::map<std::string, std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>> BlueGreenPlugin::status_providers_map_;
-std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> BlueGreenPlugin::status_map_ = std::make_shared<SlidingCacheMap<std::string, BlueGreenStatus>>();
+std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> BlueGreenPlugin::status_map_ = std::make_shared<ConcurrentMap<std::string, BlueGreenStatus>>();
 
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc) : BlueGreenPlugin(dbc, nullptr) {}
 
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, BasePlugin* next_plugin) : BasePlugin(dbc, next_plugin) {
     this->plugin_name = "BLUE_GREEN";
-    this->plugin_service_ = dbc->plugin_service;
-    this->cluster_id_ = plugin_service_->GetClusterId();
     this->conn_attr_ = dbc->conn_attr;
+    this->plugin_service_ = dbc->plugin_service;
+    this->odbc_helper_ = plugin_service_->GetOdbcHelper();
     this->blue_green_id_ = MapUtils::GetStringValue(this->conn_attr_, KEY_BG_ID, "BG-1");
+    this->cluster_id_ = plugin_service_->GetClusterId();
 }
 
 BlueGreenPlugin::~BlueGreenPlugin() {
@@ -60,7 +61,7 @@ SQLRETURN BlueGreenPlugin::Connect(
 {
     LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-    if (dbc->conn_attr.contains(KEY_INTERNAL_BG_FORCE_CONNECT)) {
+    if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
@@ -68,35 +69,56 @@ SQLRETURN BlueGreenPlugin::Connect(
 
     this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
     if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
+        LOG(INFO) << "Default connection, no status found: " << this->blue_green_id_;
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     std::string conn_host = dbc->conn_attr.at(KEY_SERVER);
     BlueGreenRole host_role = this->blue_green_status_.GetRole(conn_host);
     if (host_role.GetRole() == BlueGreenRole::UNKNOWN) {
+        LOG(INFO) << "Default connection, unexpected role: " << host_role.ToString() << ", host: " << conn_host;
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     std::vector<std::shared_ptr<BaseConnectRouting>> connect_routes = this->blue_green_status_.GetConnectRoutes();
     if (connect_routes.empty()) {
+        LOG(INFO) << "Default connection, no routes found for: " << conn_host;
+        return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    }
+
+    auto route_itr = std::find_if(connect_routes.begin(), connect_routes.end(),
+        [&conn_host, &host_role](const std::shared_ptr<BaseConnectRouting>& route) {
+            return route->IsMatch(conn_host, host_role);
+        });
+
+    if (route_itr == connect_routes.end()) {
+        LOG(INFO) << "Default connection, no routes matched for role: " << host_role.ToString() << ", host: " << conn_host;
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     SQLRETURN rc = SQL_ERROR;
     this->start_time_ = std::chrono::system_clock::now();
-    for (auto& route : connect_routes) {
-        rc = route->Connect(dbc, HostInfo(), this->odbc_helper_, this->status_map_);
-        if (SQL_SUCCEEDED(rc)) {
-            break;
-        }
-        this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
-        if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
-            this->end_time_ = std::chrono::system_clock::now();
-            return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    while (route_itr != connect_routes.end() && !SQL_SUCCEEDED(rc)) {
+        LOG(INFO) << "Using connect route: " << (*route_itr)->ToString();
+        rc = (*route_itr)->Connect(dbc, HostInfo(conn_host), this->odbc_helper_, this->status_map_);
+        if (!SQL_SUCCEEDED(rc)) {
+            this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+            if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
+                this->end_time_ = std::chrono::system_clock::now();
+                LOG(INFO) << "Default connection, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
+                return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+            }
+
+            connect_routes = this->blue_green_status_.GetConnectRoutes();
+            route_itr = std::find_if(connect_routes.begin(), connect_routes.end(),
+                [&conn_host, &host_role](const std::shared_ptr<BaseConnectRouting>& route) {
+                    return route->IsMatch(conn_host, host_role);
+                });
         }
     }
     this->end_time_ = std::chrono::system_clock::now();
 
     if (!SQL_SUCCEEDED(rc)) {
+        LOG(INFO) << "Default connection, alternative routes unsuccessful for role: " << host_role.ToString() << ", host: " << conn_host;
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     return rc;
@@ -114,28 +136,57 @@ SQLRETURN BlueGreenPlugin::Execute(
 
     this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
     if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
+        LOG(INFO) << "Default execution, no status found: " << this->blue_green_id_;
+        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    }
+
+    std::string conn_host = stmt->dbc->conn_attr.at(KEY_SERVER);
+    BlueGreenRole host_role = this->blue_green_status_.GetRole(conn_host);
+    if (host_role.GetRole() == BlueGreenRole::UNKNOWN) {
+        LOG(INFO) << "Default execution, unexpected role: " << host_role.ToString() << ", host: " << conn_host;
         return next_plugin->Execute(StatementHandle, StatementText, TextLength);
     }
 
     std::vector<std::shared_ptr<BaseExecuteRouting>> execute_routes = this->blue_green_status_.GetExecuteRoutes();
     if (execute_routes.empty()) {
+        LOG(INFO) << "Default execution, no routes found for: " << conn_host;
+        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    }
+
+    auto route_itr = std::find_if(execute_routes.begin(), execute_routes.end(),
+        [&conn_host, &host_role](const std::shared_ptr<BaseExecuteRouting> route) {
+            return route->IsMatch(conn_host, host_role);
+        });
+
+    if (route_itr == execute_routes.end()) {
+        LOG(INFO) << "Default execution, no routes matched for role: " << host_role.ToString() << ", host: " << conn_host;
         return next_plugin->Execute(StatementHandle, StatementText, TextLength);
     }
 
     SQLRETURN rc = SQL_ERROR;
-    for (auto& route : execute_routes) {
-        rc = route->Execute(stmt, this->odbc_helper_, this->status_map_);
-        if (SQL_SUCCEEDED(rc)) {
-            break;
-        }
-        this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
-        if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
-            this->end_time_ = std::chrono::system_clock::now();
-            return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    this->start_time_ = std::chrono::system_clock::now();
+    while (route_itr != execute_routes.end() && !SQL_SUCCEEDED(rc)) {
+        LOG(INFO) << "Using execute route: " << (*route_itr)->ToString();
+        rc = (*route_itr)->Execute(stmt, this->odbc_helper_, this->status_map_);
+        if (!SQL_SUCCEEDED(rc)) {
+            this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+            if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
+                this->end_time_ = std::chrono::system_clock::now();
+                LOG(INFO) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
+                return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+            }
+
+            execute_routes = this->blue_green_status_.GetExecuteRoutes();
+            route_itr = std::find_if(execute_routes.begin(), execute_routes.end(),
+                [&conn_host, &host_role](const std::shared_ptr<BaseExecuteRouting> route) {
+                    return route->IsMatch(conn_host, host_role);
+                });
         }
     }
+
     this->end_time_ = std::chrono::system_clock::now();
-    return rc;
+    LOG(INFO) << "Default execution, out of routes: " << host_role.ToString() << ", host: " << conn_host;
+    return next_plugin->Execute(StatementHandle, StatementText, TextLength);
 }
 
 int64_t BlueGreenPlugin::GetHoldTime() {
@@ -172,8 +223,8 @@ SQLRETURN BlueGreenPlugin::InitConnection(
 void BlueGreenPlugin::InitProvider() {
     if (!this->status_provider_) {
         this->status_provider_ = GetOrCreateProvider();
+        this->status_provider_->InitMonitoring();
     }
-    this->status_provider_->InitMonitoring();
 }
 
 std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() {
@@ -188,7 +239,7 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
         provider = std::make_shared<BlueGreenStatusProvider>(
             this->plugin_service_,
             this->conn_attr_,
-            this->status_map_,
+            BlueGreenPlugin::status_map_,
             this->blue_green_id_,
             this->cluster_id_);
         std::pair pair = {1, provider};

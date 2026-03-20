@@ -45,7 +45,7 @@ LimitlessPlugin::LimitlessPlugin(
 }
 
 LimitlessPlugin::~LimitlessPlugin() {
-    this->limitless_router_service_.reset();
+    this->limitless_router_service_ = nullptr;
 }
 
 SQLRETURN LimitlessPlugin::Connect(

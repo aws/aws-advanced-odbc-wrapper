@@ -51,7 +51,7 @@ typedef enum {
 class BlueGreenMonitor {
 public:
     BlueGreenMonitor(
-        PluginService* plugin_service,
+        const std::shared_ptr<PluginService>& plugin_service,
         BlueGreenRole role,
         std::string blue_green_id,
         HostInfo initial_host_info,
@@ -66,7 +66,7 @@ public:
     void SetCollectTopology(bool collect_topology);
     void SetUseIp(bool use_ip);
     void ResetCollectedData();
-    void SetStop(bool stop);
+    void Stop();
 
 protected:
     void Run();
@@ -89,7 +89,7 @@ private:
         BlueGreenRole role;
     };
 
-    PluginService* plugin_service_;
+    std::shared_ptr<PluginService> plugin_service_;
     BasePlugin* plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<DialectBlueGreen> dialect_blue_green_;
@@ -121,11 +121,20 @@ private:
     std::map<std::string, std::string> initial_ip_host_map_;
     std::map<std::string, std::string> current_ip_host_map_;
     std::set<std::string> host_names_;
+    // Shared Resources
+    std::mutex initial_ip_host_map_mutex_;
+    std::mutex initial_topology_mutex_;
+    std::mutex host_names_mutex_;
 
     HostInfo connecting_host_info_;
     std::string connecting_ip_;
 
-    std::atomic<bool> is_running_ = false;
+    std::mutex monitor_mutex_;
+
+    std::mutex finish_mutex_;
+    std::condition_variable finish_cv_;
+    std::atomic<bool> class_running_ = false;
+    std::atomic<bool> thread_running_ = false;
     std::condition_variable sleep_cv_;
     std::mutex sleep_mutex_;
     std::shared_ptr<HostListProvider> host_list_provider_;

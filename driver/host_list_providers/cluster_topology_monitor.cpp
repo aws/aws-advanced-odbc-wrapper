@@ -27,7 +27,7 @@
 #include "../util/rds_utils.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    PluginService* plugin_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<TopologyUtil>& topology_util)
     : ClusterTopologyMonitor(
         plugin_service,
@@ -38,7 +38,7 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
         plugin_service->GetTemplateHostInfo()) {}
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    PluginService* plugin_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<TopologyUtil>& topology_util,
     std::map<std::string, std::string> conn_attr,
     std::string cluster_id,
@@ -272,7 +272,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         SQLHDBC local_hdbc;
         // Open a new connection
         odbc_helper_->AllocDbc(henv_, local_hdbc);
-        DBC *local_dbc = static_cast<DBC*>(local_hdbc);;
+        DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rc)) {
@@ -325,7 +325,7 @@ void ClusterTopologyMonitor::CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc) {
     if (dbc) {
         auto* dbc_to_delete = static_cast<SQLHDBC>(*(dbc));
         odbc_helper_->DisconnectAndFree(&dbc_to_delete);
-        dbc.reset(); // Release & set to null
+        dbc = nullptr; // Release & set to null
     }
 }
 
@@ -517,7 +517,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     }
     // Reconnect and try to query next interval
     odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
-    DBC *local_dbc = static_cast<DBC*>(hdbc_);;
+    DBC *local_dbc = static_cast<DBC*>(hdbc_);
     local_dbc->conn_attr = conn_info_;
     const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(rc)) {

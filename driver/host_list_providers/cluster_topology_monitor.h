@@ -19,6 +19,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -49,9 +50,9 @@ struct ENV;
 
 class ClusterTopologyMonitor {
 public:
-    ClusterTopologyMonitor(PluginService* plugin_service,
+    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
         const std::shared_ptr<TopologyUtil>& topology_util);
-    ClusterTopologyMonitor(PluginService* plugin_service,
+    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
         const std::shared_ptr<TopologyUtil>& topology_util,
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id,
@@ -94,7 +95,7 @@ private:
     HostInfo template_host_;
     std::map<std::string, std::string> connection_attributes_;
 
-    PluginService* plugin_service_;
+    std::shared_ptr<PluginService> plugin_service_;
 
     // Track Update Request
     std::atomic<bool> request_update_topology_;

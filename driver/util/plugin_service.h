@@ -14,6 +14,7 @@
 
 #ifndef PLUGIN_SERVICE_H_
 #define PLUGIN_SERVICE_H_
+
 #include "sliding_cache_map.h"
 
 #include "../host_list_providers/host_list_provider.h"
@@ -35,7 +36,7 @@ struct HostFilter {
     }
 };
 
-class PluginService {
+class PluginService : public std::enable_shared_from_this<PluginService> {
    public:
     PluginService() = default;
     PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str);
@@ -90,7 +91,7 @@ class PluginService {
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
 
-    BasePlugin* plugin_chain_;
+    BasePlugin* plugin_chain_ = nullptr;
 
     // Shared resources
     // SlidingCacheMap internally thread safe
