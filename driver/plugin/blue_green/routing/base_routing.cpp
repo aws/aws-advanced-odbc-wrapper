@@ -16,7 +16,7 @@
 
 #include "../blue_green_status.h"
 
-#include "../../../util/sliding_cache_map.h"
+#include "../../../util/concurrent_map.h"
 
 #include <chrono>
 #include <format>
@@ -27,7 +27,7 @@ BaseRouting::BaseRouting(std::string host_port, BlueGreenRole role) : host_port_
 void BaseRouting::Delay(
     std::chrono::milliseconds delay_ms,
     BlueGreenStatus status,
-    std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache,
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
     std::string id)
 {
     std::chrono::system_clock::time_point start = GetCurrTime();
@@ -50,5 +50,10 @@ std::chrono::system_clock::time_point BaseRouting::GetCurrTime() const {
 }
 
 std::string BaseRouting::ToString() const {
-    return std::format("{}, {}", host_port_, role_.ToString());
+    return std::format("{}, {}, {}", route_class_, host_port_, role_.ToString());
+}
+
+bool BaseRouting::IsMatch(const std::string& host_port, BlueGreenRole host_role) const {
+    return (host_port_.empty() || host_port_ == host_port)
+        && (role_.GetRole() == BlueGreenRole::UNKNOWN || role_ == host_role);
 }

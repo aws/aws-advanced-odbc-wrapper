@@ -22,7 +22,7 @@ SQLRETURN SuspendUntilNodeFoundConnectRouting::Connect(
     DBC* dbc,
     HostInfo info,
     std::shared_ptr<OdbcHelper> odbc_helper,
-    const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache)
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
     BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_);
     std::string host = info.GetHost();

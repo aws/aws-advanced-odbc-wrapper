@@ -63,10 +63,10 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
 OktaAuthPlugin::~OktaAuthPlugin()
 {
     if (auth_provider) {
-        auth_provider.reset();
+        auth_provider = nullptr;
     }
     if (saml_util) {
-        saml_util.reset();
+        saml_util = nullptr;
     }
 }
 

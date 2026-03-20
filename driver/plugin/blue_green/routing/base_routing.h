@@ -19,7 +19,7 @@
 #include "../blue_green_role.h"
 #include "../blue_green_status.h"
 
-#include "../../../util/sliding_cache_map.h"
+#include "../../../util/concurrent_map.h"
 
 #include <chrono>
 #include <string>
@@ -30,14 +30,12 @@ public:
     virtual void Delay(
         std::chrono::milliseconds delay_ms,
         BlueGreenStatus status,
-        const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache,
+        const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
         std::string id);
     virtual std::chrono::system_clock::time_point GetCurrTime() const;
 
     std::string ToString() const;
-    bool operator==(const BaseRouting& other) const {
-        return route_class_ == other.route_class_ && host_port_ == other.host_port_ && role_ == role_;
-    };
+    bool IsMatch(const std::string& host_port, BlueGreenRole host_role) const;
 
 protected:
     std::string route_class_;

@@ -23,7 +23,7 @@
 SQLRETURN SuspendExecuteRouting::Execute(
     STMT* stmt,
     std::shared_ptr<OdbcHelper> odbc_helper,
-    const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache)
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
     DBC* dbc = stmt->dbc;
     std::map<std::string, std::string> conn_attr = dbc->conn_attr;
@@ -41,13 +41,11 @@ SQLRETURN SuspendExecuteRouting::Execute(
 
     if (cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::IN_PROGRESS) {
         std::string error_msg("Blue/Green Deployment switchover is still in progress after ");
-        error_msg += timeout.count();
+        error_msg += std::to_string(timeout.count());
         error_msg += " ms. Try executing again later.";
-        LOG(INFO) << error_msg;
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-        return SQL_ERROR;
+        LOG(ERROR) << error_msg;
+        throw new std::runtime_error(error_msg);
     }
 
-    return SQL_SUCCESS;
+    return SQL_ERROR;
 }

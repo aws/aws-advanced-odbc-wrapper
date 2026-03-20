@@ -22,10 +22,8 @@ SQLRETURN RejectConnectRouting::Connect(
     DBC* dbc,
     HostInfo info,
     std::shared_ptr<OdbcHelper> odbc_helper,
-    const std::shared_ptr<SlidingCacheMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache)
+    std::shared_ptr<ConcurrentMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache)
 {
     std::string error_msg("Blue/Green Deployment switchover is in progress. New connection can't be opened.");
-    CLEAR_DBC_ERROR(dbc);
-    dbc->err = new ERR_INFO(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-    return SQL_ERROR;
+    throw new std::runtime_error(error_msg);
 }

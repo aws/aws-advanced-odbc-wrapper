@@ -16,6 +16,8 @@
 
 #include <functional>
 
+std::hash<std::string> BlueGreenInterimStatus::hasher;
+
 BlueGreenInterimStatus::BlueGreenInterimStatus(
     BlueGreenPhase phase,
     std::string version,
@@ -52,10 +54,10 @@ int BlueGreenInterimStatus::GetHashCode() {
         result = this->GetValueHash(result, host_name);
     }
     for (const HostInfo& info : this->initial_topology_) {
-        result = this->GetValueHash(result, info.GetHostPortPair());
+        result = this->GetValueHash(result, info.GetHostPortPair() + std::to_string(info.GetHostRole()));
     }
     for (const HostInfo& info : this->current_topology_) {
-        result = this->GetValueHash(result, info.GetHostPortPair());
+        result = this->GetValueHash(result, info.GetHostPortPair() + std::to_string(info.GetHostRole()));
     }
     for (const auto& [key, value] : this->initial_ip_host_map_) {
         result = this->GetValueHash(result, key + value);

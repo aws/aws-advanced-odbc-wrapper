@@ -173,6 +173,7 @@ public:
 
     ConnectionStringBuilder& withVerifyInitialConnectionType(const std::string& connection_type) {
         length += sprintf(conn_in + length, "VERIFY_INITIAL_CONNECTION_TYPE=%s;", connection_type.c_str());
+        return *this;
     }
 
     ConnectionStringBuilder& withBlueGreenEnabled(const bool& bg_enabled) {

@@ -45,7 +45,7 @@ public:
     BlueGreenStatusProvider(
         std::shared_ptr<PluginService> plugin_service,
         std::map<std::string, std::string> conn_attr,
-        std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache,
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
         std::string blue_green_id,
         std::string cluster_id);
 
@@ -73,7 +73,7 @@ protected:
     BlueGreenStatus GetStatusOfPreparation();
     BlueGreenStatus GetStatusOfInProgress();
     BlueGreenStatus GetStatusOfPost();
-    void CreatePostRouting(std::vector<std::shared_ptr<BaseConnectRouting>> connect_routing);
+    void CreatePostRouting(std::vector<std::shared_ptr<BaseConnectRouting>>& connect_routing);
     BlueGreenStatus GetStatusOfCompleted();
     void RegisterIamHost(std::string connect_host, std::string iam_host);
     bool IsAlreadySuccessfullyConnected(std::string connect_host, std::string iam_host);
@@ -93,19 +93,19 @@ private:
     std::mutex process_lock_guard;
     std::shared_ptr<PluginService> plugin_service_;
     std::map<std::string, std::string> conn_attr_;
-    std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache_;
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache_;
     std::string blue_green_id_;
     std::string cluster_id_;
 
     std::shared_ptr<ConcurrentMap<std::string, PhaseTimeInfo>> phase_time_map_;
 
-    bool rollback_;
-    bool blue_dns_update_completed_;
-    bool green_dns_removed_;
-    bool green_topology_changed_;
-    std::atomic<bool> monitor_reset_on_in_progress_completed_;
-    std::atomic<bool> monitor_reset_on_topology_completed_;
-    std::atomic<bool> all_green_nodes_changed_;
+    bool rollback_{false};
+    bool blue_dns_update_completed_{false};
+    bool green_dns_removed_{false};
+    bool green_topology_changed_{false};
+    std::atomic<bool> monitor_reset_on_in_progress_completed_{false};
+    std::atomic<bool> monitor_reset_on_topology_completed_{false};
+    std::atomic<bool> all_green_nodes_changed_{false};
 
     std::chrono::system_clock::time_point post_status_end_time_ = std::chrono::system_clock::time_point{};
     std::chrono::milliseconds switchover_timeout_ms_;

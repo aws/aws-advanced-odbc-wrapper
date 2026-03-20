@@ -38,6 +38,7 @@ PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, st
         original_conn_attr_.contains(KEY_PORT) ?
             static_cast<int>(std::strtol(original_conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
     );
+    this->current_host_ = this->initial_host_;
     this->template_host_ = HostInfo(
         RdsUtils::GetRdsInstanceHostPattern(this->initial_host_.GetHost()),
         this->initial_host_.GetPort()
@@ -56,6 +57,11 @@ PluginService::~PluginService()
     odbc_helper_ = nullptr;
     dialect_ = nullptr;
     host_selector_ = nullptr;
+
+    if (plugin_chain_) {
+        delete plugin_chain_;
+    }
+    plugin_chain_ = nullptr;
 }
 
 std::string PluginService::GetClusterId() {
@@ -174,7 +180,8 @@ void PluginService::InitHostListProvider() {
         case DatabaseDialectType::AURORA_POSTGRESQL:
         case DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS:
         case DatabaseDialectType::AURORA_MYSQL:
-            this->host_list_provider_ = std::make_shared<RdsHostListProvider>(this->topology_util_, this);
+            this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
+                this->topology_util_, shared_from_this());
             break;
         default:
             this->host_list_provider_ = std::make_shared<HostListProvider>(this->cluster_id_);

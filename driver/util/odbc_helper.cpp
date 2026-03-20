@@ -19,19 +19,50 @@
 #include "rds_lib_loader.h"
 #include "rds_strings.h"
 
+#include <mutex>
+
 OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
 }
 
 void OdbcHelper::Disconnect(DBC* dbc) {
-    if (dbc && dbc->wrapped_dbc) {
-        try {
-            NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                dbc->wrapped_dbc
-            );
-            dbc->wrapped_dbc = SQL_NULL_HDBC;
-        } catch (const std::exception& ex) {
-            LOG(ERROR) << "Exception while disconnecting: " << ex.what();
+    if (dbc) {
+        std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        // Cleanup tracked underlying statements
+        const std::list<STMT*> stmt_list = dbc->stmt_list;
+        for (STMT* stmt : stmt_list) {
+            std::lock_guard<std::recursive_mutex> stmt_lock(stmt->lock);
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    SQL_HANDLE_STMT, stmt->wrapped_stmt
+                );
+                stmt->wrapped_stmt = SQL_NULL_HSTMT;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while cleaning up statements for disconnects: " << ex.what();
+            }
+        }
+        // and underlying descriptors
+        const std::list<DESC*> desc_list = dbc->desc_list;
+        for (DESC* desc : desc_list) {
+            std::lock_guard<std::recursive_mutex> desc_lock(desc->lock);
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    SQL_HANDLE_DESC, desc->wrapped_desc
+                );
+                desc->wrapped_desc = SQL_NULL_HDESC;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while cleaning up descriptors for disconnects: " << ex.what();
+            }
+        }
+        if (dbc->wrapped_dbc) {
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+                    dbc->wrapped_dbc
+                );
+                dbc->wrapped_dbc = SQL_NULL_HDBC;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while disconnecting: " << ex.what();
+            }
         }
     }
 }

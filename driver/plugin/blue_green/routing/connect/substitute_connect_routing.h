@@ -22,7 +22,7 @@
 
 #include "../../../../driver.h"
 #include "../../../../util/odbc_helper.h"
-#include "../../../../util/sliding_cache_map.h"
+#include "../../../../util/concurrent_map.h"
 
 #include <functional>
 #include <memory>
@@ -45,7 +45,7 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        const std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
 
 protected:
     HostInfo substitute_info_;

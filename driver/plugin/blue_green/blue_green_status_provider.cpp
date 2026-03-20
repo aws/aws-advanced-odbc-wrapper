@@ -28,10 +28,12 @@
 #include <functional>
 #include <ranges>
 
+std::hash<std::string> BlueGreenStatusProvider::hasher;
+
 BlueGreenStatusProvider::BlueGreenStatusProvider(
     std::shared_ptr<PluginService> plugin_service,
     std::map<std::string, std::string> conn_attr,
-    std::shared_ptr<SlidingCacheMap<std::string, BlueGreenStatus>> status_cache,
+    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
     std::string blue_green_id, std::string cluster_id)
     : plugin_service_{ plugin_service },
     conn_attr_{ conn_attr },
@@ -59,12 +61,12 @@ BlueGreenStatusProvider::~BlueGreenStatusProvider() {
     std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
     std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
     if (source_monitor != nullptr) {
-        source_monitor->SetStop(true);
-        this->monitors_[BlueGreenRole::SOURCE].reset();
+        source_monitor->Stop();
+        this->monitors_[BlueGreenRole::SOURCE] = nullptr;
     }
     if (target_monitor != nullptr) {
-        target_monitor->SetStop(true);
-        this->monitors_[BlueGreenRole::TARGET].reset();
+        target_monitor->Stop();
+        this->monitors_[BlueGreenRole::TARGET] = nullptr;
     }
 }
 
@@ -75,7 +77,7 @@ void BlueGreenStatusProvider::InitMonitoring() {
     }
 
     std::shared_ptr<BlueGreenMonitor> source_monitor = std::make_shared<BlueGreenMonitor>(
-        this->plugin_service_.get(),
+        this->plugin_service_,
         BlueGreenRole::SOURCE,
         blue_green_id_,
         this->plugin_service_->GetCurrentHostInfo(),
@@ -84,8 +86,9 @@ void BlueGreenStatusProvider::InitMonitoring() {
         [this](BlueGreenRole role, BlueGreenInterimStatus interim_status) { this->PrepareStatus(role, interim_status); });
     source_monitor->StartMonitoring();
     monitors_[BlueGreenRole::SOURCE] = source_monitor;
+
     std::shared_ptr<BlueGreenMonitor> target_monitor = std::make_shared<BlueGreenMonitor>(
-        this->plugin_service_.get(),
+        this->plugin_service_,
         BlueGreenRole::TARGET,
         blue_green_id_,
         this->plugin_service_->GetCurrentHostInfo(),
@@ -98,7 +101,7 @@ void BlueGreenStatusProvider::InitMonitoring() {
 
 std::map<std::string, std::string> BlueGreenStatusProvider::GetMonitoringProperties() {
     std::map<std::string, std::string> conn_attr_copy(this->conn_attr_);
-    conn_attr_copy.insert_or_assign(KEY_INTERNAL_BG_FORCE_CONNECT, VALUE_BOOL_TRUE);
+    conn_attr_copy.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
     return conn_attr_copy;
 }
 
@@ -137,8 +140,11 @@ void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterim
 void BlueGreenStatusProvider::UpdatePhase(BlueGreenRole role, BlueGreenInterimStatus interim_status) {
     BlueGreenInterimStatus role_status = interim_statuses_[role.GetRole()];
     BlueGreenPhase latest_interim_phase = role_status.phase_ == BlueGreenPhase::UNKNOWN ? BlueGreenPhase::NOT_CREATED : role_status.phase_;
-    if (latest_interim_phase != BlueGreenPhase::UNKNOWN
+
+    if (role == BlueGreenRole::TARGET
+        && latest_interim_phase != BlueGreenPhase::UNKNOWN
         && interim_status.phase_ != BlueGreenPhase::UNKNOWN
+        && latest_interim_phase != BlueGreenPhase::COMPLETED
         && interim_status.phase_ < latest_interim_phase)
     {
         this->rollback_ = true;
@@ -158,8 +164,8 @@ void BlueGreenStatusProvider::UpdatePhase(BlueGreenRole role, BlueGreenInterimSt
 }
 
 void BlueGreenStatusProvider::UpdateStatusCache() {
-    BlueGreenStatus latest_status = this->status_cache_->Get(this->blue_green_id_);
-    this->status_cache_->Put(this->blue_green_id_, this->summary_status_);
+    LOG(INFO) << "Updating status cache for: " << this->blue_green_id_ << ", to: " << this->summary_status_.ToString();
+    this->status_cache_->InsertOrAssign(this->blue_green_id_, this->summary_status_);
     this->StorePhaseTime(this->summary_status_.GetCurrentPhase());
 }
 
@@ -557,7 +563,7 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfPost() {
         this->corresponding_nodes_);
 }
 
-void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<BaseConnectRouting>> connect_routing) {
+void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<BaseConnectRouting>>& connect_routing) {
     if (!this->blue_dns_update_completed_ || !this->all_green_nodes_changed_) {
         for (auto& [host, role] : this->role_by_host_map_->GetMapCopy()) {
             if (role != BlueGreenRole::SOURCE || !this->corresponding_nodes_->Contains(host)) {
@@ -803,6 +809,7 @@ void BlueGreenStatusProvider::LogSwitchoverFinalSummary() {
     std::string log_message = std::format("[bgId: '{}']\n", this->blue_green_id_) + divider +
                               std::vformat(format_header, std::make_format_args("timestamp", "time offset (ms)", "event")) + divider +
                               out_stream.str() + divider;
+    LOG(INFO) << log_message;
 }
 
 void BlueGreenStatusProvider::ResetContextWhenCompleted() {
@@ -815,18 +822,19 @@ void BlueGreenStatusProvider::ResetContextWhenCompleted() {
     });
 
     if (switchover_complete && has_active_switchover) {
-        std::lock_guard monitor_lock(this->monitor_mutex_);
-        std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
-        std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
-        if (source_monitor != nullptr) {
-            source_monitor->SetStop(true);
-            this->monitors_[BlueGreenRole::SOURCE].reset();
+        {
+            std::lock_guard monitor_lock(this->monitor_mutex_);
+            std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
+            std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
+            if (source_monitor != nullptr) {
+                source_monitor->Stop();
+                this->monitors_[BlueGreenRole::SOURCE] = nullptr;
+            }
+            if (target_monitor != nullptr) {
+                target_monitor->Stop();
+                this->monitors_[BlueGreenRole::TARGET] = nullptr;
+            }
         }
-        if (target_monitor != nullptr) {
-            target_monitor->SetStop(true);
-            this->monitors_[BlueGreenRole::TARGET].reset();
-        }
-
         this->rollback_ = false;
         this->summary_status_ = BlueGreenStatus();
         this->latest_status_phase_ = BlueGreenPhase::NOT_CREATED;
@@ -878,12 +886,15 @@ void BlueGreenStatusProvider::LogCurrentContext() {
         green_name_change_str << key << ", " << value << "\n";
     }
 
-    LOG(INFO) << std::format("[bgId: {}] Summary Status:\n{}", this->blue_green_id_, this->summary_status_.ToString());
-    LOG(INFO) << std::format("Corresponding Nodes:\n{}", corresponding_nodes_str.str());
-    LOG(INFO) << std::format("Phase Times:\n{}", phase_time_str.str());
-    LOG(INFO) << std::format("Green Node Certificate Change Times:\n{}", green_name_change_str.str());
-    LOG(INFO) << std::format("Latest Status Phase: {}\n", this->latest_status_phase_.ToString());
-    LOG(INFO) << std::format("Blue DNS Update Completed: {}\n", std::to_string(this->blue_dns_update_completed_));
-    LOG(INFO) << std::format("Green Node Changed Name: {}\n", std::to_string(this->all_green_nodes_changed_));
-    LOG(INFO) << std::format("Green Topology Changed: {}\n", std::to_string(this->green_topology_changed_));
+    std::ostringstream log_msg;
+    log_msg << std::format("[bgId: {}] Summary Status:\n{}", this->blue_green_id_, this->summary_status_.ToString());
+    log_msg << std::format("Corresponding Nodes:\n{}", corresponding_nodes_str.str());
+    log_msg << std::format("Phase Times:\n{}", phase_time_str.str());
+    log_msg << std::format("Green Node Certificate Change Times:\n{}", green_name_change_str.str());
+    log_msg << std::format("Latest Status Phase: {}\n", this->latest_status_phase_.ToString());
+    log_msg << std::format("Blue DNS Update Completed: {}\n", std::to_string(this->blue_dns_update_completed_));
+    log_msg << std::format("Green Node Changed Name: {}\n", std::to_string(this->all_green_nodes_changed_));
+    log_msg << std::format("Green Topology Changed: {}\n", std::to_string(this->green_topology_changed_));
+
+    LOG(INFO) << log_msg.str();
 }

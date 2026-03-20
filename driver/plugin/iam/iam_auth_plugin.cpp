@@ -47,7 +47,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::share
 IamAuthPlugin::~IamAuthPlugin()
 {
     if (auth_provider) {
-        auth_provider.reset();
+        auth_provider = nullptr;
     }
 }
 

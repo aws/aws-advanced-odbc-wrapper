@@ -35,7 +35,7 @@
 #endif
 
 BlueGreenMonitor::BlueGreenMonitor(
-    PluginService* plugin_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     BlueGreenRole initial_role,
     std::string blue_green_id,
     HostInfo initial_host_info,
@@ -64,19 +64,18 @@ BlueGreenMonitor::BlueGreenMonitor(
 }
 
 BlueGreenMonitor::~BlueGreenMonitor() {
-    bool expected = true;
-    is_running_.compare_exchange_strong(expected, false);
-    if (monitoring_thread_ && monitoring_thread_->joinable()) {
-        monitoring_thread_->join();
+    if (class_running_) {
+        this->Stop();
     }
-    std::lock_guard<std::mutex> lock_guard(hdbc_mutex_);
+
     odbc_helper_->DisconnectAndFree(&hdbc_);
     odbc_helper_->FreeEnv(&henv_);
 }
 
 void BlueGreenMonitor::StartMonitoring() {
     bool expected = false;
-    if (is_running_.compare_exchange_strong(expected, true) && !this->monitoring_thread_) {
+    std::lock_guard<std::mutex> thread_lock(monitor_mutex_);
+    if (thread_running_.compare_exchange_strong(expected, true) && !this->monitoring_thread_) {
         plugin_head_ = this->plugin_service_->GetPluginChain();
         this->monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenMonitor::Run, this);
     }
@@ -100,19 +99,42 @@ void BlueGreenMonitor::SetUseIp(bool use_ip) {
 }
 
 void BlueGreenMonitor::ResetCollectedData() {
-    this->initial_ip_host_map_.clear();
-    this->initial_topology_.clear();
-    this->host_names_.clear();
+    {
+        std::lock_guard<std::mutex> init_ip_lock(initial_ip_host_map_mutex_);
+        this->initial_ip_host_map_.clear();
+    }
+    {
+        std::lock_guard<std::mutex> init_topology_lock(initial_topology_mutex_);
+        this->initial_topology_.clear();
+    }
+    {
+        std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
+        this->host_names_.clear();
+    }
 }
 
-void BlueGreenMonitor::SetStop(bool stop) {
-    this->is_running_.store(stop);
+void BlueGreenMonitor::Stop() {
+    std::unique_lock<std::mutex> lock_guard(finish_mutex_);
+    class_running_.store(false);
     this->NotifyChanges();
+    while (this->thread_running_) {
+        finish_cv_.wait(lock_guard);
+    }
+    std::lock_guard<std::mutex> thread_lock(monitor_mutex_);
+    if (this->monitoring_thread_) {
+        this->monitoring_thread_->detach();
+        this->monitoring_thread_ = nullptr;
+    }
 }
 
 void BlueGreenMonitor::Run() {
-    while (is_running_.load()) {
+    while (class_running_.load()) {
         std::lock_guard<std::mutex> lock_guard(hdbc_mutex_);
+        if (!class_running_.load()) {
+            // Exit early on monitor reset
+            break;
+        }
+
         BlueGreenPhase old_phase = this->current_phase_;
         this->OpenConnection();
         this->CollectStatus();
@@ -128,9 +150,12 @@ void BlueGreenMonitor::Run() {
         }
 
         if (this->on_status_change_function_) {
-            this->on_status_change_function_(
-                this->current_role_,
-                BlueGreenInterimStatus(
+            BlueGreenInterimStatus interim_status;
+            {
+                std::lock_guard<std::mutex> init_ip_lock(initial_ip_host_map_mutex_);
+                std::lock_guard<std::mutex> init_topology_lock(initial_topology_mutex_);
+                std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
+                interim_status = BlueGreenInterimStatus(
                     this->current_phase_,
                     this->current_version_,
                     this->current_port_,
@@ -142,7 +167,11 @@ void BlueGreenMonitor::Run() {
                     this->all_start_topology_ip_changed_,
                     this->all_start_topology_endpoints_removed_,
                     this->all_topology_changed_
-                )
+                );
+            }
+            this->on_status_change_function_(
+                this->current_role_,
+                interim_status
             );
         }
 
@@ -151,6 +180,9 @@ void BlueGreenMonitor::Run() {
             check_interval_map_.at(rate) : this->DEFAULT_INTERVAL_MS;
         this->Delay(delay_ms);
     }
+
+    thread_running_.store(false);
+    finish_cv_.notify_one();
 }
 
 void BlueGreenMonitor::Delay(std::chrono::milliseconds delay_ms) {
@@ -167,7 +199,7 @@ void BlueGreenMonitor::Delay(std::chrono::milliseconds delay_ms) {
     } while (
         this->interval_rate_ == current_interval_rate
         && std::chrono::system_clock::now() < end_time
-        && this->is_running_
+        && this->thread_running_
         && current_panic == this->in_panic_mode_
     );
 }
@@ -176,6 +208,7 @@ void BlueGreenMonitor::CollectHostIp() {
     this->current_ip_host_map_.clear();
 
     {
+        std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
         if (!this->host_names_.empty()) {
             for (std::string host : host_names_) {
                 this->current_ip_host_map_.try_emplace(host, this->GetIpAddress(host));
@@ -184,6 +217,7 @@ void BlueGreenMonitor::CollectHostIp() {
     }
 
     if (collect_ip_) {
+        std::lock_guard<std::mutex> init_ip_lock(initial_ip_host_map_mutex_);
         this->initial_ip_host_map_.clear();
         this->initial_ip_host_map_ = this->current_ip_host_map_;
     }
@@ -196,9 +230,11 @@ void BlueGreenMonitor::UpdateIpAddressFlags() {
         all_topology_changed_ = false;
     }
 
+    std::lock_guard<std::mutex> init_ip_lock(initial_ip_host_map_mutex_);
     auto initial_end = initial_ip_host_map_.end();
     auto current_end = current_ip_host_map_.end();
 
+    std::lock_guard<std::mutex> init_topology_lock(initial_topology_mutex_);
     if (!this->collect_ip_) {
         // All hosts in initial topology should resolve to different IP address.
         this->all_start_topology_ip_changed_ = !this->initial_topology_.empty()
@@ -257,35 +293,37 @@ std::string BlueGreenMonitor::GetIpAddress(std::string host) {
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2,2), &wsaData);
 #endif // _WIN32
-    int status;
-    struct addrinfo hints;
-    struct addrinfo* servinfo;
-    struct addrinfo* p;
-    char ipstr[INET_ADDRSTRLEN];
+
+    addrinfo hints{};
+    addrinfo* servinfo = nullptr;
 
     ClearMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET; // IPv4
     hints.ai_socktype = SOCK_STREAM;
 
-    if ((status = getaddrinfo(host.c_str(), NULL, &hints, &servinfo)) != 0) {
+    int status = getaddrinfo(host.c_str(), nullptr, &hints, &servinfo);
+    if (status != 0) {
         LOG(ERROR) << "Failed to retrieve IP address from host: " << host;
         return {};
     }
 
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        void* addr;
+    std::string result;
+    for (addrinfo* p = servinfo; p != nullptr; p = p->ai_next) {
+        char ipstr[INET_ADDRSTRLEN];
+        void* addr = nullptr;
 
-        struct sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
+        sockaddr_in* ipv4 = (struct sockaddr_in*)p->ai_addr;
         addr = &(ipv4->sin_addr);
-        inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr));
+
+        if (inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr))) {
+            result = ipstr;
+            LOG(ERROR) << "Retrieved IP: " << result << ", from: " << host;
+            break;
+        }
     }
 
-    if (servinfo != NULL) {
-        freeaddrinfo(servinfo);
-        servinfo = NULL;
-    }
-
-    return std::string(ipstr);
+    freeaddrinfo(servinfo);
+    return result;
 }
 
 void BlueGreenMonitor::CollectTopology() {
@@ -300,8 +338,10 @@ void BlueGreenMonitor::CollectTopology() {
     if (!current_topology.empty()) {
         this->current_topology_ = current_topology;
         if (this->collect_topology_) {
+            std::lock_guard<std::mutex> init_topology_lock(initial_topology_mutex_);
             this->initial_topology_ = current_topology;
             {
+                std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
                 for (HostInfo host : current_topology) {
                     this->host_names_.insert(host.GetHost());
                 }
@@ -383,6 +423,7 @@ void BlueGreenMonitor::CollectStatus() {
         if (begin_idx != std::string::npos) {
             converted_endpoint = converted_endpoint.replace(begin_idx, begin_idx + search.length(), ".cluster-ro-");
         }
+        std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
         this->host_names_.insert(converted_endpoint);
     } else {
         // Update iterator to check if the endpoint is an instance endpoint
@@ -414,6 +455,7 @@ void BlueGreenMonitor::CollectStatus() {
             if (!info.endpoint.empty() && RdsUtils::IsNotOldInstance(info.endpoint)) {
                 std::string converted_endpoint = info.endpoint;
                 std::transform(converted_endpoint.begin(), converted_endpoint.end(), converted_endpoint.begin(), [](unsigned char c) { return std::tolower(c); });
+                std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
                 this->host_names_.insert(converted_endpoint);
             }
         }
@@ -434,7 +476,7 @@ void BlueGreenMonitor::CollectStatus() {
         this->connecting_host_info_correct_.store(true);
     }
 
-    if (this->connecting_host_info_correct_ && this->host_list_provider_) {
+    if (this->connecting_host_info_correct_ && !this->host_list_provider_) {
         this->InitHostListProvider();
     }
 }
@@ -452,7 +494,7 @@ void BlueGreenMonitor::OpenConnection() {
     DBC *local_dbc = static_cast<DBC*>(local_hdbc);
     local_dbc->conn_attr = this->conn_attr_;
 
-    if (this->connecting_host_info_.GetHostRole() == HOST_ROLE::UNKNOWN) {
+    if (this->connecting_host_info_.GetHost().empty()) {
         this->connecting_host_info_ = this->initial_host_info_;
         this->connecting_ip_ = "";
         this->connecting_host_info_correct_ = false;
@@ -484,7 +526,7 @@ void BlueGreenMonitor::NotifyChanges() {
 }
 
 void BlueGreenMonitor::InitHostListProvider() {
-    if (!this->host_list_provider_ || !this->connecting_host_info_correct_ || this->connecting_host_info_.GetHost().empty()) {
+    if (this->host_list_provider_ || !this->connecting_host_info_correct_ || this->connecting_host_info_.GetHost().empty()) {
         return;
     }
 
