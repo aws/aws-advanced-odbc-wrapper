@@ -29,7 +29,6 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC
     dbc,
     next_plugin,
     dbc->plugin_service,
-    dbc->plugin_service->GetHostListProvider(),
     dbc->plugin_service->GetHostSelector(),
     dbc->plugin_service->GetDialect(),
     dbc->plugin_service->GetOdbcHelper(),
@@ -39,7 +38,6 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     DBC* dbc,
     BasePlugin* next_plugin,
     std::shared_ptr<PluginService> plugin_service,
-    std::shared_ptr<HostListProvider> host_list_provider,
     std::shared_ptr<HostSelector> host_selector,
     std::shared_ptr<Dialect> dialect,
     std::shared_ptr<OdbcHelper> odbc_helper,
@@ -50,7 +48,6 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
 
     this->plugin_service_ = plugin_service;
     this->dialect_ = dialect;
-    this->host_list_provider_ = host_list_provider;
     this->host_selector_ = host_selector;
     this->odbc_helper_ = odbc_helper;
     this->topology_util_ = topology_util;
@@ -135,7 +132,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
                 return rc;
             }
             plugin_service_->ForceRefreshHosts(false, 0);
-            writer_candidate = host_list_provider_->GetConnectionInfo(dbc);
+            writer_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
 
             if (writer_candidate.GetHost().empty() || writer_candidate.GetHostRole() != WRITER) {
                 LOG(WARNING) << "Candidate writer connection is invalid. Retrying connection.";
@@ -201,7 +198,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                 return rc;
             }
             plugin_service_->ForceRefreshHosts(false, 0);
-            reader_candidate = host_list_provider_->GetConnectionInfo(dbc);
+            reader_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
 
             if (reader_candidate.GetHost().empty()) {
                 LOG(WARNING) << "Candidate reader connection is invalid. Retrying connection.";
@@ -239,7 +236,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             return rc;
         }
 
-        if (host_list_provider_->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
+        if (plugin_service_->GetHostListProvider()->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
             plugin_service_->ForceRefreshHosts(false, 0);
             if (this->HasNoReadersAndTopologyIsHealthy()) {
                 // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic

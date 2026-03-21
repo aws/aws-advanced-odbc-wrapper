@@ -103,7 +103,9 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
 }
 
 TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionStrategyWriterDnsReaderOverride) {
-    conn_str = ConnectionStringBuilder(test_dsn, cluster_id + cluster_ro_url, test_port)
+    const std::string writer_id = GetWriterId(cluster_instances);
+
+    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
@@ -117,7 +119,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
     const std::string connection_id = QueryInstanceId(dbc);
 
     // Ensure connected to reader instance
-    EXPECT_TRUE(IsInstanceReader(rds_client, cluster_id, connection_id));
+    EXPECT_NE(writer_id, connection_id);
 
     // Cleanup
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
@@ -127,7 +129,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
     const std::string writer_id = GetWriterId(cluster_instances);
     writer_endpoint = GetEndpoint(writer_id);
 
-    conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, cluster_id + cluster_ro_url, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
