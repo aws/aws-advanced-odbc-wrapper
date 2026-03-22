@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <thread>
+#include <iostream>
 
 #include "../../host_selector/host_selector.h"
 #include "../../host_selector/round_robin_host_selector.h"
@@ -55,6 +56,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     this->retry_delay_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS);
     this->retry_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, DEFAULT_INITIAL_CONNECTION_RETRY_TIMEOUT_MS);
     this->verify_initial_connection_type_ = MapUtils::GetStringValue(conn_info, KEY_VERIFY_INITIAL_CONNECTION_TYPE, "");
+
 }
 
 SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
@@ -76,6 +78,11 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             BufferLength,
             StringLengthPtr,
             DriverCompletion);
+    }
+
+    if (plugin_service_->GetHostListProvider() == nullptr) {
+        plugin_service_->InitHostListProvider();
+        plugin_service_->RefreshHosts();
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
@@ -112,12 +119,14 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    std::cout << "GetVerifiedWriter" << std::endl;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
     while (std::chrono::steady_clock::now() < end_time) {
         SQLRETURN rc = SQL_ERROR;
 
         HostInfo writer_candidate = topology_util_->GetWriter(plugin_service_->GetHosts());
+        std::cout << "WriterCandidate:"<< writer_candidate.GetHost().c_str() << std::endl;
         if (writer_candidate.GetHost().empty()) {
             LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
@@ -170,6 +179,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
+    std::cout << "GetVerifiedReader" << std::endl;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + retry_timeout_ms_;
 
@@ -184,6 +194,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
         SQLRETURN rc = SQL_ERROR;
 
         HostInfo reader_candidate = this->GetReader(region);
+        std::cout << "ReaderCandidate:"<< reader_candidate.GetHost().c_str() << std::endl;
         if (reader_candidate.GetHost().empty()) {
             LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
             rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
@@ -265,7 +276,7 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string regi
         filtered_hosts = hosts;
     } else {
         std::ranges::copy_if(hosts, std::back_inserter(filtered_hosts), [&](const HostInfo& host) {
-            return RdsUtils::GetRdsRegion(host.GetHost()) == region;
+            return RdsUtils::GetRdsRegion(host.GetHost()) == region && host.GetHostRole() == READER;
         });
     }
     std::unordered_map<std::string, std::string> properties;
