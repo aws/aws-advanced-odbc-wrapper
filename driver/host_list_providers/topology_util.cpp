@@ -23,6 +23,7 @@
 #include <sqltypes.h>
 
 #include <cmath>
+#include <iostream>
 
 #include "../driver.h"
 #include "../odbcapi.h"
@@ -197,5 +198,6 @@ HostInfo TopologyUtil::GetWriter(const std::vector<HostInfo>& hosts) {
         }
     }
     LOG(WARNING) << "No writers found within list of hosts.";
+    std::cout << "No writers found within list of hosts." << std::endl;
     return {};
 }

@@ -84,6 +84,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
         plugin_service_->InitHostListProvider();
         plugin_service_->RefreshHosts();
     }
+
+
+    std::cout << "Connect - hostlist size:" << plugin_service_->GetHosts().size() << std::endl;
     if (plugin_service_->GetHosts().size() < 1) {
         plugin_service_->ForceRefreshHosts(false, 0);
     }
@@ -128,6 +131,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
     while (std::chrono::steady_clock::now() < end_time) {
         SQLRETURN rc = SQL_ERROR;
 
+        std::cout << "GetVerifiedWriter - hostlist size:" << plugin_service_->GetHosts().size() << std::endl;
         HostInfo writer_candidate = topology_util_->GetWriter(plugin_service_->GetHosts());
         std::cout << "WriterCandidate:"<< writer_candidate.GetHost().c_str() << std::endl;
         if (writer_candidate.GetHost().empty()) {
@@ -196,6 +200,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
     while (std::chrono::steady_clock::now() < end_time) {
         SQLRETURN rc = SQL_ERROR;
 
+        std::cout << "GetVerifiedReader - hostlist size:" << plugin_service_->GetHosts().size() << std::endl;
         HostInfo reader_candidate = this->GetReader(region);
         std::cout << "ReaderCandidate:"<< reader_candidate.GetHost().c_str() << std::endl;
         if (reader_candidate.GetHost().empty()) {
@@ -271,7 +276,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
 }
 
 HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string region) {
-
+    std::cout << "GetReader" << std::endl;
     std::vector<HostInfo> hosts = plugin_service_->GetHosts();
     std::vector<HostInfo> filtered_hosts;
 
@@ -288,6 +293,7 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string regi
     try {
         return host_selector_->GetHost(filtered_hosts, false, properties);
     } catch (const std::exception& e) {
+        std::cout << "GetReader Failed - hostselector exception: " << e.what() << std::endl;
         return {};
     }
 }
