@@ -14,6 +14,8 @@
 
 #include "rds_host_list_provider.h"
 
+#include <iostream>
+
 #include "../util/logger_wrapper.h"
 
 RdsHostListProvider::RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service) :
@@ -51,6 +53,7 @@ std::vector<HostInfo> RdsHostListProvider::Refresh() {
 }
 
 std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, uint32_t timeout_ms) {
+    std::cout << "Connect - ForceRefreshHosts" << std::endl;
     return this->monitor_->ForceRefresh(verify_writer, timeout_ms);
 }
 
