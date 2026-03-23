@@ -84,6 +84,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
         plugin_service_->InitHostListProvider();
         plugin_service_->RefreshHosts();
     }
+    if (plugin_service_->GetHosts().size() < 1) {
+        plugin_service_->ForceRefreshHosts(false, 0);
+    }
 
     if (verify_initial_connection_type_ == "WRITER") {
         return this->GetVerifiedWriter(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
