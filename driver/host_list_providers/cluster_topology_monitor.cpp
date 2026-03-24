@@ -64,6 +64,7 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
 }
 
 ClusterTopologyMonitor::~ClusterTopologyMonitor() {
+    std::cout << "ClusterTopologyMonitor - cleanup" << std::endl;
     is_running_.store(false);
     node_threads_stop_.store(true);
 
@@ -127,6 +128,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(SQLHDBC hdbc, const u
 }
 
 void ClusterTopologyMonitor::StartMonitor() {
+    std::cout << "ClusterTopologyMonitor - StartMonitor" << std::endl;
     bool expected = false;
     if (is_running_.compare_exchange_strong(expected, true)) {
         plugin_head_ = this->plugin_service_->GetPluginChain();
@@ -137,6 +139,7 @@ void ClusterTopologyMonitor::StartMonitor() {
 
 void ClusterTopologyMonitor::Run() {
     try {
+        std::cout << "ClusterTopologyMonitor - Start cluster topology monitoring thread for " << cluster_id_  << std::endl;;
         LOG(INFO) << "Start cluster topology monitoring thread for " << cluster_id_;
         while (is_running_.load()) {
             bool should_handle_topology_timing = true;
@@ -150,9 +153,11 @@ void ClusterTopologyMonitor::Run() {
                 HandleIgnoreTopologyTiming();
             }
         }
+        std::cout << "ClusterTopologyMonitor - Stop cluster topology monitoring thread for " << cluster_id_ << std::endl;;
         LOG(INFO) << "Stop cluster topology monitoring thread for " << cluster_id_;
         is_running_.store(false);
     } catch (const std::exception& ex) {
+        std::cout << "ClusterTopologyMonitor - Cluster Topology Main Monitor encountered error: " << ex.what() << std::endl;;
         LOG(ERROR) << "Cluster Topology Main Monitor encountered error: " << ex.what();
     }
     node_monitoring_threads_.clear();
@@ -184,13 +189,14 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
         new_hosts = plugin_service_->GetHosts();
         curr_time = std::chrono::steady_clock::now();
     }
+    std::cout << "ClusterTopologyMonitor - New hosts have been updated" << std::endl;
     LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
         std::cout << "ClusterTopologyMonitor - WaitForTopologyUpdate - Cluster Monitor topology did not update within the maximum time" << std::endl;
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
     }
-
+    std::cout << "ClusterTopologyMonitor - New hosts size:" << new_hosts.size() << std::endl;
     return new_hosts;
 }
 
@@ -214,16 +220,20 @@ void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQLHDBC hdbc) {
+    std::cout << "ClusterTopologyMonitor - FetchTopologyUpdateCache" << std::endl;
     std::vector<HostInfo> hosts;
     if (GetNodeId(hdbc, dialect_, odbc_helper_).empty()) {
+        std::cout << "ClusterTopologyMonitor - FetchTopologyUpdateCache- invalid connection for querying for ClusterId: " << cluster_id_ << std::endl;
         LOG(ERROR) << "Cluster Monitor invalid connection for querying for ClusterId: " << cluster_id_;
         return hosts;
     }
     hosts = topology_util_->QueryTopology(hdbc, initial_host_, template_host_);
     if (hosts.empty()) {
+        std::cout << "ClusterTopologyMonitor - FetchTopologyUpdateCache - queried and found no topology for ClusterId: " << cluster_id_ << std::endl;
         LOG(ERROR) << "Cluster Monitor queried and found no topology for ClusterId: " << cluster_id_;
     } else {
         // Update if new topology is found
+        std::cout << "ClusterTopologyMonitor - FetchTopologyUpdateCache - UpdateTopologyCache" << std::endl;
         UpdateTopologyCache(hosts);
     }
 
@@ -231,9 +241,11 @@ std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQL
 }
 
 void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& hosts) {
+    std::cout << "ClusterTopologyMonitor - UpdateTopologyCache" << std::endl;
     const std::unique_lock<std::mutex> request_lock(request_update_topology_mutex_);
     const std::unique_lock<std::mutex> update_lock(topology_updated_mutex_);
 
+    std::cout << "ClusterTopologyMonitor - UpdateTopologyCache - locks acquired, updating things" << std::endl;
     // Update topology and notify threads
     plugin_service_->SetHosts(hosts);
     request_update_topology_.store(false);

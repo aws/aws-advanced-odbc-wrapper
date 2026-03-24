@@ -80,16 +80,10 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             DriverCompletion);
     }
 
-    if (plugin_service_->GetHostListProvider() == nullptr) {
-        plugin_service_->InitHostListProvider();
-        plugin_service_->RefreshHosts();
-    }
-
-
     std::cout << "Connect - hostlist size:" << plugin_service_->GetHosts().size() << std::endl;
     if (plugin_service_->GetHosts().size() < 1) {
         std::cout << "Connect - ForceRefreshHosts" << std::endl;
-        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
+        plugin_service_->ForceRefreshHosts(false, 120000);
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
