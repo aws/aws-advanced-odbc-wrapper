@@ -53,7 +53,7 @@ std::vector<HostInfo> RdsHostListProvider::Refresh() {
 }
 
 std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, uint32_t timeout_ms) {
-    std::cout << "Connect - ForceRefreshHosts" << std::endl;
+    std::cout << "RdsHostListProvider - ForceRefreshHosts" << std::endl;
     return this->monitor_->ForceRefresh(verify_writer, timeout_ms);
 }
 

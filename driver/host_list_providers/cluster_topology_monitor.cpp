@@ -15,6 +15,7 @@
 #include "cluster_topology_monitor.h"
 
 #include <sqlext.h>
+#include <iostream>
 
 #include "topology_util.h"
 
@@ -90,6 +91,7 @@ void ClusterTopologyMonitor::SetClusterId(const std::string& cluster_id) {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_writer, const uint32_t timeout_ms) {
+    std::cout << "ClusterTopologyMonitor - ForceRefresh" << std::endl;
     const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
     const std::chrono::steady_clock::time_point ignore_topology = ignore_topology_request_end_ms_.load();
     if (ignore_topology != epoch_ && now > ignore_topology) {
@@ -107,8 +109,10 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
 
     std::vector<HostInfo> hosts = WaitForTopologyUpdate(timeout_ms);
     if (!hosts.empty()) {
+        std::cout << "ClusterTopologyMonitor - fetched hosts empty" << std::endl;
         plugin_service_->SetHosts(hosts);
     }
+    std::cout << "ClusterTopologyMonitor - ForceRefresh end" << std::endl;
     return hosts;
 }
 
@@ -155,6 +159,7 @@ void ClusterTopologyMonitor::Run() {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t timeout_ms) {
+    std::cout << "ClusterTopologyMonitor - WaitForTopologyUpdate" << std::endl;
     std::vector<HostInfo> curr_hosts = plugin_service_->GetHosts();
     std::vector<HostInfo> new_hosts = curr_hosts;
     {
@@ -164,6 +169,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     request_update_topology_cv_.notify_all();
 
     if (timeout_ms == 0) {
+        std::cout << "ClusterTopologyMonitor - WaitForTopologyUpdate - timeout_ms == 0" << std::endl;
         LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
         return curr_hosts;
     }
@@ -181,6 +187,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
+        std::cout << "ClusterTopologyMonitor - WaitForTopologyUpdate - Cluster Monitor topology did not update within the maximum time" << std::endl;
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
     }
 

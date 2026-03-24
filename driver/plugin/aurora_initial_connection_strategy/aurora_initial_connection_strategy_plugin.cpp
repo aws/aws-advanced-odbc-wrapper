@@ -89,7 +89,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     std::cout << "Connect - hostlist size:" << plugin_service_->GetHosts().size() << std::endl;
     if (plugin_service_->GetHosts().size() < 1) {
         std::cout << "Connect - ForceRefreshHosts" << std::endl;
-        plugin_service_->ForceRefreshHosts(false, MapUtils::GetIntValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, 30000));
+        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
