@@ -110,8 +110,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_DSN) {
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1))
-    .WillOnce(testing::Return(all_hosts));
+    .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_topology_util, GetWriter).WillOnce(testing::Return(*writer_host));
 
@@ -139,8 +138,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Configu
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1))
-    .WillOnce(testing::Return(all_hosts));
+    .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_topology_util, GetWriter).WillOnce(testing::Return(*writer_host));
 
@@ -169,7 +167,6 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(2))
     .WillRepeatedly(testing::Return(all_hosts));
 
     ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
@@ -222,7 +219,6 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Network
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(2))
     .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_topology_util, GetWriter)
@@ -258,8 +254,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_DSN) {
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1))
-    .WillOnce(testing::Return(all_hosts));
+    .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_host_list_provider,
         GetConnectionRole(testing::_))
@@ -289,8 +284,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Configu
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(1))
-    .WillOnce(testing::Return(all_hosts));
+    .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_host_list_provider,
         GetConnectionRole(testing::_))
@@ -327,7 +321,6 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
 
     EXPECT_CALL(*mock_plugin_service,
         GetHosts())
-    .Times(testing::Exactly(2))
     .WillRepeatedly(testing::Return(all_hosts));
 
     EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))

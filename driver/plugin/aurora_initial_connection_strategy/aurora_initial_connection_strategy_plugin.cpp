@@ -67,7 +67,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
-    if (!RdsUtils::IsRdsClusterDns(host)) {
+
+    const std:: string monitoringConnUuid = MapUtils::GetStringValue(conn_info, KEY_MONITORING_CONN_UUID, "");
+    if (!RdsUtils::IsRdsClusterDns(host) || monitoringConnUuid == VALUE_MONITORING_CONN_UUID) {
         LOG(WARNING) << "Non-RdsClusterDns detected. Bypassing Aurora Initial Connection Strategy plugin.";
         return next_plugin->Connect(
             ConnectionHandle,
@@ -76,6 +78,10 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             BufferLength,
             StringLengthPtr,
             DriverCompletion);
+    }
+
+    if (plugin_service_->GetHosts().size() < 1) {
+        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
@@ -265,7 +271,7 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string regi
         filtered_hosts = hosts;
     } else {
         std::ranges::copy_if(hosts, std::back_inserter(filtered_hosts), [&](const HostInfo& host) {
-            return RdsUtils::GetRdsRegion(host.GetHost()) == region;
+            return RdsUtils::GetRdsRegion(host.GetHost()) == region && host.GetHostRole() == READER;
         });
     }
     std::unordered_map<std::string, std::string> properties;
