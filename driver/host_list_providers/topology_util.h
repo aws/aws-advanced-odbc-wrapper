@@ -25,6 +25,7 @@
 
 class TopologyUtil {
 public:
+    TopologyUtil() = default;
     TopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect);
     virtual std::string GetWriterId(SQLHDBC hdbc);
     virtual std::string GetInstanceId(SQLHDBC hdbc);
@@ -33,6 +34,7 @@ public:
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc);
     virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo &initial_host, const HostInfo &host_template) = 0;
     virtual HostInfo CreateHost(std::string host, int port, HOST_STATE state, HOST_ROLE, uint64_t weight, std::chrono::steady_clock::time_point last_update);
+    virtual HostInfo GetWriter(const std::vector<HostInfo>& hosts);
 
 protected:
     std::shared_ptr<OdbcHelper> odbc_helper_;

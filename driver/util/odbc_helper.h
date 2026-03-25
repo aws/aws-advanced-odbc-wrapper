@@ -46,6 +46,9 @@ public:
     bool GetUse4BytesUserApp() const;
     void SetUse4BytesBaseDriver(bool use_4_bytes);
     void SetUse4BytesUserApp(bool use_4_bytes);
+
+    virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
+
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
     bool use_4_bytes_base_driver_ = false;

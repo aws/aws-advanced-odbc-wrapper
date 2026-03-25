@@ -51,6 +51,8 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
             connection_attributes_.at(KEY_REFRESH_RATE).c_str(), nullptr, 0));
     }
 
+    connection_attributes_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
+
     // Create ENV local to cluster topology monitor
     odbc_helper_->AllocEnv(&henv_);
     ENV* henv = static_cast<ENV*>(henv_);
