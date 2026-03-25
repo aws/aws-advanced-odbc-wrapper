@@ -68,9 +68,9 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
 
-    const std:: string monitoringConnUuid = MapUtils::GetStringValue(conn_info, KEY_MONITORING_CONN_UUID, "");
-    if (!RdsUtils::IsRdsClusterDns(host) || monitoringConnUuid == VALUE_MONITORING_CONN_UUID) {
-        LOG(WARNING) << "Non-RdsClusterDns detected. Bypassing Aurora Initial Connection Strategy plugin.";
+    const bool is_monitoring_conn = MapUtils::GetBooleanValue(conn_info, KEY_MONITORING_CONN_UUID, false);
+    if (!RdsUtils::IsRdsClusterDns(host) || is_monitoring_conn) {
+        LOG(WARNING) << "Non-RdsClusterDns or internal monitoring connection detected. Bypassing Aurora Initial Connection Strategy plugin.";
         return next_plugin->Connect(
             ConnectionHandle,
             WindowHandle,
@@ -80,7 +80,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
             DriverCompletion);
     }
 
-    if (plugin_service_->GetHosts().size() < 1) {
+    if (plugin_service_->GetHosts().empty()) {
         plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
     }
 

@@ -139,8 +139,7 @@
 
 
 /* Cluster Topology Monitor */
-#define KEY_MONITORING_CONN_UUID "MONITORING_CONN_UUID"
-#define VALUE_MONITORING_CONN_UUID "0cb02009-ff43-4b13-be63-6c68da8b0063"
+#define KEY_MONITORING_CONN_UUID "0cb02009-ff43-4b13-be63-6c68da8b0063"
 
 /* Underlying Driver Possible Aliases */
 // UID
