@@ -35,6 +35,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_map_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_stack_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_plugin_test.cpp

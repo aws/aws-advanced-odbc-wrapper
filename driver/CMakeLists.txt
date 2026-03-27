@@ -69,6 +69,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/concurrent_map.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/concurrent_stack.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
