@@ -23,53 +23,37 @@
 #include "rds_utils.h"
 
 namespace {
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_DNS_PATTERN(
         R"#((.+)\.(proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?([a-zA-Z0-9]+\.([a-zA-Z0-9\-]+)\.rds\.amazonaws\.com))#",
         std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_PROXY_DNS_PATTERN(R"#((.+)\.(proxy-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#", std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CLUSTER_PATTERN(R"#((.+)\.(cluster-|cluster-ro-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                             std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_WRITER_CLUSTER_PATTERN(R"#((.+)\.(cluster-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                                    std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_READER_CLUSTER_PATTERN(R"#((.+)\.(cluster-ro-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                                    std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CUSTOM_CLUSTER_PATTERN(R"#((.+)\.(cluster-custom-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                                    std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_LIMITLESS_CLUSTER_PATTERN(R"#((.+)\.(shardgrp-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.(amazonaws\.com|amazonaws\.com\.cn\.?|sc2s\.sgov\.gov\.?|c2s\.ic\.gov\.?)))#",
                                                    std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_DNS_PATTERN(
         R"#((.+)\.(proxy-|cluster-|cluster-ro-|cluster-custom-|shardgrp-)?([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#",
         std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_PROXY_DNS_PATTERN(
         R"#((.+)\.(proxy-)+([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#", std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_CLUSTER_PATTERN(
         R"#((.+)\.(cluster-|cluster-ro-)+([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#",
         std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_WRITER_CLUSTER_PATTERN(
         R"#((.+)\.(cluster-)+([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#", std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_READER_CLUSTER_PATTERN(
         R"#((.+)\.(cluster-ro-)+([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#", std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex AURORA_CHINA_CUSTOM_CLUSTER_PATTERN(
         R"#((.+)\.(cluster-custom-)+([a-zA-Z0-9]+\.(rds\.[a-zA-Z0-9\-]+|[a-zA-Z0-9\-]+\.rds)\.amazonaws\.com\.cn))#", std::regex_constants::icase);
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex IPV4_PATTERN(
         R"#(^(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){1}(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){2}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$)#");
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex IPV6_PATTERN(R"#(^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$)#");
-    // NOLINTNEXTLINE(bugprone-throwing-static-initialization)
     const std::regex IPV6_COMPRESSED_PATTERN(R"#(^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)::(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$)#");
 } // anonymous namespace
 
