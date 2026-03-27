@@ -22,6 +22,7 @@
 #include "error.h"
 #include "plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h"
 #include "plugin/base_plugin.h"
+#include "plugin/blue_green/blue_green_plugin.h"
 #include "plugin/custom_endpoint/custom_endpoint_plugin.h"
 #include "plugin/default_plugin.h"
 #include "plugin/failover/failover_plugin.h"
@@ -369,7 +370,7 @@ SQLRETURN RDS_FreeEnv(
             RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
             env->wrapped_env = nullptr;
         }
-        env->driver_lib_loader.reset();
+        env->driver_lib_loader = nullptr;
     }
 
     CLEAR_ENV_ERROR(env);
@@ -2090,43 +2091,46 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         return SQL_ERROR;
     }
 
-    if (dbc->conn_attr.contains(KEY_DRIVER)) {
-        // TODO - Need to ensure the paths (slashes) are correct per OS
-        const std::string driver_path = dbc->conn_attr.at(KEY_DRIVER);
-
-        // Load Module to Env if empty
-        if (!env->driver_lib_loader) {
-            env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
-        } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
-            LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
-            CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
-            return SQL_ERROR;
-        }
-    } else {
-        LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
-        return SQL_ERROR;
-    }
-
     RdsLibResult res;
     SQLRETURN ret = SQL_SUCCESS;
 
-    // Initialize Wrapped ENV
-    // Create Wrapped HENV for Wrapped HDBC if not already allocated
-    if (!env->wrapped_env) {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
-            SQL_HANDLE_ENV, nullptr, &env->wrapped_env
-        );
-        ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-        // Apply Tracked Environment Attributes
-        for (auto const& [key, val] : env->attr_map) {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
-                env->wrapped_env, key, val.first, val.second
+    {
+        std::lock_guard env_guard(env->lock);
+        if (dbc->conn_attr.contains(KEY_DRIVER)) {
+            // TODO - Need to ensure the paths (slashes) are correct per OS
+            const std::string driver_path = dbc->conn_attr.at(KEY_DRIVER);
+
+            // Load Module to Env if empty
+            if (!env->driver_lib_loader) {
+                env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
+            } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
+                LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
+                CLEAR_DBC_ERROR(dbc);
+                dbc->err = new ERR_INFO("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
+                return SQL_ERROR;
+            }
+        } else {
+            LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
+            CLEAR_DBC_ERROR(dbc);
+            dbc->err = new ERR_INFO("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
+            return SQL_ERROR;
+        }
+
+        // Initialize Wrapped ENV
+        // Create Wrapped HENV for Wrapped HDBC if not already allocated
+        if (!env->wrapped_env) {
+            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+                SQL_HANDLE_ENV, nullptr, &env->wrapped_env
             );
-            ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res) == SQL_SUCCESS
-                ? ret : static_cast<SQLRETURN>(SQL_SUCCESS_WITH_INFO);
+            ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+            // Apply Tracked Environment Attributes
+            for (auto const& [key, val] : env->attr_map) {
+                res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+                    env->wrapped_env, key, val.first, val.second
+                );
+                ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res) == SQL_SUCCESS
+                    ? ret : static_cast<SQLRETURN>(SQL_SUCCESS_WITH_INFO);
+            }
         }
     }
 
@@ -2197,6 +2201,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
             {
                 next_plugin = new CustomEndpointPlugin(dbc, plugin_head);
+                plugin_head = next_plugin;
+            }
+
+            // Blue Green
+            if (dbc->conn_attr.contains(KEY_ENABLE_BLUE_GREEN)
+                && dbc->conn_attr.at(KEY_ENABLE_BLUE_GREEN) == VALUE_BOOL_TRUE)
+            {
+                next_plugin = new BlueGreenPlugin(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 

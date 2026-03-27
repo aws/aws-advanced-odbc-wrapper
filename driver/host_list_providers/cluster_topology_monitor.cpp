@@ -27,16 +27,31 @@
 #include "../util/rds_utils.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    PluginService* plugin_service,
+    const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<TopologyUtil>& topology_util)
-    : topology_util_{ topology_util },
-      plugin_service_{ plugin_service },
-      connection_attributes_{ plugin_service->GetOriginalConnAttr() },
-      cluster_id_{ plugin_service->GetClusterId() },
+    : ClusterTopologyMonitor(
+        plugin_service,
+        topology_util,
+        plugin_service->GetOriginalConnAttr(),
+        plugin_service->GetClusterId(),
+        plugin_service->GetInitialHostInfo(),
+        plugin_service->GetTemplateHostInfo()) {}
+
+ClusterTopologyMonitor::ClusterTopologyMonitor(
+    const std::shared_ptr<PluginService>& plugin_service,
+    const std::shared_ptr<TopologyUtil>& topology_util,
+    std::map<std::string, std::string> conn_attr,
+    std::string cluster_id,
+    HostInfo initial_host,
+    HostInfo template_host)
+    : plugin_service_{ plugin_service },
+      topology_util_{ topology_util },
+      connection_attributes_{ conn_attr },
+      cluster_id_{ cluster_id },
+      initial_host_{ initial_host },
+      template_host_{ template_host },
       dialect_{ plugin_service->GetDialect() },
-      odbc_helper_{ plugin_service->GetOdbcHelper() },
-      initial_host_{ plugin_service->GetInitialHostInfo() },
-      template_host_{ plugin_service->GetTemplateHostInfo() }
+      odbc_helper_{ plugin_service->GetOdbcHelper() }
 {
     if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
         ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
@@ -257,7 +272,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         SQLHDBC local_hdbc;
         // Open a new connection
         odbc_helper_->AllocDbc(henv_, local_hdbc);
-        DBC *local_dbc = static_cast<DBC*>(local_hdbc);;
+        DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rc)) {
@@ -310,7 +325,7 @@ void ClusterTopologyMonitor::CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc) {
     if (dbc) {
         auto* dbc_to_delete = static_cast<SQLHDBC>(*(dbc));
         odbc_helper_->DisconnectAndFree(&dbc_to_delete);
-        dbc.reset(); // Release & set to null
+        dbc = nullptr; // Release & set to null
     }
 }
 
@@ -502,7 +517,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     }
     // Reconnect and try to query next interval
     odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
-    DBC *local_dbc = static_cast<DBC*>(hdbc_);;
+    DBC *local_dbc = static_cast<DBC*>(hdbc_);
     local_dbc->conn_attr = conn_info_;
     const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(rc)) {

@@ -23,9 +23,11 @@ class OdbcHelper {
 public:
     OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader);
 
-    virtual void Disconnect(const DBC *dbc);
+    virtual void Disconnect(DBC *dbc);
     virtual void Disconnect(SQLHDBC *hdbc);
     virtual void DisconnectAndFree(SQLHDBC *hdbc);
+
+    virtual bool IsClosed(SQLHDBC hdbc);
 
     virtual SQLRETURN AllocEnv(SQLHENV *henv);
     virtual SQLRETURN FreeEnv(SQLHENV *henv);
@@ -35,6 +37,8 @@ public:
     virtual RdsLibResult Fetch(SQLHSTMT *stmt);
     virtual RdsLibResult BindCol(const SQLHSTMT *stmt, int column, int type, void *value, size_t size, SQLLEN *len);
     virtual RdsLibResult ExecDirect(const SQLHSTMT *stmt, const std::string &query);
+
+    virtual RdsLibResult CloseCursor(SQLHSTMT stmt);
 
     virtual RdsLibResult BaseAllocEnv(ENV *env);
     virtual RdsLibResult BaseAllocStmt(const SQLHDBC *wrapped_dbc, SQLHSTMT *stmt);

@@ -69,10 +69,10 @@ SamlUtil::SamlUtil(
 SamlUtil::~SamlUtil()
 {
     if (http_client) {
-        http_client.reset();
+        http_client = nullptr;
     }
     if (sts_client) {
-        sts_client.reset();
+        sts_client = nullptr;
     }
     AwsSdkHelper::Shutdown();
 }

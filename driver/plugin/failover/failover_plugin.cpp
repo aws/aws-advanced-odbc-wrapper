@@ -271,7 +271,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
     plugin_service_->ForceRefreshHosts(true, failover_timeout_ms_.count());
 
     // Try connecting to a writer
-    const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();;
+    const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();
     std::unordered_map<std::string, std::string> properties;
     RoundRobinHostSelector::SetRoundRobinWeight(hosts, properties);
     HostInfo host;

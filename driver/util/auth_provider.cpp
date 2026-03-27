@@ -43,7 +43,7 @@ AuthProvider::AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_clien
 AuthProvider::~AuthProvider()
 {
     if (rds_client) {
-        rds_client.reset();
+        rds_client = nullptr;
     }
     AwsSdkHelper::Shutdown();
 }
@@ -87,7 +87,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
 
 void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region) {
     if (rds_client) {
-        rds_client.reset();
+        rds_client = nullptr;
     }
     SetUpRdsClient(credentials, region);
 }
