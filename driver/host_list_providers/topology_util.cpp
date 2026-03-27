@@ -199,3 +199,19 @@ HostInfo TopologyUtil::GetWriter(const std::vector<HostInfo>& hosts) {
     LOG(WARNING) << "No writers found within list of hosts.";
     return {};
 }
+
+void TopologyUtil::LogTopology(const std::vector<HostInfo>& hosts) {
+    if (hosts.empty()) {
+        LOG(INFO) << "Topology: <empty>";
+        return;
+    }
+    LOG(INFO) << "Topology (" << hosts.size() << " hosts):";
+    for (size_t i = 0; i < hosts.size(); i++) {
+        const HostInfo& host = hosts[i];
+        LOG(INFO) << "  [" << i << "] " << host.GetHost()
+                  << ":" << host.GetPort()
+                  << " role=" << (host.GetHostRole() == WRITER ? "WRITER" : "READER")
+                  << " state=" << (host.IsHostUp() ? "UP" : "DOWN")
+                  << " weight=" << host.GetWeight();
+    }
+}

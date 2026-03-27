@@ -460,14 +460,14 @@ jobs:
         with:
           name: 'windows-${{matrix.rds_engine}}-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'windows-${{matrix.rds_engine}}-psql-logs'
           path: logs
-          retention-days: 3
+          retention-days: 7
 
   macos-integration-tests:
     name: MacOS - Integration Tests
@@ -725,14 +725,14 @@ jobs:
         with:
           name: 'mac-${{matrix.rds_engine}}-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'mac-${{matrix.rds_engine}}-psql-logs'
           path: logs
-          retention-days: 3
+          retention-days: 7
 
   linux-integration-tests:
     name: Linux Ubuntu - Integration Tests
@@ -979,14 +979,14 @@ jobs:
         with:
           name: 'linux-${{matrix.rds_engine}}-test-logs'
           path: /tmp/aws-odbc-wrapper/
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'linux-${{matrix.rds_engine}}-psql-logs'
           path: logs/
-          retention-days: 3
+          retention-days: 7
 
   windows-limitless-integration-tests:
     name: Windows - Limitless Integration Tests
@@ -1199,14 +1199,14 @@ jobs:
         with:
           name: 'windows-limitless-integration-test-logs'
           path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'windows-limitless-psql-logs'
           path: logs
-          retention-days: 3
+          retention-days: 7
 
   macos-limitless-integration-tests:
     name: MacOS - Limitless Integration Tests
@@ -1404,14 +1404,14 @@ jobs:
         with:
           name: 'mac-limitless-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'mac-limitless-psql-logs'
           path: logs/
-          retention-days: 3
+          retention-days: 7
 
   linux-limitless-integration-tests:
     name: Linux Ubuntu - Limitless Integration Tests
@@ -1605,11 +1605,11 @@ jobs:
         with:
           name: 'linux-limitless-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
-          retention-days: 3
+          retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: 'linux-limitless-psql-logs'
           path: logs
-          retention-days: 3
+          retention-days: 7

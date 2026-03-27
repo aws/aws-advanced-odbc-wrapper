@@ -808,8 +808,8 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // codechecker_suppress [misc-const-correctness]
     bool use_4_bytes_user_app = false;
-#if UNICODE
-     if (!dbc->conn_attr.contains(KEY_DRIVER) || !dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
+#if UNICODE && !defined(_WIN32)
+     if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
          bool end_found = false;
          int i = 0;
          std::vector<SQLTCHAR> conn_in_vector;

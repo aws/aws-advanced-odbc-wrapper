@@ -282,9 +282,9 @@ std::string OktaSamlUtil::VerifyTOTPChallenge(
         }
 #else
 #if (defined(LINUX) || defined(__linux__))
-        const int result = system(("xdg-open " + mfa_form_url).c_str());
+        const int result = system(("xdg-open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
 #else
-        const int result = system(("open " + mfa_form_url).c_str());
+        const int result = system(("open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
 #endif
         if (result != 0) {
             srv.Cancel();

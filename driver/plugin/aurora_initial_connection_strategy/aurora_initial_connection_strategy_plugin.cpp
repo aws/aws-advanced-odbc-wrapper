@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <thread>
+#include <utility>
 
 #include "../../host_selector/host_selector.h"
 #include "../../host_selector/round_robin_host_selector.h"
