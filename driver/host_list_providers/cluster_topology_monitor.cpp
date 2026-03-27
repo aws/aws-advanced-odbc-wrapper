@@ -308,7 +308,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
 
 void ClusterTopologyMonitor::CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc) {
     if (dbc) {
-        auto* dbc_to_delete = static_cast<SQLHDBC>(*(dbc));
+        auto* dbc_to_delete = static_cast<SQLHDBC>(*dbc);
         odbc_helper_->DisconnectAndFree(&dbc_to_delete);
         dbc.reset(); // Release & set to null
     }

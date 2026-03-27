@@ -19,6 +19,7 @@
 
 #include "../../util/logger_wrapper.h"
 
+// NOLINTNEXTLINE(bugprone-throwing-static-initialization)
 const std::unordered_map<std::string, char> HtmlUtil::HTML_DECODE_MAP = {
     {"&#x2b;",  '+' },
     {"&#x3d;",  '=' },
