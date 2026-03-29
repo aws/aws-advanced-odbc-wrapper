@@ -39,7 +39,10 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     password_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);
 
     if (username_key.empty() || password_key.empty()) {
-        throw std::runtime_error("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.");
+        LOG(ERROR) << "SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return;
     }
 
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
@@ -47,11 +50,17 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     }
 
     if (region.empty()) {
-        throw std::runtime_error("Could not determine secret region.");
+        LOG(ERROR) << "Could not determine secret region";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Could not determine secret region.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return;
     }
 
     if (secret_id.empty()) {
-        throw std::runtime_error("Missing required parameter 'SECRET_ID'.");
+        LOG(ERROR) << "Missing required parameter 'SECRET_ID'";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Missing required parameter 'SECRET_ID'.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return;
     }
 
     secret_key = secret_id + "-" + region;

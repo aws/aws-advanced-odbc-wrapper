@@ -183,7 +183,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
-        LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
+        LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << " for cluster ID: " << cluster_id_;
     }
 
     return new_hosts;

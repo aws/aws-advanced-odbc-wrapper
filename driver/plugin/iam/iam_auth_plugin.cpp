@@ -17,6 +17,7 @@
 #include "../../util/auth_provider.h"
 
 #include "../../driver.h"
+#include "../../util/auth_helper.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/map_utils.h"
@@ -70,19 +71,13 @@ SQLRETURN IamAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
-    if (port.empty()) {
-        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
-    }
+    const std::string port = AuthHelper::GetPort(dbc);
     const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10)) : AuthProvider::DEFAULT_EXPIRATION_MS;
-    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
+    const bool extra_url_encode = AuthHelper::GetExtraUrlEncode(dbc);
 
-    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
-        LOG(ERROR) << "Missing required parameters for IAM Authentication";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Missing required parameters for IAM Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    if (!ValidateRequiredParams(dbc, iam_host, region, port, username)) {
         return SQL_ERROR;
     }
 
@@ -94,7 +89,7 @@ SQLRETURN IamAuthPlugin::Connect(
     ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     // Unsuccessful connection using cached token
-    //  Skip cache and generate a new token to retry
+    // Skip cache and generate a new token to retry
     if (!SQL_SUCCEEDED(ret) && token.second) {
         LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
         token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
@@ -103,4 +98,39 @@ SQLRETURN IamAuthPlugin::Connect(
     }
 
     return ret;
+}
+
+bool IamAuthPlugin::ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
+                                           const std::string& port, const std::string& username)
+{
+    std::vector<std::string> missing_params;
+
+    if (iam_host.empty()) {
+        missing_params.push_back("IAM host (set '" + std::string(KEY_SERVER) + "' or '" + std::string(KEY_IAM_HOST) + "')");
+    }
+    if (region.empty()) {
+        missing_params.push_back("Region (set '" + std::string(KEY_REGION) + "')");
+    }
+    if (port.empty()) {
+        missing_params.push_back("Port (set '" + std::string(KEY_PORT) + "')");
+    }
+    if (username.empty()) {
+        missing_params.push_back("Username (set '" + std::string(KEY_DB_USERNAME) + "')");
+    }
+
+    if (!missing_params.empty()) {
+        std::string error_msg = "IAM Authentication failed. Missing required parameters: ";
+        for (size_t i = 0; i < missing_params.size(); ++i) {
+            if (i > 0) {
+                error_msg += ", ";
+            }
+            error_msg += missing_params[i];
+        }
+        LOG(ERROR) << error_msg;
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return false;
+    }
+
+    return true;
 }

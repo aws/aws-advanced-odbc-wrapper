@@ -35,10 +35,13 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | HTTP Socket Timeout   | `HTTP_SOCKET_TIMEOUT`  | The socket timeout value in milliseconds for the HttpClient reading.                                                                                                          | 3000                     | 3000                                                   |
 | HTTP Connect Timeout  | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient.                                                                                                                 | 5000                     | 5000                                                   |
 | Relaying Party ID     | `RELAY_PARTY_ID`       | The relaying party identifier.                                                                                                                                                | `urn:amazon:webservices` | `urn:amazon:webservices`                               |
-| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Generated tokens can have URL encoding prefix duplication for scenarios where underlying drivers automatically decode the URL before passing to the database for connections. | `0`                      | `1`                                                    |
+| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Some ODBC drivers (e.g., PostgreSQL) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`                      | `1`                                                    |
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+
+> [!NOTE]\
+> If you encounter a PAM authentication error while IAM is correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`. This is commonly needed for PostgreSQL ODBC drivers.
 
 ### Sample Code
 

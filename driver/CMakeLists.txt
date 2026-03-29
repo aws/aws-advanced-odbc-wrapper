@@ -65,6 +65,7 @@ set(INC
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.h
@@ -145,6 +146,7 @@ set(SRC
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/auth_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp

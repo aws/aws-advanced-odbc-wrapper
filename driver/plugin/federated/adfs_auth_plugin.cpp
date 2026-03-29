@@ -18,6 +18,7 @@
 
 #include "html_util.h"
 
+#include "../../util/auth_helper.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
@@ -82,14 +83,11 @@ SQLRETURN AdfsAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
-    if (port.empty()) {
-        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
-    }
+    const std::string port = AuthHelper::GetPort(dbc);
     const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;
-    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
+    const bool extra_url_encode = AuthHelper::GetExtraUrlEncode(dbc);
 
     if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
         LOG(ERROR) << "Missing required parameters for ADFS Authentication";

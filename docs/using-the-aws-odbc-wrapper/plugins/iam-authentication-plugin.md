@@ -26,10 +26,13 @@ To enable AWS IAM authentication, the following steps should be completed first 
 | Region              | `REGION`              | The region of the database for IAM authentication.                                                                                                                            | `us-east-1`   | `us-east-1`                         |
 | Database            | `DATABASE`            | Default database that a user will work on.                                                                                                                                    | nil           | `my_database`                       |
 | Token Expiration    | `TOKEN_EXPIRATION`    | Token expiration in seconds, supported max value is 900.                                                                                                                      | 900           | 900                                 |
-| Extra URL Encode    | `EXTRA_URL_ENCODE`    | Generated tokens can have URL encoding prefix duplication for scenarios where underlying drivers automatically decode the URL before passing to the database for connections. | `0`           | `1`                                 |
+| Extra URL Encode    | `EXTRA_URL_ENCODE`    | Some ODBC drivers (e.g., PostgreSQL) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                 |
 
 > [!WARNING]\
 > Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+
+> [!NOTE]\
+> If you encounter a PAM authentication error while IAM is correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`. This is commonly needed for PostgreSQL ODBC drivers.
 
 ### Sample Code
 
