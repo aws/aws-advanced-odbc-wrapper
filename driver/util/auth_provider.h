@@ -57,6 +57,8 @@ struct TokenInfo {
     std::chrono::time_point<std::chrono::steady_clock> expiration_point;
 }; // TokenInfo;
 
+struct DBC;
+
 class AuthProvider {
 public:
     AuthProvider() = default;
@@ -75,6 +77,8 @@ public:
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
     virtual void UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region = "");
     static std::string ExtraUrlEncodeString(const std::string &url_str);
+
+    static std::string GetPort(DBC* dbc);
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
