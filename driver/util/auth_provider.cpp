@@ -58,7 +58,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     std::chrono::milliseconds time_to_expire_ms)
 {
     const std::string cache_key = BuildCacheKey(server, region, port, username);
-    const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+    const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
     TokenInfo token_info{.token = "", .expiration_point = curr_time + time_to_expire_ms};
 
     if (use_cache) {

@@ -93,7 +93,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
         const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
         if (secrets_cache.contains(secret_key)) {
             LOG(INFO) << "Found secrets in cache";
-            const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+            const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
             const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
@@ -138,7 +138,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
 }
 
 Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::string &username_key, const std::string &password_key, const std::chrono::milliseconds expiration) {
-    const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+    const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
 
     const Aws::Utils::Json::JsonValue json_value(secret_string);
     const Aws::Utils::Json::JsonView view = json_value.View();

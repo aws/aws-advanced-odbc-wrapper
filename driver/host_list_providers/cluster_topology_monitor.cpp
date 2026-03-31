@@ -272,6 +272,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
             main_hdbc_ = std::make_shared<SQLHDBC>(local_hdbc);
             const std::string writer_id = topology_util_->GetWriterId(local_dbc);
             if (!writer_id.empty()) {
+                LOG(INFO) << "Cluster topology monitor detected writer: " << writer_id;
                 thread_writer_verified = true;
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor

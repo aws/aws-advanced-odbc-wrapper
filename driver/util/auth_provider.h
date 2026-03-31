@@ -54,7 +54,7 @@ static std::map<std::string, AuthType> const auth_table = {
 
 struct TokenInfo {
     std::string token;
-    std::chrono::time_point<std::chrono::system_clock> expiration_point;
+    std::chrono::time_point<std::chrono::steady_clock> expiration_point;
 }; // TokenInfo;
 
 class AuthProvider {
