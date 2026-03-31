@@ -119,9 +119,9 @@ std::string AuthProvider::GetPort(DBC* dbc) {
         port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
     }
     if (port.empty() && dbc->plugin_service) {
-        std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
+        const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
         if (dialect) {
-            int default_port = dialect->GetDefaultPort();
+            const int default_port = dialect->GetDefaultPort();
             if (default_port > 0) {
                 port = std::to_string(default_port);
             }

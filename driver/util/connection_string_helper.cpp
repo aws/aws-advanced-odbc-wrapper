@@ -44,18 +44,8 @@ std::string ConnectionStringHelper::BuildMinimumConnectionString(const std::map<
                 conn_stream << ";";
             }
 
-        // Escape special characters ";={}" before passing it to the base driver.
-        // This is required for IAM tokens which contain '=' in query parameters.
-        // Examples:
-        //   PWD=simple         -> PWD=simple           (no change)
-        //   PWD=token=abc&x=1  -> PWD={token=abc&x=1}  (contains '=')
-        //   PWD=pass;word      -> PWD={pass;word}      (contains ';')
-        if (const std::string& value = e.second; value.find_first_of(";={}") != std::string::npos) {
-            conn_stream << e.first << "={" << value << "}";
-        } else {
-            conn_stream << e.first << "=" << value;
+            conn_stream << e.first << "=" << e.second;
         }
-    }
     }
 
     return conn_stream.str();
@@ -69,17 +59,7 @@ std::string ConnectionStringHelper::BuildFullConnectionString(const std::map<std
             conn_stream << ";";
         }
 
-        // Escape special characters ";={}" before passing it to the base driver.
-        // This is required for IAM tokens which contain '=' in query parameters.
-        // Examples:
-        //   PWD=simple         -> PWD=simple           (no change)
-        //   PWD=token=abc&x=1  -> PWD={token=abc&x=1}  (contains '=')
-        //   PWD=pass;word      -> PWD={pass;word}      (contains ';')
-        if (const std::string& value = e.second; value.find_first_of(";={}") != std::string::npos) {
-            conn_stream << e.first << "={" << value << "}";
-        } else {
-            conn_stream << e.first << "=" << value;
-        }
+        conn_stream << e.first << "=" << e.second;
     }
     return conn_stream.str();
 }

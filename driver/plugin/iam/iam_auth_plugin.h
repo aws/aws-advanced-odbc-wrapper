@@ -38,7 +38,7 @@ public:
 private:
     std::shared_ptr<AuthProvider> auth_provider;
 
-    bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
+    static bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
                                 const std::string& port, const std::string& username);
 };
 

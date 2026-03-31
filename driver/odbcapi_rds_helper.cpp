@@ -809,7 +809,7 @@ SQLRETURN RDS_SQLDriverConnect(
     // codechecker_suppress [misc-const-correctness]
     bool use_4_bytes_user_app = false;
 #if UNICODE && !defined(_WIN32)
-     if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
+     if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
          bool end_found = false;
          int i = 0;
          std::vector<SQLTCHAR> conn_in_vector;
@@ -829,7 +829,7 @@ SQLRETURN RDS_SQLDriverConnect(
          const std::string conn_str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_w));
          ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
-         if (dbc->conn_attr.contains(KEY_DRIVER) && dbc->conn_attr.contains(KEY_BASE_DRIVER)) {
+         if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
              use_4_bytes_user_app = true;
          }
      }

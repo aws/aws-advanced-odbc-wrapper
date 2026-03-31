@@ -41,10 +41,10 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | MFA Timeout           | `MFA_TIMEOUT`          | The time in seconds to complete the MFA challenge before the connection fails.                                                                                                                                      | `60`          | `30`                                                   |
 
 > [!WARNING]\
-> Using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
+> When using Okta authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
 > [!NOTE]\
-> If you encounter a PAM authentication error while IAM is correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`. This is commonly needed for PostgreSQL ODBC drivers.
+> If you encounter a PAM authentication error while the permissions are correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`.
 
 ### Sample Code
 
