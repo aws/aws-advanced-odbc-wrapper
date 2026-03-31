@@ -41,7 +41,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     if (username_key.empty() || password_key.empty()) {
         LOG(ERROR) << "SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings";
         CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = new ERR_INFO("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
@@ -52,14 +52,14 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     if (region.empty()) {
         LOG(ERROR) << "Could not determine secret region";
         CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Could not determine secret region.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = new ERR_INFO("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
     if (secret_id.empty()) {
         LOG(ERROR) << "Missing required parameter 'SECRET_ID'";
         CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Missing required parameter 'SECRET_ID'.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = new ERR_INFO("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
@@ -103,8 +103,6 @@ SQLRETURN SecretsManagerPlugin::Connect(
 
     if (!secrets_manager_client) {
         LOG(ERROR) << "Secrets Manager plugin was not properly initialized";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Secrets Manager plugin was not properly initialized. Verify SECRET_ID and SECRET_REGION are set.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
