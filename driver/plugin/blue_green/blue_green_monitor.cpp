@@ -75,9 +75,12 @@ BlueGreenMonitor::~BlueGreenMonitor() {
 void BlueGreenMonitor::StartMonitoring() {
     bool expected = false;
     std::lock_guard<std::mutex> thread_lock(monitor_mutex_);
-    if (thread_running_.compare_exchange_strong(expected, true) && !this->monitoring_thread_) {
-        plugin_head_ = this->plugin_service_->GetPluginChain();
-        this->monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenMonitor::Run, this);
+    if (thread_running_.compare_exchange_strong(expected, true)) {
+        if (!this->monitoring_thread_) {
+            class_running_.store(true);
+            plugin_head_ = this->plugin_service_->GetPluginChain();
+            this->monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenMonitor::Run, this);
+        }
     }
 }
 
@@ -421,7 +424,7 @@ void BlueGreenMonitor::CollectStatus() {
         std::string search = ".cluster-";
         size_t begin_idx = converted_endpoint.find(search);
         if (begin_idx != std::string::npos) {
-            converted_endpoint = converted_endpoint.replace(begin_idx, begin_idx + search.length(), ".cluster-ro-");
+            converted_endpoint = converted_endpoint.replace(begin_idx, search.length(), ".cluster-ro-");
         }
         std::lock_guard<std::mutex> host_name_lock(host_names_mutex_);
         this->host_names_.insert(converted_endpoint);

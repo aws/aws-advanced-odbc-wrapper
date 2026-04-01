@@ -44,7 +44,7 @@ SQLRETURN SuspendExecuteRouting::Execute(
         error_msg += std::to_string(timeout.count());
         error_msg += " ms. Try executing again later.";
         LOG(ERROR) << error_msg;
-        throw new std::runtime_error(error_msg);
+        throw std::runtime_error(error_msg);
     }
 
     return SQL_ERROR;

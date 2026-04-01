@@ -25,5 +25,5 @@ SQLRETURN RejectConnectRouting::Connect(
     std::shared_ptr<ConcurrentMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache)
 {
     std::string error_msg("Blue/Green Deployment switchover is in progress. New connection can't be opened.");
-    throw new std::runtime_error(error_msg);
+    throw std::runtime_error(error_msg);
 }

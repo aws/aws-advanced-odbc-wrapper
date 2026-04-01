@@ -371,8 +371,7 @@ protected:
         return largest_offset;
     }
 
-    std::chrono::steady_clock::time_point GetSwitchoverInitiatedTime(
-        std::chrono::steady_clock::time_point bg_trigger_time)
+    std::chrono::steady_clock::time_point GetSwitchoverInitiatedTime()
     {
         std::chrono::steady_clock::time_point earliest_time = empty_time_point;
         for (const auto& [_, result] : results) {
@@ -396,8 +395,7 @@ protected:
         return earliest_time;
     }
 
-    std::chrono::steady_clock::time_point GetSwitchoverInProgressTime(
-        std::chrono::steady_clock::time_point bg_trigger_time)
+    std::chrono::steady_clock::time_point GetSwitchoverInProgressTime()
     {
         std::chrono::steady_clock::time_point latest_time = empty_time_point;
         for (const auto& [_, result] : results) {
@@ -524,10 +522,14 @@ protected:
         for (const auto& [host_id, result] : results) {
             // Is Green Instance
             if (host_id.find("-green-") != std::string::npos) {
-                std::chrono::steady_clock::time_point green_node_changed_name_time =
-                    result.green_node_changed_name_time_first_success != empty_time_point
-                    ? result.green_node_changed_name_time_first_success
-                    : result.green_node_changed_name_time_first_error;
+                std::chrono::steady_clock::time_point green_node_changed_name_time{};
+                if (result.green_node_changed_name_time_first_success != empty_time_point) {
+                    green_node_changed_name_time = result.green_node_changed_name_time_first_success;
+                } else if (result.green_node_changed_name_time_first_error != empty_time_point) {
+                    green_node_changed_name_time = result.green_node_changed_name_time_first_error;
+                } else {
+                    ThreadSynchronization::Print("Unable to find green node name change time: " + host_id);
+                }
                 EXPECT_NE(empty_time_point, green_node_changed_name_time);
             }
         }
@@ -575,14 +577,16 @@ protected:
 
     void AssertNoConnectionsToOldBlueCluster(std::chrono::steady_clock::time_point bg_trigger_time) {
         // Earliest timepoint which switchover initiated
-        std::chrono::steady_clock::time_point switchover_initiated_time = GetSwitchoverInitiatedTime(bg_trigger_time);
+        std::chrono::steady_clock::time_point switchover_initiated_time = GetSwitchoverInitiatedTime();
+        size_t initiated_time_offset = GetTimeOffsetMs(switchover_initiated_time, bg_trigger_time);
         // Latest timepoint where switchover still in progress
-        std::chrono::steady_clock::time_point switchover_in_process_time = GetSwitchoverInProgressTime(bg_trigger_time);
+        std::chrono::steady_clock::time_point switchover_in_process_time = GetSwitchoverInProgressTime();
+        size_t in_progress_time_offset = GetTimeOffsetMs(switchover_in_process_time, bg_trigger_time);
 
         ThreadSynchronization::Print("Earliest Status for Switchover Initiated: " + std::to_string(switchover_initiated_time.time_since_epoch().count()) + "ms");
-        ThreadSynchronization::Print("\tOffset from global start: " + std::to_string(GetTimeOffsetMs(switchover_initiated_time, global_start_time)) + "ms");
+        ThreadSynchronization::Print("\tOffset from bg start: " + std::to_string(initiated_time_offset) + "ms");
         ThreadSynchronization::Print("Latest Status for Switchover Inprogress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()) + "ms");
-        ThreadSynchronization::Print("\tOffset from global start: " + std::to_string(GetTimeOffsetMs(switchover_in_process_time, global_start_time)) + "ms");
+        ThreadSynchronization::Print("\tOffset from bg start: " + std::to_string(in_progress_time_offset) + "ms");
 
         EXPECT_NE(empty_time_point, switchover_initiated_time);
         EXPECT_NE(empty_time_point, switchover_in_process_time);
@@ -592,11 +596,10 @@ protected:
         size_t connections_to_blue_before_switchover = 0;
         size_t connections_to_green_before_switchover = 0;
 
-        size_t initiated_time_offset = GetTimeOffsetMs(bg_trigger_time, global_start_time);
         for (const auto& [_, result] : results) {
             for (const auto& host_verification_result : result.host_verification_results) {
                 size_t offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
-                if (initiated_time_offset > offset) {
+                if (offset > initiated_time_offset) {
                     continue;
                 }
 
@@ -619,11 +622,10 @@ protected:
         size_t connections_to_blue_after_switchover_initiated = 0;
         size_t connections_to_green_after_switchover_initiated = 0;
 
-        size_t in_progress_time_offset = GetTimeOffsetMs(switchover_in_process_time, global_start_time);
         for (const auto& [_, result] : results) {
             for (const auto& host_verification_result : result.host_verification_results) {
                 size_t offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
-                if (in_progress_time_offset > offset) {
+                if (offset < in_progress_time_offset) {
                     continue;
                 }
 

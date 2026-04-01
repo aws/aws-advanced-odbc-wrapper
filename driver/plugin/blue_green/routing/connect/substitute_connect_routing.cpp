@@ -49,7 +49,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
 
     // IAM Host needed to generate token when connecting with IP
     if (this->iam_hosts_.empty()) {
-        throw new std::runtime_error("Connecting with IP address when IAM authentication is enabled requires an 'IAM_HOST' parameter.");
+        throw std::runtime_error("Connecting with IP address when IAM authentication is enabled requires an 'IAM_HOST' parameter.");
     }
 
     for (HostInfo iam_info : this->iam_hosts_) {
@@ -65,7 +65,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
         if (dialect->IsSqlStateAccessError(sql_state.c_str())) {
             std::string err("Encountered access error, SQL State: ");
             err += sql_state;
-            throw new std::runtime_error(err);
+            throw std::runtime_error(err);
         }
         if (!SQL_SUCCEEDED(rt)) {
             odbc_helper->Disconnect(dbc);
@@ -77,5 +77,5 @@ SQLRETURN SubstituteConnectRouting::Connect(
         }
     }
 
-    throw new std::runtime_error("Blue/Green Deployment switchover is in progress. Can't establish connection.");
+    throw std::runtime_error("Blue/Green Deployment switchover is in progress. Can't establish connection.");
 }
