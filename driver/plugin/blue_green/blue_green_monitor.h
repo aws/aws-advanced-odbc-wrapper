@@ -67,6 +67,7 @@ public:
     void SetUseIp(bool use_ip);
     void ResetCollectedData();
     void Stop();
+    bool IsStop();
 
 protected:
     void Run();

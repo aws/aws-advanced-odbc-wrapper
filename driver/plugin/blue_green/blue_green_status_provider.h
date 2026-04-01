@@ -85,6 +85,7 @@ protected:
     void StoreMonitorResetTime(std::string event_name);
     void LogSwitchoverFinalSummary();
     void ResetContextWhenCompleted();
+    void ResetContext();
     void StartSwitchoverTimer();
     bool IsSwitchoverTimerExpired();
     void LogCurrentContext();
@@ -117,6 +118,9 @@ private:
     int last_context_hash_;
     BlueGreenInterimStatus interim_statuses_[2];
 
+    std::atomic<bool> pending_restart_ = false;
+    std::shared_ptr<std::thread> reset_monitoring_thread_ = nullptr;
+
     std::shared_ptr<ConcurrentMap<std::string, std::string>> host_ip_map_;
     std::shared_ptr<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>> corresponding_nodes_;
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenRole>> role_by_host_map_;
@@ -132,6 +136,7 @@ private:
     static constexpr std::chrono::milliseconds INCREASED_MS = std::chrono::milliseconds(1000);
     static constexpr std::chrono::milliseconds HIGH_MS = std::chrono::milliseconds(100);
     static constexpr std::chrono::milliseconds SWITCHOVER_TIMEOUT_MS = std::chrono::minutes(3);
+    static constexpr std::chrono::milliseconds RESET_CHECK_RATE = std::chrono::milliseconds(100);
 };
 
 #endif // BLUE_GREEN_STATUS_PROVIDER_H_

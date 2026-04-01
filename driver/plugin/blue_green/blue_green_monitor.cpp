@@ -68,6 +68,11 @@ BlueGreenMonitor::~BlueGreenMonitor() {
         this->Stop();
     }
 
+    if (monitoring_thread_->joinable()) {
+        monitoring_thread_->join();
+        monitoring_thread_ = nullptr;
+    }
+
     odbc_helper_->DisconnectAndFree(&hdbc_);
     odbc_helper_->FreeEnv(&henv_);
 }
@@ -120,14 +125,10 @@ void BlueGreenMonitor::Stop() {
     std::unique_lock<std::mutex> lock_guard(finish_mutex_);
     class_running_.store(false);
     this->NotifyChanges();
-    while (this->thread_running_) {
-        finish_cv_.wait(lock_guard);
-    }
-    std::lock_guard<std::mutex> thread_lock(monitor_mutex_);
-    if (this->monitoring_thread_) {
-        this->monitoring_thread_->detach();
-        this->monitoring_thread_ = nullptr;
-    }
+}
+
+bool BlueGreenMonitor::IsStop() {
+    return !(class_running_ || thread_running_);
 }
 
 void BlueGreenMonitor::Run() {
@@ -202,7 +203,7 @@ void BlueGreenMonitor::Delay(std::chrono::milliseconds delay_ms) {
     } while (
         this->interval_rate_ == current_interval_rate
         && std::chrono::system_clock::now() < end_time
-        && this->thread_running_
+        && this->class_running_
         && current_panic == this->in_panic_mode_
     );
 }
@@ -320,7 +321,7 @@ std::string BlueGreenMonitor::GetIpAddress(std::string host) {
 
         if (inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr))) {
             result = ipstr;
-            LOG(ERROR) << "Retrieved IP: " << result << ", from: " << host;
+            LOG(INFO) << "Retrieved IP: " << result << ", from: " << host;
             break;
         }
     }

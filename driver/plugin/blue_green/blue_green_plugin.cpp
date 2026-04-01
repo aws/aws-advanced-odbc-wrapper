@@ -101,11 +101,12 @@ SQLRETURN BlueGreenPlugin::Connect(
         while (route_itr != connect_routes.end() && !SQL_SUCCEEDED(rc)) {
             LOG(INFO) << "Using connect route: " << (*route_itr)->ToString();
             rc = (*route_itr)->Connect(dbc, HostInfo(conn_host), this->odbc_helper_, this->status_map_);
+            LOG(INFO) << "Connection route returned: " << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
                 this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::system_clock::now();
-                    LOG(INFO) << "Default connection, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
+                    LOG(WARNING) << "Default connection, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
                     return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
                 }
 
@@ -117,7 +118,7 @@ SQLRETURN BlueGreenPlugin::Connect(
             }
         }
         if (!SQL_SUCCEEDED(rc)) {
-            LOG(INFO) << "Default connection, alternative routes unsuccessful for role: " << host_role.ToString() << ", host: " << conn_host;
+            LOG(WARNING) << "Default connection, alternative routes unsuccessful for role: " << host_role.ToString() << ", host: " << conn_host;
             return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
         }
     } catch (const std::exception& ex) {
@@ -125,6 +126,7 @@ SQLRETURN BlueGreenPlugin::Connect(
         std::string error_message("Blue/Green Connect route failed: ");
         error_message += ex.what();
         dbc->err = new ERR_INFO(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        LOG(ERROR) << error_message;
         rc = SQL_ERROR;
     }
     this->end_time_ = std::chrono::system_clock::now();
@@ -176,11 +178,12 @@ SQLRETURN BlueGreenPlugin::Execute(
         while (route_itr != execute_routes.end() && !SQL_SUCCEEDED(rc)) {
             LOG(INFO) << "Using execute route: " << (*route_itr)->ToString();
             rc = (*route_itr)->Execute(stmt, this->odbc_helper_, this->status_map_);
+            LOG(INFO) << "Execute route returned: " << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
                 this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::system_clock::now();
-                    LOG(INFO) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
+                    LOG(WARNING) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
                     return next_plugin->Execute(StatementHandle, StatementText, TextLength);
                 }
 
@@ -192,7 +195,7 @@ SQLRETURN BlueGreenPlugin::Execute(
             }
         }
 
-        LOG(INFO) << "Default execution, out of routes: " << host_role.ToString() << ", host: " << conn_host;
+        LOG(WARNING) << "Default execution, out of routes: " << host_role.ToString() << ", host: " << conn_host;
         rc = next_plugin->Execute(StatementHandle, StatementText, TextLength);
     } catch (const std::exception& ex) {
         CLEAR_STMT_ERROR(stmt);
@@ -200,6 +203,7 @@ SQLRETURN BlueGreenPlugin::Execute(
         error_message += ex.what();
         stmt->err = new ERR_INFO(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         rc = SQL_ERROR;
+        LOG(ERROR) << error_message;
     }
 
     this->end_time_ = std::chrono::system_clock::now();

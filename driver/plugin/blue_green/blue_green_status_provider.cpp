@@ -68,6 +68,10 @@ BlueGreenStatusProvider::~BlueGreenStatusProvider() {
         target_monitor->Stop();
         this->monitors_[BlueGreenRole::TARGET] = nullptr;
     }
+    if (reset_monitoring_thread_ != nullptr) {
+        reset_monitoring_thread_->join();
+        reset_monitoring_thread_ = nullptr;
+    }
 }
 
 void BlueGreenStatusProvider::InitMonitoring() {
@@ -75,6 +79,9 @@ void BlueGreenStatusProvider::InitMonitoring() {
     if (monitors_[BlueGreenRole::SOURCE] && monitors_[BlueGreenRole::TARGET]) {
         return;
     }
+
+    LOG(INFO) << "Initializing new monitors.";
+    pending_restart_ = false;
 
     std::shared_ptr<BlueGreenMonitor> source_monitor = std::make_shared<BlueGreenMonitor>(
         this->plugin_service_,
@@ -114,6 +121,7 @@ void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterim
     if (this->interim_status_hashes_[role.GetRole()] == status_hash
         && this->last_context_hash_ == context_hash)
     {
+        LOG(INFO) << "Statuses not updated since last invocation for: " << role.ToString();
         return;
     }
 
@@ -147,6 +155,7 @@ void BlueGreenStatusProvider::UpdatePhase(BlueGreenRole role, BlueGreenInterimSt
         && latest_interim_phase != BlueGreenPhase::COMPLETED
         && interim_status.phase_ < latest_interim_phase)
     {
+        LOG(WARNING) << "Rollback detected: " << role.ToString();
         this->rollback_ = true;
     }
 
@@ -769,6 +778,9 @@ void BlueGreenStatusProvider::LogSwitchoverFinalSummary() {
     });
 
     if (!switchover_complete || !has_active_switchover) {
+        DLOG(INFO) << "Switchover State"
+            << "\n\tSwitchover Completed: "  << (switchover_complete ? "true" : "false")
+            << "\n\tActive Switchover: "  << (has_active_switchover ? "true" : "false");
         return;
     }
 
@@ -821,44 +833,74 @@ void BlueGreenStatusProvider::ResetContextWhenCompleted() {
         return pair.second.phase.IsSwitchoverOrCompleted();
     });
 
+    DLOG(INFO) << "Checking for reset request: "
+        << "\n\tSwitchover Completed: "  << (switchover_complete ? "true" : "false")
+        << "\n\tActive Switchover: "  << (has_active_switchover ? "true" : "false");
+
     if (switchover_complete && has_active_switchover) {
         {
+            LOG(INFO) << "Context reset requested";
             std::lock_guard monitor_lock(this->monitor_mutex_);
             std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
             std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
             if (source_monitor != nullptr) {
                 source_monitor->Stop();
-                this->monitors_[BlueGreenRole::SOURCE] = nullptr;
             }
             if (target_monitor != nullptr) {
                 target_monitor->Stop();
-                this->monitors_[BlueGreenRole::TARGET] = nullptr;
+            }
+
+            if (!pending_restart_) {
+                LOG(INFO) << "Monitor reset pending";
+                pending_restart_ = true;
+                reset_monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenStatusProvider::ResetContext, this);
             }
         }
-        this->rollback_ = false;
-        this->summary_status_ = BlueGreenStatus();
-        this->latest_status_phase_ = BlueGreenPhase::NOT_CREATED;
-        this->phase_time_map_->Clear();
-        this->blue_dns_update_completed_ = false;
-        this->green_dns_removed_ = false;
-        this->green_topology_changed_ = false;
-        this->all_green_nodes_changed_ = false;
-        this->post_status_end_time_ = std::chrono::system_clock::time_point{};
-        this->interim_status_hashes_[BlueGreenRole::SOURCE] = 0;
-        this->interim_status_hashes_[BlueGreenRole::TARGET] = 0;
-        this->last_context_hash_ = 0;
-        this->interim_statuses_[BlueGreenRole::SOURCE] = BlueGreenInterimStatus();
-        this->interim_statuses_[BlueGreenRole::TARGET] = BlueGreenInterimStatus();
-        this->host_ip_map_->Clear();
-        this->corresponding_nodes_->Clear();
-        this->role_by_host_map_->Clear();
-        this->iam_host_success_connects_map_->Clear();
-        this->green_node_change_name_times_map_->Clear();
-        this->monitor_reset_on_in_progress_completed_ = false;
-        this->monitor_reset_on_topology_completed_ = false;
-
-        this->InitMonitoring();
     }
+}
+
+void BlueGreenStatusProvider::ResetContext() {
+    std::shared_ptr<BlueGreenMonitor> source_monitor;
+    std::shared_ptr<BlueGreenMonitor> target_monitor;
+
+    {
+        std::lock_guard monitor_lock(this->monitor_mutex_);
+        std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
+        std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
+    }
+    if (source_monitor != nullptr && target_monitor != nullptr) {
+        while (!(source_monitor->IsStop() && target_monitor->IsStop())) {
+            std::this_thread::sleep_for(RESET_CHECK_RATE);
+        }
+        std::lock_guard monitor_lock(this->monitor_mutex_);
+        this->monitors_[BlueGreenRole::SOURCE] = nullptr;
+        this->monitors_[BlueGreenRole::TARGET] = nullptr;
+        LOG(INFO) << "Previous monitors closed.";
+    }
+
+    this->rollback_ = false;
+    this->summary_status_ = BlueGreenStatus();
+    this->latest_status_phase_ = BlueGreenPhase::NOT_CREATED;
+    this->phase_time_map_->Clear();
+    this->blue_dns_update_completed_ = false;
+    this->green_dns_removed_ = false;
+    this->green_topology_changed_ = false;
+    this->all_green_nodes_changed_ = false;
+    this->post_status_end_time_ = std::chrono::system_clock::time_point{};
+    this->interim_status_hashes_[BlueGreenRole::SOURCE] = 0;
+    this->interim_status_hashes_[BlueGreenRole::TARGET] = 0;
+    this->last_context_hash_ = 0;
+    this->interim_statuses_[BlueGreenRole::SOURCE] = BlueGreenInterimStatus();
+    this->interim_statuses_[BlueGreenRole::TARGET] = BlueGreenInterimStatus();
+    this->host_ip_map_->Clear();
+    this->corresponding_nodes_->Clear();
+    this->role_by_host_map_->Clear();
+    this->iam_host_success_connects_map_->Clear();
+    this->green_node_change_name_times_map_->Clear();
+    this->monitor_reset_on_in_progress_completed_ = false;
+    this->monitor_reset_on_topology_completed_ = false;
+
+    this->InitMonitoring();
 }
 
 void BlueGreenStatusProvider::StartSwitchoverTimer() {
