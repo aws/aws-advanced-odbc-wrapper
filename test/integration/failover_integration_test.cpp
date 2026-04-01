@@ -169,8 +169,8 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
     std::string current_connection_id = QueryInstanceId(dbc);
 
     // Check if current connection is a new writer
-    EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
     EXPECT_NE(current_connection_id, writer_id);
+    EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
 
     // No rows should have been inserted to the table
     EXPECT_EQ(0, QueryCountTableRows(handle));

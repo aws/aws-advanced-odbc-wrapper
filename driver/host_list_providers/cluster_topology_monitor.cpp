@@ -167,6 +167,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
 
     if (timeout_ms == 0) {
         LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
+        TopologyUtil::LogTopology(curr_hosts);
         return curr_hosts;
     }
     std::chrono::steady_clock::time_point curr_time = std::chrono::steady_clock::now();
@@ -183,7 +184,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(uint32_t tim
     LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
-        LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << "for cluster ID: " << cluster_id_;
+        LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms) << " for cluster ID: " << cluster_id_;
     }
 
     return new_hosts;
@@ -220,6 +221,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQL
     } else {
         // Update if new topology is found
         UpdateTopologyCache(hosts);
+        TopologyUtil::LogTopology(hosts);
     }
 
     return hosts;
@@ -270,6 +272,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
             main_hdbc_ = std::make_shared<SQLHDBC>(local_hdbc);
             const std::string writer_id = topology_util_->GetWriterId(local_dbc);
             if (!writer_id.empty()) {
+                LOG(INFO) << "Cluster topology monitor detected writer: " << writer_id;
                 thread_writer_verified = true;
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
@@ -308,7 +311,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
 
 void ClusterTopologyMonitor::CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc) {
     if (dbc) {
-        auto* dbc_to_delete = static_cast<SQLHDBC>(*(dbc));
+        auto* dbc_to_delete = static_cast<SQLHDBC>(*dbc);
         odbc_helper_->DisconnectAndFree(&dbc_to_delete);
         dbc.reset(); // Release & set to null
     }
@@ -577,6 +580,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
     if (writer_changed_) {
         LOG(INFO) << "Writer has changed, updating cache";
         main_monitor_->UpdateTopologyCache(hosts);
+        TopologyUtil::LogTopology(hosts);
     }
 
     // Check if writer changed
@@ -584,6 +588,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
         if (hi.IsHostWriter() && writer_host_info_ && hi.GetHostPortPair() != writer_host_info_->GetHostPortPair()) {
             writer_changed_ = true;
             main_monitor_->UpdateTopologyCache(hosts);
+            TopologyUtil::LogTopology(hosts);
             break;
         }
     }

@@ -82,10 +82,7 @@ SQLRETURN AdfsAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
-    if (port.empty()) {
-        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
-    }
+    const std::string port = AuthProvider::GetPort(dbc);
     const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0)) : AuthProvider::DEFAULT_EXPIRATION_MS;

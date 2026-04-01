@@ -26,7 +26,7 @@ class Secret {
 public:
     std::string username;
     std::string password;
-    std::chrono::time_point<std::chrono::system_clock> expiration_point;
+    std::chrono::time_point<std::chrono::steady_clock> expiration_point;
 };
 
 class SecretsManagerPlugin : public BasePlugin {

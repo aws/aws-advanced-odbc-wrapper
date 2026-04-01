@@ -213,7 +213,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
 
     std::vector<LimitlessHostInfo> all_hosts = QueryRouters();
     std::vector<LimitlessHostInfo> round_robin_hosts = SortedRoundRobin(all_hosts);
-    EXPECT_FALSE(round_robin_hosts.empty());
+    ASSERT_FALSE(round_robin_hosts.empty());
     std::string expected_host = round_robin_hosts[0].host_name;
 
     SQLHDBC second_dbc = SQL_NULL_HDBC;

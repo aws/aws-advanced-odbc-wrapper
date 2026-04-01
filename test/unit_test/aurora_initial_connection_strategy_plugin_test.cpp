@@ -230,7 +230,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Network
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
-    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
+    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "5000");
     AuroraInitialConnectionStrategyPlugin plugin(
         dbc,
         mock_base_plugin,

@@ -54,8 +54,10 @@ static std::map<std::string, AuthType> const auth_table = {
 
 struct TokenInfo {
     std::string token;
-    std::chrono::time_point<std::chrono::system_clock> expiration_point;
+    std::chrono::time_point<std::chrono::steady_clock> expiration_point;
 }; // TokenInfo;
+
+struct DBC;
 
 class AuthProvider {
 public:
@@ -75,6 +77,8 @@ public:
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
     virtual void UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region = "");
     static std::string ExtraUrlEncodeString(const std::string &url_str);
+
+    static std::string GetPort(DBC* dbc);
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);

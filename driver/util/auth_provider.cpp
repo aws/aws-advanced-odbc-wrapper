@@ -19,7 +19,12 @@
 
 #include "auth_provider.h"
 
+#include "../dialect/dialect.h"
+#include "../driver.h"
+#include "connection_string_keys.h"
 #include "logger_wrapper.h"
+#include "map_utils.h"
+#include "plugin_service.h"
 
 AuthProvider::AuthProvider(const std::string &region) {
     AwsSdkHelper::Init();
@@ -58,7 +63,7 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     std::chrono::milliseconds time_to_expire_ms)
 {
     const std::string cache_key = BuildCacheKey(server, region, port, username);
-    const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+    const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
     TokenInfo token_info{.token = "", .expiration_point = curr_time + time_to_expire_ms};
 
     if (use_cache) {
@@ -106,6 +111,23 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
     LOG(INFO) << "URL Encoded Token Length: " << result.length();
     DLOG(INFO) << "URL Encoded: " << result;
     return result;
+}
+
+std::string AuthProvider::GetPort(DBC* dbc) {
+    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
+    if (port.empty()) {
+        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
+    }
+    if (port.empty() && dbc->plugin_service) {
+        const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
+        if (dialect) {
+            const int default_port = dialect->GetDefaultPort();
+            if (default_port > 0) {
+                port = std::to_string(default_port);
+            }
+        }
+    }
+    return port;
 }
 
 AuthType AuthProvider::AuthTypeFromString(const std::string &auth_type) {

@@ -155,8 +155,9 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<std:
         const std::vector<HostInfo> new_limitless_routers = this->limitless_query_helper_->QueryForLimitlessRouters(conn, host_port, dialect_);
         // LimitlessQueryHelper::QueryForLimitlessRouters will return an empty vector on an error
         // if it was a connection error, then the next loop will catch it and attempt to reconnect
-        if (!new_limitless_routers.empty()) {
+        if (new_limitless_routers.empty()) {
             LOG(WARNING) << "Limitless Monitor failed to query any routers";
+        } else {
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
             *(this->limitless_routers_) = new_limitless_routers;
         }

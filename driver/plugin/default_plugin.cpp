@@ -114,7 +114,7 @@ SQLRETURN DefaultPlugin::Connect(
             dbc->wrapped_dbc, key, val.first, val.second
         );
         if (!res.fn_result) {
-            LOG(WARNING) << "Error setting connection attribute";
+            LOG(WARNING) << "Error setting connection attribute: " << key;
         }
         has_conn_attr_errors = res.fn_result == 0 ? has_conn_attr_errors : true;
     }

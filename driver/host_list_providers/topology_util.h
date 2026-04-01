@@ -35,6 +35,7 @@ public:
     virtual std::vector<HostInfo> GetHosts(SQLHSTMT stmt, const HostInfo &initial_host, const HostInfo &host_template) = 0;
     virtual HostInfo CreateHost(std::string host, int port, HOST_STATE state, HOST_ROLE, uint64_t weight, std::chrono::steady_clock::time_point last_update);
     virtual HostInfo GetWriter(const std::vector<HostInfo>& hosts);
+    static void LogTopology(const std::vector<HostInfo>& hosts);
 
 protected:
     std::shared_ptr<OdbcHelper> odbc_helper_;

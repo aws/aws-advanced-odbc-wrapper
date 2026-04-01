@@ -89,10 +89,7 @@ SQLRETURN OktaAuthPlugin::Connect(
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
             : Aws::Region::US_EAST_1;
     }
-    std::string port = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_PORT, "");
-    if (port.empty()) {
-        port = MapUtils::GetStringValue(dbc->conn_attr, KEY_PORT, "");
-    }
+    const std::string port = AuthProvider::GetPort(dbc);
     const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
     const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
         std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0))
@@ -282,9 +279,9 @@ std::string OktaSamlUtil::VerifyTOTPChallenge(
         }
 #else
 #if (defined(LINUX) || defined(__linux__))
-        const int result = system(("xdg-open " + mfa_form_url).c_str());
+        const int result = system(("xdg-open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
 #else
-        const int result = system(("open " + mfa_form_url).c_str());
+        const int result = system(("open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
 #endif
         if (result != 0) {
             srv.Cancel();

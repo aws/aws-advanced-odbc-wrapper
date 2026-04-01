@@ -39,7 +39,10 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     password_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);
 
     if (username_key.empty() || password_key.empty()) {
-        throw std::runtime_error("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.");
+        LOG(ERROR) << "SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return;
     }
 
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
@@ -47,11 +50,17 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
     }
 
     if (region.empty()) {
-        throw std::runtime_error("Could not determine secret region.");
+        LOG(ERROR) << "Could not determine secret region";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return;
     }
 
     if (secret_id.empty()) {
-        throw std::runtime_error("Missing required parameter 'SECRET_ID'.");
+        LOG(ERROR) << "Missing required parameter 'SECRET_ID'";
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        return;
     }
 
     secret_key = secret_id + "-" + region;
@@ -74,7 +83,10 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, co
 
 SecretsManagerPlugin::~SecretsManagerPlugin()
 {
-    AwsSdkHelper::Shutdown();
+    if (secrets_manager_client) {
+        secrets_manager_client.reset();
+        AwsSdkHelper::Shutdown();
+    }
 }
 
 SQLRETURN SecretsManagerPlugin::Connect(
@@ -89,11 +101,16 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLRETURN ret = SQL_ERROR;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
+    if (!secrets_manager_client) {
+        LOG(ERROR) << "Secrets Manager plugin was not properly initialized";
+        return SQL_ERROR;
+    }
+
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
         if (secrets_cache.contains(secret_key)) {
             LOG(INFO) << "Found secrets in cache";
-            const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+            const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
             const Secret cached_secret = secrets_cache.at(secret_key);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
@@ -138,7 +155,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
 }
 
 Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const std::string &username_key, const std::string &password_key, const std::chrono::milliseconds expiration) {
-    const std::chrono::time_point<std::chrono::system_clock> curr_time = std::chrono::system_clock::now();
+    const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
 
     const Aws::Utils::Json::JsonValue json_value(secret_string);
     const Aws::Utils::Json::JsonView view = json_value.View();
