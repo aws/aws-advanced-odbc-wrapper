@@ -25,7 +25,7 @@
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc) : AuroraInitialConnectionStrategyPlugin(dbc, nullptr) {}
 
-AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin) : AuroraInitialConnectionStrategyPlugin(
+AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : AuroraInitialConnectionStrategyPlugin(
     dbc,
     next_plugin,
     dbc->plugin_service,
@@ -36,7 +36,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     DBC* dbc,
-    BasePlugin* next_plugin,
+    std::shared_ptr<BasePlugin> next_plugin,
     std::shared_ptr<PluginService> plugin_service,
     std::shared_ptr<HostSelector> host_selector,
     std::shared_ptr<Dialect> dialect,

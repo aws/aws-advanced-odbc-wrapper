@@ -2143,27 +2143,27 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         }
         // Plugin Builder
         if (!dbc->plugin_head) {
-            BasePlugin* plugin_head = new DefaultPlugin(dbc);
-            BasePlugin* next_plugin;
+            std::shared_ptr<BasePlugin> plugin_head = std::make_shared<DefaultPlugin>(dbc);
+            std::shared_ptr<BasePlugin> next_plugin;
 
             // Auth Plugins
             if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
                 const AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
                 switch (type) {
                         case AuthType::IAM:
-                            next_plugin = new IamAuthPlugin(dbc, plugin_head);
+                            next_plugin = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
                             plugin_head = next_plugin;
                             break;
                         case AuthType::SECRETS_MANAGER:
-                            next_plugin = new SecretsManagerPlugin(dbc, plugin_head);
+                            next_plugin = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
                             plugin_head = next_plugin;
                             break;
                         case AuthType::ADFS:
-                            next_plugin = new AdfsAuthPlugin(dbc, plugin_head);
+                            next_plugin = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
                             plugin_head = next_plugin;
                             break;
                         case AuthType::OKTA:
-                            next_plugin = new OktaAuthPlugin(dbc, plugin_head);
+                            next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
                             plugin_head = next_plugin;
                             break;
                         case AuthType::DATABASE:
@@ -2177,7 +2177,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS)
                 && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE)
             {
-                next_plugin = new LimitlessPlugin(dbc, plugin_head);
+                next_plugin = std::make_shared<LimitlessPlugin>(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
@@ -2185,14 +2185,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
                 && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
             {
-                next_plugin = new FailoverPlugin(dbc, plugin_head);
+                next_plugin = std::make_shared<FailoverPlugin>(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
             // Aurora Initial Connection Strategy
             if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
                 && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
-                next_plugin = new AuroraInitialConnectionStrategyPlugin(dbc, plugin_head);
+                next_plugin = std::make_shared<AuroraInitialConnectionStrategyPlugin>(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
@@ -2200,7 +2200,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_CUSTOM_ENDPOINT)
                 && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
             {
-                next_plugin = new CustomEndpointPlugin(dbc, plugin_head);
+                next_plugin = std::make_shared<CustomEndpointPlugin>(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
@@ -2208,12 +2208,12 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_BLUE_GREEN)
                 && dbc->conn_attr.at(KEY_ENABLE_BLUE_GREEN) == VALUE_BOOL_TRUE)
             {
-                next_plugin = new BlueGreenPlugin(dbc, plugin_head);
+                next_plugin = std::make_shared<BlueGreenPlugin>(dbc, plugin_head);
                 plugin_head = next_plugin;
             }
 
             // Finalize and track in DBC
-            dbc->plugin_head = plugin_head;
+            dbc->plugin_head = plugin_head.get();
             dbc->plugin_service->SetPluginChain(plugin_head);
         }
 

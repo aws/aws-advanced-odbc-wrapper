@@ -29,7 +29,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
     std::shared_ptr<OdbcHelper> odbc_helper,
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
-    BasePlugin* plugin_head_ = dbc->plugin_head;
+    std::shared_ptr<BasePlugin> plugin_head_ = dbc->plugin_service->GetPluginChain();
     odbc_helper->Disconnect(dbc);
 
     std::string substitute_host = this->substitute_info_.GetHost();

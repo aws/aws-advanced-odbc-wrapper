@@ -91,7 +91,7 @@ private:
     };
 
     std::shared_ptr<PluginService> plugin_service_;
-    BasePlugin* plugin_head_;
+    std::shared_ptr<BasePlugin> plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<DialectBlueGreen> dialect_blue_green_;
     std::string blue_green_id_;

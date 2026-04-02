@@ -34,7 +34,7 @@ FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
 FailoverPlugin::FailoverPlugin(
     DBC* dbc,
-    BasePlugin* next_plugin) : BasePlugin(dbc, next_plugin)
+    std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
     this->plugin_service_ = dbc->plugin_service;

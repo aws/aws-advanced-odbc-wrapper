@@ -21,13 +21,15 @@
 #include "../../util/odbc_helper.h"
 #include "limitless_router_service.h"
 
+#include <memory>
+
 class LimitlessPlugin : public BasePlugin {
 public:
     LimitlessPlugin(DBC* dbc);
-    LimitlessPlugin(DBC* dbc, BasePlugin* next_plugin);
+    LimitlessPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     LimitlessPlugin(
         DBC* dbc,
-        BasePlugin* next_plugin,
+        std::shared_ptr<BasePlugin> next_plugin,
         const std::shared_ptr<Dialect>& dialect,
         const std::shared_ptr<LimitlessRouterService> &limitless_router_service_,
         const std::shared_ptr<OdbcHelper> &odbc_helper);

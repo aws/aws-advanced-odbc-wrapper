@@ -541,9 +541,11 @@ void BlueGreenMonitor::InitHostListProvider() {
     host_list_provider_conn_attr.insert_or_assign(KEY_CLUSTER_ID, custom_cluster_id);
     host_list_provider_conn_attr.insert_or_assign(KEY_SERVER, this->connecting_host_info_.GetHost());
     host_list_provider_conn_attr.insert_or_assign(KEY_PORT, std::to_string(this->connecting_host_info_.GetPort()));
+    std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(odbc_helper_->GetLibLoader(), host_list_provider_conn_attr);
+    monitor_plugin_service->SetPluginChain(this->plugin_service_->GetPluginChain());
     this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
-        this->plugin_service_->GetTopologyUtil(),
-        this->plugin_service_,
+        monitor_plugin_service->GetTopologyUtil(),
+        monitor_plugin_service,
         host_list_provider_conn_attr,
         custom_cluster_id
     );

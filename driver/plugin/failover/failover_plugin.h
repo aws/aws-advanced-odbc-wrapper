@@ -42,7 +42,7 @@ class FailoverPlugin : public BasePlugin {
 public:
     FailoverPlugin() = default;
     explicit FailoverPlugin(DBC* dbc);
-    FailoverPlugin(DBC* dbc, BasePlugin* next_plugin);
+    FailoverPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,

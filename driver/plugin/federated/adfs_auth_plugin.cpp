@@ -27,9 +27,9 @@
 
 AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc) : AdfsAuthPlugin(dbc, nullptr) {}
 
-AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : AdfsAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
+AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : AdfsAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
+AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "ADFS";
 

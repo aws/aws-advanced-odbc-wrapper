@@ -40,6 +40,7 @@ struct HostFilter {
 class PluginService : public std::enable_shared_from_this<PluginService> {
    public:
     PluginService() = default;
+    PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr);
     PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str);
     ~PluginService();
 
@@ -68,8 +69,8 @@ class PluginService : public std::enable_shared_from_this<PluginService> {
     virtual std::vector<HostInfo> GetFilteredHosts();
     virtual void SetHostFilter(const HostFilter& filter);
 
-    virtual BasePlugin* GetPluginChain();
-    virtual void SetPluginChain(BasePlugin* plugin_chain);
+    virtual std::shared_ptr<BasePlugin> GetPluginChain();
+    virtual void SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain);
 
     virtual void InitHostListProvider();
 
@@ -91,8 +92,7 @@ class PluginService : public std::enable_shared_from_this<PluginService> {
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
-
-    BasePlugin* plugin_chain_ = nullptr;
+    std::shared_ptr<BasePlugin> plugin_chain_;
 
     // Shared resources
     // SlidingCacheMap internally thread safe

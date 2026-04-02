@@ -35,7 +35,7 @@
 class LimitlessRouterMonitor {
 public:
     LimitlessRouterMonitor(
-        BasePlugin* plugin_head,
+        std::shared_ptr<BasePlugin> plugin_head,
         const std::shared_ptr<DialectLimitless>& dialect,
         const std::shared_ptr<OdbcHelper> &odbc_helper,
         const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper);
@@ -53,7 +53,7 @@ public:
     std::shared_ptr<std::vector<HostInfo>> limitless_routers_;
     std::mutex limitless_routers_mutex_;
     std::shared_ptr<RdsLibLoader> lib_loader_;
-    BasePlugin* plugin_head_;
+    std::shared_ptr<BasePlugin> plugin_head_;
     std::condition_variable monitor_loop_cv_;
     std::mutex monitor_loop_mutex_;
 

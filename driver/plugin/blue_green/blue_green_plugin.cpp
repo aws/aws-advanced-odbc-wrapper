@@ -28,7 +28,7 @@ std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> BlueGreenPlugin::st
 
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc) : BlueGreenPlugin(dbc, nullptr) {}
 
-BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, BasePlugin* next_plugin) : BasePlugin(dbc, next_plugin) {
+BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {
     this->plugin_name = "BLUE_GREEN";
     this->conn_attr_ = dbc->conn_attr;
     this->plugin_service_ = dbc->plugin_service;

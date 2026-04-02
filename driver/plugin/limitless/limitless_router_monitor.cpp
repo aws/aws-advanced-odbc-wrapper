@@ -31,7 +31,7 @@
 #include "limitless_query_helper.h"
 
 LimitlessRouterMonitor::LimitlessRouterMonitor(
-    BasePlugin* plugin_head,
+    std::shared_ptr<BasePlugin> plugin_head,
     const std::shared_ptr<DialectLimitless>& dialect,
     const std::shared_ptr<OdbcHelper> &odbc_helper_,
     const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper_) {

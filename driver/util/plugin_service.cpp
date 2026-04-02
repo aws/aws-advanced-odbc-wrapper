@@ -28,6 +28,8 @@
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
+PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr) : PluginService(lib_loader, original_conn_attr, "") {}
+
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr,
                              std::string original_conn_str)
     : original_conn_str_{ std::move(original_conn_str) }, original_conn_attr_{ std::move(original_conn_attr) } {
@@ -56,10 +58,6 @@ PluginService::~PluginService()
     odbc_helper_ = nullptr;
     dialect_ = nullptr;
     host_selector_ = nullptr;
-
-    if (plugin_chain_) {
-        delete plugin_chain_;
-    }
     plugin_chain_ = nullptr;
 }
 
@@ -166,11 +164,11 @@ void PluginService::SetHostFilter(const HostFilter& filter) {
     host_filter_map_->Put(this->cluster_id_, filter);
 }
 
-BasePlugin* PluginService::GetPluginChain() {
+std::shared_ptr<BasePlugin> PluginService::GetPluginChain() {
     return this->plugin_chain_;
 }
 
-void PluginService::SetPluginChain(BasePlugin* plugin_chain) {
+void PluginService::SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain) {
     this->plugin_chain_ = plugin_chain;
 }
 
