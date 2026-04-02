@@ -75,7 +75,7 @@ SQLRETURN BlueGreenPlugin::Connect(
     std::string conn_host = dbc->conn_attr.at(KEY_SERVER);
     BlueGreenRole host_role = this->blue_green_status_.GetRole(conn_host);
     if (host_role.GetRole() == BlueGreenRole::UNKNOWN) {
-        LOG(INFO) << "Default connection, unexpected role: " << host_role.ToString() << ", host: " << conn_host;
+        LOG(INFO) << "Default connection, unexpected role: UNKNOWN, host: " << conn_host;
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
@@ -152,7 +152,7 @@ SQLRETURN BlueGreenPlugin::Execute(
     std::string conn_host = stmt->dbc->conn_attr.at(KEY_SERVER);
     BlueGreenRole host_role = this->blue_green_status_.GetRole(conn_host);
     if (host_role.GetRole() == BlueGreenRole::UNKNOWN) {
-        LOG(INFO) << "Default execution, unexpected role: " << host_role.ToString() << ", host: " << conn_host;
+        LOG(INFO) << "Default execution, unexpected role: UNKNOWN, host: " << conn_host;
         return next_plugin->Execute(StatementHandle, StatementText, TextLength);
     }
 

@@ -68,7 +68,7 @@ BlueGreenMonitor::~BlueGreenMonitor() {
         this->Stop();
     }
 
-    if (monitoring_thread_->joinable()) {
+    if (monitoring_thread_ && monitoring_thread_->joinable()) {
         monitoring_thread_->join();
         monitoring_thread_ = nullptr;
     }
@@ -338,7 +338,7 @@ void BlueGreenMonitor::CollectTopology() {
         return;
     }
 
-    std::vector<HostInfo> current_topology = this->host_list_provider_->ForceRefresh(false, std::chrono::milliseconds(30).count());
+    std::vector<HostInfo> current_topology = this->host_list_provider_->ForceRefresh(false, std::chrono::seconds(5));
     if (!current_topology.empty()) {
         this->current_topology_ = current_topology;
         if (this->collect_topology_) {
@@ -535,7 +535,7 @@ void BlueGreenMonitor::InitHostListProvider() {
     }
 
     // Special cluster ID to differentiate between other host list providers for this cluster
-    std::string custom_cluster_id = this->blue_green_id_ + this->current_role_.ToString() + this->BG_CLUSTER_ID;
+    std::string custom_cluster_id = this->blue_green_id_ + "-" + this->current_role_.ToString() + "-" + this->BG_CLUSTER_ID;
 
     std::map<std::string, std::string> host_list_provider_conn_attr(this->conn_attr_);
     host_list_provider_conn_attr.insert_or_assign(KEY_CLUSTER_ID, custom_cluster_id);

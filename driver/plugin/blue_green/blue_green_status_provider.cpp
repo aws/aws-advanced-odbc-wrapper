@@ -154,7 +154,7 @@ void BlueGreenStatusProvider::UpdatePhase(BlueGreenRole role, BlueGreenInterimSt
     if (role == BlueGreenRole::TARGET
         && latest_interim_phase != BlueGreenPhase::UNKNOWN
         && interim_status.phase_ != BlueGreenPhase::UNKNOWN
-        && latest_interim_phase != BlueGreenPhase::COMPLETED
+        && latest_status_phase_ != BlueGreenPhase::COMPLETED
         && interim_status.phase_ < latest_interim_phase)
     {
         LOG(WARNING) << "Rollback detected: " << role.ToString();
@@ -241,7 +241,7 @@ void BlueGreenStatusProvider::UpdateCorrespondingNodes() {
         std::string blue_reader_cluster_host = itr_blue != blue_hosts.end() ? *itr_blue : "";
         std::string green_reader_cluster_host = itr_green != green_hosts.end() ? *itr_green : "";
 
-        if (!blue_cluster_host.empty() && !green_cluster_host.empty()) {
+        if (!blue_reader_cluster_host.empty() && !green_reader_cluster_host.empty()) {
             this->corresponding_nodes_->TryEmplace(blue_reader_cluster_host, {HostInfo(blue_reader_cluster_host), HostInfo(green_reader_cluster_host)});
         }
 
@@ -855,6 +855,10 @@ void BlueGreenStatusProvider::ResetContextWhenCompleted() {
             if (!pending_restart_) {
                 LOG(INFO) << "Monitor reset pending";
                 pending_restart_ = true;
+                if (reset_monitoring_thread_ != nullptr && reset_monitoring_thread_) {
+                    reset_monitoring_thread_->join();
+                    reset_monitoring_thread_ = nullptr;
+                }
                 reset_monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenStatusProvider::ResetContext, this);
             }
         }
@@ -867,8 +871,8 @@ void BlueGreenStatusProvider::ResetContext() {
 
     {
         std::lock_guard monitor_lock(this->monitor_mutex_);
-        std::shared_ptr<BlueGreenMonitor> source_monitor = this->monitors_[BlueGreenRole::SOURCE];
-        std::shared_ptr<BlueGreenMonitor> target_monitor = this->monitors_[BlueGreenRole::TARGET];
+        source_monitor = this->monitors_[BlueGreenRole::SOURCE];
+        target_monitor = this->monitors_[BlueGreenRole::TARGET];
     }
     if (source_monitor != nullptr && target_monitor != nullptr) {
         while (!(source_monitor->IsStop() && target_monitor->IsStop())) {

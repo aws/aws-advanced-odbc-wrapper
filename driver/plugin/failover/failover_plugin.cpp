@@ -160,7 +160,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
     LOG(INFO) << "Starting reader failover procedure";
     // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
     // for it to get updated, since we do not need updated topology to establish a reader connection.
-    plugin_service_->ForceRefreshHosts(false, 0);
+    plugin_service_->ForceRefreshHosts(false, std::chrono::milliseconds(0));
 
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
     const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();
@@ -268,7 +268,7 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
 
 bool FailoverPlugin::FailoverWriter(DBC *dbc)
 {
-    plugin_service_->ForceRefreshHosts(true, failover_timeout_ms_.count());
+    plugin_service_->ForceRefreshHosts(true, failover_timeout_ms_);
 
     // Try connecting to a writer
     const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();

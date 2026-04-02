@@ -28,10 +28,9 @@
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
-PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str) :
-    original_conn_str_{ std::move(original_conn_str) },
-    original_conn_attr_{ std::move(original_conn_attr) }
-{
+PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr,
+                             std::string original_conn_str)
+    : original_conn_str_{ std::move(original_conn_str) }, original_conn_attr_{ std::move(original_conn_attr) } {
     this->initial_host_ = HostInfo(
         original_conn_attr_.contains(KEY_SERVER) ?
             original_conn_attr_.at(KEY_SERVER) : "",
@@ -125,7 +124,7 @@ void PluginService::RefreshHosts() {
     this->SetHosts(new_hosts);
 }
 
-void PluginService::ForceRefreshHosts(bool verify_writer, uint32_t timeout_ms) {
+void PluginService::ForceRefreshHosts(bool verify_writer, std::chrono::milliseconds timeout_ms) {
     const std::vector<HostInfo> new_hosts = this->host_list_provider_->ForceRefresh(verify_writer, timeout_ms);
     this->SetHosts(new_hosts);
 }

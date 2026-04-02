@@ -81,7 +81,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     }
 
     if (plugin_service_->GetHosts().empty()) {
-        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_.count());
+        plugin_service_->ForceRefreshHosts(false, retry_timeout_ms_);
     }
 
     if (verify_initial_connection_type_ == "WRITER") {
@@ -137,7 +137,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
                 odbc_helper_->Disconnect(dbc);
                 return rc;
             }
-            plugin_service_->ForceRefreshHosts(false, 0);
+            plugin_service_->ForceRefreshHosts(false, std::chrono::milliseconds(0));
             writer_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
 
             if (writer_candidate.GetHost().empty() || writer_candidate.GetHostRole() != WRITER) {
@@ -203,7 +203,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
                 odbc_helper_->Disconnect(dbc);
                 return rc;
             }
-            plugin_service_->ForceRefreshHosts(false, 0);
+            plugin_service_->ForceRefreshHosts(false, std::chrono::milliseconds(0));
             reader_candidate = plugin_service_->GetHostListProvider()->GetConnectionInfo(dbc);
 
             if (reader_candidate.GetHost().empty()) {
@@ -243,7 +243,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
         }
 
         if (plugin_service_->GetHostListProvider()->GetConnectionRole(static_cast<SQLHDBC>(dbc)) != READER) {
-            plugin_service_->ForceRefreshHosts(false, 0);
+            plugin_service_->ForceRefreshHosts(false, std::chrono::milliseconds(0));
             if (this->HasNoReadersAndTopologyIsHealthy()) {
                 // It seems that cluster has no readers. Simulate Aurora reader cluster endpoint logic
                 // and return the current (writer) connection.

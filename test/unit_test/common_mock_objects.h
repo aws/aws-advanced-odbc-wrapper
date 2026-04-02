@@ -15,7 +15,6 @@
 #ifndef TEST_COMMON_MOCK_OBJECTS_H
 #define TEST_COMMON_MOCK_OBJECTS_H
 
-
 #include "gmock/gmock.h"
 
 #include <sqltypes.h>
@@ -23,6 +22,8 @@
 #include "../../driver/host_list_providers/topology_util.h"
 #include "../../driver/host_selector/highest_weight_host_selector.h"
 #include "../../driver/util/plugin_service.h"
+
+#include <chrono>
 
 class MOCK_DIALECT : public Dialect {
 public:
@@ -63,7 +64,7 @@ public:
 
     MOCK_METHOD(std::vector<HostInfo>, GetHosts, (), ());
     MOCK_METHOD(void, SetInitialHostInfo, (const HostInfo& info), ());
-    MOCK_METHOD(void, ForceRefreshHosts, (bool verify_writer, uint32_t timeout_ms), ());
+    MOCK_METHOD(void, ForceRefreshHosts, (bool verify_writer, std::chrono::milliseconds timeout_ms), ());
     MOCK_METHOD(std::shared_ptr<HostListProvider>, GetHostListProvider, (), ());
     MOCK_METHOD(std::shared_ptr<HostSelector>, GetHostSelector, (), ());
     MOCK_METHOD(std::shared_ptr<OdbcHelper>, GetOdbcHelper, (), ());

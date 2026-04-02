@@ -21,6 +21,7 @@
 #include "../host_list_providers/topology_util.h"
 #include "../host_selector/host_selector.h"
 
+#include <chrono>
 #include <map>
 #include <set>
 
@@ -60,7 +61,7 @@ class PluginService : public std::enable_shared_from_this<PluginService> {
     virtual std::shared_ptr<HostListProvider> GetHostListProvider();
 
     virtual void RefreshHosts();
-    virtual void ForceRefreshHosts(bool verify_writer, uint32_t timeout_ms);
+    virtual void ForceRefreshHosts(bool verify_writer, std::chrono::milliseconds timeout_ms);
 
     virtual std::vector<HostInfo> GetHosts();
     virtual void SetHosts(const std::vector<HostInfo>& hosts);

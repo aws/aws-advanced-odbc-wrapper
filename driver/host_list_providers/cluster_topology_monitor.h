@@ -62,14 +62,14 @@ public:
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
-    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms);
-    virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, uint32_t timeout_ms);
+    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms);
+    virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, std::chrono::milliseconds timeout_ms);
 
     virtual void StartMonitor();
 
 protected:
     void Run();
-    std::vector<HostInfo> WaitForTopologyUpdate(uint32_t timeout_ms);
+    std::vector<HostInfo> WaitForTopologyUpdate(std::chrono::milliseconds timeout_ms);
     void DelayMainThread(bool use_high_refresh_rate);
     std::vector<HostInfo> FetchTopologyUpdateCache(SQLHDBC hdbc);
     void UpdateTopologyCache(const std::vector<HostInfo>& hosts);
@@ -88,7 +88,7 @@ private:
     void InitNodeMonitors();
     bool GetPossibleWriterConn();
 
-    BasePlugin* plugin_head_;
+    std::shared_ptr<BasePlugin> plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::string cluster_id_;
     HostInfo initial_host_;

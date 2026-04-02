@@ -287,6 +287,7 @@ protected:
             ? ConnectionStringBuilder(conn_str_builder.getString())
                 .withUID(test_iam_user)
                 .withAuthMode("IAM")
+                .withExtraUrlEncode(true)
                 .withServer(host)
                 .getString()
             : ConnectionStringBuilder(conn_str_builder.getString())
@@ -303,6 +304,7 @@ protected:
                 .withUID(test_iam_user)
                 .withAuthMode("IAM")
                 .withBlueGreenEnabled(true)
+                .withExtraUrlEncode(true)
                 .withServer(host)
                 .getString()
             : ConnectionStringBuilder(conn_str_builder.getString())
@@ -1125,11 +1127,11 @@ protected:
     {
         return std::thread([&](const std::string& host_id, const std::string& host, const std::string& iam_host, const std::string& thread_prefix) {
             // Setup
-            const std::string iam_conn_str_prefix = ConnectionStringBuilder(conn_str_builder.getString())
-                .withServer(host)
+            const std::string green_node_original_ip = TEST_UTILS::HostToIp(host);
+            const std::string green_node_connect_ip = ConnectionStringBuilder(conn_str_builder.getString())
+                .withServer(green_node_original_ip)
                 .withUID(test_iam_user)
                 .getString();
-            const std::string green_node_original_ip = TEST_UTILS::HostToIp(host);
 
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
@@ -1142,7 +1144,7 @@ protected:
             while (!ThreadSynchronization::stop_flag) {
                 const std::string iam_token = rds_client.GenerateConnectAuthToken(
                     iam_host.c_str(), test_region.c_str(), test_port, test_iam_user.c_str());
-                const std::string conn_str = ConnectionStringBuilder(iam_conn_str_prefix)
+                const std::string conn_str = ConnectionStringBuilder(green_node_connect_ip)
                     .withPWD(iam_token)
                     .getString();
 
@@ -1264,17 +1266,17 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
             threads.push_back(CreateGreenDnsMonitoringThread(host_id, host, result.dns_green_removed_time));
 
             size_t cluster_pos = host.find(".cluster");
-            std::string iam_host = host;
+            std::string blue_iam_host = host;
             if (green_pos != std::string::npos && cluster_pos != std::string::npos) {
-                iam_host = host.substr(0, green_pos) + host.substr(cluster_pos);
+                blue_iam_host = host.substr(0, green_pos) + host.substr(cluster_pos);
             }
 
             threads.push_back(CreateGreenIamConnectivityMonitoringThread(
                 host_id, host, result.green_node_changed_name_time_first_success, result.green_direct_iam_ip_with_blue_node_connect_times,
-                iam_host, "BlueHost", false, true));
+                blue_iam_host, "BlueHost", false, true));
             threads.push_back(CreateGreenIamConnectivityMonitoringThread(
                 host_id, host, result.green_node_changed_name_time_first_error, result.green_direct_iam_ip_with_green_node_connect_times,
-                iam_host, "GreenHost", true, false));
+                host, "GreenHost", true, false));
         }
     }
 

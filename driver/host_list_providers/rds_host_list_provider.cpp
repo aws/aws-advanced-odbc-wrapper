@@ -71,7 +71,7 @@ std::vector<HostInfo> RdsHostListProvider::Refresh() {
     return hosts;
 }
 
-std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, uint32_t timeout_ms) {
+std::vector<HostInfo> RdsHostListProvider::ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) {
     return this->monitor_->ForceRefresh(verify_writer, timeout_ms);
 }
 
