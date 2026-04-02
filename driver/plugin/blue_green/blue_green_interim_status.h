@@ -42,7 +42,7 @@ public:
         bool all_topology_changed
     );
 
-    int GetHashCode();
+    int32_t GetHashCode();
 
     BlueGreenPhase phase_ = BlueGreenPhase::UNKNOWN;
     std::string version_;
@@ -57,7 +57,7 @@ public:
     bool all_topology_changed_;
 
 protected:
-    int GetValueHash(int current_hash, std::string value) const;
+    int32_t GetValueHash(int current_hash, std::string value) const;
     static std::hash<std::string> hasher;
 };
 

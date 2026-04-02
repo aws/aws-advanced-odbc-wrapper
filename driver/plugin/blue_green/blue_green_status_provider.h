@@ -65,8 +65,8 @@ protected:
     void UpdateMonitors();
     void UpdateDnsFlags(BlueGreenRole role, BlueGreenInterimStatus interim_status);
     void ResetMonitors(std::atomic<bool>& monitor_reset_completed, std::string event_name);
-    int GetContextHash();
-    int GetValueHash(int current_hash, std::string value);
+    int32_t GetContextHash();
+    int32_t GetValueHash(int current_hash, std::string value);
     std::string GetHostPort(std::string host, int port);
     std::vector<std::shared_ptr<BaseConnectRouting>> AddSubstituteBlueWithIpAddressConnectRouting();
     BlueGreenStatus GetStatusOfCreated();
@@ -114,8 +114,8 @@ private:
     std::mutex monitor_mutex_;
     std::shared_ptr<BlueGreenMonitor> monitors_[2];
     std::unordered_map<BlueGreenIntervalRate, std::chrono::milliseconds> check_interval_map_;
-    int interim_status_hashes_[2] = {0, 0};
-    int last_context_hash_;
+    int32_t interim_status_hashes_[2] = {0, 0};
+    int32_t last_context_hash_;
     BlueGreenInterimStatus interim_statuses_[2];
 
     std::atomic<bool> pending_restart_ = false;

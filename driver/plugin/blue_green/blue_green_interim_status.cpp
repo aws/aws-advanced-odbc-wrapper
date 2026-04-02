@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "blue_green_hasher.h"
 #include "blue_green_interim_status.h"
 
 #include <functional>
@@ -42,8 +43,8 @@ BlueGreenInterimStatus::BlueGreenInterimStatus(
       all_start_topology_endpoints_removed_{ all_start_topology_endpoints_removed },
       all_topology_changed_{ all_topology_changed } {}
 
-int BlueGreenInterimStatus::GetHashCode() {
-    int result = this->GetValueHash(1, this->phase_.ToString());
+int32_t BlueGreenInterimStatus::GetHashCode() {
+    int32_t result = this->GetValueHash(1, this->phase_.ToString());
     result = this->GetValueHash(result, this->version_);
     result = this->GetValueHash(result, std::to_string(this->port_));
     result = this->GetValueHash(result, this->all_start_topology_ip_changed_ ? "true" : "false");
@@ -69,6 +70,6 @@ int BlueGreenInterimStatus::GetHashCode() {
     return result;
 }
 
-int BlueGreenInterimStatus::GetValueHash(int current_hash, std::string value) const {
-    return current_hash * 31 + hasher(value);
+int32_t BlueGreenInterimStatus::GetValueHash(int current_hash, std::string value) const {
+    return current_hash * 31 + BlueGreenHasher::GetHash(value);
 }

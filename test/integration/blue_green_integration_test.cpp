@@ -1298,15 +1298,14 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
     ThreadSynchronization::Print("Threads finished");
 
     // Stop threads
+    ThreadSynchronization::Print("Stopping threads");
     ThreadSynchronization::stop_flag = true;
     // Allow threads to finish immediate work
     std::this_thread::sleep_for(std::chrono::minutes(3));
-    ThreadSynchronization::Print("Stopping threads");
 
-    // Assume threads hung and detach
-    ThreadSynchronization::Print("Detach threads");
+    ThreadSynchronization::Print("Join threads");
     for (auto& thread : threads) {
-        thread.detach();
+        thread.join();
     }
 
     ThreadSynchronization::Print("-------------------------------------------------------------------------------------");

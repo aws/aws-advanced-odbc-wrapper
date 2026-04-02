@@ -53,6 +53,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/close_connection_execute_routing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/suspend_execute_routing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_hasher.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.h
@@ -151,6 +152,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/base_connect_routing.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/base_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_hasher.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.cpp

@@ -14,6 +14,8 @@
 
 #include "blue_green_status_provider.h"
 
+#include "blue_green_hasher.h"
+
 #include "routing/connect/reject_connect_routing.h"
 #include "routing/connect/substitute_connect_routing.h"
 #include "routing/connect/suspend_connect_routing.h"
@@ -116,8 +118,8 @@ void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterim
     std::lock_guard<std::mutex> lock_guard(this->process_lock_guard);
 
     // Detect changes
-    int status_hash = interim_status.GetHashCode();
-    int context_hash = this->GetContextHash();
+    int32_t status_hash = interim_status.GetHashCode();
+    int32_t context_hash = this->GetContextHash();
     if (this->interim_status_hashes_[role.GetRole()] == status_hash
         && this->last_context_hash_ == context_hash)
     {
@@ -410,14 +412,14 @@ void BlueGreenStatusProvider::ResetMonitors(std::atomic<bool>& monitor_reset_com
     }
 }
 
-int BlueGreenStatusProvider::GetContextHash() {
-    int result = this->GetValueHash(1, std::to_string(this->all_green_nodes_changed_));
+int32_t BlueGreenStatusProvider::GetContextHash() {
+    int32_t result = this->GetValueHash(1, std::to_string(this->all_green_nodes_changed_));
     result = this->GetValueHash(result, std::to_string(this->iam_host_success_connects_map_->Size()));
     return result;
 }
 
-int BlueGreenStatusProvider::GetValueHash(int current_hash, std::string value) {
-    return current_hash * 31 + hasher(value);
+int32_t BlueGreenStatusProvider::GetValueHash(int current_hash, std::string value) {
+    return current_hash * 31 + BlueGreenHasher::GetHash(value);
 }
 
 std::string BlueGreenStatusProvider::GetHostPort(std::string host, int port) {
