@@ -24,9 +24,9 @@
 
 IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr) {}
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<AuthProvider>& auth_provider) : BasePlugin(dbc, next_plugin)
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "IAM";
 
@@ -47,7 +47,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::share
 IamAuthPlugin::~IamAuthPlugin()
 {
     if (auth_provider) {
-        auth_provider.reset();
+        auth_provider = nullptr;
     }
 }
 

@@ -30,10 +30,10 @@
 class CustomEndpointPlugin : public BasePlugin {
 public:
     CustomEndpointPlugin(DBC* dbc);
-    CustomEndpointPlugin(DBC* dbc, BasePlugin* next_plugin);
+    CustomEndpointPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     CustomEndpointPlugin(
         DBC* dbc,
-        BasePlugin* next_plugin,
+        std::shared_ptr<BasePlugin> next_plugin,
         const std::shared_ptr<PluginService>& topology_service,
         const std::shared_ptr<CustomEndpointMonitor>& custom_endpoint_monitor);
     ~CustomEndpointPlugin() override;

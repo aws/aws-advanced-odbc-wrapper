@@ -62,8 +62,8 @@ private:
 class OktaAuthPlugin : public BasePlugin {
 public:
     OktaAuthPlugin(DBC* dbc);
-    OktaAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
+    OktaAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     ~OktaAuthPlugin() override;
 
     SQLRETURN Connect(

@@ -33,9 +33,9 @@
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
 
-OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : OktaAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : OktaAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "OKTA";
 
@@ -63,10 +63,10 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::sha
 OktaAuthPlugin::~OktaAuthPlugin()
 {
     if (auth_provider) {
-        auth_provider.reset();
+        auth_provider = nullptr;
     }
     if (saml_util) {
-        saml_util.reset();
+        saml_util = nullptr;
     }
 }
 

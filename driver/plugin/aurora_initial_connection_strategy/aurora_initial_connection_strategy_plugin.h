@@ -24,10 +24,10 @@
 class AuroraInitialConnectionStrategyPlugin : public BasePlugin {
 public:
     AuroraInitialConnectionStrategyPlugin(DBC* dbc);
-    AuroraInitialConnectionStrategyPlugin(DBC* dbc, BasePlugin* next_plugin);
+    AuroraInitialConnectionStrategyPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     AuroraInitialConnectionStrategyPlugin(
         DBC* dbc,
-        BasePlugin* next_plugin,
+        std::shared_ptr<BasePlugin> next_plugin,
         std::shared_ptr<PluginService> plugin_service,
         std::shared_ptr<HostSelector> host_selector,
         std::shared_ptr<Dialect> dialect,

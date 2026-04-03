@@ -46,8 +46,8 @@ private:
 class AdfsAuthPlugin : public BasePlugin {
 public:
     AdfsAuthPlugin(DBC* dbc);
-    AdfsAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    AdfsAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
+    AdfsAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     ~AdfsAuthPlugin() override;
 
     SQLRETURN Connect(

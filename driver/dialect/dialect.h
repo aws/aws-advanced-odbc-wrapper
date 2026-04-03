@@ -61,4 +61,10 @@ public:
     virtual std::string GetLimitlessRouterEndpointQuery() { return ""; };
 };
 
+class DialectBlueGreen : virtual public Dialect {
+public:
+    virtual std::string GetBlueGreenStatusAvailableQuery() { return ""; };
+    virtual std::string GetBlueGreenStatusQuery() { return ""; };
+};
+
 #endif // DIALECT_H

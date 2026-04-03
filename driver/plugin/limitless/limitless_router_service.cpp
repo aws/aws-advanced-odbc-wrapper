@@ -15,8 +15,10 @@
 #include "limitless_router_service.h"
 
 #include <chrono>
+#include <memory>
 
 #include "../../util/logger_wrapper.h"
+#include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
 
@@ -58,7 +60,7 @@ LimitlessRouterService::~LimitlessRouterService() {
 
 std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     const std::map<std::string, std::string> &conn_attr,
-    BasePlugin* plugin_head,
+    std::shared_ptr<BasePlugin> plugin_head,
     DBC* dbc,
     const std::shared_ptr<DialectLimitless>& dialect) const
 {
@@ -87,7 +89,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     return monitor;
 }
 
-SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, DBC* dbc)
+SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin> next_plugin, DBC* dbc)
 {
     if (dbc == nullptr) {
         LOG(ERROR) << "Null DBC passed to EstablishConnection";
@@ -209,7 +211,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(BasePlugin* next_plugin, D
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
-    BasePlugin* plugin_head = dbc->plugin_head;
+    std::shared_ptr<BasePlugin> plugin_head = dbc->plugin_service->GetPluginChain();
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
     const std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;

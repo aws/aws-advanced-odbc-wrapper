@@ -23,9 +23,9 @@
 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc) : SecretsManagerPlugin(dbc, nullptr) {}
 
-SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin) : SecretsManagerPlugin(dbc, next_plugin, nullptr) {}
+SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : SecretsManagerPlugin(dbc, next_plugin, nullptr) {}
 
-SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client) : BasePlugin(dbc, next_plugin)
+SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "SECRETS_MANAGER";
 

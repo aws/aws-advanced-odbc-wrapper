@@ -19,30 +19,80 @@
 #include "rds_lib_loader.h"
 #include "rds_strings.h"
 
+#include <mutex>
+
 OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader) {
     this->lib_loader_ = lib_loader;
 }
 
-void OdbcHelper::Disconnect(const DBC* dbc) {
-    if (dbc && dbc->wrapped_dbc) {
-        try {
-            NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
-                dbc->wrapped_dbc
-            );
-        } catch (const std::exception& ex) {
-            LOG(ERROR) << "Exception while disconnecting: " << ex.what();
+void OdbcHelper::Disconnect(DBC* dbc) {
+    if (dbc) {
+        std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        // Cleanup tracked underlying statements
+        const std::list<STMT*> stmt_list = dbc->stmt_list;
+        for (STMT* stmt : stmt_list) {
+            std::lock_guard<std::recursive_mutex> stmt_lock(stmt->lock);
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    SQL_HANDLE_STMT, stmt->wrapped_stmt
+                );
+                stmt->wrapped_stmt = SQL_NULL_HSTMT;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while cleaning up statements for disconnects: " << ex.what();
+            }
+        }
+        // and underlying descriptors
+        const std::list<DESC*> desc_list = dbc->desc_list;
+        for (DESC* desc : desc_list) {
+            std::lock_guard<std::recursive_mutex> desc_lock(desc->lock);
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    SQL_HANDLE_DESC, desc->wrapped_desc
+                );
+                desc->wrapped_desc = SQL_NULL_HDESC;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while cleaning up descriptors for disconnects: " << ex.what();
+            }
+        }
+        if (dbc->wrapped_dbc) {
+            try {
+                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+                    dbc->wrapped_dbc
+                );
+                dbc->wrapped_dbc = SQL_NULL_HDBC;
+            } catch (const std::exception& ex) {
+                LOG(ERROR) << "Exception while disconnecting: " << ex.what();
+            }
         }
     }
 }
 
 void OdbcHelper::Disconnect(SQLHDBC* hdbc) {
-    const DBC* local_dbc = static_cast<DBC*>(*hdbc);
+    DBC* local_dbc = static_cast<DBC*>(*hdbc);
     Disconnect(local_dbc);
 }
 
 void OdbcHelper::DisconnectAndFree(SQLHDBC* hdbc) {
     Disconnect(hdbc);
     RDS_FreeConnect(*hdbc);
+    *hdbc = SQL_NULL_HDBC;
+}
+
+bool OdbcHelper::IsClosed(SQLHDBC hdbc) {
+    const DBC* local_dbc = static_cast<DBC*>(hdbc);
+    if (hdbc == SQL_NULL_HDBC || local_dbc->wrapped_dbc == SQL_NULL_HDBC) {
+        return true;
+    }
+    SQLUINTEGER connection_state = SQL_CD_FALSE;
+    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+        local_dbc->wrapped_dbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, sizeof(SQLUINTEGER), nullptr
+    );
+
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        return connection_state == SQL_CD_TRUE;
+    }
+
+    return true;
 }
 
 SQLRETURN OdbcHelper::AllocEnv(SQLHENV* henv) {
@@ -65,14 +115,14 @@ RdsLibResult OdbcHelper::SetEnvAttr(
     SQLPOINTER pointer,
     const int length)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
         henv->wrapped_env, attribute, pointer, length
     );
 }
 
 RdsLibResult OdbcHelper::Fetch(SQLHSTMT* stmt)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         *stmt
     );
 }
@@ -85,7 +135,7 @@ RdsLibResult OdbcHelper::BindCol(
     const size_t size,
     SQLLEN* len)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
         *stmt, column, type, value, size, len
     );
 }
@@ -105,20 +155,26 @@ RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &que
     );
 }
 
+RdsLibResult OdbcHelper::CloseCursor(SQLHSTMT stmt) {
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+        stmt
+    );
+}
+
 RdsLibResult OdbcHelper::BaseAllocEnv(ENV* env) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_ENV, nullptr, &env->wrapped_env
     );
 }
 
 RdsLibResult OdbcHelper::BaseAllocStmt(const SQLHDBC* wrapped_dbc, SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
         SQL_HANDLE_STMT, *wrapped_dbc, stmt
     );
 }
 
 RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
         SQL_HANDLE_STMT, *stmt
     );
 }

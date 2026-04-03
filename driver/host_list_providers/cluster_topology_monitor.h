@@ -19,6 +19,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -49,19 +50,26 @@ struct ENV;
 
 class ClusterTopologyMonitor {
 public:
-    ClusterTopologyMonitor(PluginService* plugin_service,
+    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
         const std::shared_ptr<TopologyUtil>& topology_util);
+    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
+        const std::shared_ptr<TopologyUtil>& topology_util,
+        std::map<std::string, std::string> conn_attr,
+        std::string cluster_id,
+        HostInfo initial_host,
+        HostInfo template_host
+    );
     ~ClusterTopologyMonitor();
 
     virtual void SetClusterId(const std::string& cluster_id);
-    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms);
-    virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, uint32_t timeout_ms);
+    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms);
+    virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, std::chrono::milliseconds timeout_ms);
 
     virtual void StartMonitor();
 
 protected:
     void Run();
-    std::vector<HostInfo> WaitForTopologyUpdate(uint32_t timeout_ms);
+    std::vector<HostInfo> WaitForTopologyUpdate(std::chrono::milliseconds timeout_ms);
     void DelayMainThread(bool use_high_refresh_rate);
     std::vector<HostInfo> FetchTopologyUpdateCache(SQLHDBC hdbc);
     void UpdateTopologyCache(const std::vector<HostInfo>& hosts);
@@ -80,14 +88,14 @@ private:
     void InitNodeMonitors();
     bool GetPossibleWriterConn();
 
-    BasePlugin* plugin_head_;
+    std::shared_ptr<BasePlugin> plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::string cluster_id_;
     HostInfo initial_host_;
     HostInfo template_host_;
     std::map<std::string, std::string> connection_attributes_;
 
-    PluginService* plugin_service_;
+    std::shared_ptr<PluginService> plugin_service_;
 
     // Track Update Request
     std::atomic<bool> request_update_topology_;

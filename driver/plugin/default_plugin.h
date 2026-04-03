@@ -18,11 +18,13 @@
 #include "base_plugin.h"
 #include "../util/odbc_helper.h"
 
+#include <memory>
+
 class DefaultPlugin : public BasePlugin {
 public:
     DefaultPlugin() = default;
     DefaultPlugin(DBC* dbc);
-    DefaultPlugin(DBC* dbc, DefaultPlugin* next_plugin);
+    DefaultPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     virtual SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
