@@ -132,7 +132,11 @@ void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterim
     this->interim_status_hashes_[role.GetRole()] = status_hash;
     this->last_context_hash_ = context_hash;
 
-    this->host_ip_map_->CopyMap(interim_status.initial_ip_host_map_);
+    for (const auto& [host, ip] : interim_status.initial_ip_host_map_) {
+        if (ip.has_value()) {
+            this->host_ip_map_->InsertOrAssign(host, ip.value());
+        }
+    }
 
     for (std::string host : interim_status.host_names_) {
         this->role_by_host_map_->InsertOrAssign(host, role);
@@ -515,8 +519,8 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfInProgress() {
         // Try to confirm ip for blue nodes
         BlueGreenInterimStatus status = this->interim_statuses_[BlueGreenRole::SOURCE];
         if (status.phase_ != BlueGreenPhase::UNKNOWN) {
-            std::map<std::string, std::string> ip_to_host_map = status.initial_ip_host_map_;
-            auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::string>& pair) {
+            std::map<std::string, std::optional<std::string>> ip_to_host_map = status.initial_ip_host_map_;
+            auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::optional<std::string>>& pair) {
                 return !pair.first.empty() && value == pair.first;
             });
             if (itr != ip_to_host_map.end()) {
@@ -532,8 +536,8 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfInProgress() {
         // Try to confirm ip for green nodes
         status = this->interim_statuses_[BlueGreenRole::TARGET];
         if (status.phase_ != BlueGreenPhase::UNKNOWN) {
-            std::map<std::string, std::string> ip_to_host_map = status.initial_ip_host_map_;
-            auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::string>& pair) {
+            std::map<std::string, std::optional<std::string>> ip_to_host_map = status.initial_ip_host_map_;
+            auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::optional<std::string>>& pair) {
                 return !pair.first.empty() && value == pair.first;
             });
             if (itr != ip_to_host_map.end()) {

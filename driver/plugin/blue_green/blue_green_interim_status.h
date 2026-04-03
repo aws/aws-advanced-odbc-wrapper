@@ -21,6 +21,7 @@
 #include "../../host_info.h"
 
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -34,8 +35,8 @@ public:
         int port,
         std::vector<HostInfo> initial_topology,
         std::vector<HostInfo> current_topology,
-        std::map<std::string, std::string> initial_ip_host_map,
-        std::map<std::string, std::string> current_ip_host_map,
+        std::map<std::string, std::optional<std::string>> initial_ip_host_map,
+        std::map<std::string, std::optional<std::string>> current_ip_host_map,
         std::set<std::string> host_names,
         bool all_start_topology_ip_changed,
         bool all_start_topology_endpoints_removed,
@@ -49,8 +50,8 @@ public:
     int port_;
     std::vector<HostInfo> initial_topology_;
     std::vector<HostInfo> current_topology_;
-    std::map<std::string, std::string> initial_ip_host_map_;
-    std::map<std::string, std::string> current_ip_host_map_;
+    std::map<std::string, std::optional<std::string>> initial_ip_host_map_;
+    std::map<std::string, std::optional<std::string>> current_ip_host_map_;
     std::set<std::string> host_names_;
     bool all_start_topology_ip_changed_;
     bool all_start_topology_endpoints_removed_;

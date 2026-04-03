@@ -250,8 +250,10 @@ void BlueGreenMonitor::UpdateIpAddressFlags() {
                 auto itr_current = current_ip_host_map_.find(host);
 
                 return itr_initial != initial_end
+                    && itr_initial->second.has_value()
                     && itr_current != current_end
-                    && itr_initial->second != itr_current->second;
+                    && itr_current->second.has_value()
+                    && itr_initial->second.value() != itr_current->second.value();
             });
     }
 
@@ -266,10 +268,12 @@ void BlueGreenMonitor::UpdateIpAddressFlags() {
                 auto itr_current = current_ip_host_map_.find(host);
 
                 return itr_initial != initial_end
-                    && itr_current == current_end;
+                    && itr_initial->second.has_value()
+                    && itr_current != current_end
+                    && !itr_current->second.has_value();
             });
 
-    if (this->collect_topology_) {
+    if (!this->collect_topology_) {
         // All hosts in current topology should have no same host in initial topology.
         // All hosts in current topology should have changed.
         std::set<std::string> initial_topology_nodes;
@@ -287,10 +291,10 @@ void BlueGreenMonitor::UpdateIpAddressFlags() {
     }
 }
 
-std::string BlueGreenMonitor::GetIpAddress(std::string host) {
+std::optional<std::string> BlueGreenMonitor::GetIpAddress(std::string host) {
     if (host.empty()) {
         LOG(ERROR) << "Empty host given to retrieve IP.";
-        return {};
+        return std::nullopt;
     }
 
 #ifdef _WIN32
@@ -308,7 +312,7 @@ std::string BlueGreenMonitor::GetIpAddress(std::string host) {
     int status = getaddrinfo(host.c_str(), nullptr, &hints, &servinfo);
     if (status != 0) {
         LOG(ERROR) << "Failed to retrieve IP address from host: " << host;
-        return {};
+        return std::nullopt;
     }
 
     std::string result;
@@ -327,7 +331,7 @@ std::string BlueGreenMonitor::GetIpAddress(std::string host) {
     }
 
     freeaddrinfo(servinfo);
-    return result;
+    return result.empty() ? std::nullopt : std::optional<std::string>(result);
 }
 
 void BlueGreenMonitor::CollectTopology() {
@@ -467,7 +471,7 @@ void BlueGreenMonitor::CollectStatus() {
 
     if (!this->connecting_host_info_correct_ && itr != itr_end) {
         // Connected to initial host, need to ensure this is desired cluster
-        std::string endpoint_ip = this->GetIpAddress(itr->endpoint);
+        std::string endpoint_ip = this->GetIpAddress(itr->endpoint).value_or("");
         std::string connected_ip = this->connecting_ip_;
         if (!connected_ip.empty() && connected_ip != endpoint_ip) {
             // Need to reconnect as not connected to desired cluster
@@ -515,7 +519,7 @@ void BlueGreenMonitor::OpenConnection() {
     SQLRETURN rc = this->plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     if (SQL_SUCCEEDED(rc)) {
-        this->connecting_ip_ = this->GetIpAddress(connecting_host_info.GetHost());
+        this->connecting_ip_ = this->GetIpAddress(connecting_host_info.GetHost()).value_or("");
         this->hdbc_ = local_hdbc;
         this->in_panic_mode_ = false;
     } else {

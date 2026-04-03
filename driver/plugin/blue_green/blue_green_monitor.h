@@ -37,6 +37,7 @@
 #include <condition_variable>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -74,7 +75,7 @@ protected:
     void Delay(std::chrono::milliseconds delay_ms);
     void CollectHostIp();
     void UpdateIpAddressFlags();
-    std::string GetIpAddress(std::string host);
+    std::optional<std::string> GetIpAddress(std::string host);
     void CollectTopology();
     void CollectStatus();
     void OpenConnection();
@@ -119,8 +120,8 @@ private:
 
     std::vector<HostInfo> initial_topology_;
     std::vector<HostInfo> current_topology_;
-    std::map<std::string, std::string> initial_ip_host_map_;
-    std::map<std::string, std::string> current_ip_host_map_;
+    std::map<std::string, std::optional<std::string>> initial_ip_host_map_;
+    std::map<std::string, std::optional<std::string>> current_ip_host_map_;
     std::set<std::string> host_names_;
     // Shared Resources
     std::mutex initial_ip_host_map_mutex_;
