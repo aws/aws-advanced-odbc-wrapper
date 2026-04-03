@@ -25,8 +25,8 @@ BlueGreenInterimStatus::BlueGreenInterimStatus(
     int port,
     std::vector<HostInfo> initial_topology,
     std::vector<HostInfo> current_topology,
-    std::map<std::string, std::string> initial_ip_host_map,
-    std::map<std::string, std::string> current_ip_host_map,
+    std::map<std::string, std::optional<std::string>> initial_ip_host_map,
+    std::map<std::string, std::optional<std::string>> current_ip_host_map,
     std::set<std::string> host_names,
     bool all_start_topology_ip_changed,
     bool all_start_topology_endpoints_removed,
@@ -61,10 +61,10 @@ int32_t BlueGreenInterimStatus::GetHashCode() {
         result = this->GetValueHash(result, info.GetHostPortPair() + std::to_string(info.GetHostRole()));
     }
     for (const auto& [key, value] : this->initial_ip_host_map_) {
-        result = this->GetValueHash(result, key + value);
+        result = this->GetValueHash(result, key + value.value_or(""));
     }
     for (const auto& [key, value] : this->current_ip_host_map_) {
-        result = this->GetValueHash(result, key + value);
+        result = this->GetValueHash(result, key + value.value_or(""));
     }
 
     return result;
