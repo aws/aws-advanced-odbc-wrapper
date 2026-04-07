@@ -37,7 +37,7 @@ struct HostFilter {
     }
 };
 
-class PluginService : public std::enable_shared_from_this<PluginService> {
+class PluginService {
    public:
     PluginService() = default;
     PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr);

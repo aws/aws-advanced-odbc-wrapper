@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "../../util/auth_provider.h"
+
 #include "blue_green_monitor.h"
 
 #include "../../host_list_providers/rds_host_list_provider.h"
+
+#include "../../util/plugin_chain_builder.h"
 
 #include "../../util/rds_utils.h"
 
@@ -546,7 +550,8 @@ void BlueGreenMonitor::InitHostListProvider() {
     host_list_provider_conn_attr.insert_or_assign(KEY_SERVER, this->connecting_host_info_.GetHost());
     host_list_provider_conn_attr.insert_or_assign(KEY_PORT, std::to_string(this->connecting_host_info_.GetPort()));
     std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(odbc_helper_->GetLibLoader(), host_list_provider_conn_attr);
-    monitor_plugin_service->SetPluginChain(this->plugin_service_->GetPluginChain());
+    std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(host_list_provider_conn_attr, monitor_plugin_service);
+    monitor_plugin_service->SetPluginChain(plugin_head);
     this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
         monitor_plugin_service->GetTopologyUtil(),
         monitor_plugin_service,

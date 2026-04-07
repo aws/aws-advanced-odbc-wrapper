@@ -64,7 +64,7 @@ private:
 
     std::shared_ptr<BlueGreenStatusProvider> status_provider_;
     std::map<std::string, std::string> conn_attr_;
-    std::shared_ptr<PluginService> plugin_service_;
+    std::weak_ptr<PluginService> plugin_service_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
 
     BlueGreenStatus blue_green_status_;

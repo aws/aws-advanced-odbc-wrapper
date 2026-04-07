@@ -12,9 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "plugin_chain_builder.h"
+
 #include "plugin_service.h"
 
 #include "rds_utils.h"
+
+#include "map_utils.h"
 
 #include "../dialect/dialect.h"
 #include "../dialect/dialect_aurora_mysql.h"
@@ -28,7 +32,8 @@
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
-PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr) : PluginService(lib_loader, original_conn_attr, "") {}
+PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr)
+    : PluginService(lib_loader, original_conn_attr, "") {}
 
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr,
                              std::string original_conn_str)
@@ -173,13 +178,29 @@ void PluginService::SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain) {
 }
 
 void PluginService::InitHostListProvider() {
+    if (this->host_list_provider_) {
+        return;
+    }
+
     switch (this->dialect_->GetDialectType()) {
         case DatabaseDialectType::AURORA_POSTGRESQL:
         case DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS:
         case DatabaseDialectType::AURORA_MYSQL:
+        {
+            std::map<std::string, std::string> monitoring_map = this->original_conn_attr_;
+            std::string monitoring_cluster_id = MapUtils::GetStringValue(monitoring_map, KEY_CLUSTER_ID, "<empty>");
+            monitoring_cluster_id = monitoring_cluster_id + "-monitor";
+            monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
+
+            std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
+            std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
+            monitor_plugin_service->SetPluginChain(plugin_head);
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
-                this->topology_util_, shared_from_this());
+                monitor_plugin_service->GetTopologyUtil(),
+                monitor_plugin_service
+            );
             break;
+        }
         default:
             this->host_list_provider_ = std::make_shared<HostListProvider>(this->cluster_id_);
     }

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "../../util/auth_provider.h"
+
 #include "blue_green_plugin.h"
 #include "blue_green_status_provider.h"
 
@@ -20,6 +22,7 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
+#include "../../util/plugin_chain_builder.h"
 #include "../../util/plugin_service.h"
 
 std::mutex BlueGreenPlugin::provider_lock_;
@@ -32,9 +35,9 @@ BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plug
     this->plugin_name = "BLUE_GREEN";
     this->conn_attr_ = dbc->conn_attr;
     this->plugin_service_ = dbc->plugin_service;
-    this->odbc_helper_ = plugin_service_->GetOdbcHelper();
+    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
     this->blue_green_id_ = MapUtils::GetStringValue(this->conn_attr_, KEY_BG_ID, "BG-1");
-    this->cluster_id_ = plugin_service_->GetClusterId();
+    this->cluster_id_ = dbc->plugin_service->GetClusterId();
 }
 
 BlueGreenPlugin::~BlueGreenPlugin() {
@@ -257,8 +260,18 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
         provider = pair.second;
         LOG(INFO) << "Incremented Blue Green Status Provider count for: " << this->blue_green_id_ << ", to: " << pair.first;
     } else {
+        std::map<std::string, std::string> monitoring_map;
+        if (std::shared_ptr<PluginService> service = this->plugin_service_.lock()) {
+            monitoring_map = service->GetOriginalConnAttr();
+        }
+        std::string monitoring_cluster_id = MapUtils::GetStringValue(monitoring_map, KEY_CLUSTER_ID, "<empty>");
+        monitoring_cluster_id = monitoring_cluster_id + "-bg-monitor";
+        monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
+        std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
+        std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
+        monitor_plugin_service->SetPluginChain(plugin_head);
         provider = std::make_shared<BlueGreenStatusProvider>(
-            this->plugin_service_,
+            monitor_plugin_service,
             this->conn_attr_,
             BlueGreenPlugin::status_map_,
             this->blue_green_id_,

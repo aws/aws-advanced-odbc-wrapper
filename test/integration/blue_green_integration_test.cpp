@@ -329,17 +329,17 @@ protected:
         return empty_time_point;
     }
 
-    size_t GetSwitchoverCompleteTime() {
-        size_t max_green_node_change_time = GetMaxGreenNodeChangeTime();
-        size_t switchover_complete_time_from_status_table = GetSwitchoverCompleteTimeFromStatusTable();
+    long long GetSwitchoverCompleteTime() {
+        long long max_green_node_change_time = GetMaxGreenNodeChangeTime();
+        long long switchover_complete_time_from_status_table = GetSwitchoverCompleteTimeFromStatusTable();
         return max_green_node_change_time > switchover_complete_time_from_status_table
             ? max_green_node_change_time
             : switchover_complete_time_from_status_table;
     }
 
-    size_t GetMaxGreenNodeChangeTime() {
+    long long GetMaxGreenNodeChangeTime() {
         std::chrono::steady_clock::time_point bg_trigger_time = GetBgTriggerTime();
-        size_t largest_offset = 0;
+        long long largest_offset = 0;
         for (const auto& [_, result] : results) {
             std::chrono::steady_clock::time_point green_node_changed_name_time{};
             if (result.green_node_changed_name_time_first_success != empty_time_point) {
@@ -350,7 +350,7 @@ protected:
                 continue;
             }
 
-            size_t offset = GetTimeOffsetMs(green_node_changed_name_time, bg_trigger_time);
+            long long offset = GetTimeOffsetMs(green_node_changed_name_time, bg_trigger_time);
             largest_offset = offset > largest_offset
                 ? offset
                 : largest_offset;
@@ -358,13 +358,13 @@ protected:
         return largest_offset;
     }
 
-    size_t GetSwitchoverCompleteTimeFromStatusTable() {
+    long long GetSwitchoverCompleteTimeFromStatusTable() {
         std::chrono::steady_clock::time_point bg_trigger_time = GetBgTriggerTime();
-        size_t largest_offset = 0;
+        long long largest_offset = 0;
         for (const auto& [_, result] : results) {
             const auto& itr = result.green_status_time.find("SWITCHOVER_COMPLETED");
             if (itr != result.green_status_time.end()) {
-                size_t result_offset = GetTimeOffsetMs(itr->second, bg_trigger_time);
+                long long result_offset = GetTimeOffsetMs(itr->second, bg_trigger_time);
                 largest_offset = result_offset > largest_offset
                     ? result_offset
                     : largest_offset;
@@ -417,11 +417,11 @@ protected:
         return latest_time;
     }
 
-    size_t CountSuccessfulConnectsAfterSwitchover(
+    long long CountSuccessfulConnectsAfterSwitchover(
         std::chrono::steady_clock::time_point bg_trigger_time,
-        size_t switchover_complete_time)
+        long long switchover_complete_time)
     {
-        size_t count = 0;
+        long long count = 0;
         for (const auto& [_, v] : results) {
             for (const auto& x : v.blue_wrapper_connect_times) {
                 count += GetTimeOffsetMs(x.start_time, bg_trigger_time) > switchover_complete_time
@@ -433,11 +433,11 @@ protected:
         return count;
     }
 
-    size_t CountUnsuccessfulConnectsAfterSwitchover(
+    long long CountUnsuccessfulConnectsAfterSwitchover(
         std::chrono::steady_clock::time_point bg_trigger_time,
-        size_t switchover_complete_time)
+        long long switchover_complete_time)
     {
-        size_t count = 0;
+        long long count = 0;
         for (const auto& [_, v] : results) {
             for (const auto& x : v.blue_wrapper_connect_times) {
                 count += GetTimeOffsetMs(x.start_time, bg_trigger_time) > switchover_complete_time
@@ -449,8 +449,8 @@ protected:
         return count;
     }
 
-    size_t CountSuccessfulExecutesAfterSwitchover() {
-        size_t count = 0;
+    long long CountSuccessfulExecutesAfterSwitchover() {
+        long long count = 0;
         for (const auto& [_, v] : results) {
             for (const auto& x : v.blue_wrapper_post_switchover_execute_times) {
                 count += !x.error.has_value()
@@ -461,8 +461,8 @@ protected:
         return count;
     }
 
-    size_t CountUnsuccessfulExecutesAfterSwitchover() {
-        size_t count = 0;
+    long long CountUnsuccessfulExecutesAfterSwitchover() {
+        long long count = 0;
         for (const auto& [_, v] : results) {
             for (const auto& x : v.blue_wrapper_post_switchover_execute_times) {
                 count += x.error.has_value()
@@ -475,11 +475,11 @@ protected:
 
     void LogUnsuccessfulConnectionAfterSwitchover(
         std::chrono::steady_clock::time_point bg_trigger_time,
-        size_t switchover_complete_time)
+        long long switchover_complete_time)
     {
         for (const auto& [_, v] : results) {
             for (const auto& x : v.blue_wrapper_connect_times) {
-                size_t offset = GetTimeOffsetMs(x.start_time, bg_trigger_time);
+                long long offset = GetTimeOffsetMs(x.start_time, bg_trigger_time);
                 if (offset > switchover_complete_time
                     && x.error.has_value())
                 {
@@ -501,7 +501,7 @@ protected:
         }
     }
 
-    size_t GetTimeOffsetMs(
+    long long GetTimeOffsetMs(
         std::chrono::steady_clock::time_point time_stamp, std::chrono::steady_clock::time_point bg_trigger_time)
     {
         return time_stamp == empty_time_point
@@ -518,7 +518,7 @@ protected:
     }
 
     void AssertSwitchoverCompleted() {
-        size_t switchover_completed_time_from_status_table = GetSwitchoverCompleteTimeFromStatusTable();
+        long long switchover_completed_time_from_status_table = GetSwitchoverCompleteTimeFromStatusTable();
         EXPECT_NE(0, switchover_completed_time_from_status_table);
 
         for (const auto& [host_id, result] : results) {
@@ -538,7 +538,7 @@ protected:
     }
 
     void AssertWrapperBehavior(std::chrono::steady_clock::time_point bg_trigger_time) {
-        size_t switchover_complete_time = GetSwitchoverCompleteTime();
+        long long switchover_complete_time = GetSwitchoverCompleteTime();
 
         // Log Timing
         ThreadSynchronization::Print("BG Trigger Time: " + std::to_string(bg_trigger_time.time_since_epoch().count()));
@@ -546,13 +546,13 @@ protected:
         ThreadSynchronization::Print("Switchover Complete Time (ms): " + std::to_string(switchover_complete_time));
 
         // Gather Metrics
-        size_t successful_connections = CountSuccessfulConnectsAfterSwitchover(
+        long long successful_connections = CountSuccessfulConnectsAfterSwitchover(
             bg_trigger_time, switchover_complete_time);
-        size_t successful_executions = CountSuccessfulExecutesAfterSwitchover();
+        long long successful_executions = CountSuccessfulExecutesAfterSwitchover();
 
-        size_t unsuccessful_connections = CountUnsuccessfulConnectsAfterSwitchover(
+        long long unsuccessful_connections = CountUnsuccessfulConnectsAfterSwitchover(
             bg_trigger_time, switchover_complete_time);
-        size_t unsuccessful_executions = CountUnsuccessfulExecutesAfterSwitchover();
+        long long unsuccessful_executions = CountUnsuccessfulExecutesAfterSwitchover();
 
         // Log Metrics
         ThreadSynchronization::Print("Successful Wrapper Connection after Switchover: " + std::to_string(successful_connections));
@@ -580,10 +580,10 @@ protected:
     void AssertNoConnectionsToOldBlueCluster(std::chrono::steady_clock::time_point bg_trigger_time) {
         // Earliest timepoint which switchover initiated
         std::chrono::steady_clock::time_point switchover_initiated_time = GetSwitchoverInitiatedTime();
-        size_t initiated_time_offset = GetTimeOffsetMs(switchover_initiated_time, bg_trigger_time);
+        long long initiated_time_offset = GetTimeOffsetMs(switchover_initiated_time, bg_trigger_time);
         // Latest timepoint where switchover still in progress
         std::chrono::steady_clock::time_point switchover_in_process_time = GetSwitchoverInProgressTime();
-        size_t in_progress_time_offset = GetTimeOffsetMs(switchover_in_process_time, bg_trigger_time);
+        long long in_progress_time_offset = GetTimeOffsetMs(switchover_in_process_time, bg_trigger_time);
 
         ThreadSynchronization::Print("Earliest Status for Switchover Initiated: " + std::to_string(switchover_initiated_time.time_since_epoch().count()) + "ms");
         ThreadSynchronization::Print("\tOffset from bg start: " + std::to_string(initiated_time_offset) + "ms");
@@ -594,13 +594,13 @@ protected:
         EXPECT_NE(empty_time_point, switchover_in_process_time);
 
         // Verify connections go to blue (none to green) before switchover initiated
-        size_t connections_before_switchover = 0;
-        size_t connections_to_blue_before_switchover = 0;
-        size_t connections_to_green_before_switchover = 0;
+        long long connections_before_switchover = 0;
+        long long connections_to_blue_before_switchover = 0;
+        long long connections_to_green_before_switchover = 0;
 
         for (const auto& [_, result] : results) {
             for (const auto& host_verification_result : result.host_verification_results) {
-                size_t offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
+                long long offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
                 if (offset > initiated_time_offset) {
                     continue;
                 }
@@ -620,13 +620,13 @@ protected:
         EXPECT_EQ(0, connections_to_green_before_switchover);
 
         // Verify no connections go to old-blue after switchover in progress
-        size_t total_verifications_after_switchover_initiated = 0;
-        size_t connections_to_blue_after_switchover_initiated = 0;
-        size_t connections_to_green_after_switchover_initiated = 0;
+        long long total_verifications_after_switchover_initiated = 0;
+        long long connections_to_blue_after_switchover_initiated = 0;
+        long long connections_to_green_after_switchover_initiated = 0;
 
         for (const auto& [_, result] : results) {
             for (const auto& host_verification_result : result.host_verification_results) {
-                size_t offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
+                long long offset = GetTimeOffsetMs(host_verification_result.timestamp, bg_trigger_time);
                 if (offset < in_progress_time_offset) {
                     continue;
                 }

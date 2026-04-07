@@ -824,7 +824,7 @@ void BlueGreenStatusProvider::LogSwitchoverFinalSummary() {
         out_stream << "\n";
     }
 
-    std::string log_message = std::format("[bgId: '{}']\n", this->blue_green_id_) + divider +
+    std::string log_message = std::format("[LogSwitchoverFinalSummary for bgId: '{}']\n", this->blue_green_id_) + divider +
                               std::vformat(format_header, std::make_format_args("timestamp", "time offset (ms)", "event")) + divider +
                               out_stream.str() + divider;
     LOG(INFO) << log_message;
@@ -939,7 +939,7 @@ void BlueGreenStatusProvider::LogCurrentContext() {
     }
 
     std::ostringstream log_msg;
-    log_msg << std::format("[bgId: {}] Summary Status:\n{}", this->blue_green_id_, this->summary_status_.ToString());
+    log_msg << std::format("[LogCurrentContext for bgId: {}] Summary Status:\n{}", this->blue_green_id_, this->summary_status_.ToString());
     log_msg << std::format("Corresponding Nodes:\n{}", corresponding_nodes_str.str());
     log_msg << std::format("Phase Times:\n{}", phase_time_str.str());
     log_msg << std::format("Green Node Certificate Change Times:\n{}", green_name_change_str.str());
