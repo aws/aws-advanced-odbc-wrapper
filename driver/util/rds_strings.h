@@ -91,6 +91,38 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
     unicode_str.toUTF8String(buffer_utf8);
     return buffer_utf8;
 }
+
+inline std::string Convert4ByteSqlWChar(
+    SQLTCHAR *     InputStr,
+    SQLSMALLINT    BufferLength
+    ) {
+    bool end_found = false;
+    int i = 0;
+    std::vector<SQLTCHAR> conn_in_vector;
+    while (!end_found) {
+        if (BufferLength > 0 && i > BufferLength) {
+            break;
+        }
+        if (InputStr[i] == '\0' && InputStr[i + 1] == '\0') {
+            end_found = true;
+        }
+        // TODO: is this missing a char??
+        conn_in_vector.push_back(InputStr[i]);
+        i += 2;
+    }
+
+    SQLTCHAR* conn_in_w = conn_in_vector.data();
+
+    const std::string str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_w));
+    return str_utf8_w;
+}
+
+inline void ConvertUnicodeUserToBaseDriver(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out, SQLSMALLINT length) {
+    const size_t buf_len = GetLenOfSqltcharArray(CatalogName, NameLength1, dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp());
+    std::vector<SQLTCHAR> buf_vector(buf_len, '\0');
+    out = buf_vector.data();
+    Convert4To2ByteString(use_4_bytes, in, out, buf_len);
+}
 #endif
 
 #ifdef UNICODE

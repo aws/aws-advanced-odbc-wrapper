@@ -621,8 +621,31 @@ SQLRETURN RDS_SQLColumns(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumns, RDS_STR_SQLColumns,
-        stmt->wrapped_stmt, CatalogName, NameLength1, SchemaName, NameLength2, TableName, NameLength3, ColumnName, NameLength4
+
+    SQLTCHAR* catalog_name = CatalogName;
+    SQLTCHAR* schema_name = SchemaName;
+    SQLTCHAR* table_name = TableName;
+    SQLTCHAR* column_name = ColumnName;
+#if UNICODE
+    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), CatalogName, catalog_name, NameLength1);
+    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), SchemaName, schema_name, NameLength2);
+    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), TableName, table_name, NameLength3);
+    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), ColumnName, column_name, NameLength4);
+#endif
+
+    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+        env->driver_lib_loader,
+        RDS_FP_SQLColumns,
+        RDS_STR_SQLColumns,
+        stmt->wrapped_stmt,
+            catalog_name,
+            NameLength1,
+            schema_name,
+            NameLength2,
+            table_name,
+            NameLength3,
+            column_name,
+            NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
@@ -810,23 +833,8 @@ SQLRETURN RDS_SQLDriverConnect(
     bool use_4_bytes_user_app = false;
 #if UNICODE && !defined(_WIN32)
      if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
-         bool end_found = false;
-         int i = 0;
-         std::vector<SQLTCHAR> conn_in_vector;
-         while (!end_found) {
-             if (BufferLength > 0 && i > BufferLength) {
-                 break;
-             }
-             if (InConnectionString[i] == '\0' && InConnectionString[i + 1] == '\0') {
-                 end_found = true;
-             }
-             conn_in_vector.push_back(InConnectionString[i]);
-             i += 2;
-         }
 
-         SQLTCHAR* conn_in_w = conn_in_vector.data();
-
-         const std::string conn_str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_w));
+         const std::string conn_str_utf8_w = Convert4ByteSqlWChar(InConnectionString, BufferLength);
          ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
          if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
@@ -990,6 +998,9 @@ SQLRETURN RDS_SQLForeignKeys(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
+
+    // TODO: question - convert SQLTCHAR inputs here? 4to2 byte strings?
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLForeignKeys, RDS_STR_SQLForeignKeys,
         stmt->wrapped_stmt, PKCatalogName, NameLength1, PKSchemaName, NameLength2, PKTableName, NameLength3, FKCatalogName, NameLength4, FKSchemaName, NameLength5, FKTableName, NameLength6
     );
@@ -1770,8 +1781,14 @@ SQLRETURN RDS_SQLPrepare(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
+
+     SQLTCHAR* stmt_text = StatementText;
+#if UNICODE
+    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), StatementText, stmt_text, TextLength);
+#endif
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrepare, RDS_STR_SQLPrepare,
-        stmt->wrapped_stmt, StatementText, TextLength
+        stmt->wrapped_stmt, stmt_text, TextLength
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
