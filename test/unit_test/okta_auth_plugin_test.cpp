@@ -159,9 +159,9 @@ TEST_F(OktaAuthPluginTest, Connect_Success_CacheExpire) {
         .Times(testing::Exactly(2))
         .WillOnce(testing::Return(SQL_ERROR))
         .WillOnce(testing::Return(SQL_SUCCESS));
-    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::An<DBC*>(), testing::_))
         .WillOnce(testing::Return("28000"));
-    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_))
+    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_, testing::An<const std::string&>()))
         .WillOnce(testing::Return(true));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider, mock_dialect, mock_odbc_helper);
@@ -216,9 +216,9 @@ TEST_F(OktaAuthPluginTest, Connect_Fail_CacheHit_AccessError) {
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillRepeatedly(testing::Return(SQL_ERROR));
-    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::An<DBC*>(), testing::_))
         .WillOnce(testing::Return("28P01"));
-    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_))
+    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_, testing::An<const std::string&>()))
         .WillOnce(testing::Return(true));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider, mock_dialect, mock_odbc_helper);
@@ -238,9 +238,9 @@ TEST_F(OktaAuthPluginTest, Connect_Fail_CacheHit_NonAccessError_NoRetry) {
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_ERROR));
-    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, GetSqlStateAndLogMessage(testing::An<DBC*>(), testing::_))
         .WillOnce(testing::Return("08001"));
-    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_))
+    EXPECT_CALL(*mock_dialect, IsSqlStateAccessError(testing::_, testing::An<const std::string&>()))
         .WillOnce(testing::Return(false));
 
     OktaAuthPlugin plugin(dbc, mock_base_plugin, mock_saml_util, mock_auth_provider, mock_dialect, mock_odbc_helper);

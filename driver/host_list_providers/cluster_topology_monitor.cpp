@@ -172,8 +172,7 @@ void ClusterTopologyMonitor::Run() {
 }
 
 std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(std::chrono::milliseconds timeout_ms) {
-    std::vector<HostInfo> curr_hosts = plugin_service_->GetHosts();
-    std::vector<HostInfo> new_hosts = curr_hosts;
+    uint64_t version_before = topology_version_.load();
     {
         const std::lock_guard<std::mutex> lock(request_update_topology_mutex_);
         request_update_topology_.store(true);
@@ -181,6 +180,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(std::chrono:
     request_update_topology_cv_.notify_all();
 
     if (timeout_ms.count() <= 0) {
+        std::vector<HostInfo> curr_hosts = plugin_service_->GetHosts();
         LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
         TopologyUtil::LogTopology(curr_hosts);
         return curr_hosts;
@@ -189,20 +189,18 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(std::chrono:
     const std::chrono::steady_clock::time_point end = curr_time + timeout_ms;
 
     std::unique_lock<std::mutex> topology_lock(topology_updated_mutex_);
-    // TODO(karezche): refactor the code to compare references instead of values
-    // Current implementation does not support comparing curr_hosts and new_hosts by their references.
-    while (curr_time < end && curr_hosts == new_hosts) {
+    while (curr_time < end && topology_version_.load() == version_before) {
         topology_updated_.wait_for(topology_lock, TOPOLOGY_UPDATE_WAIT_MS);
-        new_hosts = plugin_service_->GetHosts();
         curr_time = std::chrono::steady_clock::now();
     }
+    topology_lock.unlock();
     LOG(INFO) << "New hosts have been updated";
 
     if (curr_time >= end) {
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms.count()) << "ms for cluster ID: " << cluster_id_;
     }
 
-    return new_hosts;
+    return plugin_service_->GetHosts();
 }
 
 void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
@@ -249,6 +247,7 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     // Update topology and notify threads
     plugin_service_->SetHosts(hosts);
     request_update_topology_.store(false);
+    topology_version_.fetch_add(1);
     topology_updated_.notify_all();
     request_update_topology_cv_.notify_one();
 }

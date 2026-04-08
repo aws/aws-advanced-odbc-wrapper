@@ -107,6 +107,7 @@ private:
     std::mutex topology_updated_mutex_;
     std::condition_variable topology_updated_;
     const std::chrono::milliseconds TOPOLOGY_UPDATE_WAIT_MS = std::chrono::milliseconds(1000);
+    std::atomic<uint64_t> topology_version_{0};
 
     std::atomic<std::chrono::steady_clock::time_point> ignore_topology_request_end_ms_;
     std::chrono::milliseconds ignore_topology_request_ms_ = std::chrono::seconds(30);

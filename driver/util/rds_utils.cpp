@@ -116,9 +116,10 @@ std::string RdsUtils::RemoveGreenInstancePrefix(const std::string& host) {
     std::string prefix = match.size() > 1 ? match[1].str() : "";
     std::string converted_host = host;
     if (!prefix.empty()) {
-        size_t begin_idx = host.find(prefix);
+        std::string search = prefix + ".";
+        size_t begin_idx = host.find(search);
         if (begin_idx != std::string::npos) {
-            converted_host = converted_host.replace(begin_idx, begin_idx + prefix.length(), ".");
+            converted_host = converted_host.replace(begin_idx, search.length(), ".");
         }
     }
     return converted_host;

@@ -30,7 +30,8 @@ class MOCK_DIALECT : public Dialect {
 public:
     MOCK_DIALECT() : Dialect() {};
     MOCK_METHOD(bool, IsSqlStateNetworkError, (const char* sql_state), ());
-    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), ());
+    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), (override));
+    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state, const std::string& error_message), (override));
 };
 
 class MOCK_HOST_SELECTOR : public HighestWeightHostSelector {
@@ -59,6 +60,8 @@ public:
     MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
     MOCK_METHOD(void, Disconnect, (const DBC *dbc), ());
     MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
+    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc, std::string* out_message), ());
+    MOCK_METHOD(std::string, GetStmtErrorMessage, (SQLHSTMT stmt), ());
 };
 
 class MOCK_PLUGIN_SERVICE : public PluginService {

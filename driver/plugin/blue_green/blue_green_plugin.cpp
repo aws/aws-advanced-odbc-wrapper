@@ -98,11 +98,14 @@ SQLRETURN BlueGreenPlugin::Connect(
         return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
+    const std::map<std::string, std::string> original_conn_attr = dbc->conn_attr;
+
     SQLRETURN rc = SQL_ERROR;
     this->start_time_ = std::chrono::steady_clock::now();
     try {
+        std::string last_failed_route;
         while (route_itr != connect_routes.end() && !SQL_SUCCEEDED(rc)) {
-            LOG(INFO) << "Using connect route: " << (*route_itr)->ToString();
+            std::string current_route = (*route_itr)->ToString();
             rc = (*route_itr)->Connect(dbc, HostInfo(conn_host), this->odbc_helper_, this->status_map_);
             LOG(INFO) << "Connection route returned: " << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
@@ -110,6 +113,7 @@ SQLRETURN BlueGreenPlugin::Connect(
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::steady_clock::now();
                     LOG(WARNING) << "Default connection, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
+                    dbc->conn_attr = original_conn_attr;
                     return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
                 }
 
@@ -118,13 +122,22 @@ SQLRETURN BlueGreenPlugin::Connect(
                     [&conn_host, &host_role](const std::shared_ptr<BaseConnectRouting>& route) {
                         return route->IsMatch(conn_host, host_role);
                     });
+
+                if (route_itr != connect_routes.end() && (*route_itr)->ToString() == last_failed_route) {
+                    route_itr = connect_routes.end();
+                }
+                last_failed_route = current_route;
             }
         }
         if (!SQL_SUCCEEDED(rc)) {
             LOG(WARNING) << "Default connection, alternative routes unsuccessful for role: " << host_role.ToString() << ", host: " << conn_host;
+            dbc->conn_attr = original_conn_attr;
             return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
         }
+        // Restore conn_attr even on success — the routing modified SERVER/IAM_HOST/PORT
+        dbc->conn_attr = original_conn_attr;
     } catch (const std::exception& ex) {
+        dbc->conn_attr = original_conn_attr;
         CLEAR_DBC_ERROR(dbc);
         std::string error_message("Blue/Green Connect route failed: ");
         error_message += ex.what();
@@ -178,8 +191,9 @@ SQLRETURN BlueGreenPlugin::Execute(
     SQLRETURN rc = SQL_ERROR;
     this->start_time_ = std::chrono::steady_clock::now();
     try {
+        std::string last_failed_route;
         while (route_itr != execute_routes.end() && !SQL_SUCCEEDED(rc)) {
-            LOG(INFO) << "Using execute route: " << (*route_itr)->ToString();
+            std::string current_route = (*route_itr)->ToString();
             rc = (*route_itr)->Execute(stmt, this->odbc_helper_, this->status_map_);
             LOG(INFO) << "Execute route returned: " << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
@@ -195,7 +209,15 @@ SQLRETURN BlueGreenPlugin::Execute(
                     [&conn_host, &host_role](const std::shared_ptr<BaseExecuteRouting> route) {
                         return route->IsMatch(conn_host, host_role);
                     });
+
+                if (route_itr != execute_routes.end() && (*route_itr)->ToString() == last_failed_route) {
+                    route_itr = execute_routes.end();
+                }
+                last_failed_route = current_route;
             }
+        }
+        if (SQL_SUCCEEDED(rc)) {
+            return rc;
         }
 
         LOG(WARNING) << "Default execution, out of routes: " << host_role.ToString() << ", host: " << conn_host;
@@ -239,6 +261,9 @@ SQLRETURN BlueGreenPlugin::InitConnection(
 
     if (SQL_SUCCEEDED(rc)) {
         this->InitProvider();
+    } else {
+        DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+        std::string sql_state = this->odbc_helper_->GetSqlStateAndLogMessage(dbc);
     }
 
     return rc;

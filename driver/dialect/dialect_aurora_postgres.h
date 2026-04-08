@@ -39,6 +39,21 @@ public:
         });
     };
 
+    bool IsSqlStateAccessError(const char* sql_state, const std::string& error_message) override {
+        if (IsSqlStateAccessError(sql_state)) {
+            return true;
+        }
+        // psqlODBC wraps PAM authentication failures in 08001 (connection exception)
+        // instead of 28P01/28000. Check the error message for auth-related keywords.
+        if (!error_message.empty()
+            && (error_message.find("PAM authentication failed") != std::string::npos
+                || error_message.find("password authentication failed") != std::string::npos))
+        {
+            return true;
+        }
+        return false;
+    };
+
     bool IsSqlStateNetworkError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(NETWORK_ERRORS, [&state](const std::string &prefix) {

@@ -390,6 +390,25 @@ void BlueGreenMonitor::CollectStatus() {
     std::vector<StatusInfo> status_entries;
 
     res = this->odbc_helper_->ExecDirect(&stmt, this->dialect_blue_green_->GetBlueGreenStatusQuery());
+    if (!SQL_SUCCEEDED(res.fn_result)) {
+        // Check if this is the expected metadata removal error after switchover completes.
+        // The PG blue/green metadata table is removed post-switchover, causing this specific error.
+        std::string error_msg = (stmt != SQL_NULL_HANDLE) ? this->odbc_helper_->GetStmtErrorMessage(stmt) : "";
+        if (error_msg.find("An error occurred while retrieving the blue/green fast switchover metadata") != std::string::npos) {
+            this->current_phase_ = BlueGreenPhase::NOT_CREATED;
+        } else if (!this->odbc_helper_->IsClosed(this->hdbc_)) {
+            this->current_phase_ = BlueGreenPhase::NOT_CREATED;
+        } else {
+            this->odbc_helper_->DisconnectAndFree(&(this->hdbc_));
+            this->hdbc_ = SQL_NULL_HDBC;
+            this->current_phase_ = BlueGreenPhase::UNKNOWN;
+            this->in_panic_mode_.store(true);
+        }
+        if (stmt != SQL_NULL_HANDLE) {
+            this->odbc_helper_->BaseFreeStmt(&stmt);
+        }
+        return;
+    }
 
     SQLLEN len = 0;
     SQLTCHAR version[BUFFER_SIZE] = {0};
@@ -407,11 +426,14 @@ void BlueGreenMonitor::CollectStatus() {
     while (SQL_SUCCEEDED(res.fn_result)) {
         std::string version_str = AS_UTF8_CSTR(version);
         std::string endpoint_str = AS_UTF8_CSTR(endpoint);
+        std::string role_str = AS_UTF8_CSTR(role);
+        std::string status_str = AS_UTF8_CSTR(status);
         int port_ = static_cast<int>(port);
-        BlueGreenRole role_ = BlueGreenRole::ParseRole(AS_UTF8_CSTR(role), version_str);
-        BlueGreenPhase phase_ = BlueGreenPhase::ParsePhase(AS_UTF8_CSTR(status), version_str);
+        BlueGreenRole role_ = BlueGreenRole::ParseRole(role_str, version_str);
+        BlueGreenPhase phase_ = BlueGreenPhase::ParsePhase(status_str, version_str);
 
         if (this->current_role_ == role_) {
+            status_entries.push_back({version_str, endpoint_str, port_, phase_, role_});
             status_entries.push_back({version_str, endpoint_str, port_, phase_, role_});
         }
         res = this->odbc_helper_->Fetch(&stmt);

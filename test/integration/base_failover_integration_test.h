@@ -209,7 +209,7 @@ protected:
         auto outcome = client.DescribeDBClusters(rds_req);
 
         if (!outcome.IsSuccess()) {
-            std::cerr << "Error with Aurora::GDescribeDBClusters. " << outcome.GetError().GetMessage() << std::endl;
+            std::cerr << "Error with Aurora::DescribeDBClusters. " << outcome.GetError().GetMessage() << std::endl;
             throw std::runtime_error("Unable to get cluster topology using SDK.");
         }
 
@@ -253,7 +253,11 @@ protected:
         Aws::RDS::Model::DescribeDBClusterEndpointsRequest request;
         request.SetDBClusterEndpointIdentifier(endpoint_id);
         const auto response = client.DescribeDBClusterEndpoints(request);
-        return response.GetResult().GetDBClusterEndpoints()[0];
+        const auto& endpoints = response.GetResult().GetDBClusterEndpoints();
+        if (endpoints.empty()) {
+            throw std::runtime_error("DescribeDBClusterEndpoints returned no endpoints for: " + endpoint_id);
+        }
+        return endpoints[0];
     }
 
     static Aws::RDS::Model::DBClusterMember GetDbClusterWriter(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {

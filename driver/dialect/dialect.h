@@ -42,6 +42,9 @@ public:
     virtual std::string GetIsReaderQuery() { return ""; };
 
     virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
+    virtual bool IsSqlStateAccessError(const char* sql_state, const std::string& error_message) {
+        return IsSqlStateAccessError(sql_state);
+    };
     virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
     virtual DatabaseDialectType GetDialectType() { return DatabaseDialectType::UNKNOWN_DIALECT; };

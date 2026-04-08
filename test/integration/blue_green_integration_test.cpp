@@ -30,14 +30,20 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <condition_variable>
 #include <deque>
+#include <iomanip>
 #include <iostream>
+#include <map>
 #include <mutex>
+#include <regex>
 #include <sstream>
 #include <thread>
 #include <unordered_map>
+#include <vector>
 
 namespace {
     struct TimeHolder {
@@ -102,6 +108,34 @@ namespace {
     };
 } // namespace
 
+namespace {
+    const std::regex BG_GREEN_HOST_PATTERN(R"#(.*(-green-[0-9a-z]{6})\..*)#", std::regex_constants::icase);
+    const std::regex BG_GREEN_HOSTID_PATTERN(R"#((.*)-green-[0-9a-z]{6})#", std::regex_constants::icase);
+
+    std::string RemoveGreenInstancePrefix(const std::string& host) {
+        if (host.empty()) {
+            return host;
+        }
+        std::smatch match;
+        if (!std::regex_match(host, match, BG_GREEN_HOST_PATTERN)) {
+            std::smatch host_id_match;
+            if (!std::regex_match(host, host_id_match, BG_GREEN_HOSTID_PATTERN)) {
+                return host;
+            }
+            return host_id_match.size() > 1 ? host_id_match[1].str() : host;
+        }
+        std::string prefix = match.size() > 1 ? match[1].str() : "";
+        std::string converted_host = host;
+        if (!prefix.empty()) {
+            size_t begin_idx = host.find(prefix);
+            if (begin_idx != std::string::npos) {
+                converted_host = converted_host.replace(begin_idx, begin_idx + prefix.length(), ".");
+            }
+        }
+        return converted_host;
+    }
+} // namespace
+
 namespace ThreadSynchronization {
     int total_threads = 0;
 
@@ -138,9 +172,11 @@ namespace ThreadSynchronization {
 
     std::mutex cout_mutex;
 
+    std::mutex env_mutex;
+
     void Print(const std::string& message) {
         // std::lock_guard<std::mutex> lock(cout_mutex);
-        // std::cout << message << std::endl;
+        std::cerr << message << std::endl;
     }
 }
 
@@ -153,7 +189,6 @@ protected:
     std::string session_token = TEST_UTILS::GetEnvVar("AWS_SESSION_TOKEN");
     std::string rds_endpoint = TEST_UTILS::GetEnvVar("RDS_ENDPOINT");
     std::string rds_region = TEST_UTILS::GetEnvVar("TEST_REGION", "us-west-1");
-    Aws::RDS::RDSClientConfiguration client_config;
     Aws::RDS::RDSClient rds_client;
 
     std::chrono::steady_clock::time_point empty_time_point{};
@@ -161,6 +196,7 @@ protected:
 
     ConnectionStringBuilder conn_str_builder;
     std::string test_iam_user = TEST_UTILS::GetEnvVar("TEST_IAM_USER", "");
+    std::string test_base_driver = TEST_UTILS::GetEnvVar("TEST_BASE_DRIVER", "");
 
     std::string sleep_query;
     std::string server_ip_query;
@@ -188,6 +224,7 @@ protected:
         Aws::Auth::AWSCredentials credentials =
             session_token.empty() ? Aws::Auth::AWSCredentials(access_key, secret_access_key)
                                   : Aws::Auth::AWSCredentials(access_key, secret_access_key, session_token);
+        Aws::RDS::RDSClientConfiguration client_config;
         client_config.region = rds_region;
         if (!rds_endpoint.empty()) {
             client_config.endpointOverride = rds_endpoint;
@@ -212,7 +249,7 @@ protected:
         conn_str_builder = ConnectionStringBuilder("")
             .withDSN(test_dsn)
             .withPort(test_port)
-            .withSslMode("prefer")
+            .withSslMode("require")
             .withAuthRegion(test_region)
             .withDatabase(test_db)
             .withDatabaseDialect(test_dialect)
@@ -274,7 +311,7 @@ protected:
             if (SQL_SUCCEEDED(rc = ODBC_HELPER::DriverConnect(hdbc, conn_str))) {
                 break;
             }
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
         if (!SQL_SUCCEEDED(rc)) {
@@ -287,6 +324,7 @@ protected:
             ? ConnectionStringBuilder(conn_str_builder.getString())
                 .withUID(test_iam_user)
                 .withAuthMode("IAM")
+                .withSslMode("require")
                 .withExtraUrlEncode(true)
                 .withServer(host)
                 .getString()
@@ -303,7 +341,10 @@ protected:
             ? ConnectionStringBuilder(conn_str_builder.getString())
                 .withUID(test_iam_user)
                 .withAuthMode("IAM")
+                .withSslMode("require")
+                .withExtraUrlEncode(true)
                 .withBlueGreenEnabled(true)
+                .withEnableClusterFailover(false)
                 .withExtraUrlEncode(true)
                 .withServer(host)
                 .getString()
@@ -311,12 +352,333 @@ protected:
                 .withUID(test_uid)
                 .withPWD(test_pwd)
                 .withBlueGreenEnabled(true)
+                .withEnableClusterFailover(false)
                 .withServer(host)
                 .getString();
     }
 
-    void PrintMetrics() {
+    std::string FormatTimeOffset(std::chrono::steady_clock::time_point tp, std::chrono::steady_clock::time_point bg_trigger_time) {
+        if (tp == empty_time_point) {
+            return "-";
+        }
+        return std::to_string(GetTimeOffsetMs(tp, bg_trigger_time)) + " ms";
+    }
 
+    std::string TruncateError(const std::optional<std::string>& error, size_t max_len = 100) {
+        if (!error.has_value()) {
+            return "";
+        }
+        std::string e = error.value();
+        // Replace newlines with spaces
+        for (auto& c : e) {
+            if (c == '\n') c = ' ';
+        }
+        if (e.length() > max_len) {
+            e = e.substr(0, max_len) + "...";
+        }
+        return e;
+    }
+
+    long long GetPercentile(const std::deque<TimeHolder>& times, double percentile) {
+        if (times.empty()) {
+            return 0;
+        }
+        std::vector<long long> durations;
+        durations.reserve(times.size());
+        for (const auto& t : times) {
+            durations.push_back(
+                std::chrono::duration_cast<std::chrono::milliseconds>(t.end_time - t.start_time).count());
+        }
+        std::sort(durations.begin(), durations.end());
+        int rank = percentile == 0.0 ? 1 : static_cast<int>(std::ceil(percentile / 100.0 * durations.size()));
+        return durations[rank - 1];
+    }
+
+    // Sort entries: blue instances first, then green, alphabetically within each group
+    std::vector<std::pair<std::string, BlueGreenResults*>> GetSortedEntries() {
+        std::vector<std::pair<std::string, BlueGreenResults*>> entries;
+        for (auto& [host_id, result] : results) {
+            entries.push_back({host_id, &result});
+        }
+        std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+            bool a_green = a.first.find("-green-") != std::string::npos;
+            bool b_green = b.first.find("-green-") != std::string::npos;
+            if (a_green != b_green) {
+                return !a_green; // blue first
+            }
+            return RemoveGreenInstancePrefix(a.first) < RemoveGreenInstancePrefix(b.first);
+        });
+        return entries;
+    }
+
+    void PrintNodeStatusTimes(const std::string& node, const BlueGreenResults& result,
+        std::chrono::steady_clock::time_point bg_trigger_time)
+    {
+        // Merge blue and green status maps, sort by time
+        std::map<std::chrono::steady_clock::time_point, std::string> sorted_statuses;
+        for (const auto& [status, tp] : result.blue_status_time) {
+            sorted_statuses[tp] = status;
+        }
+        for (const auto& [status, tp] : result.green_status_time) {
+            sorted_statuses.try_emplace(tp, status);
+        }
+
+        // Collect unique status names in time order
+        std::vector<std::string> ordered_statuses;
+        for (const auto& [_, status] : sorted_statuses) {
+            if (std::find(ordered_statuses.begin(), ordered_statuses.end(), status) == ordered_statuses.end()) {
+                ordered_statuses.push_back(status);
+            }
+        }
+
+        std::ostringstream oss;
+        oss << "\n" << node << ":\n";
+        oss << "+------------------------------+---------------------+---------------------+\n";
+        oss << "| Status                       | SOURCE              | TARGET              |\n";
+        oss << "+------------------------------+---------------------+---------------------+\n";
+
+        for (const auto& status : ordered_statuses) {
+            std::string source_time;
+            auto blue_itr = result.blue_status_time.find(status);
+            if (blue_itr != result.blue_status_time.end()) {
+                source_time = std::to_string(GetTimeOffsetMs(blue_itr->second, bg_trigger_time)) + " ms";
+            }
+
+            std::string target_time;
+            auto green_itr = result.green_status_time.find(status);
+            if (green_itr != result.green_status_time.end()) {
+                target_time = std::to_string(GetTimeOffsetMs(green_itr->second, bg_trigger_time)) + " ms";
+            }
+
+            oss << "| " << std::left << std::setw(29) << status
+                << "| " << std::setw(20) << source_time
+                << "| " << std::setw(20) << target_time << "|\n";
+        }
+        oss << "+------------------------------+---------------------+---------------------+";
+        ThreadSynchronization::Print(oss.str());
+    }
+
+    void PrintDurationTimes(const std::string& node, const std::string& title,
+        const std::deque<TimeHolder>& times, std::chrono::steady_clock::time_point bg_trigger_time)
+    {
+        if (times.empty()) {
+            return;
+        }
+
+        long long p99 = GetPercentile(times, 99.0);
+
+        std::ostringstream oss;
+        oss << "\n" << node << ": " << title << "\n";
+        oss << "+---------------------+------------------------------+----------------------------------------------+\n";
+        oss << "| Connect at (ms)     | Connect time/duration (ms)   | Error                                        |\n";
+        oss << "+---------------------+------------------------------+----------------------------------------------+\n";
+        oss << "| " << std::left << std::setw(20) << "p99"
+            << "| " << std::setw(29) << p99
+            << "| " << std::setw(45) << "" << "|\n";
+        oss << "+---------------------+------------------------------+----------------------------------------------+\n";
+
+        auto print_row = [&](const TimeHolder& th) {
+            long long offset = GetTimeOffsetMs(th.start_time, bg_trigger_time);
+            long long duration = std::chrono::duration_cast<std::chrono::milliseconds>(th.end_time - th.start_time).count();
+            oss << "| " << std::left << std::setw(20) << offset
+                << "| " << std::setw(29) << duration
+                << "| " << std::setw(45) << TruncateError(th.error) << "|\n";
+        };
+
+        // First entry
+        print_row(times.front());
+
+        // Entries exceeding p99
+        for (const auto& th : times) {
+            long long duration = std::chrono::duration_cast<std::chrono::milliseconds>(th.end_time - th.start_time).count();
+            if (duration > p99) {
+                print_row(th);
+            }
+        }
+
+        // Last entry (if different from first)
+        if (times.size() > 1) {
+            print_row(times.back());
+        }
+
+        oss << "+---------------------+------------------------------+----------------------------------------------+";
+        ThreadSynchronization::Print(oss.str());
+    }
+
+    void PrintHostVerificationResults(const std::string& node,
+        const std::deque<HostVerificationResult>& host_results,
+        std::chrono::steady_clock::time_point bg_trigger_time)
+    {
+        long long total_attempts = static_cast<long long>(host_results.size());
+        long long total_successful = 0;
+        long long total_unsuccessful = 0;
+        long long connections_to_blue = 0;
+        long long connections_to_green = 0;
+
+        for (const auto& r : host_results) {
+            if (r.error.empty()) {
+                total_successful++;
+                if (r.connected_to_blue) {
+                    connections_to_blue++;
+                } else {
+                    connections_to_green++;
+                }
+            } else {
+                total_unsuccessful++;
+            }
+        }
+
+        std::chrono::steady_clock::time_point switchover_in_progress_time = GetSwitchoverInProgressTime();
+        long long in_progress_offset = GetTimeOffsetMs(switchover_in_progress_time, bg_trigger_time);
+
+        long long connections_to_blue_after_switchover = 0;
+        for (const auto& r : host_results) {
+            long long offset = GetTimeOffsetMs(r.timestamp, bg_trigger_time);
+            if (offset > in_progress_offset && r.connected_to_blue) {
+                connections_to_blue_after_switchover++;
+            }
+        }
+
+        std::ostringstream oss;
+        oss << "\n" << node << ": Host Verification Results\n";
+        oss << "+------------------------------------------------------------------------+---------------------+\n";
+        oss << "| Metric                                                                 | Value               |\n";
+        oss << "+------------------------------------------------------------------------+---------------------+\n";
+        oss << "| " << std::left << std::setw(71) << "Total verification attempts"
+            << "| " << std::setw(20) << total_attempts << "|\n";
+        oss << "| " << std::setw(71) << "Total successful connection and verification attempts"
+            << "| " << std::setw(20) << total_successful << "|\n";
+        oss << "| " << std::setw(71) << "Total unsuccessful/dropped attempts (expected during switchover)"
+            << "| " << std::setw(20) << total_unsuccessful << "|\n";
+        oss << "| " << std::setw(71) << "Total successful connections to blue"
+            << "| " << std::setw(20) << connections_to_blue << "|\n";
+        oss << "| " << std::setw(71) << "Total successful connections to green"
+            << "| " << std::setw(20) << connections_to_green << "|\n";
+        oss << "| " << std::setw(71) << "Connections to old blue after switchover in progress (ERROR if not 0)"
+            << "| " << std::setw(20) << connections_to_blue_after_switchover << "|\n";
+        oss << "+------------------------------------------------------------------------+---------------------+";
+
+        if (connections_to_blue_after_switchover > 0) {
+            oss << "\n| " << std::left << std::setw(20) << "Time (ms)"
+                << "| Connection to blue after switchover                                    |\n";
+            oss << "+------------------------------------------------------------------------+---------------------+\n";
+            for (const auto& r : host_results) {
+                long long offset = GetTimeOffsetMs(r.timestamp, bg_trigger_time);
+                if (offset > in_progress_offset && r.connected_to_blue) {
+                    oss << "| " << std::left << std::setw(20) << offset
+                        << "| " << std::setw(71)
+                        << (r.connected_host + " (original: " + r.original_blue_ip + ")") << "|\n";
+                }
+            }
+            oss << "+------------------------------------------------------------------------+---------------------+";
+        }
+
+        ThreadSynchronization::Print(oss.str());
+    }
+
+    void PrintMetrics() {
+        std::chrono::steady_clock::time_point bg_trigger_time = GetBgTriggerTime();
+        if (bg_trigger_time == empty_time_point) {
+            ThreadSynchronization::Print("PrintMetrics: No BG trigger time available.");
+            return;
+        }
+
+        auto sorted_entries = GetSortedEntries();
+
+        // Main metrics table
+        {
+            std::ostringstream oss;
+            oss << "\n===================== Blue/Green Switchover Metrics =====================\n";
+            oss << std::left
+                << std::setw(40) << "Instance"
+                << std::setw(14) << "startTime"
+                << std::setw(14) << "threadsSync"
+                << std::setw(16) << "Blue idle drop"
+                << std::setw(16) << "Blue SEL drop"
+                << std::setw(16) << "Wrap idle drop"
+                << std::setw(16) << "Green SEL drop"
+                << std::setw(16) << "Blue DNS"
+                << std::setw(16) << "Green DNS"
+                << std::setw(16) << "Green cert"
+                << "\n";
+
+            for (const auto& [host_id, result] : sorted_entries) {
+                long long start_offset = GetTimeOffsetMs(result->start_time, bg_trigger_time);
+                long long sync_offset = GetTimeOffsetMs(result->threads_sync_time, bg_trigger_time);
+
+                std::chrono::steady_clock::time_point green_node_time =
+                    result->green_node_changed_name_time_first_success != empty_time_point
+                        ? result->green_node_changed_name_time_first_success
+                        : result->green_node_changed_name_time_first_error;
+
+                oss << std::left
+                    << std::setw(40) << host_id
+                    << std::setw(14) << (std::to_string(start_offset) + " ms")
+                    << std::setw(14) << (std::to_string(sync_offset) + " ms")
+                    << std::setw(16) << FormatTimeOffset(result->direct_blue_idle_lost_connection_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(result->direct_blue_lost_connection_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(result->wrapper_blue_idle_lost_connection_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(result->wrapper_green_lost_connection_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(result->dns_blue_changed_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(result->dns_green_removed_time, bg_trigger_time)
+                    << std::setw(16) << FormatTimeOffset(green_node_time, bg_trigger_time)
+                    << "\n";
+            }
+            oss << "=========================================================================";
+            ThreadSynchronization::Print(oss.str());
+        }
+
+        // Node status times
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->blue_status_time.empty() && result->green_status_time.empty()) {
+                continue;
+            }
+            PrintNodeStatusTimes(host_id, *result, bg_trigger_time);
+        }
+
+        // Wrapper connection times to Blue
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->blue_wrapper_connect_times.empty()) {
+                continue;
+            }
+            PrintDurationTimes(host_id, "Wrapper connection time (ms) to Blue",
+                result->blue_wrapper_connect_times, bg_trigger_time);
+        }
+
+        // IAM (green token) connection times to Green
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->green_direct_iam_ip_with_green_node_connect_times.empty()) {
+                continue;
+            }
+            PrintDurationTimes(host_id, "Wrapper IAM (green token) connection time (ms) to Green",
+                result->green_direct_iam_ip_with_green_node_connect_times, bg_trigger_time);
+        }
+
+        // Wrapper execution times to Blue
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->blue_wrapper_pre_switchover_execute_times.empty()) {
+                continue;
+            }
+            PrintDurationTimes(host_id, "Wrapper execution time (ms) to Blue",
+                result->blue_wrapper_pre_switchover_execute_times, bg_trigger_time);
+        }
+
+        // Wrapper execution times to Green
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->green_wrapper_execute_times.empty()) {
+                continue;
+            }
+            PrintDurationTimes(host_id, "Wrapper execution time (ms) to Green",
+                result->green_wrapper_execute_times, bg_trigger_time);
+        }
+
+        // Host verification results
+        for (const auto& [host_id, result] : sorted_entries) {
+            if (result->host_verification_results.empty()) {
+                continue;
+            }
+            PrintHostVerificationResults(host_id, result->host_verification_results, bg_trigger_time);
+        }
     }
 
     std::chrono::steady_clock::time_point GetBgTriggerTime() {
@@ -664,7 +1026,11 @@ protected:
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
+            SQLSetConnectAttr(hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
             OpenConnectionWithRetry(hdbc, conn_str);
 
             // Ready for work, wait for other threads
@@ -697,7 +1063,11 @@ protected:
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
+            SQLSetConnectAttr(hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
             OpenConnectionWithRetry(hdbc, conn_str);
 
             // Ready for work, wait for other threads
@@ -733,7 +1103,10 @@ protected:
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
             OpenConnectionWithRetry(hdbc, conn_str);
 
             // Ready for work, wait for other threads
@@ -767,7 +1140,10 @@ protected:
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
             OpenConnectionWithRetry(hdbc, conn_str);
 
             // Ready for work, wait for other threads
@@ -792,7 +1168,8 @@ protected:
                     end_time = std::chrono::steady_clock::now();
                     SQLCloseCursor(hstmt);
                     std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
-                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Failed to connect: " + err);
+                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Phase 1 failed at offset "
+                        + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - global_start_time).count()) + "ms: " + err);
                     pre_switch_results.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -806,12 +1183,26 @@ protected:
             hstmt = SQL_NULL_HSTMT;
 
             // Phase 2 - Post-Switchover, reconnect and continue executing
+            // Use fresh DBC handles for reconnection (matching Java behavior where
+            // DriverManager.getConnection() creates a brand new Connection with fresh
+            // plugin state). Reusing the same DBC after switchover can carry stale
+            // BG plugin routing state that prevents successful reconnection.
+            ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
+            hdbc = SQL_NULL_HDBC;
+
             while (!ThreadSynchronization::stop_flag) {
                 // Reconnect if needed
-                if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
+                if (hdbc == SQL_NULL_HDBC || !ODBC_HELPER::TestSimpleQuery(hdbc)) {
                     ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HDBC, hstmt);
                     hstmt = SQL_NULL_HSTMT;
-                    SQLDisconnect(hdbc);
+                    if (hdbc != SQL_NULL_HDBC) {
+                        ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
+                        hdbc = SQL_NULL_HDBC;
+                    }
+                    {
+                        std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                        SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+                    }
                     OpenConnectionWithRetry(hdbc, conn_str);
                     SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
                 }
@@ -827,14 +1218,16 @@ protected:
                 } else {
                     end_time = std::chrono::steady_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
-                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Failed to connect: " + err);
+                    ThreadSynchronization::Print("[WrapperBlueExecutingConnectivityMonitoringThread: " + host_id + "] Phase 2 failed at offset "
+                        + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - global_start_time).count()) + "ms: " + err);
                     post_switch_results.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
                     SQLCloseCursor(hstmt);
                     ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HDBC, hstmt);
                     hstmt = SQL_NULL_HSTMT;
-                    SQLDisconnect(hdbc);
+                    ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
+                    hdbc = SQL_NULL_HDBC;
                 }
 
                 std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -856,7 +1249,10 @@ protected:
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
 
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
@@ -874,7 +1270,8 @@ protected:
                 } else {
                     end_time = std::chrono::steady_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC);
-                    ThreadSynchronization::Print("[WrapperBlueNewConnectionMonitoringThread: " + host_id + "] Failed to connect: " + err);
+                    ThreadSynchronization::Print("[WrapperBlueNewConnectionMonitoringThread: " + host_id + "] Failed to connect at offset "
+                        + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - global_start_time).count()) + "ms: " + err);
                     results.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -900,7 +1297,10 @@ protected:
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
             OpenConnectionWithRetry(hdbc, conn_str);
             const std::string original_ip = GetConnectedServerIp(hdbc);
             SQLDisconnect(hdbc);
@@ -928,7 +1328,9 @@ protected:
                     }
                 } else {
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC) + " - ERROR";
-                    ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Failed to connect: " + err);
+                    long long offset = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - global_start_time).count();
+                    ThreadSynchronization::Print("[WrapperBlueHostVerificationThread: " + host_id + "] Failed to connect at offset " + std::to_string(offset) + "ms: " + err);
                     results.push_back(
                         HostVerificationResult::Failure(timestamp, original_ip, err)
                     );
@@ -1013,7 +1415,12 @@ protected:
             // Setup
             std::string conn_str = GetDirectConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
+            // Set login timeout to 10 seconds preventing long OS-level TCP timeouts from blocking reconnection during switchover.
+            SQLSetConnectAttr(hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
             OpenConnectionWithRetry(hdbc, conn_str);
             const int BUFFER_SIZE = 512;
 
@@ -1040,7 +1447,7 @@ protected:
                     SQLBindCol(hstmt, 5, SQL_C_TCHAR, &role, BUFFER_SIZE, &len);
                     SQLBindCol(hstmt, 6, SQL_C_TCHAR, &status, BUFFER_SIZE, &len);
 
-                    if (SQL_SUCCEEDED(SQLFetch(hstmt))) {
+                    while (SQL_SUCCEEDED(SQLFetch(hstmt))) {
                         std::string status_str = STRING_HELPER::SqltcharToAnsi(status);
                         bool is_green = STRING_HELPER::SqltcharToAnsi(role) == "BLUE_GREEN_DEPLOYMENT_TARGET";
                         if (is_green) {
@@ -1082,7 +1489,10 @@ protected:
             // Setup
             std::string conn_str = GetBlueGreenEnabledConnStr(host);
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
             OpenConnectionWithRetry(hdbc, conn_str);
 
             // Ready for work, wait for other threads
@@ -1128,11 +1538,13 @@ protected:
     {
         return std::thread([&](const std::string& host_id, const std::string& host, const std::string& iam_host, const std::string& thread_prefix) {
             // Setup
-            const std::string green_node_original_ip = TEST_UTILS::HostToIp(host);
-            const std::string green_node_connect_ip = ConnectionStringBuilder(conn_str_builder.getString())
-                .withServer(green_node_original_ip)
+            const std::string green_node_connect_ip = TEST_UTILS::HostToIp(host);
+            ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] resolved IP: " + green_node_connect_ip + " for host: " + host);
+            const std::string iam_conn_str_prefix = ConnectionStringBuilder(conn_str_builder.getString())
+                .withServer(green_node_connect_ip)
                 .withUID(test_iam_user)
                 .getString();
+            ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] iam_host: " + iam_host + " conn_str_prefix: " + iam_conn_str_prefix);
 
             // Ready for work, wait for other threads
             ThreadSynchronization::ReadyAndWait();
@@ -1141,14 +1553,26 @@ protected:
 
             // Work
             SQLHDBC hdbc = SQL_NULL_HDBC;
-            SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            {
+                std::lock_guard<std::mutex> lock(ThreadSynchronization::env_mutex);
+                SQLAllocHandle(SQL_HANDLE_DBC, env, &hdbc);
+            }
+            SQLSetConnectAttr(hdbc, SQL_ATTR_LOGIN_TIMEOUT, (SQLPOINTER)10, 0);
             while (!ThreadSynchronization::stop_flag) {
-                const std::string iam_token = rds_client.GenerateConnectAuthToken(
+                const std::string raw_iam_token = rds_client.GenerateConnectAuthToken(
                     iam_host.c_str(), test_region.c_str(), test_port, test_iam_user.c_str());
-                const std::string conn_str = ConnectionStringBuilder(green_node_connect_ip)
+                // Extra URL encode: replace '%' with '%25'
+                std::string iam_token = raw_iam_token;
+                size_t pos = 0;
+                while ((pos = iam_token.find('%', pos)) != std::string::npos) {
+                    iam_token.replace(pos, 1, "%25");
+                    pos += 3;
+                }
+                const std::string conn_str = ConnectionStringBuilder(iam_conn_str_prefix)
                     .withPWD(iam_token)
                     .getString();
 
+                ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] attempting connection with iam_host: " + iam_host);
                 std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
                 std::chrono::steady_clock::time_point end_time = empty_time_point;
                 if (SQL_SUCCEEDED(ODBC_HELPER::DriverConnect(hdbc, conn_str))) {
@@ -1165,7 +1589,8 @@ protected:
                 } else {
                     end_time = std::chrono::steady_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hdbc, SQL_HANDLE_DBC);
-                    ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] Failed to connect: " + err);
+                    ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] Failed to connect at offset "
+                        + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(end_time - global_start_time).count()) + "ms: " + err);
                     result_queue.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
@@ -1187,6 +1612,7 @@ protected:
             }
 
             // Cleanup
+            SQLDisconnect(hdbc);
             ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
 
             // Finished
@@ -1214,9 +1640,12 @@ protected:
             request.WithBlueGreenDeploymentIdentifier(blue_green_deployment_id);
             auto outcome = rds_client.SwitchoverBlueGreenDeployment(request);
             if (!outcome.IsSuccess()) {
-                ThreadSynchronization::Print("Failed to send Blue Green Switchover request: " + outcome.GetError().GetMessage());
+                ThreadSynchronization::Print("Failed to send Blue Green Switchover request at offset "
+                    + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms: "
+                    + outcome.GetError().GetMessage());
             } else {
-                ThreadSynchronization::Print("Successfully sent Blue Green Switchover request.");
+                ThreadSynchronization::Print("Successfully sent Blue Green Switchover request at offset "
+                    + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms.");
             }
 
             std::chrono::steady_clock::time_point trigger_time = std::chrono::steady_clock::now();
@@ -1295,18 +1724,22 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
     ThreadSynchronization::total_threads = threads.size();
     ThreadSynchronization::start_flag = true;
     ThreadSynchronization::start_latch.notify_all();
-    ThreadSynchronization::Print("Threads started");
+    ThreadSynchronization::Print("Threads started at offset " + std::to_string(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms");
 
     ThreadSynchronization::WaitForFinish(std::chrono::minutes(6));
-    ThreadSynchronization::Print("Threads finished");
+    ThreadSynchronization::Print("Threads finished at offset " + std::to_string(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms");
 
     // Stop threads
-    ThreadSynchronization::Print("Stopping threads");
+    ThreadSynchronization::Print("Stopping threads at offset " + std::to_string(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms");
     ThreadSynchronization::stop_flag = true;
     // Allow threads to finish immediate work
     std::this_thread::sleep_for(std::chrono::minutes(3));
 
-    ThreadSynchronization::Print("Join threads");
+    ThreadSynchronization::Print("Join threads at offset " + std::to_string(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - global_start_time).count()) + "ms");
     for (auto& thread : threads) {
         thread.join();
     }

@@ -200,11 +200,30 @@ void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
 }
 
 std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
+    return GetSqlStateAndLogMessage(dbc, nullptr);
+}
+
+std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc, std::string* out_message) {
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
     SQLTCHAR message[MAX_MSG_LEN] = { 0 };
     RDS_SQLError(nullptr, static_cast<SQLHDBC>(dbc), nullptr, sql_state, &native_error, message, MAX_MSG_LEN, &stmt_length, true);
     LOG(WARNING) << "SQL State: " << AS_UTF8_CSTR(sql_state) << ". Message: " << AS_UTF8_CSTR(message);
+    if (out_message) {
+        *out_message = AS_UTF8_CSTR(message);
+    }
     return AS_UTF8_CSTR(sql_state);
+}
+std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    SQLINTEGER native_error = 0;
+    SQLSMALLINT text_length = 0;
+    RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+        SQL_HANDLE_STMT, stmt, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length);
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        return AS_UTF8_CSTR(message);
+    }
+    return "";
 }

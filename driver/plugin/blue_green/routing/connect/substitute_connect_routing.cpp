@@ -33,8 +33,8 @@ SQLRETURN SubstituteConnectRouting::Connect(
     odbc_helper->Disconnect(dbc);
 
     std::string substitute_host = this->substitute_info_.GetHost();
-    bool using_ip_host = RdsUtils::IsIpv4(substitute_host);
-    bool using_iam = dbc->conn_attr.contains(KEY_AUTH_TYPE) && dbc->conn_attr.at(KEY_AUTH_TYPE) == VALUE_AUTH_IAM;
+    bool const using_ip_host = RdsUtils::IsIpv4(substitute_host);
+    bool const using_iam = dbc->conn_attr.contains(KEY_AUTH_TYPE) && dbc->conn_attr.at(KEY_AUTH_TYPE) == VALUE_AUTH_IAM;
 
     // Substitute connections
     dbc->conn_attr.insert_or_assign(KEY_SERVER, substitute_host);
@@ -44,7 +44,19 @@ SQLRETURN SubstituteConnectRouting::Connect(
 
     // Connect as usual if not using IAM
     if (!using_ip_host || !using_iam) {
-        return plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        SQLRETURN const rt = plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        if (!SQL_SUCCEEDED(rt)) {
+            dbc->sql_error_called = 0;
+            const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
+            std::string error_message;
+            const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, &error_message);
+            if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {
+                // Login error - let another routing try
+                odbc_helper->Disconnect(dbc);
+                return SQL_ERROR;
+            }
+        }
+        return rt;
     }
 
     // IAM Host needed to generate token when connecting with IP
@@ -52,30 +64,35 @@ SQLRETURN SubstituteConnectRouting::Connect(
         throw std::runtime_error("Connecting with IP address when IAM authentication is enabled requires an 'IAM_HOST' parameter.");
     }
 
-    for (HostInfo iam_info : this->iam_hosts_) {
+    for (const HostInfo& iam_info : this->iam_hosts_) {
         dbc->conn_attr.insert_or_assign(KEY_IAM_HOST, iam_info.GetHost());
         if (iam_info.GetPort() != HostInfo::NO_PORT) {
             dbc->conn_attr.insert_or_assign(KEY_IAM_PORT, std::to_string(iam_info.GetPort()));
         };
         dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
-        SQLRETURN rt = plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        const SQLRETURN rt = plugin_head_->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         dbc->conn_attr.erase(KEY_MONITORING_CONN_UUID);
+        // Reset the diagnostic counter so we can read the SQL state from the underlying driver.
+        // The IAM plugin may have already consumed the diagnostic record during its retry logic.
+        dbc->sql_error_called = 0;
         const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
-        const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc);
-        if (dialect->IsSqlStateAccessError(sql_state.c_str())) {
-            std::string err("Encountered access error, SQL State: ");
-            err += sql_state;
-            throw std::runtime_error(err);
+        std::string error_message;
+        const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, &error_message);
+        if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {
+            // Login/access error with this IAM host - try next IAM host
+            odbc_helper->Disconnect(dbc);
+            continue;
         }
         if (!SQL_SUCCEEDED(rt)) {
-            odbc_helper->Disconnect(dbc);
-        } else {
-            if (iam_connect_notify_) {
-                iam_connect_notify_(iam_info.GetHost());
-            }
-            return rt;
+            // Non-login error (network, DNS, etc.) - propagate
+            throw std::runtime_error("Encountered non-login error, SQL State: " + sql_state);
         }
+        if (iam_connect_notify_) {
+            iam_connect_notify_(iam_info.GetHost());
+        }
+        return rt;
     }
 
-    throw std::runtime_error("Blue/Green Deployment switchover is in progress. Can't establish connection.");
+    // All IAM hosts exhausted with login errors - return SQL_ERROR to let next routing try
+    return SQL_ERROR;
 }
