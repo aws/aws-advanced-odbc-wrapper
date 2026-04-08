@@ -43,8 +43,8 @@ public:
     BlueGreenPhase GetCurrentPhase();
     std::vector<std::shared_ptr<BaseConnectRouting>> GetConnectRoutes();
     std::vector<std::shared_ptr<BaseExecuteRouting>> GetExecuteRoutes();
-    std::shared_ptr<ConcurrentMap<std::string, BlueGreenRole>> GetRoleByHosts();
-    std::shared_ptr<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>> GetCorrespondingNodes();
+    std::map<std::string, BlueGreenRole> GetRoleByHosts();
+    std::map<std::string, std::pair<HostInfo, HostInfo>> GetCorrespondingNodes();
     BlueGreenRole GetRole(HostInfo info);
     BlueGreenRole GetRole(std::string host);
 
@@ -55,8 +55,8 @@ public:
                current_phase_ == other.current_phase_
                && connect_routes_ == other.connect_routes_
                && execute_routes_ == other.execute_routes_
-               && role_by_host_map_->GetMapCopy() == other.role_by_host_map_->GetMapCopy() &&
-               corresponding_nodes_->GetMapCopy() == other.corresponding_nodes_->GetMapCopy();
+               && role_by_host_map_ == other.role_by_host_map_ &&
+               corresponding_nodes_ == other.corresponding_nodes_;
     }
 
 private:
@@ -64,8 +64,8 @@ private:
     BlueGreenPhase current_phase_;
     std::vector<std::shared_ptr<BaseConnectRouting>> connect_routes_;
     std::vector<std::shared_ptr<BaseExecuteRouting>> execute_routes_;
-    std::shared_ptr<ConcurrentMap<std::string, BlueGreenRole>> role_by_host_map_;
-    std::shared_ptr<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>> corresponding_nodes_;
+    std::map<std::string, BlueGreenRole> role_by_host_map_;
+    std::map<std::string, std::pair<HostInfo, HostInfo>> corresponding_nodes_;
 };
 
 #endif // BLUE_GREEN_STATUS_H_

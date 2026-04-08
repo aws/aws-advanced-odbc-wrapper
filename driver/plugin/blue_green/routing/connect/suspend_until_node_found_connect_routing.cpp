@@ -26,11 +26,11 @@ SQLRETURN SuspendUntilNodeFoundConnectRouting::Connect(
 {
     BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_);
     std::string host = info.GetHost();
-    std::map<std::string, std::pair<HostInfo, HostInfo>> nodes = cached_status.GetCorrespondingNodes()->GetMapCopy();
+    std::map<std::string, std::pair<HostInfo, HostInfo>> nodes = cached_status.GetCorrespondingNodes();
 
     std::chrono::milliseconds timeout = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_BG_CONNECT_TIMEOUT_MS, DEFAULT_CONNECT_TIMEOUT_MS);
-    std::chrono::system_clock::time_point start_time = GetCurrTime();
-    std::chrono::system_clock::time_point end_time = start_time + timeout;
+    std::chrono::steady_clock::time_point start_time = GetCurrTime();
+    std::chrono::steady_clock::time_point end_time = start_time + timeout;
 
     while (GetCurrTime() <= end_time && cached_status.GetCurrentPhase().GetPhase() != BlueGreenPhase::COMPLETED && !nodes.contains(host)) {
         this->Delay(SLEEP_DURATION_MS, cached_status, status_cache, this->blue_green_id_);

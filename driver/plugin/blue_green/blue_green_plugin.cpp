@@ -99,7 +99,7 @@ SQLRETURN BlueGreenPlugin::Connect(
     }
 
     SQLRETURN rc = SQL_ERROR;
-    this->start_time_ = std::chrono::system_clock::now();
+    this->start_time_ = std::chrono::steady_clock::now();
     try {
         while (route_itr != connect_routes.end() && !SQL_SUCCEEDED(rc)) {
             LOG(INFO) << "Using connect route: " << (*route_itr)->ToString();
@@ -108,7 +108,7 @@ SQLRETURN BlueGreenPlugin::Connect(
             if (!SQL_SUCCEEDED(rc)) {
                 this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
-                    this->end_time_ = std::chrono::system_clock::now();
+                    this->end_time_ = std::chrono::steady_clock::now();
                     LOG(WARNING) << "Default connection, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
                     return InitConnection(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
                 }
@@ -132,7 +132,7 @@ SQLRETURN BlueGreenPlugin::Connect(
         LOG(ERROR) << error_message;
         rc = SQL_ERROR;
     }
-    this->end_time_ = std::chrono::system_clock::now();
+    this->end_time_ = std::chrono::steady_clock::now();
     return rc;
 }
 
@@ -176,7 +176,7 @@ SQLRETURN BlueGreenPlugin::Execute(
     }
 
     SQLRETURN rc = SQL_ERROR;
-    this->start_time_ = std::chrono::system_clock::now();
+    this->start_time_ = std::chrono::steady_clock::now();
     try {
         while (route_itr != execute_routes.end() && !SQL_SUCCEEDED(rc)) {
             LOG(INFO) << "Using execute route: " << (*route_itr)->ToString();
@@ -185,7 +185,7 @@ SQLRETURN BlueGreenPlugin::Execute(
             if (!SQL_SUCCEEDED(rc)) {
                 this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
-                    this->end_time_ = std::chrono::system_clock::now();
+                    this->end_time_ = std::chrono::steady_clock::now();
                     LOG(WARNING) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
                     return next_plugin->Execute(StatementHandle, StatementText, TextLength);
                 }
@@ -209,22 +209,22 @@ SQLRETURN BlueGreenPlugin::Execute(
         LOG(ERROR) << error_message;
     }
 
-    this->end_time_ = std::chrono::system_clock::now();
+    this->end_time_ = std::chrono::steady_clock::now();
     return rc;
 }
 
 int64_t BlueGreenPlugin::GetHoldTime() {
-    if (this->start_time_ == std::chrono::system_clock::time_point{}) {
+    if (this->start_time_ == std::chrono::steady_clock::time_point{}) {
         return 0;
     }
-    return this->end_time_ == std::chrono::system_clock::time_point{} ?
-        (std::chrono::system_clock::now() - this->start_time_).count()
+    return this->end_time_ == std::chrono::steady_clock::time_point{} ?
+        (std::chrono::steady_clock::now() - this->start_time_).count()
         : (this->end_time_ - this->start_time_).count();
 }
 
 void BlueGreenPlugin::ResetRoutingTiming() {
-    this->start_time_ = std::chrono::system_clock::time_point{};
-    this->end_time_ = std::chrono::system_clock::time_point{};
+    this->start_time_ = std::chrono::steady_clock::time_point{};
+    this->end_time_ = std::chrono::steady_clock::time_point{};
 }
 
 SQLRETURN BlueGreenPlugin::InitConnection(

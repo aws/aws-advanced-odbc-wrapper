@@ -140,7 +140,7 @@ namespace ThreadSynchronization {
 
     void Print(const std::string& message) {
         // std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cout << message << std::endl;
+        // std::cout << message << std::endl;
     }
 }
 
@@ -541,9 +541,9 @@ protected:
         long long switchover_complete_time = GetSwitchoverCompleteTime();
 
         // Log Timing
-        ThreadSynchronization::Print("BG Trigger Time: " + std::to_string(bg_trigger_time.time_since_epoch().count()));
-        ThreadSynchronization::Print("\tOffset from global start: " + std::to_string(GetTimeOffsetMs(bg_trigger_time, global_start_time)) + "ms");
-        ThreadSynchronization::Print("Switchover Complete Time (ms): " + std::to_string(switchover_complete_time));
+        std::cout << ("BG Trigger Time: " + std::to_string(bg_trigger_time.time_since_epoch().count())) << std::endl;
+        std::cout << ("\tOffset from global start: " + std::to_string(GetTimeOffsetMs(bg_trigger_time, global_start_time)) + "ms") << std::endl;
+        std::cout << ("Switchover Complete Time (ms): " + std::to_string(switchover_complete_time)) << std::endl;
 
         // Gather Metrics
         long long successful_connections = CountSuccessfulConnectsAfterSwitchover(
@@ -555,10 +555,10 @@ protected:
         long long unsuccessful_executions = CountUnsuccessfulExecutesAfterSwitchover();
 
         // Log Metrics
-        ThreadSynchronization::Print("Successful Wrapper Connection after Switchover: " + std::to_string(successful_connections));
-        ThreadSynchronization::Print("Successful Wrapper Execution after Switchover: " + std::to_string(successful_executions));
-        ThreadSynchronization::Print("Unsuccessful Wrapper Connection after Switchover: " + std::to_string(unsuccessful_connections));
-        ThreadSynchronization::Print("Unsuccessful Wrapper Execution after Switchover: " + std::to_string(unsuccessful_executions));
+        std::cout << ("Successful Wrapper Connection after Switchover: " + std::to_string(successful_connections)) << std::endl;
+        std::cout << ("Successful Wrapper Execution after Switchover: " + std::to_string(successful_executions)) << std::endl;
+        std::cout << ("Unsuccessful Wrapper Connection after Switchover: " + std::to_string(unsuccessful_connections)) << std::endl;
+        std::cout << ("Unsuccessful Wrapper Execution after Switchover: " + std::to_string(unsuccessful_executions)) << std::endl;
 
         // Log Details of Unsuccessful Operations
         if (unsuccessful_connections > 0) {
@@ -585,10 +585,10 @@ protected:
         std::chrono::steady_clock::time_point switchover_in_process_time = GetSwitchoverInProgressTime();
         long long in_progress_time_offset = GetTimeOffsetMs(switchover_in_process_time, bg_trigger_time);
 
-        ThreadSynchronization::Print("Earliest Status for Switchover Initiated: " + std::to_string(switchover_initiated_time.time_since_epoch().count()) + "ms");
-        ThreadSynchronization::Print("\tOffset from bg start: " + std::to_string(initiated_time_offset) + "ms");
-        ThreadSynchronization::Print("Latest Status for Switchover Inprogress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()) + "ms");
-        ThreadSynchronization::Print("\tOffset from bg start: " + std::to_string(in_progress_time_offset) + "ms");
+        std::cout << ("Earliest Status for Switchover Initiated: " + std::to_string(switchover_initiated_time.time_since_epoch().count()) + "ms") << std::endl;
+        std::cout << ("\tOffset from bg start: " + std::to_string(initiated_time_offset) + "ms") << std::endl;
+        std::cout << ("Latest Status for Switchover Inprogress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()) + "ms") << std::endl;
+        std::cout << ("\tOffset from bg start: " + std::to_string(in_progress_time_offset) + "ms") << std::endl;
 
         EXPECT_NE(empty_time_point, switchover_initiated_time);
         EXPECT_NE(empty_time_point, switchover_in_process_time);
@@ -635,10 +635,11 @@ protected:
                     total_verifications_after_switchover_initiated += 1;
                     if (host_verification_result.connected_to_blue) {
                         connections_to_blue_after_switchover_initiated += 1;
-                        ThreadSynchronization::Print("Connected to old blue cluster at offset: " + std::to_string(offset) +
+                        std::cout << ("Connected to old blue cluster at offset: " + std::to_string(offset) +
                              "ms after switchover in progress at: " + std::to_string(in_progress_time_offset) +
                              "ms connected to: " + host_verification_result.connected_host +
-                             ", original blue: " + host_verification_result.original_blue_ip);
+                             ", original blue: " + host_verification_result.original_blue_ip)
+                              << std::endl;
                     } else {
                         connections_to_green_after_switchover_initiated += 1;
                     }
@@ -646,11 +647,11 @@ protected:
             }
         }
 
-        ThreadSynchronization::Print("After switchover in progress: " + std::to_string(switchover_in_process_time.time_since_epoch().count()));
-        ThreadSynchronization::Print("\tOffset from global: " + std::to_string(GetTimeOffsetMs(switchover_in_process_time, global_start_time)));
-        ThreadSynchronization::Print("Total Connections: " + std::to_string(total_verifications_after_switchover_initiated));
-        ThreadSynchronization::Print("\tto old host: " + std::to_string(connections_to_blue_after_switchover_initiated));
-        ThreadSynchronization::Print("\tto new host: " + std::to_string(connections_to_green_after_switchover_initiated));
+        std::cout << ("After switchover in progress: " + std::to_string(switchover_in_process_time.time_since_epoch().count())) << std::endl;
+        std::cout << ("\tOffset from global: " + std::to_string(GetTimeOffsetMs(switchover_in_process_time, global_start_time))) << std::endl;
+        std::cout << ("Total Connections: " + std::to_string(total_verifications_after_switchover_initiated)) << std::endl;
+        std::cout << ("\tto old host: " + std::to_string(connections_to_blue_after_switchover_initiated)) << std::endl;
+        std::cout << ("\tto new host: " + std::to_string(connections_to_green_after_switchover_initiated)) << std::endl;
 
         EXPECT_EQ(0, connections_to_blue_after_switchover_initiated);
         EXPECT_TRUE(total_verifications_after_switchover_initiated > 0);
@@ -672,7 +673,7 @@ protected:
             // Work
             ThreadSynchronization::Print("[DirectBlueIdleConnectivityMonitoringThread: " + host_id + "] started monitoring idle connection.");
             while (!ThreadSynchronization::stop_flag) {
-                if (ODBC_HELPER::IsClosed(hdbc)) {
+                if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                     ThreadSynchronization::Print("[DirectBlueIdleConnectivityMonitoringThread: " + host_id + "] lost connection.");
                     results = std::chrono::steady_clock::now();
                     break;
@@ -741,7 +742,7 @@ protected:
             // Actual Work
             ThreadSynchronization::Print("[WrapperBlueIdleConnectivityMonitoringThread: " + host_id + "] started monitoring idle connection.");
             while (!ThreadSynchronization::stop_flag) {
-                if (ODBC_HELPER::IsClosed(hdbc)) {
+                if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                     ThreadSynchronization::Print("[WrapperBlueIdleConnectivityMonitoringThread: " + host_id + "] lost connection.");
                     results = std::chrono::steady_clock::now();
                     break;
@@ -795,7 +796,7 @@ protected:
                     pre_switch_results.push_back(
                         TimeHolder(start_time, end_time, err)
                     );
-                    if (ODBC_HELPER::IsClosed(hdbc)) {
+                    if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                         break;
                     }
                 }
@@ -807,7 +808,7 @@ protected:
             // Phase 2 - Post-Switchover, reconnect and continue executing
             while (!ThreadSynchronization::stop_flag) {
                 // Reconnect if needed
-                if (ODBC_HELPER::IsClosed(hdbc)) {
+                if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                     ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HDBC, hstmt);
                     hstmt = SQL_NULL_HSTMT;
                     SQLDisconnect(hdbc);
@@ -1024,7 +1025,7 @@ protected:
             ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Starting BG Status Monitoring.");
 
             while (!ThreadSynchronization::stop_flag && std::chrono::steady_clock::now() < end_time) {
-                if (ODBC_HELPER::IsClosed(hdbc)) {
+                if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                     SQLDisconnect(hdbc);
                     OpenConnectionWithRetry(hdbc, conn_str);
                     ThreadSynchronization::Print("[DirectTopologyMonitoringThread: " + host_id + "] Connection re-opened.");
@@ -1099,7 +1100,7 @@ protected:
                     end_time = std::chrono::steady_clock::now();
                     std::string err = ODBC_HELPER::PrintHandleError(hstmt, SQL_HANDLE_STMT);
                     execution_results.push_back(TimeHolder(start_time, end_time, err));
-                    if (ODBC_HELPER::IsClosed(hdbc)) {
+                    if (!ODBC_HELPER::TestSimpleQuery(hdbc)) {
                         ThreadSynchronization::Print("[WrapperGreenConnectivityMonitoringThread: " + host_id + "] failed to execute.");
                         connection_results = std::chrono::steady_clock::now();
                     }
@@ -1310,9 +1311,9 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
         thread.join();
     }
 
-    ThreadSynchronization::Print("-------------------------------------------------------------------------------------");
-    ThreadSynchronization::Print("Tests finished");
-    ThreadSynchronization::Print("-------------------------------------------------------------------------------------");
+    std::cout << ("-------------------------------------------------------------------------------------") << std::endl;
+    std::cout << ("Tests finished") << std::endl;
+    std::cout << ("-------------------------------------------------------------------------------------") << std::endl;
     PrintMetrics();
     AssertTest();
 }

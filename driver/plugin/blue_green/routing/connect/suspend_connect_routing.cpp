@@ -29,8 +29,8 @@ SQLRETURN SuspendConnectRouting::Connect(
     std::map<std::string, std::string> conn_attr = dbc->conn_attr;
 
     std::chrono::milliseconds timeout = MapUtils::GetMillisecondsValue(conn_attr, KEY_BG_CONNECT_TIMEOUT_MS, DEFAULT_CONNECT_TIMEOUT_MS);
-    std::chrono::system_clock::time_point start_time = GetCurrTime();
-    std::chrono::system_clock::time_point end_time = start_time + timeout;
+    std::chrono::steady_clock::time_point start_time = GetCurrTime();
+    std::chrono::steady_clock::time_point end_time = start_time + timeout;
 
     BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_);
 

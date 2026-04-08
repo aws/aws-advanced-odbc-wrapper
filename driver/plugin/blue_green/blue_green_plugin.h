@@ -69,8 +69,8 @@ private:
 
     BlueGreenStatus blue_green_status_;
 
-    std::chrono::system_clock::time_point start_time_;
-    std::chrono::system_clock::time_point end_time_;
+    std::chrono::steady_clock::time_point start_time_;
+    std::chrono::steady_clock::time_point end_time_;
 
     static std::mutex provider_lock_;
     static std::map<std::string, std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>> status_providers_map_;

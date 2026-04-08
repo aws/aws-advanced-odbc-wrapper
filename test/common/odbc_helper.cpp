@@ -124,3 +124,18 @@ bool ODBC_HELPER::IsClosed(SQLHDBC hdbc) {
 
     return true;
 }
+
+bool ODBC_HELPER::TestSimpleQuery(SQLHDBC hdbc) {
+    if (hdbc == SQL_NULL_HDBC) {
+        return false;
+    }
+    SQLHSTMT hstmt = SQL_NULL_HSTMT;
+    SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+
+    SQLTCHAR buffer[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode("SELECT 1;", buffer);
+    SQLRETURN ret = SQLExecDirect(hstmt, buffer, SQL_NTS);
+    CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HENV, hstmt);
+
+    return SQL_SUCCEEDED(ret);
+}

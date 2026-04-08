@@ -48,7 +48,7 @@ BlueGreenStatusProvider::BlueGreenStatusProvider(
     this->corresponding_nodes_ = std::make_shared<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>>();
     this->role_by_host_map_ = std::make_shared<ConcurrentMap<std::string, BlueGreenRole>>();
     this->iam_host_success_connects_map_ = std::make_shared<ConcurrentMap<std::string, std::set<std::string>>>();
-    this->green_node_change_name_times_map_ = std::make_shared<ConcurrentMap<std::string, std::chrono::system_clock::time_point>>();
+    this->green_node_change_name_times_map_ = std::make_shared<ConcurrentMap<std::string, std::chrono::steady_clock::time_point>>();
     this->check_interval_map_.insert_or_assign(BlueGreenIntervalRate::BASELINE,
         MapUtils::GetMillisecondsValue(this->conn_attr_, KEY_BG_BASELINE_REFRESH_MS, BASELINE_MS));
     this->check_interval_map_.insert_or_assign(BlueGreenIntervalRate::INCREASED,
@@ -70,6 +70,7 @@ BlueGreenStatusProvider::~BlueGreenStatusProvider() {
         target_monitor->Stop();
         this->monitors_[BlueGreenRole::TARGET] = nullptr;
     }
+    pending_restart_ = false;
     if (reset_monitoring_thread_ != nullptr) {
         reset_monitoring_thread_->join();
         reset_monitoring_thread_ = nullptr;
@@ -694,7 +695,7 @@ void BlueGreenStatusProvider::RegisterIamHost(std::string connect_host, std::str
     bool different_node_name = !connect_host.empty() && connect_host != iam_host;
     if (different_node_name) {
         if (!this->IsAlreadySuccessfullyConnected(connect_host, iam_host)) {
-            this->green_node_change_name_times_map_->TryEmplace(connect_host, std::chrono::system_clock::now());
+            this->green_node_change_name_times_map_->TryEmplace(connect_host, std::chrono::steady_clock::now());
             LOG(INFO) << "BG Green node name changed";
         }
     }
@@ -734,42 +735,42 @@ void BlueGreenStatusProvider::StorePhaseTime(BlueGreenPhase phase) {
     }
     this->phase_time_map_->TryEmplace(
         phase.ToString() + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = phase}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = phase}
     );
 }
 
 void BlueGreenStatusProvider::StoreBlueDsnUpdateTime() {
     this->phase_time_map_->TryEmplace(
         std::string("Blue DNS Updated") + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
     );
 }
 
 void BlueGreenStatusProvider::StoreGreenDsnRemoveTime() {
     this->phase_time_map_->TryEmplace(
         std::string("Green DNS Removed") + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
     );
 }
 
 void BlueGreenStatusProvider::StoreGreenNodeChangeNameTime() {
     this->phase_time_map_->TryEmplace(
         std::string("Green Node Certificate Changed") + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
     );
 }
 
 void BlueGreenStatusProvider::StoreGreenTopologyChangeTime() {
     this->phase_time_map_->TryEmplace(
         std::string("Green Topology Changed") + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
     );
 }
 
 void BlueGreenStatusProvider::StoreMonitorResetTime(std::string event_name) {
     this->phase_time_map_->TryEmplace(
         std::string("Monitor reset: ") + event_name + (this->rollback_ ? "(rollback)" : ""),
-        {.timestamp = std::chrono::system_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
+        {.timestamp = std::chrono::steady_clock::now(), .phase = BlueGreenPhase::UNKNOWN}
     );
 }
 
@@ -801,8 +802,8 @@ void BlueGreenStatusProvider::LogSwitchoverFinalSummary() {
 
     BlueGreenPhase time_zero_phase = this->rollback_ ? BlueGreenPhase::PREPARATION : BlueGreenPhase::IN_PROGRESS;
     std::string time_zero_key = this->rollback_ ? time_zero_phase.ToString() + " (rollback)" : time_zero_phase.ToString();
-    std::chrono::system_clock::time_point time_zero =
-        phase_time.contains(time_zero_key) ? phase_time.at(time_zero_key).timestamp : std::chrono::system_clock::time_point{};
+    std::chrono::steady_clock::time_point time_zero =
+        phase_time.contains(time_zero_key) ? phase_time.at(time_zero_key).timestamp : std::chrono::steady_clock::time_point{};
     std::string divider = std::string(52, '-') + std::string(max_event_name_size, '-') + "\n";
     std::string format_header = "{:<28} {:>21} {:>" + std::to_string(max_event_name_size) + "}\n";
 
@@ -879,13 +880,17 @@ void BlueGreenStatusProvider::ResetContext() {
         target_monitor = this->monitors_[BlueGreenRole::TARGET];
     }
     if (source_monitor != nullptr && target_monitor != nullptr) {
-        while (!(source_monitor->IsStop() && target_monitor->IsStop())) {
+        while (pending_restart_ && !(source_monitor->IsStop() && target_monitor->IsStop())) {
             std::this_thread::sleep_for(RESET_CHECK_RATE);
         }
         std::lock_guard monitor_lock(this->monitor_mutex_);
         this->monitors_[BlueGreenRole::SOURCE] = nullptr;
         this->monitors_[BlueGreenRole::TARGET] = nullptr;
         LOG(INFO) << "Previous monitors closed.";
+    }
+    if (!pending_restart_) {
+        LOG(INFO) << "No longer pending a monitor restart, no need to restart";
+        return;
     }
 
     this->rollback_ = false;
@@ -896,7 +901,7 @@ void BlueGreenStatusProvider::ResetContext() {
     this->green_dns_removed_ = false;
     this->green_topology_changed_ = false;
     this->all_green_nodes_changed_ = false;
-    this->post_status_end_time_ = std::chrono::system_clock::time_point{};
+    this->post_status_end_time_ = std::chrono::steady_clock::time_point{};
     this->interim_status_hashes_[BlueGreenRole::SOURCE] = 0;
     this->interim_status_hashes_[BlueGreenRole::TARGET] = 0;
     this->last_context_hash_ = 0;
@@ -914,14 +919,14 @@ void BlueGreenStatusProvider::ResetContext() {
 }
 
 void BlueGreenStatusProvider::StartSwitchoverTimer() {
-    if (this->post_status_end_time_ == std::chrono::system_clock::time_point{}) {
-        this->post_status_end_time_ = std::chrono::system_clock::now() + this->switchover_timeout_ms_;
+    if (this->post_status_end_time_ == std::chrono::steady_clock::time_point{}) {
+        this->post_status_end_time_ = std::chrono::steady_clock::now() + this->switchover_timeout_ms_;
     }
 }
 
 bool BlueGreenStatusProvider::IsSwitchoverTimerExpired() {
-    return this->post_status_end_time_ > std::chrono::system_clock::time_point{}
-        && this->post_status_end_time_ < std::chrono::system_clock::now();
+    return this->post_status_end_time_ > std::chrono::steady_clock::time_point{}
+        && this->post_status_end_time_ < std::chrono::steady_clock::now();
 }
 
 void BlueGreenStatusProvider::LogCurrentContext() {
@@ -931,11 +936,11 @@ void BlueGreenStatusProvider::LogCurrentContext() {
     }
     std::ostringstream phase_time_str;
     for (auto [key, value] : this->phase_time_map_->GetMapCopy()) {
-        phase_time_str << key << ", " << value.timestamp << "\n";
+        phase_time_str << key << ", " << value.timestamp.time_since_epoch().count() << "\n";
     }
     std::ostringstream green_name_change_str;
     for (auto [key, value] : this->green_node_change_name_times_map_->GetMapCopy()) {
-        green_name_change_str << key << ", " << value << "\n";
+        green_name_change_str << key << ", " << value.time_since_epoch().count() << "\n";
     }
 
     std::ostringstream log_msg;

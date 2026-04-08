@@ -194,8 +194,8 @@ void BlueGreenMonitor::Run() {
 }
 
 void BlueGreenMonitor::Delay(std::chrono::milliseconds delay_ms) {
-    std::chrono::system_clock::time_point start_time = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point end_time = start_time + delay_ms;
+    std::chrono::steady_clock::time_point start_time = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point end_time = start_time + delay_ms;
     std::chrono::milliseconds minimum_delay = delay_ms < MINIMUM_DELAY_MS ? delay_ms : MINIMUM_DELAY_MS;
 
     BlueGreenIntervalRate current_interval_rate = this->interval_rate_;
@@ -206,7 +206,7 @@ void BlueGreenMonitor::Delay(std::chrono::milliseconds delay_ms) {
         this->sleep_cv_.wait_for(lock_guard, minimum_delay);
     } while (
         this->interval_rate_ == current_interval_rate
-        && std::chrono::system_clock::now() < end_time
+        && std::chrono::steady_clock::now() < end_time
         && this->class_running_
         && current_panic == this->in_panic_mode_
     );

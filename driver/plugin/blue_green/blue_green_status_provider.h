@@ -38,7 +38,7 @@
 class BlueGreenStatusProvider {
 public:
     struct PhaseTimeInfo {
-        std::chrono::system_clock::time_point timestamp;
+        std::chrono::steady_clock::time_point timestamp;
         BlueGreenPhase phase;
     };
 
@@ -108,7 +108,7 @@ private:
     std::atomic<bool> monitor_reset_on_topology_completed_{false};
     std::atomic<bool> all_green_nodes_changed_{false};
 
-    std::chrono::system_clock::time_point post_status_end_time_ = std::chrono::system_clock::time_point{};
+    std::chrono::steady_clock::time_point post_status_end_time_ = std::chrono::steady_clock::time_point{};
     std::chrono::milliseconds switchover_timeout_ms_;
 
     std::mutex monitor_mutex_;
@@ -126,7 +126,7 @@ private:
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenRole>> role_by_host_map_;
     std::mutex iam_mutex_;
     std::shared_ptr<ConcurrentMap<std::string, std::set<std::string>>> iam_host_success_connects_map_;
-    std::shared_ptr<ConcurrentMap<std::string, std::chrono::system_clock::time_point>> green_node_change_name_times_map_;
+    std::shared_ptr<ConcurrentMap<std::string, std::chrono::steady_clock::time_point>> green_node_change_name_times_map_;
 
     BlueGreenStatus summary_status_;
     BlueGreenPhase latest_status_phase_;

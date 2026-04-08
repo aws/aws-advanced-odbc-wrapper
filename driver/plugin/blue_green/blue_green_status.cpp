@@ -35,40 +35,39 @@ BlueGreenStatus::BlueGreenStatus(std::string id, BlueGreenPhase phase, std::vect
     this->current_phase_ = phase;
     this->connect_routes_ = connect_routes;
     this->execute_routes_ = execute_routes;
-    this->role_by_host_map_ = role_by_host_map;
-    this->corresponding_nodes_ = corresponding_nodes;
+    this->role_by_host_map_ = role_by_host_map->GetMapCopy();
+    this->corresponding_nodes_ = corresponding_nodes->GetMapCopy();
 }
 
 BlueGreenPhase BlueGreenStatus::GetCurrentPhase() {
-    return current_phase_;
+    return this->current_phase_;
 }
 
 std::vector<std::shared_ptr<BaseConnectRouting>> BlueGreenStatus::GetConnectRoutes() {
-    return connect_routes_;
+    return this->connect_routes_;
 }
 
 std::vector<std::shared_ptr<BaseExecuteRouting>> BlueGreenStatus::GetExecuteRoutes() {
-    return execute_routes_;
+    return this->execute_routes_;
 }
 
-std::shared_ptr<ConcurrentMap<std::string, BlueGreenRole>> BlueGreenStatus::GetRoleByHosts() {
-    return role_by_host_map_;
+std::map<std::string, BlueGreenRole> BlueGreenStatus::GetRoleByHosts() {
+    return this->role_by_host_map_;
 }
 
-std::shared_ptr<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>> BlueGreenStatus::GetCorrespondingNodes() {
+std::map<std::string, std::pair<HostInfo, HostInfo>> BlueGreenStatus::GetCorrespondingNodes() {
     return this->corresponding_nodes_;
 }
 
 BlueGreenRole BlueGreenStatus::GetRole(HostInfo info) {
     std::string host = info.GetHost();
     std::transform(host.begin(), host.end(), host.begin(), [](unsigned char c) { return std::tolower(c); });
-
-    return role_by_host_map_->Get(host);
+    return role_by_host_map_.contains(host) ? role_by_host_map_.at(host) : BlueGreenRole();
 }
 
 BlueGreenRole BlueGreenStatus::GetRole(std::string host) {
     std::transform(host.begin(), host.end(), host.begin(), [](unsigned char c) { return std::tolower(c); });
-    return role_by_host_map_->Get(host);
+    return role_by_host_map_.contains(host) ? role_by_host_map_.at(host) : BlueGreenRole();
 }
 
 std::string BlueGreenStatus::ToString() {
@@ -76,7 +75,7 @@ std::string BlueGreenStatus::ToString() {
     std::ostringstream connect_routes_str;
     std::ostringstream execute_routes_str;
 
-    for (auto [key, value] : role_by_host_map_->GetMapCopy()) {
+    for (auto [key, value] : role_by_host_map_) {
         role_by_host_map_str << key << ", " << value.ToString() << "\n";
     }
 

@@ -30,8 +30,8 @@ void BaseRouting::Delay(
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
     std::string id)
 {
-    std::chrono::system_clock::time_point start = GetCurrTime();
-    std::chrono::system_clock::time_point end = start + delay_ms;
+    std::chrono::steady_clock::time_point start = GetCurrTime();
+    std::chrono::steady_clock::time_point end = start + delay_ms;
     std::chrono::milliseconds min_delay = delay_ms < MIN_SLEEP_MS ? delay_ms : MIN_SLEEP_MS;
 
     BlueGreenStatus cached_status = status_cache->Get(id);
@@ -45,8 +45,8 @@ void BaseRouting::Delay(
     }
 }
 
-std::chrono::system_clock::time_point BaseRouting::GetCurrTime() const {
-    return std::chrono::system_clock::now();
+std::chrono::steady_clock::time_point BaseRouting::GetCurrTime() const {
+    return std::chrono::steady_clock::now();
 }
 
 std::string BaseRouting::ToString() const {
