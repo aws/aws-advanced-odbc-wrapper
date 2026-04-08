@@ -24,7 +24,7 @@
 
 class AuroraInitialConnectionStrategyPluginTest : public ::testing::Test {
 protected:
-    MOCK_BASE_PLUGIN* mock_base_plugin = nullptr;
+    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin = nullptr;
     std::shared_ptr<MOCK_PLUGIN_SERVICE> mock_plugin_service;
     std::shared_ptr<MOCK_HOST_LIST_PROVIDER> mock_host_list_provider;
     std::shared_ptr<MOCK_ODBC_HELPER> mock_odbc_helper;
@@ -48,7 +48,7 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = new MOCK_BASE_PLUGIN();
+        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         mock_plugin_service = std::make_shared<MOCK_PLUGIN_SERVICE>();
         mock_host_list_provider = std::make_shared<MOCK_HOST_LIST_PROVIDER>();
         mock_odbc_helper = std::make_shared<MOCK_ODBC_HELPER>();
@@ -67,7 +67,6 @@ protected:
         all_hosts.push_back(*reader_host_c);
     }
     void TearDown() override {
-        // mock_base_plugin should be cleaned up by plugin chain
         if (dbc) delete dbc;
         all_hosts.clear();
     }

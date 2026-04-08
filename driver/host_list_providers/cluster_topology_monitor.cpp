@@ -46,10 +46,10 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
     HostInfo template_host)
     : plugin_service_{ plugin_service },
       topology_util_{ topology_util },
-      connection_attributes_{ conn_attr },
-      cluster_id_{ cluster_id },
-      initial_host_{ initial_host },
-      template_host_{ template_host },
+      connection_attributes_{ std::move(conn_attr) },
+      cluster_id_{ std::move(cluster_id) },
+      initial_host_{ std::move(initial_host) },
+      template_host_{ std::move(template_host) },
       dialect_{ plugin_service->GetDialect() },
       odbc_helper_{ plugin_service->GetOdbcHelper() }
 {

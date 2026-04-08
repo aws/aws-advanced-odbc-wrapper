@@ -28,16 +28,16 @@ RdsHostListProvider::RdsHostListProvider(
     std::string cluster_id)
     : topology_util_{ topology_util },
       plugin_service_{ plugin_service },
-      conn_attr_{ conn_attr },
-    HostListProvider(cluster_id)
+      conn_attr_{ std::move(conn_attr) },
+    HostListProvider(std::move(cluster_id))
 {
     this->initial_host_info_ = HostInfo(
-        conn_attr.contains(KEY_SERVER) ?
-            conn_attr.at(KEY_SERVER) : "",
-        conn_attr.contains(KEY_PORT) ?
-            static_cast<int>(std::strtol(conn_attr.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
+        conn_attr_.contains(KEY_SERVER) ?
+            conn_attr_.at(KEY_SERVER) : "",
+        conn_attr_.contains(KEY_PORT) ?
+            static_cast<int>(std::strtol(conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
     );
-    this->template_host_info_= HostInfo(
+    this->template_host_info_ = HostInfo(
         RdsUtils::GetRdsInstanceHostPattern(this->initial_host_info_.GetHost()),
         this->initial_host_info_.GetPort()
     );

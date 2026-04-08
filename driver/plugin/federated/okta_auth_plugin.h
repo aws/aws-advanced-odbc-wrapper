@@ -18,7 +18,7 @@
 #include "../../util/auth_provider.h"
 
 #include "saml_util.h"
-#include "../base_plugin.h"
+#include "base_saml_auth_plugin.h"
 #include "../../driver.h"
 
 typedef enum {
@@ -59,24 +59,14 @@ private:
     static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("<input name=\"SAMLResponse\".+value=\"(.+)\"/\\>");
 };
 
-class OktaAuthPlugin : public BasePlugin {
+class OktaAuthPlugin : public BaseSamlAuthPlugin {
 public:
     OktaAuthPlugin(DBC* dbc);
     OktaAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
-    ~OktaAuthPlugin() override;
-
-    SQLRETURN Connect(
-        SQLHDBC        ConnectionHandle,
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
-
-private:
-    std::shared_ptr<AuthProvider> auth_provider;
-    std::shared_ptr<SamlUtil> saml_util;
+    OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
+                   const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider,
+                   std::shared_ptr<Dialect> dialect, std::shared_ptr<OdbcHelper> odbc_helper);
 };
 
 #endif // OKTA_AUTH_PLUGIN_H_

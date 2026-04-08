@@ -16,6 +16,7 @@
 
 #include "plugin_service.h"
 
+#include "map_utils.h"
 #include "rds_utils.h"
 
 #include "map_utils.h"
@@ -35,9 +36,10 @@
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr)
     : PluginService(lib_loader, original_conn_attr, "") {}
 
-PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr,
-                             std::string original_conn_str)
-    : original_conn_str_{ std::move(original_conn_str) }, original_conn_attr_{ std::move(original_conn_attr) } {
+PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str) :
+    original_conn_str_{ std::move(original_conn_str) },
+    original_conn_attr_{ std::move(original_conn_attr) }
+{
     this->initial_host_ = HostInfo(
         original_conn_attr_.contains(KEY_SERVER) ?
             original_conn_attr_.at(KEY_SERVER) : "",
@@ -192,8 +194,8 @@ void PluginService::InitHostListProvider() {
             monitoring_cluster_id = monitoring_cluster_id + "-monitor";
             monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
 
-            std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
-            std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
+            const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
+            const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
             monitor_plugin_service->SetPluginChain(plugin_head);
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
                 monitor_plugin_service->GetTopologyUtil(),

@@ -17,6 +17,7 @@
 
 #include "gmock/gmock.h"
 
+#include <chrono>
 #include <sqltypes.h>
 
 #include "../../driver/host_list_providers/topology_util.h"
@@ -29,6 +30,7 @@ class MOCK_DIALECT : public Dialect {
 public:
     MOCK_DIALECT() : Dialect() {};
     MOCK_METHOD(bool, IsSqlStateNetworkError, (const char* sql_state), ());
+    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), ());
 };
 
 class MOCK_HOST_SELECTOR : public HighestWeightHostSelector {
@@ -56,6 +58,7 @@ class MOCK_ODBC_HELPER : public OdbcHelper {
 public:
     MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
     MOCK_METHOD(void, Disconnect, (const DBC *dbc), ());
+    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
 };
 
 class MOCK_PLUGIN_SERVICE : public PluginService {

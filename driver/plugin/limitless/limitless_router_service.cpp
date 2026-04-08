@@ -211,7 +211,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
-    std::shared_ptr<BasePlugin> plugin_head = dbc->plugin_service->GetPluginChain();
+    const std::shared_ptr<BasePlugin> plugin_head = dbc->plugin_service->GetPluginChain();
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
     const std::string host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
