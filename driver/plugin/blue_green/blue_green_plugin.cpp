@@ -46,6 +46,7 @@ BlueGreenPlugin::~BlueGreenPlugin() {
         std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>& pair = itr->second;
         if (pair.first == 1) {
             status_providers_map_.erase(this->blue_green_id_);
+            status_map_->Erase(this->blue_green_id_);
             LOG(INFO) << "Shut down Blue Green Status Provider: " << this->blue_green_id_;
         } else {
             pair.first--;
@@ -63,6 +64,7 @@ SQLRETURN BlueGreenPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     LOG(INFO) << "Entering Connect";
+    this->InitProvider();
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);

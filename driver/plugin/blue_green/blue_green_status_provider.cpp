@@ -892,6 +892,7 @@ void BlueGreenStatusProvider::ResetContext() {
         source_monitor = this->monitors_[BlueGreenRole::SOURCE];
         target_monitor = this->monitors_[BlueGreenRole::TARGET];
     }
+
     if (source_monitor != nullptr && target_monitor != nullptr) {
         while (pending_restart_ && !(source_monitor->IsStop() && target_monitor->IsStop())) {
             std::this_thread::sleep_for(RESET_CHECK_RATE);
@@ -900,8 +901,8 @@ void BlueGreenStatusProvider::ResetContext() {
         this->monitors_[BlueGreenRole::SOURCE] = nullptr;
         this->monitors_[BlueGreenRole::TARGET] = nullptr;
         LOG(INFO) << "Previous monitors closed.";
-    } else {
     }
+
     if (!pending_restart_) {
         LOG(INFO) << "No longer pending a monitor restart, no need to restart";
         return;

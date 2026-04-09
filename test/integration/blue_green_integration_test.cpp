@@ -1177,13 +1177,12 @@ protected:
                 }
                 std::this_thread::sleep_for(std::chrono::seconds(1));
             }
-            ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HDBC, hstmt);
-            hstmt = SQL_NULL_HSTMT;
 
             // Phase 2 - Post-Switchover, reconnect and continue executing
             // Matches Java behavior: each iteration tries a single connect attempt
             // with a fresh DBC handle. If connect fails, record the error and try again next iteration
-            ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, SQL_NULL_HSTMT);
+            ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, hdbc, hstmt);
+            hstmt = SQL_NULL_HSTMT;
             hdbc = SQL_NULL_HDBC;
 
             while (!ThreadSynchronization::stop_flag) {
@@ -1669,6 +1668,7 @@ protected:
 
 TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
     const std::vector<std::string> topology_instances = GetBlueGreenEndpoints(blue_green_deployment_id);
+    ASSERT_FALSE(topology_instances.empty());
 
     auto start_time = std::chrono::steady_clock::now();
     global_start_time = start_time;
