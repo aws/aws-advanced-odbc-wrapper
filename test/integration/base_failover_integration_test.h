@@ -321,6 +321,7 @@ protected:
                                                  const Aws::String& initial_writer_id, const Aws::String& target_writer_id = "") {
         auto cluster_endpoint = GetDbCluster(client, cluster_id).GetEndpoint();
         std::string initial_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
+        ASSERT_FALSE(initial_writer_ip.empty()) << "Failed to resolve IP address for host: " << cluster_endpoint;
 
         FailoverCluster(client, cluster_id, target_writer_id);
 
@@ -337,6 +338,7 @@ protected:
 
         // Failover has finished, wait for DNS to be updated so cluster endpoint resolves to the correct writer instance.
         std::string current_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
+        ASSERT_FALSE(current_writer_ip.empty()) << "Failed to resolve IP address for host: " << cluster_endpoint;
         auto start = std::chrono::high_resolution_clock::now();
         while (initial_writer_ip == current_writer_ip) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -345,6 +347,7 @@ protected:
             }
 
             current_writer_ip = TEST_UTILS::HostToIp(cluster_endpoint);
+            ASSERT_FALSE(current_writer_ip.empty()) << "Failed to resolve IP address for host: " << cluster_endpoint;
         }
     }
 

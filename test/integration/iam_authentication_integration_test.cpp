@@ -79,6 +79,7 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
 // when given an IP address instead of a cluster name.
 TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
     std::string ip_address = TEST_UTILS::HostToIp(test_server);
+    ASSERT_FALSE(ip_address.empty()) << "Failed to resolve IP address for host: " << test_server;
     conn_str = ConnectionStringBuilder(test_dsn, ip_address, test_port)
         .withUID(test_iam_user)
         .withDatabase(test_db)
