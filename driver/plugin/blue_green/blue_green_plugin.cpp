@@ -261,9 +261,6 @@ SQLRETURN BlueGreenPlugin::InitConnection(
 
     if (SQL_SUCCEEDED(rc)) {
         this->InitProvider();
-    } else {
-        DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-        std::string sql_state = this->odbc_helper_->GetSqlStateAndLogMessage(dbc);
     }
 
     return rc;

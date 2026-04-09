@@ -52,7 +52,7 @@ public:
     void SetUse4BytesUserApp(bool use_4_bytes);
 
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
-    virtual std::string GetSqlStateAndLogMessage(DBC *dbc, std::string* out_message);
+    virtual std::string GetSqlStateAndLogMessage(DBC *dbc, std::string& out_message);
     virtual std::string GetStmtErrorMessage(SQLHSTMT stmt);
 
 private:

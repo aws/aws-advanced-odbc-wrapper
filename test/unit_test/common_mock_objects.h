@@ -60,7 +60,7 @@ public:
     MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
     MOCK_METHOD(void, Disconnect, (const DBC *dbc), ());
     MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
-    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc, std::string* out_message), ());
+    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc, std::string& out_message), ());
     MOCK_METHOD(std::string, GetStmtErrorMessage, (SQLHSTMT stmt), ());
 };
 

@@ -49,7 +49,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
             dbc->sql_error_called = 0;
             const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
             std::string error_message;
-            const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, &error_message);
+            const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, error_message);
             if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {
                 // Login error - let another routing try
                 odbc_helper->Disconnect(dbc);
@@ -77,7 +77,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
         dbc->sql_error_called = 0;
         const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
         std::string error_message;
-        const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, &error_message);
+        const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, error_message);
         if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {
             // Login/access error with this IAM host - try next IAM host
             odbc_helper->Disconnect(dbc);
@@ -93,6 +93,6 @@ SQLRETURN SubstituteConnectRouting::Connect(
         return rt;
     }
 
-    // All IAM hosts exhausted with login errors - return SQL_ERROR to let next routing try
-    return SQL_ERROR;
+    // All IAM hosts exhausted with login errors
+    throw std::runtime_error("Unable to open a connection to " + substitute_host + ". All IAM hosts exhausted with login errors.");
 }

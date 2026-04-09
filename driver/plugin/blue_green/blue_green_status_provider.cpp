@@ -606,12 +606,16 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
 
                 // Check if green ghost connected with blue (non-prefixed) IAM host name
                 std::vector<HostInfo> iam_hosts;
-                HostInfo iam_blue_host_info = HostInfo(RdsUtils::RemoveGreenInstancePrefix(green_host_ip), green_host_info.GetPort(),
+                HostInfo iam_blue_host_info = HostInfo(RdsUtils::RemoveGreenInstancePrefix(green_host), green_host_info.GetPort(),
                                                        green_host_info.GetHostState(), green_host_info.GetHostRole());
-                if (!this->IsAlreadySuccessfullyConnected(green_host, iam_blue_host_info.GetHost())) {
+                if (this->IsAlreadySuccessfullyConnected(green_host, iam_blue_host_info.GetHost())) {
+                    // Green node already accepted the blue hostname token — only use blue.
+                    iam_hosts.push_back(iam_blue_host_info);
+                } else {
+                    // Green node isn't yet changed its name, so we need to try both possible IAM host options.
                     iam_hosts.push_back(green_host_info);
+                    iam_hosts.push_back(iam_blue_host_info);
                 }
-                iam_hosts.push_back(iam_blue_host_info);
 
                 connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                     blue_host, role, green_ip_host_info, iam_hosts,
@@ -646,10 +650,13 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
             HostInfo green_ip_host_info = HostInfo(this->host_ip_map_->Get(green_host), interim_status.port_);
 
             std::vector<HostInfo> iam_hosts;
-            if (!this->IsAlreadySuccessfullyConnected(green_host, blue_host)) {
+            if (this->IsAlreadySuccessfullyConnected(green_host, blue_host)) {
+                iam_hosts.push_back(blue_host_info);
+            } else {
+                // Green node has not changed its name, so we need to try both possible IAM host options.
                 iam_hosts.push_back(green_host_info);
+                iam_hosts.push_back(blue_host_info);
             }
-            iam_hosts.push_back(blue_host_info);
 
             connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                 green_host, role, green_ip_host_info, iam_hosts,
@@ -692,6 +699,9 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfCompleted() {
 }
 
 void BlueGreenStatusProvider::RegisterIamHost(std::string connect_host, std::string iam_host) {
+    if (!this->iam_host_success_connects_map_) {
+        return;
+    }
     bool different_node_name = !connect_host.empty() && connect_host != iam_host;
     if (different_node_name) {
         if (!this->IsAlreadySuccessfullyConnected(connect_host, iam_host)) {
@@ -726,6 +736,9 @@ void BlueGreenStatusProvider::RegisterIamHost(std::string connect_host, std::str
 }
 
 bool BlueGreenStatusProvider::IsAlreadySuccessfullyConnected(std::string connect_host, std::string iam_host) {
+    if (!this->iam_host_success_connects_map_) {
+        return false;
+    }
     return this->iam_host_success_connects_map_->Get(connect_host).contains(iam_host);
 }
 
@@ -887,6 +900,7 @@ void BlueGreenStatusProvider::ResetContext() {
         this->monitors_[BlueGreenRole::SOURCE] = nullptr;
         this->monitors_[BlueGreenRole::TARGET] = nullptr;
         LOG(INFO) << "Previous monitors closed.";
+    } else {
     }
     if (!pending_restart_) {
         LOG(INFO) << "No longer pending a monitor restart, no need to restart";

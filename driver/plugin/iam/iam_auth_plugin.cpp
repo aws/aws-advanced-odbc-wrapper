@@ -113,7 +113,7 @@ SQLRETURN IamAuthPlugin::Connect(
     std::string sql_state;
     std::string error_message;
     if (odbc_helper_) {
-        sql_state = odbc_helper_->GetSqlStateAndLogMessage(dbc, &error_message);
+        sql_state = odbc_helper_->GetSqlStateAndLogMessage(dbc, error_message);
     }
 
     // Only retry with a fresh token if the token was from cache AND the error is an access/login error.
