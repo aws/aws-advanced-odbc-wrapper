@@ -33,157 +33,51 @@ permissions:
   contents: read
 
 jobs:
-# Build / Get Underlying Drivers
-  build-win-psqlodbc:
-    name: Windows - Build psqlODBC
-    runs-on: windows-latest
-    steps:
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache@v5
-        with:
-          path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
-      - name: Download psqlODBC
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        run: |
-          mkdir psqlodbc
-          cd psqlodbc
-          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
-          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-  build-macos-psqlodbc:
-    name: MacOS - Build psqlODBC
-    runs-on: macos-15
-    steps:
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache@v5
-        with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-      - name: Checkout psqlODBC
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v6
-        with:
-          repository: postgresql-interfaces/psqlodbc
-          path: psqlodbc
-      - name: Install Dependencies
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        run: |
-          brew update && brew upgrade && brew cleanup
-          brew install gcc autoconf automake unixodbc libtool postgresql icu4c
-      - name: Build psqlodbc
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        working-directory: psqlodbc
-        run: |
-          ./bootstrap
-          ./configure
-          make
-
-  build-linux-psqlodbc:
-    name: Linux Ubuntu - Build psqlODBC
+  trigger-driver-build-if-needed:
+    name: Trigger Driver Build If Caches Missing
     runs-on: ubuntu-latest
     steps:
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache@v5
+      - name: Check caches and trigger build if needed
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-      - name: Checkout psqlODBC
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v6
-        with:
-          repository: postgresql-interfaces/psqlodbc
-          path: psqlodbc
-      - name: Install Dependencies
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        run: |
-          sudo apt update
-          sudo apt-get install autoconf automake libtool postgresql libpq-dev
-      - name: Download & Build unixODBC
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        run: |
-          curl -L https://www.unixodbc.org/unixODBC-2.3.12.tar.gz -o unixODBC.tar
-          tar xf unixODBC.tar
-          cd unixODBC-2.3.12
-          ./configure && make
-          sudo make install
-      - name: Build psqlodbc
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        working-directory: psqlodbc
-        run: |
-          ./bootstrap
-          ./configure
-          make
+          script: |
+            const keys = [
+              'Windows-psqlodbc-driver', 'Windows-mysql-driver',
+              'macOS-psqlodbc-driver', 'macOS-mysql-driver',
+              'Linux-psqlodbc-driver', 'Linux-mysql-driver'
+            ];
+            const caches = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            const existingKeys = new Set(caches.data.actions_caches.map(c => c.key));
+            const missing = keys.filter(k => !existingKeys.has(k));
 
-  build-win-mysql:
-    name: Windows - Build MySQL Connector ODBC
-    runs-on: windows-latest
-    steps:
-      - name: Retrieve mysql-connector Cache
-        id: cache-mysql-connector
-        uses: actions/cache@v5
-        with:
-          path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
-      - name: Download mysql-connector
-        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
-        run: |
-          mkdir mysql-connector
-          cd mysql-connector
-          curl.exe -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-winx64.msi" --output mysql-connector_x64.msi
-
-  build-macos-mysql:
-    name: MacOS - Build MySQL Connector ODBC
-    runs-on: macos-15
-    steps:
-      - name: Retrieve mysql-connector Cache
-        id: cache-mysql-connector
-        uses: actions/cache@v5
-        with:
-          path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
-      - name: Download mysql-connector
-        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
-        run: |
-          mkdir mysql-connector
-          curl -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-macos15-arm64.tar.gz" --output mysql-connector_arm64.tar.gz
-          tar xvf mysql-connector_arm64.tar.gz --strip-components 1 -C mysql-connector
-
-  build-linux-mysql:
-    name: Linux Ubuntu - Build MySQL Connector ODBC
-    runs-on: ubuntu-latest
-    steps:
-      - name: Retrieve mysql-connector Cache
-        id: cache-mysql-connector
-        uses: actions/cache@v5
-        with:
-          path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
-      - name: Download mysql-connector
-        if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
-        run: |
-          mkdir mysql-connector
-          cd mysql-connector
-          curl \
-            -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
-            --output mysql-connector_x64.deb
+            if (missing.length > 0) {
+              console.log(`Missing caches: ${missing.join(', ')}`);
+              console.log('Triggering driver build workflow...');
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build_drivers.yaml',
+                ref: context.ref
+              });
+              console.log('Driver build dispatched. Tests will fail fast if caches are not yet available.');
+            } else {
+              console.log('All driver caches present.');
+            }
 
 # Build Wrapper & Run Tests
   test-win-compat:
     name: Windows - Compatibility Test
-    needs: [build-win-psqlodbc, build-win-mysql]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -192,7 +86,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
         shell: cmd
         run: |
@@ -208,7 +102,7 @@ jobs:
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -219,7 +113,7 @@ jobs:
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v8
+        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee  # v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
@@ -229,7 +123,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
@@ -329,7 +223,7 @@ jobs:
           pip3 install deepdiff
           python test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-windows
@@ -341,18 +235,17 @@ jobs:
 
   test-macos-compat:
     name: MacOS - Compatibility Test
-    needs: [build-macos-psqlodbc, build-macos-mysql]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -368,13 +261,13 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v8
+        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee  # v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
@@ -384,7 +277,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -453,7 +346,7 @@ jobs:
           pip3 install deepdiff
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-macos
@@ -465,18 +358,17 @@ jobs:
 
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
-    needs: [build-linux-psqlodbc, build-linux-mysql]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
@@ -491,13 +383,13 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
       - name: Setup Local PostgreSQL Server
-        uses: ikalnytskyi/action-setup-postgres@v8
+        uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee  # v8
         with:
           username: ${{env.LOCAL_DB_UID}}
           password: ${{env.LOCAL_DB_PWD}}
@@ -507,7 +399,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -571,7 +463,7 @@ jobs:
           pip3 install deepdiff
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
       - name: Upload Test Results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-linux
