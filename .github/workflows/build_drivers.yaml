@@ -1,0 +1,176 @@
+name: Build Underlying Drivers
+run-name: Weekly Build - Underlying ODBC Drivers
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1' # Every Monday at 6am UTC
+
+permissions:
+  id-token: write
+  contents: read
+  actions: write  # Required to delete caches
+
+concurrency:
+  group: build-underlying-drivers
+  cancel-in-progress: false
+
+jobs:
+  clear-old-caches:
+    name: Clear Stale Driver Caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete existing driver caches
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        with:
+          script: |
+            const keys = [
+              'Windows-psqlodbc-driver', 'Windows-mysql-driver',
+              'macOS-psqlodbc-driver', 'macOS-mysql-driver',
+              'Linux-psqlodbc-driver', 'Linux-mysql-driver'
+            ];
+            const caches = await github.rest.actions.getActionsCacheList({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            for (const cache of caches.data.actions_caches) {
+              if (keys.includes(cache.key)) {
+                console.log(`Deleting cache: ${cache.key} (id: ${cache.id})`);
+                await github.rest.actions.deleteActionsCacheById({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  cache_id: cache.id
+                });
+              }
+            }
+
+  build-win-psqlodbc:
+    name: Windows - Build psqlODBC
+    needs: [clear-old-caches]
+    runs-on: windows-latest
+    steps:
+      - name: Download psqlODBC
+        run: |
+          mkdir psqlodbc
+          cd psqlodbc
+          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
+          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Save psqlODBC Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver
+
+  build-macos-psqlodbc:
+    name: MacOS - Build psqlODBC
+    needs: [clear-old-caches]
+    runs-on:
+      - codebuild-odbc-wrapper-macos-pg-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout psqlODBC
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install gcc autoconf automake unixodbc libtool postgresql
+      - name: Build psqlodbc
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+      - name: Save psqlODBC Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+
+  build-linux-psqlodbc:
+    name: Linux Ubuntu - Build psqlODBC
+    needs: [clear-old-caches]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout psqlODBC
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          repository: postgresql-interfaces/psqlodbc
+          path: psqlodbc
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install autoconf automake libtool postgresql libpq-dev
+      - name: Download & Build unixODBC
+        run: |
+          curl -L https://www.unixodbc.org/unixODBC-2.3.12.tar.gz -o unixODBC.tar
+          tar xf unixODBC.tar
+          cd unixODBC-2.3.12
+          ./configure && make
+          sudo make install
+      - name: Build psqlodbc
+        working-directory: psqlodbc
+        run: |
+          ./bootstrap
+          ./configure
+          make
+      - name: Save psqlODBC Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+
+  build-win-mysql:
+    name: Windows - Build MySQL Connector ODBC
+    needs: [clear-old-caches]
+    runs-on: windows-latest
+    steps:
+      - name: Download mysql-connector
+        run: |
+          mkdir mysql-connector
+          cd mysql-connector
+          curl.exe -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-winx64.msi" --output mysql-connector_x64.msi
+      - name: Save mysql-connector Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: mysql-connector
+          key: ${{ runner.os }}-mysql-driver
+
+  build-macos-mysql:
+    name: MacOS - Build MySQL Connector ODBC
+    needs: [clear-old-caches]
+    runs-on:
+      - codebuild-odbc-wrapper-macos-mysql-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Download mysql-connector
+        run: |
+          mkdir mysql-connector
+          curl -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-macos15-arm64.tar.gz" --output mysql-connector_arm64.tar.gz
+          tar xvf mysql-connector_arm64.tar.gz --strip-components 1 -C mysql-connector
+      - name: Save mysql-connector Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
+
+  build-linux-mysql:
+    name: Linux Ubuntu - Build MySQL Connector ODBC
+    needs: [clear-old-caches]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download mysql-connector
+        run: |
+          mkdir mysql-connector
+          cd mysql-connector
+          curl \
+            -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
+            --output mysql-connector_x64.deb
+      - name: Save mysql-connector Cache
+        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver
