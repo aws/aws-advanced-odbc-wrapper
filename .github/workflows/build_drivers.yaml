@@ -75,10 +75,6 @@ jobs:
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
-      - name: Install Dependencies
-        run: |
-          brew update && brew upgrade && brew cleanup
-          brew install gcc autoconf automake unixodbc libtool postgresql
       - name: Build psqlodbc
         working-directory: psqlodbc
         run: |

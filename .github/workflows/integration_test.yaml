@@ -43,43 +43,60 @@ concurrency:
 permissions:
   id-token: write
   contents: read
+  actions: write  # Required to trigger build workflows
 
 jobs:
   trigger-driver-build-if-needed:
     name: Trigger Driver Build If Caches Missing
     runs-on: ubuntu-latest
     steps:
-      - name: Check caches and trigger build if needed
+      - name: Check caches and trigger builds if needed
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           script: |
-            const keys = [
+            const driverKeys = [
               'Windows-psqlodbc-driver', 'Windows-mysql-driver',
               'macOS-psqlodbc-driver', 'macOS-mysql-driver',
               'Linux-psqlodbc-driver', 'Linux-mysql-driver'
             ];
-            // GitHub cache API doesn't have a direct lookup, but we can check
-            // via the REST API for actions caches
+            const sdkKeys = [
+              'Windows-aws-sdk-cpp-Debug-shared',
+              'macOS-aws-sdk-cpp-Debug-shared',
+              'Linux-aws-sdk-cpp-Debug-shared'
+            ];
             const caches = await github.rest.actions.getActionsCacheList({
               owner: context.repo.owner,
               repo: context.repo.repo,
               per_page: 100
             });
             const existingKeys = new Set(caches.data.actions_caches.map(c => c.key));
-            const missing = keys.filter(k => !existingKeys.has(k));
 
-            if (missing.length > 0) {
-              console.log(`Missing caches: ${missing.join(', ')}`);
-              console.log('Triggering driver build workflow...');
+            const missingDrivers = driverKeys.filter(k => !existingKeys.has(k));
+            if (missingDrivers.length > 0) {
+              console.log(`Missing driver caches: ${missingDrivers.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_drivers.yaml',
                 ref: context.ref
               });
-              console.log('Driver build dispatched. Tests will fail fast if caches are not yet available.');
+              console.log('Driver build dispatched.');
             } else {
               console.log('All driver caches present.');
+            }
+
+            const missingSdk = sdkKeys.filter(k => !existingKeys.has(k));
+            if (missingSdk.length > 0) {
+              console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build_aws_sdk.yaml',
+                ref: context.ref
+              });
+              console.log('AWS SDK build dispatched.');
+            } else {
+              console.log('All AWS SDK caches present.');
             }
 
 # Build Wrapper & Run Tests
@@ -100,15 +117,11 @@ jobs:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -165,7 +178,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -302,16 +315,11 @@ jobs:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
@@ -364,7 +372,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -485,15 +493,11 @@ jobs:
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
@@ -542,7 +546,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -661,15 +665,11 @@ jobs:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -682,7 +682,7 @@ jobs:
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -832,23 +832,18 @@ jobs:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
@@ -988,22 +983,18 @@ jobs:
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver

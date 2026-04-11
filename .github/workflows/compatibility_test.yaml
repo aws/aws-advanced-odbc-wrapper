@@ -31,20 +31,26 @@ env:
 
 permissions:
   contents: read
+  actions: write  # Required to trigger build workflows
 
 jobs:
   trigger-driver-build-if-needed:
     name: Trigger Driver Build If Caches Missing
     runs-on: ubuntu-latest
     steps:
-      - name: Check caches and trigger build if needed
+      - name: Check caches and trigger builds if needed
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
         with:
           script: |
-            const keys = [
+            const driverKeys = [
               'Windows-psqlodbc-driver', 'Windows-mysql-driver',
               'macOS-psqlodbc-driver', 'macOS-mysql-driver',
               'Linux-psqlodbc-driver', 'Linux-mysql-driver'
+            ];
+            const sdkKeys = [
+              'Windows-aws-sdk-cpp-Release-shared',
+              'macOS-aws-sdk-cpp-Release-shared',
+              'Linux-aws-sdk-cpp-Release-shared'
             ];
             const caches = await github.rest.actions.getActionsCacheList({
               owner: context.repo.owner,
@@ -52,20 +58,33 @@ jobs:
               per_page: 100
             });
             const existingKeys = new Set(caches.data.actions_caches.map(c => c.key));
-            const missing = keys.filter(k => !existingKeys.has(k));
 
-            if (missing.length > 0) {
-              console.log(`Missing caches: ${missing.join(', ')}`);
-              console.log('Triggering driver build workflow...');
+            const missingDrivers = driverKeys.filter(k => !existingKeys.has(k));
+            if (missingDrivers.length > 0) {
+              console.log(`Missing driver caches: ${missingDrivers.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_drivers.yaml',
                 ref: context.ref
               });
-              console.log('Driver build dispatched. Tests will fail fast if caches are not yet available.');
+              console.log('Driver build dispatched.');
             } else {
               console.log('All driver caches present.');
+            }
+
+            const missingSdk = sdkKeys.filter(k => !existingKeys.has(k));
+            if (missingSdk.length > 0) {
+              console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build_aws_sdk.yaml',
+                ref: context.ref
+              });
+              console.log('AWS SDK build dispatched.');
+            } else {
+              console.log('All AWS SDK caches present.');
             }
 
 # Build Wrapper & Run Tests
@@ -76,15 +95,11 @@ jobs:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -102,7 +117,7 @@ jobs:
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
@@ -123,7 +138,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
@@ -244,16 +259,11 @@ jobs:
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
@@ -261,7 +271,7 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
@@ -277,7 +287,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
@@ -367,15 +377,11 @@ jobs:
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
       - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          fail-on-cache-miss: true
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
@@ -383,7 +389,7 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
@@ -399,7 +405,7 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
