@@ -62,6 +62,7 @@ jobs:
               'Linux-aws-sdk-cpp-Release-shared'
             ];
 
+            const ref = context.payload.pull_request ? context.payload.pull_request.head.ref : context.ref;
             const missingSdk = sdkKeys.filter(k => !s3KeyExists(k));
             if (missingSdk.length > 0) {
               console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
@@ -69,7 +70,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_aws_sdk.yaml',
-                ref: context.ref
+                ref: ref
               });
               console.log('AWS SDK build dispatched.');
               core.setFailed('AWS SDK caches are missing. Build workflow has been dispatched. Re-run this workflow after the build completes.');

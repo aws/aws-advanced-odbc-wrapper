@@ -5,28 +5,85 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 env:
   WIX_VERSION: 5.0.2
   BUILD_CONFIG: Release
 
 jobs:
+  check-caches:
+    name: Check AWS SDK Caches
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: installer-check-caches
+      - name: Check S3 caches, trigger build if needed, and fail fast
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        env:
+          S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const bucket = process.env.S3_CACHE_BUCKET;
+
+            function s3KeyExists(key) {
+              try {
+                execSync(`aws s3api head-object --bucket ${bucket} --key ${key}.tar.gz`, { stdio: 'pipe' });
+                return true;
+              } catch {
+                return false;
+              }
+            }
+
+            const sdkKeys = [
+              'Windows-aws-sdk-cpp-Release-shared',
+              'macOS-aws-sdk-cpp-Release-shared'
+            ];
+
+            const ref = context.payload.pull_request ? context.payload.pull_request.head.ref : context.ref;
+            const missingSdk = sdkKeys.filter(k => !s3KeyExists(k));
+            if (missingSdk.length > 0) {
+              console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'build_aws_sdk.yaml',
+                ref: ref
+              });
+              console.log('AWS SDK build dispatched.');
+              core.setFailed('AWS SDK caches are missing. Build workflow has been dispatched. Re-run this workflow after the build completes.');
+            } else {
+              console.log('All AWS SDK caches present.');
+            }
+
   build-windows:
     name: Windows - Build Installers
+    needs: [check-caches]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk-cpp
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: installer-win
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk-cpp.outputs.cache-hit != 'true'}}
-        run: |
-          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -48,6 +105,7 @@ jobs:
 
   build-macos:
     name: MacOS - Build Installer
+    needs: [check-caches]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -56,16 +114,20 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
-      - name: Retrieve AWS SDK for C++ Cache
-        id: cache-aws-sdk-cpp
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: installer-macos
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-      - name: Build AWS SDK for C++
-        run: |
-          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Build ANSI and UNICODE aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_ANSI=ON -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}

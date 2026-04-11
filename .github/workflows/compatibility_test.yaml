@@ -76,6 +76,7 @@ jobs:
               'Linux-aws-sdk-cpp-Release-shared'
             ];
 
+            const ref = context.payload.pull_request ? context.payload.pull_request.head.ref : context.ref;
             let dispatched = false;
 
             const missingDrivers = driverKeys.filter(k => !s3KeyExists(k));
@@ -85,7 +86,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_drivers.yaml',
-                ref: context.ref
+                ref: ref
               });
               console.log('Driver build dispatched.');
               dispatched = true;
@@ -100,7 +101,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_aws_sdk.yaml',
-                ref: context.ref
+                ref: ref
               });
               console.log('AWS SDK build dispatched.');
               dispatched = true;

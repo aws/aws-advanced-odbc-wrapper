@@ -46,14 +46,36 @@ permissions:
   actions: write  # Required to trigger build workflows
 
 jobs:
-  trigger-driver-build-if-needed:
-    name: Trigger Driver Build If Caches Missing
+  check-caches:
+    name: Check Caches & Trigger Builds
     runs-on: ubuntu-latest
     steps:
-      - name: Check caches and trigger builds if needed
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: inte-check-caches
+      - name: Check S3 caches, trigger builds if needed, and fail fast
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        env:
+          S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
         with:
           script: |
+            const { execSync } = require('child_process');
+            const bucket = process.env.S3_CACHE_BUCKET;
+
+            function s3KeyExists(key) {
+              try {
+                execSync(`aws s3api head-object --bucket ${bucket} --key ${key}.tar.gz`, { stdio: 'pipe' });
+                return true;
+              } catch {
+                return false;
+              }
+            }
+
             const driverKeys = [
               'Windows-psqlodbc-driver', 'Windows-mysql-driver',
               'macOS-psqlodbc-driver', 'macOS-mysql-driver',
@@ -64,44 +86,48 @@ jobs:
               'macOS-aws-sdk-cpp-Debug-shared',
               'Linux-aws-sdk-cpp-Debug-shared'
             ];
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            const existingKeys = new Set(caches.data.actions_caches.map(c => c.key));
 
-            const missingDrivers = driverKeys.filter(k => !existingKeys.has(k));
+            const ref = context.payload.pull_request ? context.payload.pull_request.head.ref : context.ref;
+            let dispatched = false;
+
+            const missingDrivers = driverKeys.filter(k => !s3KeyExists(k));
             if (missingDrivers.length > 0) {
               console.log(`Missing driver caches: ${missingDrivers.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_drivers.yaml',
-                ref: context.ref
+                ref: ref
               });
               console.log('Driver build dispatched.');
+              dispatched = true;
             } else {
               console.log('All driver caches present.');
             }
 
-            const missingSdk = sdkKeys.filter(k => !existingKeys.has(k));
+            const missingSdk = sdkKeys.filter(k => !s3KeyExists(k));
             if (missingSdk.length > 0) {
               console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'build_aws_sdk.yaml',
-                ref: context.ref
+                ref: ref
               });
               console.log('AWS SDK build dispatched.');
+              dispatched = true;
             } else {
               console.log('All AWS SDK caches present.');
+            }
+
+            if (dispatched) {
+              core.setFailed('One or more caches are missing. Build workflows have been dispatched. Re-run this workflow after the builds complete.');
             }
 
 # Build Wrapper & Run Tests
   windows-integration-tests:
     name: Windows - Integration Tests
+    needs: [check-caches]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -116,12 +142,20 @@ jobs:
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-win-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -137,12 +171,6 @@ jobs:
         shell: pwsh
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
-        with:
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-win-inte
       - name: Create Aurora Resources
         id: AuroraClusterSetup
         shell: bash
@@ -178,11 +206,13 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Install PostgreSQL
         if: (matrix.rds_engine == 'aurora-postgresql')
         shell: pwsh
@@ -298,6 +328,7 @@ jobs:
 
   macos-integration-tests:
     name: MacOS - Integration Tests
+    needs: [check-caches]
     runs-on:
       - ${{ matrix.env.project }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.env.fleet }}
         buildspec-override:true
@@ -314,22 +345,24 @@ jobs:
           echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
       - name: Create Aurora Resources
         id: AuroraClusterSetup
         shell: bash
@@ -372,11 +405,13 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Create logs folder
         run: mkdir logs
       - name: Build and Run Ansi Integration Tests
@@ -461,19 +496,20 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         with:
-          name: 'mac-${{matrix.rds_engine}}-test-logs'
+          name: 'mac-${{matrix.env.rds_engine}}-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 7
       - name: Archive psql logs
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6
         with:
-          name: 'mac-${{matrix.rds_engine}}-psql-logs'
+          name: 'mac-${{matrix.env.rds_engine}}-psql-logs'
           path: logs
           retention-days: 7
 
   linux-integration-tests:
     name: Linux Ubuntu - Integration Tests
+    needs: [check-caches]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -492,22 +528,24 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
       - name: Create Aurora Resources
         id: AuroraClusterSetup
         shell: bash
@@ -546,11 +584,13 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup PostgreSQL User
         if: (matrix.rds_engine == 'aurora-postgresql')
         shell: bash
@@ -656,6 +696,7 @@ jobs:
 
   windows-limitless-integration-tests:
     name: Windows - Limitless Integration Tests
+    needs: [check-caches]
     runs-on: windows-latest
     steps:
       - name: Setup Cluster ID and Shard ID Env Variables
@@ -664,12 +705,20 @@ jobs:
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: odbc-wrapper-win-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -682,11 +731,13 @@ jobs:
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Install psqlODBC Driver
         shell: pwsh
         working-directory: psqlodbc
@@ -696,12 +747,6 @@ jobs:
         shell: pwsh
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
-        with:
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-win-inte
       - name: Create Limitless Aurora Resources
         id: AuroraClusterSetup
         shell: bash
@@ -821,6 +866,7 @@ jobs:
 
   macos-limitless-integration-tests:
     name: MacOS - Limitless Integration Tests
+    needs: [check-caches]
     runs-on:
       - codebuild-odbc-wrapper-macos-limitless-${{ github.run_id }}-${{ github.run_attempt }}-fleet-macos-fleet-1
         buildspec-override:true
@@ -831,29 +877,33 @@ jobs:
           echo "LIMITLESS_SHARD_ID=AWS-ODBC-Macos-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Create Limitless Aurora Resources
         id: AuroraClusterSetup
         shell: bash
@@ -970,6 +1020,7 @@ jobs:
 
   linux-limitless-integration-tests:
     name: Linux Ubuntu - Limitless Integration Tests
+    needs: [check-caches]
     runs-on: ubuntu-latest
     steps:
       - name: Setup Cluster ID
@@ -982,29 +1033,33 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
-      - name: Build aws-advanced-odbc-wrapper
-        run: |
-          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
-          cmake --build build
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
-        with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-inte
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
+      - name: Build aws-advanced-odbc-wrapper
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
+          cmake --build build
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Create Limitless Aurora Resources
         id: AuroraClusterSetup
         shell: bash
