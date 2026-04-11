@@ -31,17 +31,40 @@ env:
 
 permissions:
   contents: read
+  id-token: write
   actions: write  # Required to trigger build workflows
 
 jobs:
-  trigger-driver-build-if-needed:
-    name: Trigger Driver Build If Caches Missing
+  check-caches:
+    name: Check Caches & Trigger Builds
     runs-on: ubuntu-latest
     steps:
-      - name: Check caches and trigger builds if needed
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: compat-check-caches
+      - name: Check S3 caches, trigger builds if needed, and fail fast
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
+        env:
+          S3_CACHE_BUCKET: ${{ secrets.S3_CACHE_BUCKET }}
         with:
           script: |
+            const { execSync } = require('child_process');
+            const bucket = process.env.S3_CACHE_BUCKET;
+
+            function s3KeyExists(key) {
+              try {
+                execSync(`aws s3api head-object --bucket ${bucket} --key ${key}.tar.gz`, { stdio: 'pipe' });
+                return true;
+              } catch {
+                return false;
+              }
+            }
+
             const driverKeys = [
               'Windows-psqlodbc-driver', 'Windows-mysql-driver',
               'macOS-psqlodbc-driver', 'macOS-mysql-driver',
@@ -52,14 +75,10 @@ jobs:
               'macOS-aws-sdk-cpp-Release-shared',
               'Linux-aws-sdk-cpp-Release-shared'
             ];
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            const existingKeys = new Set(caches.data.actions_caches.map(c => c.key));
 
-            const missingDrivers = driverKeys.filter(k => !existingKeys.has(k));
+            let dispatched = false;
+
+            const missingDrivers = driverKeys.filter(k => !s3KeyExists(k));
             if (missingDrivers.length > 0) {
               console.log(`Missing driver caches: ${missingDrivers.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
@@ -69,11 +88,12 @@ jobs:
                 ref: context.ref
               });
               console.log('Driver build dispatched.');
+              dispatched = true;
             } else {
               console.log('All driver caches present.');
             }
 
-            const missingSdk = sdkKeys.filter(k => !existingKeys.has(k));
+            const missingSdk = sdkKeys.filter(k => !s3KeyExists(k));
             if (missingSdk.length > 0) {
               console.log(`Missing AWS SDK caches: ${missingSdk.join(', ')}`);
               await github.rest.actions.createWorkflowDispatch({
@@ -83,23 +103,37 @@ jobs:
                 ref: context.ref
               });
               console.log('AWS SDK build dispatched.');
+              dispatched = true;
             } else {
               console.log('All AWS SDK caches present.');
+            }
+
+            if (dispatched) {
+              core.setFailed('One or more caches are missing. Build workflows have been dispatched. Re-run this workflow after the builds complete.');
             }
 
 # Build Wrapper & Run Tests
   test-win-compat:
     name: Windows - Compatibility Test
+    needs: [check-caches]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: compat-win
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Dotnet for WiX
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7  # v5
       - name: Install WiX
@@ -117,11 +151,13 @@ jobs:
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Install psqlODBC Driver
         shell: pwsh
         working-directory: psqlodbc
@@ -138,11 +174,13 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Install MySQL Connector ODBC
         shell: pwsh
         working-directory: mysql-connector
@@ -250,6 +288,7 @@ jobs:
 
   test-macos-compat:
     name: MacOS - Compatibility Test
+    needs: [check-caches]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -258,12 +297,20 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: compat-macos
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
@@ -271,11 +318,13 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee  # v8
         with:
@@ -287,11 +336,13 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup iODBC Locally for pre-built MySQL Connector
         run: |
           curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
@@ -368,6 +419,7 @@ jobs:
 
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
+    needs: [check-caches]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -376,12 +428,20 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
-      - name: Retrieve AWS SDK for C++ Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
         with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: compat-linux
+      - name: Retrieve AWS SDK for C++ Cache
+        uses: ./.github/actions/s3-cache
+        with:
+          action: restore
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF
@@ -389,11 +449,13 @@ jobs:
       # Setup PostgreSQL
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@c4dda34aae1c821e3a771b68b73b13af3198a7ee  # v8
         with:
@@ -405,11 +467,13 @@ jobs:
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: restore
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
-          fail-on-cache-miss: true
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
+          fail-on-cache-miss: 'true'
       - name: Install MySQL Connector
         run: |
           sudo apt install ./mysql-connector/mysql-connector_x64.deb -y

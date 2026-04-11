@@ -16,40 +16,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  clear-old-caches:
-    name: Clear Stale Driver Caches
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete existing driver caches
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
-        with:
-          script: |
-            const keys = [
-              'Windows-psqlodbc-driver', 'Windows-mysql-driver',
-              'macOS-psqlodbc-driver', 'macOS-mysql-driver',
-              'Linux-psqlodbc-driver', 'Linux-mysql-driver'
-            ];
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            for (const cache of caches.data.actions_caches) {
-              if (keys.includes(cache.key)) {
-                console.log(`Deleting cache: ${cache.key} (id: ${cache.id})`);
-                await github.rest.actions.deleteActionsCacheById({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  cache_id: cache.id
-                });
-              }
-            }
-
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
-    needs: [clear-old-caches]
     runs-on: windows-latest
     steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-win-psql
       - name: Download psqlODBC
         run: |
           mkdir psqlodbc
@@ -59,14 +37,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Save psqlODBC Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
-    needs: [clear-old-caches]
     runs-on:
       - codebuild-odbc-wrapper-macos-pg-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -75,6 +54,16 @@ jobs:
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          path: wrapper
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-mac-psql
       - name: Build psqlodbc
         working-directory: psqlodbc
         run: |
@@ -82,14 +71,15 @@ jobs:
           ./configure
           make
       - name: Save psqlODBC Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./wrapper/.github/actions/s3-cache
         with:
+          action: save
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
-    needs: [clear-old-caches]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout psqlODBC
@@ -97,10 +87,20 @@ jobs:
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          path: wrapper
       - name: Install Dependencies
         run: |
           sudo apt update
           sudo apt-get install autoconf automake libtool postgresql libpq-dev
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-linux-psql
       - name: Download & Build unixODBC
         run: |
           curl -L https://www.unixodbc.org/unixODBC-2.3.12.tar.gz -o unixODBC.tar
@@ -115,49 +115,80 @@ jobs:
           ./configure
           make
       - name: Save psqlODBC Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./wrapper/.github/actions/s3-cache
         with:
+          action: save
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-win-mysql:
     name: Windows - Build MySQL Connector ODBC
-    needs: [clear-old-caches]
     runs-on: windows-latest
     steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-win-mysql
       - name: Download mysql-connector
         run: |
           mkdir mysql-connector
           cd mysql-connector
           curl.exe -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-winx64.msi" --output mysql-connector_x64.msi
       - name: Save mysql-connector Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-macos-mysql:
     name: MacOS - Build MySQL Connector ODBC
-    needs: [clear-old-caches]
     runs-on:
       - codebuild-odbc-wrapper-macos-mysql-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          path: wrapper
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-mac-mysql
       - name: Download mysql-connector
         run: |
           mkdir mysql-connector
           curl -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc-9.5.0-macos15-arm64.tar.gz" --output mysql-connector_arm64.tar.gz
           tar xvf mysql-connector_arm64.tar.gz --strip-components 1 -C mysql-connector
       - name: Save mysql-connector Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./wrapper/.github/actions/s3-cache
         with:
+          action: save
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-linux-mysql:
     name: Linux Ubuntu - Build MySQL Connector ODBC
-    needs: [clear-old-caches]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          path: wrapper
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-drivers-linux-mysql
       - name: Download mysql-connector
         run: |
           mkdir mysql-connector
@@ -166,7 +197,9 @@ jobs:
             -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
             --output mysql-connector_x64.deb
       - name: Save mysql-connector Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./wrapper/.github/actions/s3-cache
         with:
+          action: save
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}

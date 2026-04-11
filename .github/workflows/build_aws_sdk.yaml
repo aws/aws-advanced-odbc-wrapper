@@ -16,72 +16,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  clear-old-caches:
-    name: Clear Stale AWS SDK Caches
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete existing AWS SDK caches
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b  # v7
-        with:
-          script: |
-            const keys = [
-              'Windows-aws-sdk-cpp-Release-shared', 'Windows-aws-sdk-cpp-Debug-shared',
-              'macOS-aws-sdk-cpp-Release-shared', 'macOS-aws-sdk-cpp-Debug-shared',
-              'Linux-aws-sdk-cpp-Release-shared', 'Linux-aws-sdk-cpp-Debug-shared'
-            ];
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            for (const cache of caches.data.actions_caches) {
-              if (keys.includes(cache.key)) {
-                console.log(`Deleting cache: ${cache.key} (id: ${cache.id})`);
-                await github.rest.actions.deleteActionsCacheById({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  cache_id: cache.id
-                });
-              }
-            }
-
   # Windows Builds
   build-win-release:
     name: Windows - Build AWS SDK (Release)
-    needs: [clear-old-caches]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-win-rel
       - name: Build AWS SDK for C++
         run: |
           ./scripts/compile_aws_sdk_win.ps1 Release
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Release-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-win-debug:
     name: Windows - Build AWS SDK (Debug)
-    needs: [clear-old-caches]
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-win-dbg
       - name: Build AWS SDK for C++
         run: |
           ./scripts/compile_aws_sdk_win.ps1 Debug
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Debug-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   # macOS Builds
   build-macos-release:
     name: MacOS - Build AWS SDK (Release)
-    needs: [clear-old-caches]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -90,19 +74,26 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-mac-rel
       - name: Build AWS SDK for C++
         run: |
           export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh Release
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Release-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-macos-debug:
     name: MacOS - Build AWS SDK (Debug)
-    needs: [clear-old-caches]
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -111,20 +102,27 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-mac-dbg
       - name: Build AWS SDK for C++
         run: |
           export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh Debug
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Debug-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   # Linux Builds
   build-linux-release:
     name: Linux Ubuntu - Build AWS SDK (Release)
-    needs: [clear-old-caches]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -133,18 +131,25 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-linux-rel
       - name: Build AWS SDK for C++
         run: |
           ./scripts/compile_aws_sdk_unix.sh Release
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Release-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}
 
   build-linux-debug:
     name: Linux Ubuntu - Build AWS SDK (Debug)
-    needs: [clear-old-caches]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -153,11 +158,19 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37  # v6
+        with:
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
+          role-session-name: build-aws-sdk-linux-dbg
       - name: Build AWS SDK for C++
         run: |
           ./scripts/compile_aws_sdk_unix.sh Debug
       - name: Save AWS SDK Cache
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7  # v5
+        uses: ./.github/actions/s3-cache
         with:
+          action: save
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-Debug-shared
+          bucket: ${{ secrets.S3_CACHE_BUCKET }}

@@ -1,0 +1,62 @@
+name: 'S3 Cache'
+description: 'Save or restore a cache using an S3 bucket'
+
+inputs:
+  action:
+    description: 'save or restore'
+    required: true
+  path:
+    description: 'Local path to cache'
+    required: true
+  key:
+    description: 'Cache key (used as S3 object name)'
+    required: true
+  bucket:
+    description: 'S3 bucket name'
+    required: true
+  fail-on-cache-miss:
+    description: 'Fail if cache is not found on restore'
+    required: false
+    default: 'false'
+
+outputs:
+  cache-hit:
+    description: 'Whether the cache was found (true/false)'
+    value: ${{ steps.restore.outputs.cache-hit || '' }}
+
+runs:
+  using: 'composite'
+  steps:
+    # --- SAVE ---
+    - name: Save cache to S3
+      if: inputs.action == 'save'
+      shell: bash
+      run: |
+        TAR_FILE="${{ inputs.key }}.tar.gz"
+        tar -czf "$TAR_FILE" -C "$(dirname "${{ inputs.path }}")" "$(basename "${{ inputs.path }}")"
+        aws s3 cp "$TAR_FILE" "s3://${{ inputs.bucket }}/$TAR_FILE"
+        rm -f "$TAR_FILE"
+        echo "Cache saved to s3://${{ inputs.bucket }}/$TAR_FILE"
+
+    # --- RESTORE ---
+    - name: Restore cache from S3
+      id: restore
+      if: inputs.action == 'restore'
+      shell: bash
+      run: |
+        TAR_FILE="${{ inputs.key }}.tar.gz"
+        if aws s3 cp "s3://${{ inputs.bucket }}/$TAR_FILE" "$TAR_FILE" 2>/dev/null; then
+          PARENT_DIR="$(dirname "${{ inputs.path }}")"
+          mkdir -p "$PARENT_DIR"
+          tar -xzf "$TAR_FILE" -C "$PARENT_DIR"
+          rm -f "$TAR_FILE"
+          echo "cache-hit=true" >> $GITHUB_OUTPUT
+          echo "Cache restored from s3://${{ inputs.bucket }}/$TAR_FILE"
+        else
+          echo "cache-hit=false" >> $GITHUB_OUTPUT
+          if [ "${{ inputs.fail-on-cache-miss }}" == "true" ]; then
+            echo "::error::Cache not found in S3 for key: ${{ inputs.key }}"
+            exit 1
+          fi
+          echo "Cache not found for key: ${{ inputs.key }}"
+        fi
