@@ -479,8 +479,16 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
                 // Get Writer ID
                 const std::string writer_id = main_monitor_->topology_util_->GetWriterId(hdbc_);
                 if (!writer_id.empty()) { // Connected to a Writer
-                    LOG(WARNING) << "Writer " << writer_id << " detected by node monitoring thread: " << thread_host;
-                    HandleWriterConn();
+                    // Verify writer role
+                    const HOST_ROLE role = main_monitor_->topology_util_->GetConnectionRole(hdbc_);
+                    if (role != HOST_ROLE::WRITER) {
+                        LOG(WARNING) << "Node " << thread_host << " reported itself as writer via GetWriterId, "
+                                     << "but GetConnectionRole returned READER. Ignoring stale writer claim.";
+                        HandleReaderConn();
+                    } else {
+                        LOG(WARNING) << "Writer " << writer_id << " detected by node monitoring thread: " << thread_host;
+                        HandleWriterConn();
+                    }
                 } else { // Connected to a Reader
                     HandleReaderConn();
                 }

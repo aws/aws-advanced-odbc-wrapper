@@ -289,18 +289,14 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
         return false;
     }
-    if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
-        if (!topology_util_->GetWriterId(dbc).empty()) {
-            LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
-            curr_host_ = host;
-            return true;
-        }
-        LOG(ERROR) << "The new writer was identified to be " << host_string << ", but querying the instance for its role returned a reader";
+    if (topology_util_->GetConnectionRole(dbc) != HOST_ROLE::WRITER) {
+        LOG(ERROR) << "Writer failover connected to " << host_string << ", but it is not a writer. Connection may be stale.";
+        odbc_helper_->Disconnect(dbc);
         return false;
     }
-    LOG(INFO) << "Writer failover unable to connect to any instance for: " << cluster_id_;
-    odbc_helper_->Disconnect(dbc);
-    return false;
+    LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
+    curr_host_ = host;
+    return true;
 }
 
 bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string, const std::shared_ptr<OdbcHelper> &odbc_helper)
