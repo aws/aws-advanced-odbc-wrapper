@@ -59,7 +59,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     return wstr;
 }
 
-inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
+inline std::vector<uint16_t>  ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
@@ -117,12 +117,34 @@ inline std::string Convert4ByteSqlWChar(
     return str_utf8_w;
 }
 
-inline void ConvertUnicodeUserToBaseDriver(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out, SQLSMALLINT length) {
-    const size_t buf_len = GetLenOfSqltcharArray(CatalogName, NameLength1, dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp());
-    std::vector<SQLTCHAR> buf_vector(buf_len, '\0');
-    out = buf_vector.data();
-    Convert4To2ByteString(use_4_bytes, in, out, buf_len);
+// TODO: delete me?
+// inline void ConvertUnicodeUserToBaseDriver(bool user_4_bytes, SQLTCHAR *in, SQLTCHAR *out, SQLSMALLINT length) {
+//     const size_t buf_len = GetLenOfSqltcharArray(in, length, user_4_bytes);
+//     std::vector<SQLTCHAR> buf_vector(buf_len, '\0');
+//     out = buf_vector.data();
+//     Convert4To2ByteString(user_4_bytes, in, out, buf_len);
+// }
+
+inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
+    if (user_4_byte) {
+        size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
+        return Convert4ByteSqlWChar(in, length);
+    }
+    return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(in));
 }
+
+inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR* out, SQLSMALLINT out_length) {
+    if (driver_4_byte) {
+        std::wstring w_input = ConvertUTF8ToWString(input);
+        size_t copy_size = out_length > w_input.length()
+            ? w_input.length()
+            : out_length - 1; // For null terminating character
+        std::copy(w_input.begin(), w_input.begin() + copy_size, out);
+    } else {
+        CopyUTF8ToUTF16Buffer(out, out_length, input);
+    }
+}
+
 #endif
 
 #ifdef UNICODE

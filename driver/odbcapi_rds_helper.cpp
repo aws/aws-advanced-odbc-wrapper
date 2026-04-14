@@ -622,15 +622,48 @@ SQLRETURN RDS_SQLColumns(
 
     CHECK_WRAPPED_STMT(stmt);
 
-    SQLTCHAR* catalog_name = CatalogName;
-    SQLTCHAR* schema_name = SchemaName;
-    SQLTCHAR* table_name = TableName;
-    SQLTCHAR* column_name = ColumnName;
+    SQLTCHAR* catalog_name_sqltchar;
+    SQLTCHAR* schema_name_sqltchar;
+    SQLTCHAR* table_name_sqltchar;
+    SQLTCHAR* column_name_sqltchar;
+
 #if UNICODE
-    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), CatalogName, catalog_name, NameLength1);
-    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), SchemaName, schema_name, NameLength2);
-    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), TableName, table_name, NameLength3);
-    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), ColumnName, column_name, NameLength4);
+    const std::string catalog_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), CatalogName, catalog_name, NameLength1);
+    const std::string schema_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), SchemaName, catalog_name, NameLength2);
+    const std::string table_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), TableName, catalog_name, NameLength3);
+    const std::string column_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), ColumnName, catalog_name, NameLength4);
+
+    if (this->odbc_helper_->GetUse4BytesBaseDriver()) {
+        const std::wstring catalog_name_wide = ConvertUTF8ToWString((catalog_name_utf8);
+        const std::wstring schema_name_wide = ConvertUTF8ToWString(schema_name_utf8);
+        const std::wstring table_name_wide = ConvertUTF8ToWString(table_name_utf8);
+        const std::wstring column_name_wide = ConvertUTF8ToWString(column_name_utf8);
+
+        catalog_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(catalog_name_wide.c_str()));
+        schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_wide.c_str()));
+        table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_wide.c_str()));
+        column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_wide.c_str()));
+    } else {
+        const std::vector<uint16_t> catalog_name_vec = ConvertUTF8ToUTF16(catalog_name_utf8);
+        const std::vector<uint16_t> schema_name_vec = ConvertUTF8ToUTF16(schema_name_utf8);
+        const std::vector<uint16_t> table_name_vec = ConvertUTF8ToUTF16(table_name_utf8);
+        const std::vector<uint16_t> column_name_vec = ConvertUTF8ToUTF16(column_name_utf8);
+
+        const uint16_t* catalog_name_ushort = catalog_name_vec.data();
+        const uint16_t* schema_name_ushort = schema_name_vec.data();
+        const uint16_t* table_name_ushort = table_name_vec.data();
+        const uint16_t* column_name_ushort = column_name_vec.data();
+
+        catalog_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(catalog_name_ushort));
+        schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_ushort));
+        table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_ushort));
+        column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_ushort));
+    }
+#else
+    catalog_name_sqltchar = CatalogName;
+    schema_name_sqltchar = SchemaName;
+    table_name_sqltchar = TableName;
+    column_name_sqltchar = ColumnName;
 #endif
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
@@ -638,13 +671,13 @@ SQLRETURN RDS_SQLColumns(
         RDS_FP_SQLColumns,
         RDS_STR_SQLColumns,
         stmt->wrapped_stmt,
-            catalog_name,
+            catalog_name_sqltchar,
             NameLength1,
-            schema_name,
+            schema_name_sqltchar,
             NameLength2,
-            table_name,
+            table_name_sqltchar,
             NameLength3,
-            column_name,
+            column_name_sqltchar,
             NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -998,8 +1031,6 @@ SQLRETURN RDS_SQLForeignKeys(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-
-    // TODO: question - convert SQLTCHAR inputs here? 4to2 byte strings?
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLForeignKeys, RDS_STR_SQLForeignKeys,
         stmt->wrapped_stmt, PKCatalogName, NameLength1, PKSchemaName, NameLength2, PKTableName, NameLength3, FKCatalogName, NameLength4, FKSchemaName, NameLength5, FKTableName, NameLength6
@@ -1781,14 +1812,8 @@ SQLRETURN RDS_SQLPrepare(
     CLEAR_STMT_ERROR(stmt);
 
     CHECK_WRAPPED_STMT(stmt);
-
-     SQLTCHAR* stmt_text = StatementText;
-#if UNICODE
-    ConvertUnicodeUserToBaseDriver(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), StatementText, stmt_text, TextLength);
-#endif
-
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrepare, RDS_STR_SQLPrepare,
-        stmt->wrapped_stmt, stmt_text, TextLength
+        stmt->wrapped_stmt, StatementText, TextLength
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
