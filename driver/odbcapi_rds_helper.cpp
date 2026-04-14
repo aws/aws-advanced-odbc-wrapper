@@ -627,6 +627,8 @@ SQLRETURN RDS_SQLColumns(
     SQLTCHAR* table_name_sqltchar;
     SQLTCHAR* column_name_sqltchar;
 
+
+    // TODO: refactor this....ugly
 #if UNICODE
     const std::string catalog_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), CatalogName, catalog_name, NameLength1);
     const std::string schema_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), SchemaName, catalog_name, NameLength2);
@@ -643,6 +645,22 @@ SQLRETURN RDS_SQLColumns(
         schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_wide.c_str()));
         table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_wide.c_str()));
         column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_wide.c_str()));
+
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+        env->driver_lib_loader,
+        RDS_FP_SQLColumns,
+        RDS_STR_SQLColumns,
+        stmt->wrapped_stmt,
+            catalog_name_sqltchar,
+            NameLength1,
+            schema_name_sqltchar,
+            NameLength2,
+            table_name_sqltchar,
+            NameLength3,
+            column_name_sqltchar,
+            NameLength4
+    );
+    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     } else {
         const std::vector<uint16_t> catalog_name_vec = ConvertUTF8ToUTF16(catalog_name_utf8);
         const std::vector<uint16_t> schema_name_vec = ConvertUTF8ToUTF16(schema_name_utf8);
@@ -658,6 +676,22 @@ SQLRETURN RDS_SQLColumns(
         schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_ushort));
         table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_ushort));
         column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_ushort));
+
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+        env->driver_lib_loader,
+        RDS_FP_SQLColumns,
+        RDS_STR_SQLColumns,
+        stmt->wrapped_stmt,
+            catalog_name_sqltchar,
+            NameLength1,
+            schema_name_sqltchar,
+            NameLength2,
+            table_name_sqltchar,
+            NameLength3,
+            column_name_sqltchar,
+            NameLength4
+    );
+        return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     }
 #else
     catalog_name_sqltchar = CatalogName;
