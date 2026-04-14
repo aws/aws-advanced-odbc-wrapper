@@ -38,7 +38,7 @@ env:
 
 concurrency:
   group: integration-test-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   id-token: write
@@ -83,11 +83,6 @@ jobs:
         with:
           repository: postgresql-interfaces/psqlodbc
           path: psqlodbc
-      - name: Install Dependencies
-        if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        run: |
-          brew update && brew upgrade && brew cleanup
-          brew install gcc autoconf automake unixodbc libtool postgresql
       - name: Build psqlodbc
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         working-directory: psqlodbc
@@ -187,7 +182,7 @@ jobs:
             -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
             --output mysql-connector_x64.deb
 
-# Build Wrapper & Run Tests
+# Integration - General
   windows-integration-tests:
     name: Windows - Integration Tests
     needs: [build-win-psqlodbc, build-win-mysql]
@@ -196,13 +191,12 @@ jobs:
       fail-fast: false
       matrix:
         rds_engine: [aurora-postgresql, aurora-mysql]
+    env:
+      CUSTOM_ENDPOINT_ID: ODBC-Win-${{ matrix.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Setup Custom Endpoint ID
-        run: |
-          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
@@ -236,51 +230,28 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-win-inte
-      - name: Create RDS Cluster
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/Scripts/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources
         id: AuroraClusterSetup
-        shell: pwsh
-        working-directory: ./scripts
+        shell: bash
         run: |
-          . ".\aws_rds_helper_win.ps1"
-          Create-Aurora-RDS-Cluster `
-            -TestUsername ${{ secrets.TEST_USERNAME }} `
-            -TestPassword ${{ secrets.TEST_PASSWORD }} `
-            -TestDatabase ${{ env.TEST_DATABASE }} `
-            -ClusterId ${{ env.AURORA_CLUSTER_ID }} `
-            -NumInstances ${{ env.NUM_INSTANCES }}  `
-            -Engine ${{matrix.rds_engine}} `
-            -EngineVersion ${{ env.ENGINE_VERSION }} `
-            -Region ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Create RDS Custom Endpoint
-        id: AuroraCustomEndpointSetup
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-          . ".\aws_rds_helper_win.ps1"
-          Create-Custom-Endpoint `
-            -EndpointName ${{ env.CUSTOM_ENDPOINT_ID }} `
-            -ClusterId ${{ env.AURORA_CLUSTER_ID }} `
-            -NumInstances ${{ env.NUM_INSTANCES }} `
-            -StaticList
-      - name: Get Aurora Cluster endpoint
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-          . ".\aws_rds_helper_win.ps1"
-          $endpoint = (Get-Cluster-Endpoint -ClusterId ${{ env.AURORA_CLUSTER_ID }})
-          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Create Aurora Cluster Secrets
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-            . ".\aws_rds_helper_win.ps1"
-            $secrets = (Create-Db-Secrets `
-              -Username ${{ secrets.TEST_USERNAME }} `
-              -Password ${{ secrets.TEST_PASSWORD }} `
-              -Engine "${{matrix.rds_engine}}" `
-              -ClusterEndpoint ${{ env.AURORA_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secrets"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secrets" | Out-File -FilePath $env:GITHUB_ENV -Append
+          source .venv/Scripts/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -288,8 +259,6 @@ jobs:
           if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
-            echo "driver_path_ansi=C:\\Program Files\\psqlODBC\\1700\\bin\\podbc30a.dll" >> $GITHUB_OUTPUT
-            echo "driver_path_unicode=C:\\Program Files\\psqlODBC\\1700\\bin\\podbc35w.dll" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
@@ -306,37 +275,51 @@ jobs:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
-      - name: Install PostgreSQL
+      - name: Log base driver location
+        shell: pwsh
+        run: |
+          Write-Host "Base driver path: $((Resolve-Path ${{steps.base_driver_info.outputs.cache_path}}).Path)"
+          Get-ChildItem ${{steps.base_driver_info.outputs.cache_path}}
+      - name: Install PostgreSQL ODBC Driver
         if: (matrix.rds_engine == 'aurora-postgresql')
+        id: pg_driver_paths
         shell: pwsh
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+          $ansi = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc30a.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $unicode = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc35w.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ansi -or -not $unicode) {
+            Write-Host "psqlODBC DLLs not found under C:\Program Files\psqlODBC"
+            Get-ChildItem "C:\Program Files\psqlODBC" -Recurse | Format-Table FullName
+            exit 1
+          }
+          Write-Host "Ansi driver: $($ansi.FullName)"
+          Write-Host "Unicode driver: $($unicode.FullName)"
+          echo "driver_path_ansi=$($ansi.FullName)" >> $env:GITHUB_OUTPUT
+          echo "driver_path_unicode=$($unicode.FullName)" >> $env:GITHUB_OUTPUT
       - name: Setup PostgreSQL
         if: (matrix.rds_engine == 'aurora-postgresql')
         shell: bash
         run: |
           echo "$PGBIN" >> $GITHUB_PATH
-      - name: Setup PostgreSQL User
-        if: (matrix.rds_engine == 'aurora-postgresql')
-        shell: bash
-        run: |
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.AURORA_CLUSTER_ENDPOINT}}:${{steps.base_driver_info.outputs.dialect_default_port}}/${{ env.TEST_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
       - name: Install MySQL
         if: (matrix.rds_engine == 'aurora-mysql')
         shell: pwsh
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
         run: |
           Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
-      - name: Setup MySQL User
-        if: (matrix.rds_engine == 'aurora-mysql')
-        shell: bash
-        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
+      - name: Resolve Driver Paths
+        id: resolved_drivers
+        shell: pwsh
         run: |
-          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }} -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
+          if ("${{ matrix.rds_engine }}" -eq "aurora-postgresql") {
+            echo "driver_path_ansi=${{ steps.pg_driver_paths.outputs.driver_path_ansi }}" >> $env:GITHUB_OUTPUT
+            echo "driver_path_unicode=${{ steps.pg_driver_paths.outputs.driver_path_unicode }}" >> $env:GITHUB_OUTPUT
+          } else {
+            echo "driver_path_ansi=${{ steps.base_driver_info.outputs.driver_path_ansi }}" >> $env:GITHUB_OUTPUT
+            echo "driver_path_unicode=${{ steps.base_driver_info.outputs.driver_path_unicode }}" >> $env:GITHUB_OUTPUT
+          }
       - name: Install Ansi DSNs
         shell: pwsh
         run: |
@@ -348,7 +331,7 @@ jobs:
               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
               "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
               "SSLMode=prefer", `
-              "BASE_DRIVER=${{steps.base_driver_info.outputs.driver_path_ansi}}")
+              "BASE_DRIVER=${{steps.resolved_drivers.outputs.driver_path_ansi}}")
       - name: Install Unicode DSNs
         shell: pwsh
         run: |
@@ -360,15 +343,14 @@ jobs:
               "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
               "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
               "SSLMode=prefer", `
-              "BASE_DRIVER=${{steps.base_driver_info.outputs.driver_path_unicode}}")
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
+              "BASE_DRIVER=${{steps.resolved_drivers.outputs.driver_path_unicode}}")
+      - name: Verify DSN Configuration
         shell: pwsh
-        working-directory: ./scripts
         run: |
-            . ".\aws_rds_helper_win.ps1"
-            Describe-Cluster-Endpoint -ClusterId ${{ env.AURORA_CLUSTER_ID }}
+            Write-Host "Registered DSNs:"
+            Get-OdbcDsn | Format-Table Name, DriverName, DsnType, Platform
+            Write-Host "Ansi DSN properties:"
+            Get-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} | Select-Object -ExpandProperty PropertyValue
       - name: Setup GDB
         run: |
           choco install mingw
@@ -393,12 +375,12 @@ jobs:
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run Unicode Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} `
+          cmake -S test/integration -B build_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
@@ -414,28 +396,18 @@ jobs:
           TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
-      - name: Delete RDS Custom Endpoint
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Destroy Aurora Resources
         if: always()
-        shell: pwsh
-        working-directory: ./scripts
+        shell: bash
         run: |
-          . ".\aws_rds_helper_win.ps1"
-          Delete-Custom-Endpoint -EndpointName ${{ env.CUSTOM_ENDPOINT_ID }} -ClusterId ${{ env.AURORA_CLUSTER_ID }}
-      - name: Delete Aurora RDS Cluster
-        if: always()
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-          . ".\aws_rds_helper_win.ps1"
-          Delete-Aurora-Db-Cluster -ClusterId ${{ env.AURORA_CLUSTER_ID }} -Region ${{ secrets.AWS_DEFAULT_REGION }} -NumInstances 5
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-          . ".\aws_rds_helper_win.ps1"
-          Delete-Secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          source .venv/Scripts/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
       # Make sure IP is always deleted
       - name: Get Github Action IP
         if: always()
@@ -450,42 +422,36 @@ jobs:
             --port 0-65535 `
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
            *> $null;
-      # - name: Copy Driver Logs
-      #   shell: pwsh
-      #   run: |
-      #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
+      - name: Get log location
+        if: always()
+        id: log_location
+        shell: pwsh
+        run: |
+          echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'windows-${{matrix.rds_engine}}-test-logs'
-          path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
-          retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'windows-${{matrix.rds_engine}}-psql-logs'
-          path: logs
+          name: 'windows-${{matrix.rds_engine}}-integration-test-logs'
+          path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
           retention-days: 7
 
   macos-integration-tests:
     name: MacOS - Integration Tests
-    needs: [ build-macos-psqlodbc, build-macos-mysql ]
+    needs: [build-macos-psqlodbc, build-macos-mysql]
     runs-on:
       - ${{ matrix.env.project }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.env.fleet }}
         buildspec-override:true
     strategy:
       fail-fast: false
       matrix:
-        env: [ {rds_engine: aurora-mysql, project: codebuild-odbc-wrapper-macos-mysql, fleet: fleet-macos-fleet-2}, {rds_engine: aurora-postgresql, project: codebuild-odbc-wrapper-macos-pg, fleet: fleet-macos-fleet-3} ]
+        env: [{rds_engine: aurora-postgresql, project: codebuild-odbc-wrapper-macos-pg, fleet: fleet-macos-fleet-3}, {rds_engine: aurora-mysql, project: codebuild-odbc-wrapper-macos-mysql, fleet: fleet-macos-fleet-2}]
+    env:
+      CUSTOM_ENDPOINT_ID: ODBC-MacOS-${{ matrix.env.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
-      - name: Setup Custom Endpoint ID
-        run: |
-          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
@@ -509,71 +475,33 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-inte
-      - name: Create RDS Cluster
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
-            create_aurora_rds_cluster \
-              ${{ secrets.TEST_USERNAME }} \
-              ${{ secrets.TEST_PASSWORD }} \
-              ${{ env.TEST_DATABASE }} \
-              ${{ env.AURORA_CLUSTER_ID }} \
-              ${{ env.NUM_INSTANCES }} \
-              ${{ matrix.env.rds_engine }} \
-              ${{ env.ENGINE_VERSION }} \
-              ${{ secrets.AWS_DEFAULT_REGION }}
-          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
-            create_aurora_rds_cluster \
-              ${{ secrets.TEST_USERNAME }}_mysql \
-              ${{ secrets.TEST_PASSWORD }} \
-              ${{ env.TEST_DATABASE }} \
-              ${{ env.AURORA_CLUSTER_ID }} \
-              ${{ env.NUM_INSTANCES }} \
-              ${{ matrix.env.rds_engine }} \
-              ${{ env.ENGINE_VERSION }} \
-              ${{ secrets.AWS_DEFAULT_REGION }}
+          source .venv/bin/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
+            EXTRA_ARGS="--extra-mysql-user ${{ secrets.TEST_USERNAME }}_mysql --extra-mysql-password ${{ secrets.TEST_PASSWORD }}"
           fi
-      - name: Create RDS Custom Endpoint
-        id: AuroraCustomEndpointSetup
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          create_custom_endpoint \
-            ${{ env.CUSTOM_ENDPOINT_ID }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }} \
-            --static
-      - name: Get Aurora Cluster endpoint
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          endpoint=$(get_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }})
-          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
-      - name: Create Aurora Cluster Secrets
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          secretsArn=$(create_db_secrets \
-              ${{ secrets.TEST_USERNAME }} \
-              ${{ secrets.TEST_PASSWORD }} \
-              ${{ matrix.env.rds_engine }} \
-              ${{ env.AURORA_CLUSTER_ENDPOINT }})
-          echo "::add-mask::$secretsArn"
-          echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
-      - name: Add IP to Allowlist
-        run: |
-          . "scripts/aws_rds_helper_unix.sh"
-          add_ip_to_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.env.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }} \
+            $EXTRA_ARGS
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -599,30 +527,16 @@ jobs:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
-      - name: Setup PostgreSQL User
-        if: (matrix.env.rds_engine == 'aurora-postgresql')
-        shell: bash
+      - name: Log base driver location
         run: |
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.AURORA_CLUSTER_ENDPOINT}}:${{steps.base_driver_info.outputs.dialect_default_port}}/${{ env.TEST_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
-      - name: Setup MySQL User
-        if: (matrix.env.rds_engine == 'aurora-mysql')
-        shell: bash
-        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
-        run: |
-          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }}_mysql -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
-          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }}_mysql -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_USERNAME }}' IDENTIFIED WITH caching_sha2_password BY '${{ secrets.TEST_PASSWORD }}'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_USERNAME }}'@'%'; FLUSH PRIVILEGES;"
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
+          echo "Base driver path: $(cd ${{steps.base_driver_info.outputs.cache_path}} && pwd)"
+          ls ${{steps.base_driver_info.outputs.cache_path}}
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Build and Run Ansi Integration Tests
         shell: bash
-        if: ${{steps.auroraClusterSetup.outcome == 'success'}}
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -632,8 +546,6 @@ jobs:
             -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_ansi
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           echo "Ansi Test Built"
           ./build_ansi/integration-test
         env:
@@ -649,8 +561,7 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
-          # ASAN_OPTIONS: 'detect_container_overflow=0'
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run Unicode Integration Tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -663,8 +574,6 @@ jobs:
             -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_unicode
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           echo "Unicode Test Built"
           ./build_unicode/integration-test
         env:
@@ -680,58 +589,27 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
-      - name: Delete RDS Custom Endpoint
+      - name: Destroy Aurora Resources
         if: always()
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_custom_endpoint ${{ env.CUSTOM_ENDPOINT_ID }} ${{ env.AURORA_CLUSTER_ID }}
-      - name: Delete Aurora RDS Cluster
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_aurora_db_cluster ${{ env.AURORA_CLUSTER_ID }} ${{ secrets.AWS_DEFAULT_REGION }} ${{ env.NUM_INSTANCES }}
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      - name: Debug - Get Github Action IP
-        if: always()
-        uses: haythem/public-ip@v1.3
-      # Make sure IP is always deleted
-      - name: Remove Github Action IP
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          remove_ip_from_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      # - name: Copy Driver Logs
-      #   shell: bash
-      #   run: |
-      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
+          source .venv/bin/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'mac-${{matrix.rds_engine}}-test-logs'
+          name: 'mac-${{matrix.env.rds_engine}}-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
-          retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'mac-${{matrix.rds_engine}}-psql-logs'
-          path: logs
           retention-days: 7
 
   linux-integration-tests:
@@ -742,13 +620,12 @@ jobs:
       fail-fast: false
       matrix:
         rds_engine: [aurora-postgresql, aurora-mysql]
+    env:
+      CUSTOM_ENDPOINT_ID: ODBC-Linux-${{ matrix.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
       - name: Setup Cluster ID
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
-      - name: Setup Custom Endpoint ID
-        run: |
-          echo "CUSTOM_ENDPOINT_ID=CUSTOM-ENDPOINT-${{env.AURORA_CLUSTER_ID}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Install Build Dependencies
@@ -775,59 +652,28 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-inte
-      - name: Create RDS Cluster
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          create_aurora_rds_cluster \
-            ${{ secrets.TEST_USERNAME }} \
-            ${{ secrets.TEST_PASSWORD }} \
-            ${{ env.TEST_DATABASE }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }} \
-            ${{ matrix.rds_engine }} \
-            ${{ env.ENGINE_VERSION }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Create RDS Custom Endpoint
-        id: AuroraCustomEndpointSetup
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          create_custom_endpoint \
-            ${{ env.CUSTOM_ENDPOINT_ID }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ env.NUM_INSTANCES }} \
-            --static
-      - name: Get Aurora Cluster endpoint
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          endpoint=$(get_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }})
-          echo "AURORA_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
-      - name: Create Aurora Cluster Secrets
-        shell: bash
-        run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            secretsArn=$(create_db_secrets \
-                ${{ secrets.TEST_USERNAME }} \
-                ${{ secrets.TEST_PASSWORD }} \
-                ${{ matrix.rds_engine }} \
-                ${{ env.AURORA_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secretsArn"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
-      - name: Add IP to Allowlist
-        run: |
-          . "scripts/aws_rds_helper_unix.sh"
-          add_ip_to_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
+          source .venv/bin/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --engine ${{ matrix.rds_engine }} \
+            --engine-version ${{ env.ENGINE_VERSION }} \
+            --database ${{ env.TEST_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -853,41 +699,27 @@ jobs:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
-      - name: Setup PostgreSQL User
-        if: (matrix.rds_engine == 'aurora-postgresql')
-        shell: bash
+      - name: Log base driver location
         run: |
-          echo "$(pg_config --bindir)" >> $GITHUB_PATH
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.AURORA_CLUSTER_ENDPOINT}}:${{steps.base_driver_info.outputs.dialect_default_port}}/${{ env.TEST_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
+          echo "Base driver path: $(cd ${{steps.base_driver_info.outputs.cache_path}} && pwd)"
+          ls ${{steps.base_driver_info.outputs.cache_path}}
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Install MySQL
         if: (matrix.rds_engine == 'aurora-mysql')
         shell: bash
         run: |
           sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
-      - name: Setup MySQL User
-        if: (matrix.rds_engine == 'aurora-mysql')
-        shell: bash
-        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
-        run: |
-          mysql -h ${{ env.AURORA_CLUSTER_ENDPOINT }} -P 3306 -D ${{ env.TEST_DATABASE }} -u ${{ secrets.TEST_USERNAME }} -p${{ secrets.TEST_PASSWORD }} --execute="CREATE USER '${{ secrets.TEST_IAM_USER }}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'; GRANT ALL on ${{ env.TEST_DATABASE }}.* TO '${{ secrets.TEST_IAM_USER }}'@'%'; FLUSH PRIVILEGES;"
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
-        run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            describe_cluster_endpoint ${{ env.AURORA_CLUSTER_ID }}
       - name: Setup GDB
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
         shell: bash
-        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_ansi \
-            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF  \
             -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
             -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
             -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_ansi}}" \
@@ -895,8 +727,6 @@ jobs:
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_ansi
           echo "Ansi Test Built"
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           ulimit -c unlimited
           gdb -q -x ./.gdbinit ./build_ansi/integration-test
         env:
@@ -912,8 +742,7 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
-          # ASAN_OPTIONS: 'detect_container_overflow=0,symbolize=1,print_module_map=2'
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run Unicode Integration Tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -927,8 +756,6 @@ jobs:
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_unicode
           echo "Unicode Test Built"
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
           ulimit -c unlimited
           gdb -q -x ./.gdbinit ./build_unicode/integration-test
         env:
@@ -944,59 +771,38 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-          TEST_CUSTOM_ENDPOINT_ID: "${{ env.CUSTOM_ENDPOINT_ID }}"
-      - name: Delete RDS Custom Endpoint
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Destroy Aurora Resources
         if: always()
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_custom_endpoint ${{ env.CUSTOM_ENDPOINT_ID }} ${{ env.AURORA_CLUSTER_ID }}
-      - name: Delete Aurora RDS Cluster
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_aurora_db_cluster ${{ env.AURORA_CLUSTER_ID }} ${{ secrets.AWS_DEFAULT_REGION }} ${{ env.NUM_INSTANCES }}
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      # Make sure IP is always deleted
-      - name: Remove Github Action IP
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          remove_ip_from_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.AURORA_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
+          source .venv/bin/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances ${{ env.NUM_INSTANCES }} \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'linux-${{matrix.rds_engine}}-test-logs'
+          name: 'linux-${{matrix.rds_engine}}-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
           retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'linux-${{matrix.rds_engine}}-psql-logs'
-          path: logs/
-          retention-days: 7
 
+# Limitless
   windows-limitless-integration-tests:
     name: Windows - Limitless Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
+    env:
+      LIMITLESS_CLUSTER_ID: ODBC-Limitless-Win-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
+      LIMITLESS_SHARD_ID: ODBC-Limitless-Win-shard-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
-      - name: Setup Cluster ID and Shard ID Env Variables
+      - name: Setup Cluster ID
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Win-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Win-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
@@ -1020,17 +826,6 @@ jobs:
         shell: pwsh
         run: |
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
-      - name: Retrieve psqlODBC Cache
-        uses: actions/cache@v5
-        with:
-          path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
-      - name: Install psqlODBC Driver
-        shell: pwsh
-        working-directory: psqlodbc
-        run: |
-          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
       - name: Install driver
         shell: pwsh
         working-directory: installer
@@ -1040,53 +835,71 @@ jobs:
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-win-inte
-      - name: Create Limitless RDS Cluster
+          role-session-name: odbc-wrapper-win-limitless
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python -m venv .venv
+          source .venv/Scripts/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Limitless Resources
         id: AuroraClusterSetup
-        shell: pwsh
-        working-directory: ./scripts
+        shell: bash
         run: |
-          . ".\aws_rds_helper_win.ps1"
-            Create-Limitless-RDS-Cluster `
-            -TestUsername ${{ secrets.TEST_USERNAME }} `
-            -TestPassword ${{ secrets.TEST_PASSWORD }} `
-            -TestDatabase ${{ env.TEST_LIMITLESS_DATABASE }} `
-            -ClusterId ${{ env.LIMITLESS_CLUSTER_ID }} `
-            -ShardId ${{ env.LIMITLESS_SHARD_ID }} `
-            -Engine aurora-postgresql `
-            -EngineVersion ${{ env.ENGINE_LIMITLESS_VERSION }} `
-            -AwsRdsMonitoringRoleArn ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }} `
-            -Region ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Get Limitless Cluster endpoint
-        shell: pwsh
-        working-directory: ./scripts
+          source .venv/Scripts/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --engine aurora-postgresql \
+            --engine-version ${{ env.ENGINE_LIMITLESS_VERSION }} \
+            --database ${{ env.TEST_LIMITLESS_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }} \
+            --monitoring-role-arn ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
+        shell: bash
         run: |
-          . ".\aws_rds_helper_win.ps1"
-          $endpoint = (Get-Cluster-Endpoint -ClusterId ${{ env.LIMITLESS_CLUSTER_ID }})
-          echo "LIMITLESS_CLUSTER_ENDPOINT=$endpoint" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Create Aurora Cluster Secrets
+          echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+          echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Log base driver location
         shell: pwsh
-        working-directory: ./scripts
         run: |
-            . ".\aws_rds_helper_win.ps1"
-            $secrets = (Create-Db-Secrets `
-              -Username ${{ secrets.TEST_USERNAME }} `
-              -Password ${{ secrets.TEST_PASSWORD }} `
-              -Engine "aurora-postgresql" `
-              -ClusterEndpoint ${{ env.LIMITLESS_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secrets"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secrets" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Add PostgreSQL binaries to PATH
+          Write-Host "Base driver path: $((Resolve-Path ${{steps.base_driver_info.outputs.cache_path}}).Path)"
+          Get-ChildItem ${{steps.base_driver_info.outputs.cache_path}}
+      - name: Install PostgreSQL ODBC Driver
+        id: pg_driver_paths
+        shell: pwsh
+        working-directory: ${{steps.base_driver_info.outputs.cache_path}}
+        run: |
+          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+          $ansi = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc30a.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $unicode = Get-ChildItem "C:\Program Files\psqlODBC" -Recurse -Filter "podbc35w.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ansi -or -not $unicode) {
+            Write-Host "psqlODBC DLLs not found under C:\Program Files\psqlODBC"
+            Get-ChildItem "C:\Program Files\psqlODBC" -Recurse | Format-Table FullName
+            exit 1
+          }
+          Write-Host "Ansi driver: $($ansi.FullName)"
+          Write-Host "Unicode driver: $($unicode.FullName)"
+          echo "driver_path_ansi=$($ansi.FullName)" >> $env:GITHUB_OUTPUT
+          echo "driver_path_unicode=$($unicode.FullName)" >> $env:GITHUB_OUTPUT
+      - name: Setup PostgreSQL
         shell: bash
         run: |
           echo "$PGBIN" >> $GITHUB_PATH
-      - name: Create IAM DB User for PostgreSQL
-        shell: bash
-        run: |
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.LIMITLESS_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_LIMITLESS_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
       - name: Install Ansi DSNs
         shell: pwsh
         run: |
@@ -1095,10 +908,10 @@ jobs:
               -DsnType User `
               -SetPropertyValue `
               @("RDS_AUTH_TYPE=database", `
-              "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
-              "Port=5432", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
               "SSLMode=prefer", `
-              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+              "BASE_DRIVER=${{steps.pg_driver_paths.outputs.driver_path_ansi}}")
       - name: Install Unicode DSNs
         shell: pwsh
         run: |
@@ -1107,31 +920,30 @@ jobs:
               -DsnType User `
               -SetPropertyValue `
               @("RDS_AUTH_TYPE=database", `
-              "Server=${{ env.LIMITLESS_CLUSTER_ENDPOINT }}", `
-              "Port=5432", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
               "SSLMode=prefer", `
-              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc35w.dll")
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
+              "BASE_DRIVER=${{steps.pg_driver_paths.outputs.driver_path_unicode}}")
+      - name: Verify DSN Configuration
         shell: pwsh
-        working-directory: ./scripts
         run: |
-            . ".\aws_rds_helper_win.ps1"
-            Describe-Cluster-Endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
+            Write-Host "Registered DSNs:"
+            Get-OdbcDsn | Format-Table Name, DriverName, DsnType, Platform
+            Write-Host "Ansi DSN properties:"
+            Get-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} | Select-Object -ExpandProperty PropertyValue
       - name: Setup GDB
         run: |
           choco install mingw
-          echo "set auto-load safe-path $PWD" > "$HOME/.gdbinit"
-      - name: Build and Run Ansi Integration Tests
+          echo "set auto-load safe-path /" > "$HOME/.gdbinit"
+      - name: Build and Run Limitless Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_ansi -DCMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
-            -DBUILD_UNICODE=OFF -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
-          cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
-          echo "Ansi Test Built"
-          gdb -q -x ./.gdbinit .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          cmake -S test/integration -B build_limitless_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+          cmake --build build_limitless_ansi --config ${{env.BUILD_CONFIG}}
+          echo "Limitless Ansi Test Built"
+          gdb -q -x ./.gdbinit .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1140,17 +952,18 @@ jobs:
           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
-      - name: Build and Run Unicode Integration Tests
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+      - name: Build and Run Limitless Unicode Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} `
-            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON
-          cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-          echo "Unicode Test Built"
-          gdb -q -x ./.gdbinit .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          cmake -S test/integration -B build_limitless_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+          cmake --build build_limitless_unicode --config ${{env.BUILD_CONFIG}}
+          echo "Limitless Unicode Test Built"
+          gdb -q -x ./.gdbinit .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1159,22 +972,21 @@ jobs:
           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
-      - name: Delete Aurora RDS Cluster
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+      - name: Destroy Aurora Resources
         if: always()
-        shell: pwsh
-        working-directory: ./scripts
+        shell: bash
         run: |
-          . ".\aws_rds_helper_win.ps1"
-          Delete-Limitless-Db-Cluster -ClusterId ${{ env.LIMITLESS_CLUSTER_ID }} -ShardId ${{ env.LIMITLESS_SHARD_ID }} -Region ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: pwsh
-        working-directory: ./scripts
-        run: |
-          . ".\aws_rds_helper_win.ps1"
-          Delete-Secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          source .venv/Scripts/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }}
       # Make sure IP is always deleted
       - name: Get Github Action IP
         if: always()
@@ -1189,23 +1001,18 @@ jobs:
             --port 0-65535 `
             --cidr ${{ steps.ip.outputs.ipv4 }}/32 `
            *> $null;
-      # - name: Copy Driver Logs
-      #   shell: pwsh
-      #   run: |
-      #     Copy-Item -Path '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' -Destination '${{ github.workspace }}\logs'
+      - name: Get log location
+        if: always()
+        id: log_location
+        shell: pwsh
+        run: |
+          echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'windows-limitless-integration-test-logs'
-          path: C:\Users\runneradmin\AppData\Local\Temp\aws-odbc-wrapper\
-          retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'windows-limitless-psql-logs'
-          path: logs
+          name: 'windows-limitless-test-logs'
+          path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
           retention-days: 7
 
   macos-limitless-integration-tests:
@@ -1214,11 +1021,13 @@ jobs:
     runs-on:
       - codebuild-odbc-wrapper-macos-limitless-${{ github.run_id }}-${{ github.run_attempt }}-fleet-macos-fleet-1
         buildspec-override:true
+    env:
+      LIMITLESS_CLUSTER_ID: ODBC-Limitless-MacOS-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
+      LIMITLESS_SHARD_ID: ODBC-Limitless-MacOS-shard-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Macos-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
-          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Macos-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Retrieve AWS SDK for C++ Cache
@@ -1236,192 +1045,147 @@ jobs:
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache@v5
-        with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-macos-inte
-      - name: Create Limitless RDS Cluster
+          role-session-name: odbc-wrapper-macos-limitless
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Limitless Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          create_limitless_rds_cluster \
-            ${{ secrets.TEST_USERNAME }} \
-            ${{ secrets.TEST_PASSWORD }} \
-            ${{ env.TEST_LIMITLESS_DATABASE }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ env.LIMITLESS_SHARD_ID }} \
-            aurora-postgresql \
-            ${{ env.ENGINE_VERSION }} \
-            ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Get Limitless Cluster endpoint
+          source .venv/bin/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --engine aurora-postgresql \
+            --engine-version ${{ env.ENGINE_LIMITLESS_VERSION }} \
+            --database ${{ env.TEST_LIMITLESS_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }} \
+            --monitoring-role-arn ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          endpoint=$(get_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }})
-          echo "LIMITLESS_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
-      - name: Create Aurora Cluster Secrets
-        shell: bash
+          echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
+          echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
+          echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+          echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Log base driver location
         run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            secretsArn=$(create_db_secrets \
-                ${{ secrets.TEST_USERNAME }} \
-                ${{ secrets.TEST_PASSWORD }} \
-                aurora-postgresql \
-                ${{ env.LIMITLESS_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secretsArn"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
-      - name: Add IP to Allowlist
-        run: |
-          . "scripts/aws_rds_helper_unix.sh"
-          add_ip_to_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Create IAM DB User for PostgreSQL
-        shell: bash
-        run: |
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.LIMITLESS_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_LIMITLESS_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
-        run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            describe_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
-      - name: Build and Run Ansi Integration Tests
-        shell: bash
-        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
-        run: |
-          cmake -S test/integration -B build_ansi \
-            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON \
-            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -D TEST_SERVER="${{ env.LIMITLESS_CLUSTER_ENDPOINT }}" \
-            -D TEST_PORT="5432" \
-            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-            -D TEST_DSN="${{ env.TEST_DSN_ANSI }}" \
-            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
-            -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
-          cmake --build build_ansi
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
-          echo "Ansi Test Built"
-          ./build_ansi/integration-test
-        env:
-          TEST_DSN: 'inte-wrapper-dsn'
-          TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
-          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
-          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-          # ASAN_OPTIONS: 'detect_container_overflow=0'
-      - name: Build and Run Unicode Integration Tests
+          echo "Base driver path: $(cd ${{steps.base_driver_info.outputs.cache_path}} && pwd)"
+          ls ${{steps.base_driver_info.outputs.cache_path}}
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
+      - name: Build and Run Limitless Ansi Integration Tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode \
-            -DBUILD_UNICODE=ON -DBUILD_FAILOVER=OFF -DBUILD_LIMITLESS=ON -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -DTEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-            -DTEST_PORT="5432" \
-            -DTEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-            -DTEST_DSN="${{ env.TEST_DSN_UNICODE }}" \
-            -DTEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
-            -DBASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-          cmake --build build_unicode
-          cat ${{ github.workspace }}/test/resources/odbc.ini
-          cat ${{ github.workspace }}/test/resources/odbcinst.ini
-          echo "Unicode Test Built"
-          ./build_unicode/integration-test
+          cmake -S test/integration -B build_limitless_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_ansi}}" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}"
+          cmake --build build_limitless_ansi
+          echo "Limitless Ansi Test Built"
+          ./build_limitless_ansi/integration-test
         env:
-          TEST_DSN: 'inte-wrapper-dsn'
+          TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Build and Run Limitless Unicode Integration Tests
+        shell: bash
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_limitless_unicode \
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_unicode}}" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}"
+          cmake --build build_limitless_unicode
+          echo "Limitless Unicode Test Built"
+          ./build_limitless_unicode/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Get log location
         id: log_location
         run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
-      - name: Delete Aurora RDS Cluster
+      - name: Destroy Aurora Resources
         if: always()
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_limitless_db_cluster ${{ env.LIMITLESS_CLUSTER_ID }} ${{ env.LIMITLESS_SHARD_ID }} ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      - name: Debug - Get Github Action IP
-        if: always()
-        uses: haythem/public-ip@v1.3
-      # Make sure IP is always deleted
-      - name: Remove Github Action IP
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          remove_ip_from_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      # - name: Copy Driver Logs
-      #   shell: bash
-      #   run: |
-      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
+          source .venv/bin/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }}
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'mac-limitless-integration-test-logs'
+          name: 'mac-limitless-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
-          retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'mac-limitless-psql-logs'
-          path: logs/
           retention-days: 7
 
   linux-limitless-integration-tests:
     name: Linux Ubuntu - Limitless Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-latest
+    env:
+      LIMITLESS_CLUSTER_ID: ODBC-Limitless-Linux-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
+      LIMITLESS_SHARD_ID: ODBC-Limitless-Linux-shard-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
       - name: Setup Cluster ID
         run: |
-          echo "LIMITLESS_CLUSTER_ID=AWS-ODBC-Linux-Limitless-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
-          echo "LIMITLESS_SHARD_ID=AWS-ODBC-Linux-Shard-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
+          echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
       - name: Install Build Dependencies
@@ -1442,125 +1206,77 @@ jobs:
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
-      - name: Retrieve psqlODBC Cache
-        id: cache-psqlodbc
-        uses: actions/cache@v5
-        with:
-          path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
-          fail-on-cache-miss: true
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
-          role-session-name: odbc-wrapper-linux-inte
-      - name: Create Limitless RDS Cluster
+          role-session-name: odbc-wrapper-linux-limitless
+      - name: Setup Python virtual environment
+        shell: bash
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r scripts/requirements.txt
+      - name: Create Aurora Limitless Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          create_limitless_rds_cluster \
-            ${{ secrets.TEST_USERNAME }} \
-            ${{ secrets.TEST_PASSWORD }} \
-            ${{ env.TEST_LIMITLESS_DATABASE }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ env.LIMITLESS_SHARD_ID }} \
-            aurora-postgresql \
-            ${{ env.ENGINE_VERSION }} \
-            ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Get Limitless Cluster endpoint
+          source .venv/bin/activate
+          python scripts/db_resources.py create \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --engine aurora-postgresql \
+            --engine-version ${{ env.ENGINE_LIMITLESS_VERSION }} \
+            --database ${{ env.TEST_LIMITLESS_DATABASE }} \
+            --username ${{ secrets.TEST_USERNAME }} \
+            --password ${{ secrets.TEST_PASSWORD }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --iam-user ${{ secrets.TEST_IAM_USER }} \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }} \
+            --monitoring-role-arn ${{ secrets.AWS_RDS_MONITORING_ROLE_ARN }}
+      - name: Setup Base Driver Variables
+        id: base_driver_info
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          endpoint=$(get_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }})
-          echo "LIMITLESS_CLUSTER_ENDPOINT=$endpoint" >> $GITHUB_ENV
-      - name: Create Aurora Cluster Secrets
-        shell: bash
+          echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
+          echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
+          echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
+          echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
+      - name: Retrieve Base Driver
+        uses: actions/cache@v5
+        with:
+          path: ${{steps.base_driver_info.outputs.cache_path}}
+          key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Log base driver location
         run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            secretsArn=$(create_db_secrets \
-                ${{ secrets.TEST_USERNAME }} \
-                ${{ secrets.TEST_PASSWORD }} \
-                aurora-postgresql \
-                ${{ env.LIMITLESS_CLUSTER_ENDPOINT }})
-            echo "::add-mask::$secretsArn"
-            echo "AURORA_CLUSTER_SECRETS_ARN=$secretsArn" >> $GITHUB_ENV
-      - name: Add PostgreSQL binaries to PATH
-        shell: bash
-        run: |
-          echo "$(pg_config --bindir)" >> $GITHUB_PATH
-      - name: Get Github Action IP
-        if: always()
-        id: ip
-        run: |
-          echo "ipv4=$(curl -s http://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
-      - name: Add IP to Allowlist
-        run: |
-          . "scripts/aws_rds_helper_unix.sh"
-          add_ip_to_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Create IAM DB User for PostgreSQL
-        shell: bash
-        run: |
-          psql postgresql://${{ secrets.TEST_USERNAME }}:${{ secrets.TEST_PASSWORD }}@${{env.LIMITLESS_CLUSTER_ENDPOINT}}:5432/${{ env.TEST_LIMITLESS_DATABASE }} \
-            --command="CREATE USER ${{ secrets.TEST_IAM_USER }};" \
-            --command="GRANT rds_iam TO ${{ secrets.TEST_IAM_USER }};" \
-            --command="\du"
-      - name: Create logs folder
-        run: mkdir logs
-      - name: Describe DB Cluster
-        run: |
-            . "./scripts/aws_rds_helper_unix.sh"
-            describe_cluster_endpoint ${{ env.LIMITLESS_CLUSTER_ID }}
+          echo "Base driver path: $(cd ${{steps.base_driver_info.outputs.cache_path}} && pwd)"
+          ls ${{steps.base_driver_info.outputs.cache_path}}
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Setup GDB
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
-      - name: Build and Run Ansi Integration Tests
-        shell: bash
-        if: ${{ !cancelled() && steps.auroraClusterSetup.outcome == 'success'}}
-        run: |
-          cmake -S test/integration -B build_ansi \
-            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON \
-            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -D TEST_SERVER="${{ env.LIMITLESS_CLUSTER_ENDPOINT }}" \
-            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-            -D TEST_DSN="${{ env.TEST_DSN_ANSI }}" \
-            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
-            -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
-          cmake --build build_ansi
-          echo "Ansi Test Built"
-          gdb -q -x ./.gdbinit ./build_ansi/integration-test
-        env:
-          TEST_DSN: "inte-wrapper-dsn"
-          TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
-          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
-          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
-          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
-          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-         # ASAN_OPTIONS: 'detect_container_overflow=0'
-      - name: Build and Run Unicode Integration Tests
+      - name: Build and Run Limitless Ansi Integration Tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
-          cmake -S test/integration -B build_unicode \
-            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON \
+          cmake -S test/integration -B build_limitless_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
             -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_ansi}}" \
             -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
-            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}" \
-            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
-            -D BASE_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
-          cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
-          echo "Unicode Test Built"
-          gdb -q -x ./.gdbinit ./build_unicode/integration-test
+            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}"
+          cmake --build build_limitless_ansi
+          echo "Limitless Ansi Test Built"
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_limitless_ansi/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -1569,47 +1285,55 @@ jobs:
           TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
           TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-          TEST_SERVER: ${{ env.LIMITLESS_CLUSTER_ENDPOINT }}
-          TEST_PORT: '5432'
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Delete Aurora RDS Cluster
+      - name: Build and Run Limitless Unicode Integration Tests
+        shell: bash
+        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        run: |
+          cmake -S test/integration -B build_limitless_unicode \
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+            -D BASE_DRIVER_PATH="${{steps.base_driver_info.outputs.driver_path_unicode}}" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_LIMITLESS_DATABASE }}"
+          cmake --build build_limitless_unicode
+          echo "Limitless Unicode Test Built"
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_limitless_unicode/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Destroy Aurora Resources
         if: always()
         shell: bash
         run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_limitless_db_cluster ${{ env.LIMITLESS_CLUSTER_ID }} ${{ env.LIMITLESS_SHARD_ID }} ${{ secrets.AWS_DEFAULT_REGION }}
-      - name: Delete Aurora Db Secrets
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          delete_secrets ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
-      # Make sure IP is always deleted
-      - name: Remove Github Action IP
-        if: always()
-        shell: bash
-        run: |
-          . "./scripts/aws_rds_helper_unix.sh"
-          remove_ip_from_db_sg \
-            ${{ steps.ip.outputs.ipv4 }} \
-            ${{ env.LIMITLESS_CLUSTER_ID }} \
-            ${{ secrets.AWS_DEFAULT_REGION }}
-      # - name: Copy Driver Logs
-      #   shell: bash
-      #   run: |
-      #     cp '${{ runner.temp }}/aws-odbc-wrapper/*.log.*' '${{ github.workspace }}\logs'
+          source .venv/bin/activate
+          python scripts/db_resources.py destroy \
+            --cluster-id ${{ env.LIMITLESS_CLUSTER_ID }} \
+            --region ${{ secrets.AWS_DEFAULT_REGION }} \
+            --num-instances 1 \
+            --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
+            --limitless \
+            --shard-id ${{ env.LIMITLESS_SHARD_ID }}
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'linux-limitless-integration-test-logs'
+          name: 'linux-limitless-test-logs'
           path: /tmp/aws-odbc-wrapper/
-          retention-days: 7
-      - name: Archive psql logs
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: 'linux-limitless-psql-logs'
-          path: logs
           retention-days: 7
