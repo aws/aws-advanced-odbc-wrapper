@@ -34,6 +34,37 @@
 #include "unicode/utypes.h"
 #include "unicode/ucasemap.h"
 
+inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
+    if (buffer_len > 0) {
+        return static_cast<int>(buffer_len);
+    }
+
+    if (buffer_len == SQL_NTS) {
+        bool end_found = false;
+        size_t len = 0;
+        int i = 0;
+
+        while (!end_found) {
+            if (!use_4_bytes) {
+                if (in[i] == '\0') {
+                    end_found = true;
+                }
+                i++;
+            } else {
+                if (in[i] == '\0' && in[i + 1] == '\0') {
+                    end_found = true;
+                }
+                i += 2;
+            }
+            len++;
+        }
+
+        return len;
+    }
+
+    return 0;
+}
+
 #ifdef UNICODE
 #include "unicode/unistr.h"
 inline size_t UShortStrlen(const uint16_t* str) {
@@ -117,14 +148,6 @@ inline std::string Convert4ByteSqlWChar(
     return str_utf8_w;
 }
 
-// TODO: delete me?
-// inline void ConvertUnicodeUserToBaseDriver(bool user_4_bytes, SQLTCHAR *in, SQLTCHAR *out, SQLSMALLINT length) {
-//     const size_t buf_len = GetLenOfSqltcharArray(in, length, user_4_bytes);
-//     std::vector<SQLTCHAR> buf_vector(buf_len, '\0');
-//     out = buf_vector.data();
-//     Convert4To2ByteString(user_4_bytes, in, out, buf_len);
-// }
-
 inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
     if (user_4_byte) {
         size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
@@ -145,6 +168,21 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
     }
 }
 
+inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
+    const std::string utf8 = ConvertUserAppToUTF8(user_4_byte, in, in_length);
+    if (driver_4_byte) {
+        std::wstring wide = ConvertUTF8ToWString(utf8);
+        size_t size = in_length > wide.length()
+            ? wide.length()
+            : in_length - 1; // For null terminating character
+        return std::vector<SQLTCHAR>(wide.data(), wide.data() + size);
+    } else {
+        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+        return std::vector<SQLTCHAR>(
+            reinterpret_cast<SQLTCHAR*>(utf16.data()),
+            reinterpret_cast<SQLTCHAR*>(utf16.data() + utf16.size()));
+    }
+}
 #endif
 
 #ifdef UNICODE
@@ -243,37 +281,6 @@ inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out,
             in[len - 1] = '\0';
         }
     }
-}
-
-inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
-    if (buffer_len > 0) {
-        return static_cast<int>(buffer_len);
-    }
-
-    if (buffer_len == SQL_NTS) {
-        bool end_found = false;
-        size_t len = 0;
-        int i = 0;
-
-        while (!end_found) {
-            if (!use_4_bytes) {
-                if (in[i] == '\0') {
-                    end_found = true;
-                }
-                i++;
-            } else {
-                if (in[i] == '\0' && in[i + 1] == '\0') {
-                    end_found = true;
-                }
-                i += 2;
-            }
-            len++;
-        }
-
-        return len;
-    }
-
-    return 0;
 }
 
 #endif // RDS_STRINGS_H_

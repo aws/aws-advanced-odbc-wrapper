@@ -627,72 +627,19 @@ SQLRETURN RDS_SQLColumns(
     SQLTCHAR* table_name_sqltchar;
     SQLTCHAR* column_name_sqltchar;
 
-
-    // TODO: refactor this....ugly
 #if UNICODE
-    const std::string catalog_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), CatalogName, catalog_name, NameLength1);
-    const std::string schema_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), SchemaName, catalog_name, NameLength2);
-    const std::string table_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), TableName, catalog_name, NameLength3);
-    const std::string column_name_utf8 = ConvertUserAppToUTF8(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), ColumnName, catalog_name, NameLength4);
+    const bool user_4_byte   = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool driver_4_byte = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
 
-    if (this->odbc_helper_->GetUse4BytesBaseDriver()) {
-        const std::wstring catalog_name_wide = ConvertUTF8ToWString((catalog_name_utf8);
-        const std::wstring schema_name_wide = ConvertUTF8ToWString(schema_name_utf8);
-        const std::wstring table_name_wide = ConvertUTF8ToWString(table_name_utf8);
-        const std::wstring column_name_wide = ConvertUTF8ToWString(column_name_utf8);
+    std::vector<SQLTCHAR> catalog_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, CatalogName, NameLength1);
+    std::vector<SQLTCHAR> schema_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, SchemaName, NameLength2);
+    std::vector<SQLTCHAR> table_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, TableName, NameLength3);
+    std::vector<SQLTCHAR> column_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, ColumnName, NameLength4);
 
-        catalog_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(catalog_name_wide.c_str()));
-        schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_wide.c_str()));
-        table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_wide.c_str()));
-        column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_wide.c_str()));
-
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-        env->driver_lib_loader,
-        RDS_FP_SQLColumns,
-        RDS_STR_SQLColumns,
-        stmt->wrapped_stmt,
-            catalog_name_sqltchar,
-            NameLength1,
-            schema_name_sqltchar,
-            NameLength2,
-            table_name_sqltchar,
-            NameLength3,
-            column_name_sqltchar,
-            NameLength4
-    );
-    return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
-    } else {
-        const std::vector<uint16_t> catalog_name_vec = ConvertUTF8ToUTF16(catalog_name_utf8);
-        const std::vector<uint16_t> schema_name_vec = ConvertUTF8ToUTF16(schema_name_utf8);
-        const std::vector<uint16_t> table_name_vec = ConvertUTF8ToUTF16(table_name_utf8);
-        const std::vector<uint16_t> column_name_vec = ConvertUTF8ToUTF16(column_name_utf8);
-
-        const uint16_t* catalog_name_ushort = catalog_name_vec.data();
-        const uint16_t* schema_name_ushort = schema_name_vec.data();
-        const uint16_t* table_name_ushort = table_name_vec.data();
-        const uint16_t* column_name_ushort = column_name_vec.data();
-
-        catalog_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(catalog_name_ushort));
-        schema_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(schema_name_ushort));
-        table_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(table_name_ushort));
-        column_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(column_name_ushort));
-
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-        env->driver_lib_loader,
-        RDS_FP_SQLColumns,
-        RDS_STR_SQLColumns,
-        stmt->wrapped_stmt,
-            catalog_name_sqltchar,
-            NameLength1,
-            schema_name_sqltchar,
-            NameLength2,
-            table_name_sqltchar,
-            NameLength3,
-            column_name_sqltchar,
-            NameLength4
-    );
-        return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
-    }
+    catalog_name_sqltchar = catalog_name_vec.data();
+    schema_name_sqltchar = schema_name_vec.data();
+    table_name_sqltchar = table_name_vec.data();
+    column_name_sqltchar = column_name_vec.data();
 #else
     catalog_name_sqltchar = CatalogName;
     schema_name_sqltchar = SchemaName;
@@ -1112,6 +1059,9 @@ SQLRETURN RDS_SQLGetCursorName(
     CLEAR_STMT_ERROR(stmt);
 
     if (stmt->wrapped_stmt) {
+#if UNICODE
+#else
+#endif
         const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetCursorName, RDS_STR_SQLGetCursorName,
             stmt->wrapped_stmt, CursorName, BufferLength, NameLengthPtr
         );
