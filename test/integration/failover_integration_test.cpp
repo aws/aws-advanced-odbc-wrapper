@@ -85,6 +85,12 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
     std::string current_connection_id = QueryInstanceId(dbc);
 
     // Check if current connection is a writer
+    if (!IsInstanceWriter(rds_client, cluster_id, current_connection_id)) {
+        std::cout << "[WriterFailToReader] IsInstanceWriter check failed."
+                  << " initial_writer: " << writer_id
+                  << ", expected_writer: " << current_connection_id << std::endl;
+        LogClusterTopology(rds_client, cluster_id, "WriterFailToReader");
+    }
     EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
 
     FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
@@ -125,6 +131,12 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
     std::string current_connection_id = QueryInstanceId(dbc);
 
     // Check if current connection is a new writer
+    if (!IsInstanceWriter(rds_client, cluster_id, current_connection_id)) {
+        std::cout << "[WriterFailWithinTransaction_DisableAutocommit] IsInstanceWriter check failed."
+                  << " initial_writer: " << writer_id
+                  << ", expected_writer: " << current_connection_id << std::endl;
+        LogClusterTopology(rds_client, cluster_id, "WriterFailWithinTransaction_DisableAutocommit");
+    }
     EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
     EXPECT_NE(current_connection_id, writer_id);
 
@@ -170,6 +182,12 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
 
     // Check if current connection is a new writer
     EXPECT_NE(current_connection_id, writer_id);
+    if (!IsInstanceWriter(rds_client, cluster_id, current_connection_id)) {
+        std::cout << "[WriterFailWithinTransaction_setAutoCommitFalse] IsInstanceWriter check failed."
+                  << " initial_writer: " << writer_id
+                  << ", expected_writer: " << current_connection_id << std::endl;
+        LogClusterTopology(rds_client, cluster_id, "WriterFailWithinTransaction_setAutoCommitFalse");
+    }
     EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
 
     // No rows should have been inserted to the table
