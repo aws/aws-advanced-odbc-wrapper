@@ -218,6 +218,21 @@ jobs:
         working-directory: psqlodbc
         run: |
           Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+      - name: Detect psqlODBC Driver Path
+        id: psqlodbc-path
+        shell: pwsh
+        run: |
+          $driverFile = Get-ChildItem -Path "C:\Program Files\psqlODBC" -Recurse -Filter "psqlodbc30a.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $driverFile) {
+            $driverFile = Get-ChildItem -Path "C:\Program Files\psqlODBC" -Recurse -Filter "podbc30a.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $driverFile) {
+            Write-Error "Could not find psqlODBC ANSI driver DLL under C:\Program Files\psqlODBC"
+            exit 1
+          }
+          $driverPath = $driverFile.FullName
+          Write-Host "Detected psqlODBC driver path: $driverPath"
+          echo "PSQLODBC_DRIVER_PATH=$driverPath" >> $env:GITHUB_OUTPUT
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v8
         with:
@@ -234,6 +249,11 @@ jobs:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver
           fail-on-cache-miss: true
+      - name: Log MySQL driver location
+        shell: pwsh
+        run: |
+          Write-Host "Base driver path: $((Resolve-Path mysql-connector).Path)"
+          Get-ChildItem mysql-connector
       - name: Install MySQL Connector ODBC
         shell: pwsh
         working-directory: mysql-connector
@@ -260,7 +280,7 @@ jobs:
               "Database=${{env.LOCAL_DB_NAME}}", `
               "Port=5432", `
               "SSLMode=prefer", `
-              "BASE_DRIVER=C:\Program Files\psqlODBC\1700\bin\podbc30a.dll")
+              "BASE_DRIVER=${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}")
       - name: Configure Base PostgreSQL DSN
         run: |
             Add-OdbcDsn -Name pg-dsn `
@@ -280,7 +300,7 @@ jobs:
           TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
           TEST_USERNAME: ${{env.LOCAL_DB_UID}}
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
-          TEST_BASE_DRIVER: C:\Program Files\psqlODBC\1700\bin\podbc30a.dll
+          TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}
           TEST_BASE_DSN: pg-dsn
       - name: Compare Test Results
         run: |
@@ -373,6 +393,13 @@ jobs:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
+      - name: Log psqlODBC driver location
+        run: |
+          echo "Base driver path: $(cd psqlodbc/.libs && pwd)"
+          ls psqlodbc/.libs/
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v8
         with:
@@ -389,6 +416,13 @@ jobs:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
           fail-on-cache-miss: true
+      - name: Log MySQL driver location
+        run: |
+          echo "Base driver path: $(cd mysql-connector && pwd)"
+          ls mysql-connector/
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Setup iODBC Locally for pre-built MySQL Connector
         run: |
           curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
@@ -496,6 +530,13 @@ jobs:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
+      - name: Log psqlODBC driver location
+        run: |
+          echo "Base driver path: $(cd psqlodbc/.libs && pwd)"
+          ls psqlodbc/.libs/
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Setup Local PostgreSQL Server
         uses: ikalnytskyi/action-setup-postgres@v8
         with:
@@ -512,6 +553,13 @@ jobs:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver
           fail-on-cache-miss: true
+      - name: Log MySQL driver location
+        run: |
+          echo "Base driver path: $(cd mysql-connector && pwd)"
+          ls mysql-connector/
+          echo "--- ODBC DSN config ---"
+          odbcinst -j 2>/dev/null || true
+          cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Install MySQL Connector
         run: |
           sudo apt install ./mysql-connector/mysql-connector_x64.deb -y

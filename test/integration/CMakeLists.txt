@@ -37,13 +37,13 @@ set(TEST_UTILITIES
 
 set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
-
-    ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
 )
 
 if(BUILD_FAILOVER)
+    set(USES_AWS_SDK ON)
     list(APPEND TEST_SUITE
+        ${CMAKE_CURRENT_SOURCE_DIR}/iam_authentication_integration_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_integration_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
         ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_integration_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_integration_test.cpp
@@ -80,8 +80,7 @@ find_package(ODBC REQUIRED)
 list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
 
 # -- AWS SDK --
-# Used for Failover Integration Tests
-if(BUILD_FAILOVER)
+if(USES_AWS_SDK)
     if(UNIX)
         message("Unix - Adding ZLIB explicitly for AWS SDK")
         find_package(ZLIB REQUIRED)
@@ -144,7 +143,7 @@ target_include_directories(
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 
 # Copy External Dependencies --------------------------------------------------------------------------------
-IF(BUILD_FAILOVER)
+IF(USES_AWS_SDK)
     if(MSVC)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     else()
