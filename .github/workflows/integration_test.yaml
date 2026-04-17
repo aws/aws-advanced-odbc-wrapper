@@ -591,8 +591,9 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Get log location
+        if: always()
         id: log_location
-        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+        run: echo "TEMP=${TMPDIR:-/tmp}" >> $GITHUB_OUTPUT
       - name: Destroy Aurora Resources
         if: always()
         shell: bash
@@ -1153,8 +1154,9 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Get log location
+        if: always()
         id: log_location
-        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+        run: echo "TEMP=${TMPDIR:-/tmp}" >> $GITHUB_OUTPUT
       - name: Destroy Aurora Resources
         if: always()
         shell: bash
@@ -1685,8 +1687,9 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_BG_RESOURCE_ID: ${{ env.BG_RESOURCE_ID }}
       - name: Get log location
+        if: always()
         id: log_location
-        run: echo "TEMP=$(echo $TMPDIR)" >> $GITHUB_OUTPUT
+        run: echo "TEMP=${TMPDIR:-/tmp}" >> $GITHUB_OUTPUT
       - name: Destroy Aurora Resources
         if: always()
         shell: bash
@@ -1704,7 +1707,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: 'mac-${{matrix.env.rds_engine}}-test-logs'
+          name: 'mac-${{matrix.env.rds_engine}}-bg-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
           retention-days: 7
 
