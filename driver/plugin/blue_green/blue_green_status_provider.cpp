@@ -627,7 +627,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
                 connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                     blue_host, role, green_ip_host_info, iam_hosts,
                     is_blue_host_instance
-                        ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } })
+                        ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } catch (...) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: unknown exception"; } })
                         : nullptr));
 
                 const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
@@ -635,7 +635,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
                     connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                         BlueGreenStatusProvider::GetHostPort(blue_host, interim_status.port_), role, green_ip_host_info, iam_hosts,
                         is_blue_host_instance ? std::function<void(const std::string&)>(
-                                                    [this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } })
+                                                    [this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } catch (...) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: unknown exception"; } })
                                               : nullptr));
                 }
             }
@@ -668,14 +668,14 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
             connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                 green_host, role, green_ip_host_info, iam_hosts,
                 is_green_host_instance
-                    ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } })
+                    ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } catch (...) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: unknown exception"; } })
                     : nullptr));
 
             if (interim_status.phase_ != BlueGreenPhase::UNKNOWN) {
                 connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                     BlueGreenStatusProvider::GetHostPort(green_host, interim_status.port_), role, green_ip_host_info, iam_hosts,
                     is_green_host_instance
-                        ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } })
+                        ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } catch (...) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: unknown exception"; } })
                         : nullptr));
             }
         }

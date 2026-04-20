@@ -1394,9 +1394,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                         if (!odbc_helper) {
                             LOG(WARNING) << "SQLGetDiagRec(ENV): OdbcHelper is null, skipping string conversion";
                         }
-                        const bool use_4_bytes = odbc_helper
-                            ? (WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp())
-                            : false;
+                        bool use_4_bytes = false;
+                        if (odbc_helper) {
+                            use_4_bytes = WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp();
+                        }
                         Convert4To2ByteString(use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                         Convert4To2ByteString(use_4_bytes, new_msg_buffer, MessageText, BufferLength);
                     }
@@ -1431,9 +1432,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     if (!odbc_helper) {
                         LOG(WARNING) << "SQLGetDiagRec(DBC): OdbcHelper is null, skipping string conversion";
                     }
-                    const bool use_4_bytes = odbc_helper
-                        ? (WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp())
-                        : false;
+                    bool use_4_bytes = false;
+                    if (odbc_helper) {
+                        use_4_bytes = WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp();
+                    }
                     Convert4To2ByteString(use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
@@ -1468,9 +1470,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     if (!odbc_helper) {
                         LOG(WARNING) << "SQLGetDiagRec(STMT): OdbcHelper is null, skipping string conversion";
                     }
-                    const bool use_4_bytes = odbc_helper
-                        ? (WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp())
-                        : false;
+                    bool use_4_bytes = false;
+                    if (odbc_helper) {
+                        use_4_bytes = WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp();
+                    }
                     Convert4To2ByteString(use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
@@ -1505,9 +1508,10 @@ SQLRETURN RDS_SQLGetDiagRec(
                     if (!odbc_helper) {
                         LOG(WARNING) << "SQLGetDiagRec(DESC): OdbcHelper is null, skipping string conversion";
                     }
-                    const bool use_4_bytes = odbc_helper
-                        ? (WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp())
-                        : false;
+                    bool use_4_bytes = false;
+                    if (odbc_helper) {
+                        use_4_bytes = WrapperCall ? odbc_helper->GetUse4BytesBaseDriver() : odbc_helper->GetUse4BytesUserApp();
+                    }
                     Convert4To2ByteString(use_4_bytes, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                     Convert4To2ByteString(use_4_bytes, new_msg_buffer, MessageText, BufferLength);
 #else
