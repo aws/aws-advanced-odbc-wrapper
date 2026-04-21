@@ -79,6 +79,10 @@ private:
     void HandleIgnoreTopologyTiming();
     void InitNodeMonitors();
     bool GetPossibleWriterConn();
+    void CheckForStableReaderTopologies();
+
+    static bool TopologiesMatchExcludingWeight(
+        const std::vector<HostInfo>& a, const std::vector<HostInfo>& b);
 
     BasePlugin* plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
@@ -126,6 +130,13 @@ private:
     std::mutex node_threads_reader_hdbc_mutex_;
     std::mutex node_threads_latest_topology_mutex_;
 
+    std::map<std::string, std::vector<HostInfo>> reader_topologies_by_id_;
+    std::mutex reader_topologies_by_id_mutex_;
+    std::map<std::string, bool> completed_one_cycle_;
+    std::mutex completed_one_cycle_mutex_;
+    std::chrono::steady_clock::time_point stable_topologies_start_ = std::chrono::steady_clock::time_point{};
+    const std::chrono::seconds stable_topologies_duration_ = std::chrono::seconds(15);
+
     // TODO(yuenhcol), review if these can be done without mutex/atomics
     // There should be only at most 1 thread interacting with these
     // Connection Information for main thread
@@ -151,12 +162,14 @@ private:
     void HandleWriterConn();
     void HandleReaderConn();
     void ReaderThreadFetchTopology();
+    void MarkCompletedOneCycle();
 
     ClusterTopologyMonitor* main_monitor_;
     std::map<std::string, std::string> conn_info_;
     std::shared_ptr<HostInfo> host_info_;
     std::shared_ptr<HostInfo> writer_host_info_;
     bool writer_changed_ = false;
+    bool completed_one_cycle_ = false;
     std::shared_ptr<std::thread> node_thread_;
     SQLHDBC hdbc_ = SQL_NULL_HDBC;
     bool reader_update_topology_ = false;

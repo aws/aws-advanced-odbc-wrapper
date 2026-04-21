@@ -14,6 +14,8 @@
 
 #include "cluster_topology_monitor.h"
 
+#include <algorithm>
+#include <ranges>
 #include <sqlext.h>
 
 #include "topology_util.h"
@@ -324,12 +326,24 @@ bool ClusterTopologyMonitor::HandlePanicMode() {
     } else {
         should_handle_topology_timing = GetPossibleWriterConn();
     }
+    CheckForStableReaderTopologies();
     DelayMainThread(true);
     return should_handle_topology_timing;
 }
 
 bool ClusterTopologyMonitor::HandleRegularMode() {
+    node_threads_stop_.store(true);
     node_monitoring_threads_.clear();
+    {
+        const std::lock_guard<std::mutex> reader_topologies_lock(reader_topologies_by_id_mutex_);
+        reader_topologies_by_id_.clear();
+    }
+    {
+        const std::lock_guard<std::mutex> completed_one_cycle_lock(completed_one_cycle_mutex_);
+        completed_one_cycle_.clear();
+    }
+    stable_topologies_start_ = epoch_;
+
     std::vector<HostInfo> hosts;
     {
         const std::lock_guard hdbc_lock(hdbc_mutex_);
@@ -373,6 +387,15 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
     }
     node_threads_writer_host_info_ = nullptr;
     node_threads_latest_topology_ = nullptr;
+    {
+        const std::lock_guard<std::mutex> reader_topologies_lock(reader_topologies_by_id_mutex_);
+        reader_topologies_by_id_.clear();
+    }
+    {
+        const std::lock_guard<std::mutex> completed_one_cycle_lock(completed_one_cycle_mutex_);
+        completed_one_cycle_.clear();
+    }
+    stable_topologies_start_ = epoch_;
 
     std::vector<HostInfo> hosts = plugin_service_->GetHosts();
     if (hosts.empty()) {
@@ -412,6 +435,15 @@ bool ClusterTopologyMonitor::GetPossibleWriterConn() {
 
         node_threads_stop_.store(true);
         node_monitoring_threads_.clear();
+        {
+            const std::lock_guard<std::mutex> reader_topologies_lock(reader_topologies_by_id_mutex_);
+            reader_topologies_by_id_.clear();
+        }
+        {
+            const std::lock_guard<std::mutex> completed_one_cycle_lock(completed_one_cycle_mutex_);
+            completed_one_cycle_.clear();
+        }
+        stable_topologies_start_ = epoch_;
         return false;
     }
     std::vector<HostInfo> local_topology;
@@ -485,10 +517,17 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
                     HandleReaderConn();
                 }
             }
+            MarkCompletedOneCycle();
             std::this_thread::sleep_for(std::chrono::milliseconds(THREAD_SLEEP_MS_));
         }
     } catch (const std::exception& ex) {
         LOG(ERROR) << "Exception while node monitoring for: " << thread_host << ex.what();
+    }
+
+    MarkCompletedOneCycle();
+    {
+        const std::lock_guard<std::mutex> reader_topologies_lock(main_monitor_->reader_topologies_by_id_mutex_);
+        main_monitor_->reader_topologies_by_id_.erase(host_info_->GetHostId());
     }
 
     // Close any open connections / handles
@@ -561,7 +600,14 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
-    auto* local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
+    SQLHDBC local_hdbc = SQL_NULL_HDBC;
+    {
+        const std::lock_guard<std::mutex> reader_hdbc_lock(main_monitor_->node_threads_reader_hdbc_mutex_);
+        if (!main_monitor_->node_threads_reader_hdbc_) {
+            return;
+        }
+        local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
+    }
     // Check connection
     if (GetNodeId(local_hdbc, main_monitor_->dialect_, odbc_helper_).empty()) {
         return;
@@ -574,6 +620,11 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
     {
         const std::lock_guard<std::mutex> lock(main_monitor_->node_threads_latest_topology_mutex_);
         main_monitor_->node_threads_latest_topology_ = std::make_shared<std::vector<HostInfo>>(hosts);
+    }
+
+    {
+        const std::lock_guard<std::mutex> reader_topologies_lock(main_monitor_->reader_topologies_by_id_mutex_);
+        main_monitor_->reader_topologies_by_id_[host_info_->GetHostId()] = hosts;
     }
 
     // Update cache if writer changed
@@ -591,5 +642,84 @@ void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
             TopologyUtil::LogTopology(hosts);
             break;
         }
+    }
+}
+
+void ClusterTopologyMonitor::NodeMonitoringThread::MarkCompletedOneCycle() {
+    if (!completed_one_cycle_) {
+        completed_one_cycle_ = true;
+        const std::lock_guard<std::mutex> completed_one_cycle_lock(main_monitor_->completed_one_cycle_mutex_);
+        main_monitor_->completed_one_cycle_[host_info_->GetHostId()] = true;
+    }
+}
+
+// Compare two topology vectors by host, port, state, and role (excluding weight).
+bool ClusterTopologyMonitor::TopologiesMatchExcludingWeight(
+    const std::vector<HostInfo>& a, const std::vector<HostInfo>& b) {
+    return std::ranges::equal(a, b, [](const HostInfo& lhs, const HostInfo& rhs) {
+        return lhs.GetHost() == rhs.GetHost()
+            && lhs.GetPort() == rhs.GetPort()
+            && lhs.GetHostState() == rhs.GetHostState()
+            && lhs.GetHostRole() == rhs.GetHostRole();
+    });
+}
+
+void ClusterTopologyMonitor::CheckForStableReaderTopologies() {
+    const std::vector<HostInfo> latest_hosts = plugin_service_->GetHosts();
+    if (latest_hosts.empty()) {
+        stable_topologies_start_ = epoch_;
+        return;
+    }
+
+    // Ensure all node monitors have completed at least one cycle before concluding stability.
+    {
+        const std::lock_guard lock(completed_one_cycle_mutex_);
+        const bool all_completed = std::ranges::all_of(latest_hosts, [this](const HostInfo& host) {
+            const auto it = completed_one_cycle_.find(host.GetHostId());
+            return it != completed_one_cycle_.end() && it->second;
+        });
+        if (!all_completed) {
+            stable_topologies_start_ = epoch_;
+            return;
+        }
+    }
+
+    std::vector<HostInfo> reference_topology;
+    {
+        const std::lock_guard lock(reader_topologies_by_id_mutex_);
+        if (reader_topologies_by_id_.empty()) {
+            stable_topologies_start_ = epoch_;
+            return;
+        }
+
+        // Check whether the topologies match. HostInfos are compared using their host, port, role, and availability fields.
+        // Note that monitors that encounter exceptions will remove their entry from the map, so only entries from
+        // successful monitors are checked.
+        reference_topology = reader_topologies_by_id_.begin()->second;
+        const bool all_match = std::ranges::all_of(
+            reader_topologies_by_id_ | std::views::values,
+            [&](const std::vector<HostInfo>& topology) {
+                return TopologiesMatchExcludingWeight(reference_topology, topology);
+            });
+        if (!all_match) {
+            stable_topologies_start_ = epoch_;
+            return;
+        }
+    }
+
+    // All reader topologies match.
+    const auto now = std::chrono::steady_clock::now();
+    if (stable_topologies_start_ == epoch_) {
+        stable_topologies_start_ = now;
+    }
+
+    if (now > stable_topologies_start_ + stable_topologies_duration_) {
+        // Reader topologies have been consistent for stableTopologiesDurationNano, so the topology should be accurate.
+        stable_topologies_start_ = epoch_;
+        LOG(INFO) << "All reader topologies have been stable for "
+                  << stable_topologies_duration_.count()
+                  << "s, accepting reader topology as current topology";
+        UpdateTopologyCache(reference_topology);
+        TopologyUtil::LogTopology(reference_topology);
     }
 }
