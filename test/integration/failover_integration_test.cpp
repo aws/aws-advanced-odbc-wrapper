@@ -76,6 +76,9 @@ protected:
 
 /** Writer fails to a reader **/
 TEST_F(FailoverIntegrationTest, WriterFailToReader) {
+    conn_str = ConnectionStringBuilder(conn_str)
+        .withClusterId("WriterFailToReader")
+        .getString();
     std::string strict_reader_conn_str = ConnectionStringBuilder(conn_str)
         .withFailoverMode("STRICT_READER")
         .getString();
@@ -108,6 +111,9 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
 
 /** Writer fails within a transaction. Open transaction by explicitly calling BEGIN */
 TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
+    conn_str = ConnectionStringBuilder(conn_str)
+        .withClusterId("WriterFailWithinTransaction_DisableAutocommit")
+        .getString();
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests
@@ -155,6 +161,9 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
 
 /** Writer fails within a transaction. Open transaction with SQLSetConnectAttr */
 TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) {
+    conn_str = ConnectionStringBuilder(conn_str)
+        .withClusterId("WriterFailWithinTransaction_setAutoCommitFalse")
+        .getString();
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests

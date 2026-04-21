@@ -176,6 +176,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("immediate")
         .withLimitlessMonitorIntervalMs(1000)
+        .withClusterId("LimitlessImmediate")
         .getString();
 
     SQLHDBC local_dbc = nullptr;
@@ -200,6 +201,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("lazy")
         .withLimitlessMonitorIntervalMs(MONITOR_INTERVAL_MS)
+        .withClusterId("LimitlessLazy")
         .getString();
 
     SQLHDBC first_dbc = nullptr;
@@ -265,6 +267,7 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
         .withLimitlessEnabled(true)
         .withLimitlessMode("immediate")
         .withLimitlessMonitorIntervalMs(MONITOR_INTERVAL_MS)
+        .withClusterId("HeavyLoadInitial")
         .getString();
 
     std::vector<SQLHDBC> limitless_dbcs;

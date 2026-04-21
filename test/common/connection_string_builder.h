@@ -159,6 +159,11 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withClusterId(const std::string& cluster_id) {
+        length += sprintf(conn_in + length, "CLUSTER_ID=%s;", cluster_id.c_str());
+        return *this;
+    }
+
     std::string getString() const {
         return conn_in;
     }
