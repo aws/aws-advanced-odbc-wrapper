@@ -84,8 +84,43 @@ SQLRETURN SQL_API SQLBindCol(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
+
+    #if UNICODE && !defined(_WIN32)
+    {
+        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+        if ((use_4_base || use_4_app) && TargetType == SQL_C_TCHAR && TargetValuePtr != nullptr && BufferLength > 0) {
+            std::vector<BoundColBuffer>& bindings = stmt->bound_col_buffers;
+            bindings.erase(
+                std::remove_if(bindings.begin(), bindings.end(),
+                    [ColumnNumber](const BoundColBuffer &b) { return b.column_number == ColumnNumber; }),
+                bindings.end());
+
+            const size_t local_buf_size = use_4_base
+                ? static_cast<size_t>(BufferLength) * 2
+                : static_cast<size_t>(BufferLength);
+
+            BoundColBuffer new_buffer;
+            new_buffer.column_number = ColumnNumber;
+            new_buffer.app_ptr = TargetValuePtr;
+            new_buffer.app_buf_len = BufferLength;
+            new_buffer.app_str_len_ptr = StrLen_or_IndPtr;
+            new_buffer.local_buf.resize(local_buf_size, 0);
+            new_buffer.local_str_len = 0;
+            bindings.push_back(std::move(new_buffer));
+
+            BoundColBuffer& ref = bindings.back();
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+                stmt->wrapped_stmt, ColumnNumber, TargetType, ref.local_buf.data(),
+                BufferLength, &ref.local_str_len
+            );
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        }
+    }
+    #endif
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
         stmt->wrapped_stmt, ColumnNumber, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
@@ -398,6 +433,46 @@ SQLRETURN SQL_API SQLExecute(
     return SQL_ERROR;
 }
 
+#if UNICODE && !defined(_WIN32)
+static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
+    std::vector<BoundColBuffer> buffers = stmt->bound_col_buffers;
+    if (buffers.empty()) {
+        return;
+    }
+
+    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+    for (BoundColBuffer& buffer : buffers) {
+        if (buffer.local_str_len == SQL_NULL_DATA || buffer.local_str_len < 0) {
+            if (buffer.app_str_len_ptr) {
+                *buffer.app_str_len_ptr = buffer.local_str_len;
+            }
+            continue;
+        }
+
+        SQLTCHAR* local = buffer.local_buf.data();
+
+        // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
+        if (use_4_base) {
+            Convert4To2ByteString(true, local, nullptr, static_cast<size_t>(buffer.local_str_len));
+        }
+
+        // Copy to user's buffer in the expected encoding
+        const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t *>(local));
+        const size_t dst_len = buffer.app_buf_len;
+        if (use_4_app) {
+            ConvertUTF16ToUTF32(local, static_cast<SQLTCHAR*>(buffer.app_ptr), src_len, dst_len);
+        } else {
+            const size_t copy_chars = src_len < dst_len ? src_len : dst_len;
+            SQLTCHAR* dst = reinterpret_cast<SQLTCHAR*>(buffer.app_ptr);
+            std::memcpy(dst, local, copy_chars * sizeof(SQLTCHAR));
+            dst[copy_chars] = '\0';
+        }
+    }
+}
+#endif
+
 SQLRETURN SQL_API SQLExtendedFetch(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   FetchOrientation,
@@ -418,6 +493,13 @@ SQLRETURN SQL_API SQLExtendedFetch(
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExtendedFetch, RDS_STR_SQLExtendedFetch,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset, RowCountPtr, RowStatusArray
     );
+
+#if UNICODE && !defined(_WIN32)
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        ConvertBoundColBuffersAfterFetch(stmt);
+    }
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
@@ -437,6 +519,13 @@ SQLRETURN SQL_API SQLFetch(
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
         stmt->wrapped_stmt
     );
+
+#if UNICODE && !defined(_WIN32)
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        ConvertBoundColBuffersAfterFetch(stmt);
+    }
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
@@ -458,6 +547,13 @@ SQLRETURN SQL_API SQLFetchScroll(
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetchScroll, RDS_STR_SQLFetchScroll,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset
     );
+
+#if UNICODE && !defined(_WIN32)
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        ConvertBoundColBuffersAfterFetch(stmt);
+    }
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 

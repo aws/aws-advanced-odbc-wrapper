@@ -399,6 +399,11 @@ SQLRETURN RDS_FreeStmt(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
                 }
+
+                if (Option == SQL_UNBIND) {
+                    stmt->bound_col_buffers.clear();
+                }
+
                 return ret;
             }
         case SQL_DROP:
