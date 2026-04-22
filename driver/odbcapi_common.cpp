@@ -91,8 +91,15 @@ SQLRETURN SQL_API SQLBindCol(
         const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
         const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
 
-        if ((use_4_base || use_4_app) && TargetType == SQL_C_TCHAR && TargetValuePtr != nullptr && BufferLength > 0) {
-            std::vector<BoundColBuffer>& bindings = stmt->bound_col_buffers;
+        std::vector<BoundColBuffer>& bindings = stmt->bound_col_buffers;
+        if (TargetValuePtr == nullptr) {
+            // Unbind single column
+            bindings.erase(
+                std::remove_if(bindings.begin(), bindings.end(),
+                    [ColumnNumber](const BoundColBuffer &b) { return b.column_number == ColumnNumber; }),
+                bindings.end());
+
+        } else if ((use_4_base || use_4_app) && TargetType == SQL_C_TCHAR && BufferLength > 0) {
             bindings.erase(
                 std::remove_if(bindings.begin(), bindings.end(),
                     [ColumnNumber](const BoundColBuffer &b) { return b.column_number == ColumnNumber; }),
@@ -435,7 +442,7 @@ SQLRETURN SQL_API SQLExecute(
 
 #if UNICODE && !defined(_WIN32)
 static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
-    std::vector<BoundColBuffer> buffers = stmt->bound_col_buffers;
+    std::vector<BoundColBuffer>& buffers = stmt->bound_col_buffers;
     if (buffers.empty()) {
         return;
     }
