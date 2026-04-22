@@ -397,6 +397,10 @@ jobs:
         run: |
           echo "Base driver path: $(cd psqlodbc/.libs && pwd)"
           ls psqlodbc/.libs/
+          echo "--- ANSI driver ---"
+          ldd {{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
+          echo "--- Unicode driver ---"
+          ldd {{ github.workspace }}/psqlodbc/.libs/psqlodbc2.so
           echo "--- ODBC DSN config ---"
           odbcinst -j 2>/dev/null || true
           cat /etc/odbcinst.ini 2>/dev/null || true
