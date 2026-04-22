@@ -123,6 +123,24 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
     return buffer_utf8;
 }
 
+// Expand UTF16 (2-byte) into UTF32 (4-byte)
+inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_len, const size_t dst_len) {
+    if (src == nullptr || dst == nullptr || dst_len < 2) {
+        return 0;
+    }
+
+    const size_t max_copy = (dst_len - 2) / 2;
+    const size_t written = src_len < max_copy ? src_len : max_copy;
+    for (size_t i = 0; i < written; i++) {
+        dst[i * 2] = src[i];
+        dst[(i * 2) + 1] = 0;
+    }
+    dst[written * 2] = 0;
+    dst[(written * 2) + 1] = 0;
+
+    return written;
+}
+
 inline std::string Convert4ByteSqlWChar(
     SQLTCHAR *     InputStr,
     SQLSMALLINT    BufferLength
@@ -175,7 +193,10 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
         size_t size = in_length > wide.length()
             ? wide.length()
             : in_length - 1; // For null terminating character
-        return std::vector<SQLTCHAR>(wide.data(), wide.data() + size);
+        size_t size_converted = size * 2 + 1;
+        SQLTCHAR* wide_converted_2byte = new SQLTCHAR[size_converted];
+        ConvertUTF16ToUTF32(wide.data(), wide_converted_2byte, in_length, size);
+        return std::vector<SQLTCHAR>(wide_converted_2byte, wide_converted_2byte + size_converted);
     } else {
         std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
         return std::vector<SQLTCHAR>(
