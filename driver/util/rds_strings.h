@@ -187,16 +187,47 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
 }
 
 inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
+    LOG(INFO) << "[ConvertUserAppInputToBaseDriver] in_length=" << in_length
+              << " (sizeof(SQLTCHAR)=" << sizeof(SQLTCHAR) << ", "
+              << (sizeof(SQLTCHAR) == 4 ? "4-byte" : "2-byte") << " SQLTCHAR)";
+
+    // nullptr is valid ODBC inputå
+    if (in == nullptr) {
+        return std::vector<SQLTCHAR>();
+    }
+
     const std::string utf8 = ConvertUserAppToUTF8(user_4_byte, in, in_length);
     if (driver_4_byte) {
-        std::wstring wide = ConvertUTF8ToWString(utf8);
-        size_t size = in_length > wide.length()
-            ? wide.length()
-            : in_length - 1; // For null terminating character
-        size_t size_converted = size * 2 + 1;
-        SQLTCHAR* wide_converted_2byte = new SQLTCHAR[size_converted];
-        ConvertUTF16ToUTF32(wide.data(), wide_converted_2byte, in_length, size);
-        return std::vector<SQLTCHAR>(wide_converted_2byte, wide_converted_2byte + size_converted);
+        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+        size_t utf16_len = utf16.size() > 0 ? utf16.size() - 1 : 0;
+å
+        size_t size;
+        if (in_length == SQL_NTS || in_length < 0) {
+            size = utf16_len;
+        } else {
+            size = static_cast<size_t>(in_length) < utf16_len
+                ? static_cast<size_t>(in_length)
+                : utf16_len;
+        }
+
+        size_t size_converted = size * 2 + 2; // Each char expands to 2 SQLTCHAR + null pair
+        SQLTCHAR* wide_converted_4byte = new SQLTCHAR[size_converted];
+        
+        LOG(INFO) << "[ConvertUserAppInputToBaseDriver] Before ConvertUTF16ToUTF32: utf16_len=" << utf16_len
+                  << ", size=" << size << ", size_converted=" << size_converted
+                  << ", utf16 bytes=" << utf16.size() * sizeof(uint16_t);
+        
+        const size_t chars_written = ConvertUTF16ToUTF32(reinterpret_cast<const SQLTCHAR*>(utf16.data()), wide_converted_4byte, size, size_converted);
+        
+        LOG(INFO) << "[ConvertUserAppInputToBaseDriver] After ConvertUTF16ToUTF32: chars_written=" << chars_written
+                  << ", output SQLTCHAR elements=" << size_converted
+                  << ", output bytes=" << size_converted * sizeof(SQLTCHAR)
+                  << " (data: " << chars_written << " chars * 2 SQLTCHAR = " << chars_written * 2
+                  << " + 2 null SQLTCHAR = " << chars_written * 2 + 2 << " total)";
+        
+        std::vector<SQLTCHAR> result(wide_converted_4byte, wide_converted_4byte + size_converted);
+        delete[] wide_converted_4byte;
+        return result;
     } else {
         std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
         return std::vector<SQLTCHAR>(

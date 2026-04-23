@@ -19,6 +19,16 @@
 #include "../odbcapi.h"
 #include "rds_lib_loader.h"
 
+#include <vector>
+
+// Holds a converted SQLTCHAR buffer and a pointer suitable for passing to the
+// base driver.  The vector keeps the data alive; `ptr` is nullptr when the
+// original input was nullptr (preserving ODBC nullptr semantics).
+struct ConvertedSqltchar {
+    std::vector<SQLTCHAR> data;
+    SQLTCHAR* tchar_ptr = nullptr;
+};
+
 class OdbcHelper {
 public:
     OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader);
@@ -46,6 +56,12 @@ public:
     bool GetUse4BytesUserApp() const;
     void SetUse4BytesBaseDriver(bool use_4_bytes);
     void SetUse4BytesUserApp(bool use_4_bytes);
+
+    // Converts a user-app SQLTCHAR* input to the encoding expected by the base
+    // driver, respecting the current user_4_byte / driver_4_byte flags.
+    // Returns a ConvertedSqltchar whose `ptr` is nullptr when `in` is nullptr.
+    // In non-Unicode builds the input pointer is passed through unchanged.
+    ConvertedSqltchar ConvertInput(SQLTCHAR* in, SQLSMALLINT in_length) const;
 
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
 

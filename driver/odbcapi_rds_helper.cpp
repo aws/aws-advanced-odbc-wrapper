@@ -622,43 +622,24 @@ SQLRETURN RDS_SQLColumns(
 
     CHECK_WRAPPED_STMT(stmt);
 
-    SQLTCHAR* catalog_name_sqltchar;
-    SQLTCHAR* schema_name_sqltchar;
-    SQLTCHAR* table_name_sqltchar;
-    SQLTCHAR* column_name_sqltchar;
-
-#if UNICODE
-    const bool user_4_byte   = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
-    const bool driver_4_byte = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-
-    std::vector<SQLTCHAR> catalog_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, CatalogName, NameLength1);
-    std::vector<SQLTCHAR> schema_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, SchemaName, NameLength2);
-    std::vector<SQLTCHAR> table_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, TableName, NameLength3);
-    std::vector<SQLTCHAR> column_name_vec = ConvertUserAppInputToBaseDriver(user_4_byte, driver_4_byte, ColumnName, NameLength4);
-
-    catalog_name_sqltchar = catalog_name_vec.data();
-    schema_name_sqltchar = schema_name_vec.data();
-    table_name_sqltchar = table_name_vec.data();
-    column_name_sqltchar = column_name_vec.data();
-#else
-    catalog_name_sqltchar = CatalogName;
-    schema_name_sqltchar = SchemaName;
-    table_name_sqltchar = TableName;
-    column_name_sqltchar = ColumnName;
-#endif
+    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
         env->driver_lib_loader,
         RDS_FP_SQLColumns,
         RDS_STR_SQLColumns,
         stmt->wrapped_stmt,
-            catalog_name_sqltchar,
+            catalog_converted.tchar_ptr,
             NameLength1,
-            schema_name_sqltchar,
+            schema_converted.tchar_ptr,
             NameLength2,
-            table_name_sqltchar,
+            table_converted.tchar_ptr,
             NameLength3,
-            column_name_sqltchar,
+            column_converted.tchar_ptr,
             NameLength4
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);

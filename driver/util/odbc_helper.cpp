@@ -143,6 +143,22 @@ void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
     this->use_4_bytes_user_app_ = use_4_bytes;
 }
 
+ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLSMALLINT in_length) const {
+    ConvertedSqltchar result;
+#if UNICODE
+    if (!in) {
+        // Return as-is if this is a nullptr, let the caller decide how to handle nullptr.
+        return result;
+    }
+    result.data = ConvertUserAppInputToBaseDriver(
+        use_4_bytes_user_app_, use_4_bytes_base_driver_, in, in_length);
+    result.tchar_ptr = result.data.data();
+#else
+    result.tchar_ptr = in;
+#endif
+    return result;
+}
+
 std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
