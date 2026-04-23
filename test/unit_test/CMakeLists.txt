@@ -94,9 +94,24 @@ find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
 list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
 
 # -- ODBC --
-if(APPLE)
-    # Use UnixODBC instead of iODBC
-    set(ODBC_INCLUDE_DIR /opt/homebrew/opt/unixodbc/include)
+if(NOT WIN32)
+    if(WITH_IODBC)
+        message("Build with IODBC")
+        set(UNIX_ODBC "libiodbc")
+    else()
+        message("Build with unixODBC")
+        set(UNIX_ODBC "unixodbc")
+    endif()
+
+    if(APPLE)
+        set(ODBC_ROOT /opt/homebrew/opt/${UNIX_ODBC}/)
+        set(ODBC_INCLUDE_DIR /opt/homebrew/opt/${UNIX_ODBC}/include)
+    elseif(WITH_IODBC)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(IODBC REQUIRED ${UNIX_ODBC})
+        set(ODBC_INCLUDE_DIR ${IODBC_INCLUDE_DIRS})
+        set(ODBC_LIBRARIES ${IODBC_LIBRARIES})
+    endif()
 endif()
 
 find_package(ODBC REQUIRED)

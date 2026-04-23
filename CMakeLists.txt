@@ -23,7 +23,7 @@ set(WRAPPER_VERSION "1.1.0")
 set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode Wrapper")
 set(BUILD_UNIT_TEST OFF CACHE BOOL "Toggle to build Unit Tests")
-set(WITH_IODBC OFF CACHE BOOL "Build with iODBC")
+option(WITH_IODBC "Build with iODBC instead of unixODBC" OFF)
 
 # External Tools ---------------------------------------------------------------------------------------------
 include(FetchContent)
@@ -54,10 +54,24 @@ if(NOT WIN32)
 endif()
 
 # -- ODBC --
-if(APPLE)
-    message("Apple to use unixODBC")
-    set(ODBC_ROOT /opt/homebrew/opt/unixodbc/)
-    set(ODBC_INCLUDE_DIR /opt/homebrew/opt/unixodbc/include)
+if(NOT WIN32)
+    if(WITH_IODBC)
+        message("Build with IODBC")
+        set(UNIX_ODBC "libiodbc")
+    else()
+        message("Build with unixODBC")
+        set(UNIX_ODBC "unixodbc")
+    endif()
+
+    if(APPLE)
+        set(ODBC_ROOT /opt/homebrew/opt/${UNIX_ODBC}/)
+        set(ODBC_INCLUDE_DIR /opt/homebrew/opt/${UNIX_ODBC}/include)
+    elseif(WITH_IODBC)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(IODBC REQUIRED ${UNIX_ODBC})
+        set(ODBC_INCLUDE_DIR ${IODBC_INCLUDE_DIRS})
+        set(ODBC_LIBRARIES ${IODBC_LIBRARIES})
+    endif()
 endif()
 
 find_package(ODBC REQUIRED)
@@ -67,13 +81,12 @@ list(APPEND EXTERNAL_LIBRARIES ODBC::ODBC)
 if(WIN32)
     list(APPEND EXTERNAL_LIBRARIES odbccp32 legacy_stdio_definitions)
 else(WIN32)
-    # TODO - Test iODBC
     if(WITH_IODBC)
         find_library(ODBC_INST_LIB
             NAME
                 iodbcinst
             HINTS
-                ODBC_ROOT
+                ${IODBC_LIBRARY_DIRS}
             REQUIRED
         )
     else() # unixODBC
@@ -81,7 +94,7 @@ else(WIN32)
             NAME
                 odbcinst
             HINTS
-                ODBC_ROOT
+                ${ODBC_ROOT}
             REQUIRED
         )
     endif()
