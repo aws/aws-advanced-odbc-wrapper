@@ -66,6 +66,7 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
         .withAuthExpiration(900)
         .withExtraUrlEncode(true)
         .withSslMode("allow")
+        .withClusterId("SimpleIamConnection")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -88,6 +89,7 @@ TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
         .withExtraUrlEncode(true)
         .withSslMode("allow")
         .withIamHost(test_server)
+        .withClusterId("ConnectToIpAddress")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -109,6 +111,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
         .withAuthExpiration(900)
         .withExtraUrlEncode(true)
         .withSslMode("allow")
+        .withClusterId("WrongPassword")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -128,6 +131,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
         .withAuthExpiration(900)
         .withExtraUrlEncode(true)
         .withSslMode("allow")
+        .withClusterId("WrongUser")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -151,6 +155,7 @@ TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
         .withAuthExpiration(900)
         .withExtraUrlEncode(true)
         .withSslMode("allow")
+        .withClusterId("EmptyUser")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);

@@ -59,6 +59,9 @@ protected:
         ASSERT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc));
     }
     void TearDown() override {
+        // Allow ng-log to flush before ShutdownLogging() is triggered by freeing the env handle.
+        // Without this, rapid init/shutdown cycles (e.g. skipped tests) can lose log files.
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         ODBC_HELPER::CleanUpHandles(env, dbc, nullptr);
     }
 private:

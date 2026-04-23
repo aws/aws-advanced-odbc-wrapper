@@ -393,10 +393,24 @@ jobs:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver
           fail-on-cache-miss: true
-      - name: Log psqlODBC driver location
+      - name: Detect psqlODBC driver path
+        id: psqlodbc-path
         run: |
           echo "Base driver path: $(cd psqlodbc/.libs && pwd)"
-          ls psqlodbc/.libs/
+          ls -la psqlodbc/.libs/
+          # On macOS, libtool may produce .so or .dylib files
+          if [ -f "${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so" ]; then
+            PG_DRIVER="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so"
+          elif [ -f "${{ github.workspace }}/psqlodbc/.libs/psqlodbca.dylib" ]; then
+            PG_DRIVER="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.dylib"
+          else
+            echo "ERROR: Could not find psqlODBC ANSI driver in psqlodbc/.libs/"
+            exit 1
+          fi
+          echo "Detected psqlODBC driver: $PG_DRIVER"
+          file "$PG_DRIVER"
+          otool -L "$PG_DRIVER"
+          echo "PSQLODBC_DRIVER_PATH=$PG_DRIVER" >> "$GITHUB_OUTPUT"
           echo "--- ODBC DSN config ---"
           odbcinst -j 2>/dev/null || true
           cat /etc/odbcinst.ini 2>/dev/null || true
@@ -417,9 +431,24 @@ jobs:
           key: ${{ runner.os }}-mysql-driver
           fail-on-cache-miss: true
       - name: Log MySQL driver location
+        id: mysql-path
         run: |
           echo "Base driver path: $(cd mysql-connector && pwd)"
-          ls mysql-connector/
+          ls -la mysql-connector/
+          ls -la mysql-connector/lib/ 2>/dev/null || true
+          # On macOS, MySQL connector may produce .so or .dylib files
+          if [ -f "${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so" ]; then
+            MYSQL_DRIVER="${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so"
+          elif [ -f "${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.dylib" ]; then
+            MYSQL_DRIVER="${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.dylib"
+          else
+            echo "ERROR: Could not find MySQL ODBC ANSI driver in mysql-connector/lib/"
+            exit 1
+          fi
+          echo "Detected MySQL driver: $MYSQL_DRIVER"
+          file "$MYSQL_DRIVER"
+          otool -L "$MYSQL_DRIVER"
+          echo "MYSQL_DRIVER_PATH=$MYSQL_DRIVER" >> "$GITHUB_OUTPUT"
           echo "--- ODBC DSN config ---"
           odbcinst -j 2>/dev/null || true
           cat /etc/odbcinst.ini 2>/dev/null || true
@@ -439,10 +468,10 @@ jobs:
         run: |
           cmake -S test/compatibility -B test-compatibility \
             -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
-            -D PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so" \
+            -D PG_DRIVER_PATH="${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}" \
             -D PG_SERVER="localhost" \
             -D PG_DATABASE="${{env.LOCAL_DB_NAME}}" \
-            -D MYSQL_DRIVER_PATH="${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so" \
+            -D MYSQL_DRIVER_PATH="${{ steps.mysql-path.outputs.MYSQL_DRIVER_PATH }}" \
             -D MYSQL_SERVER="localhost" \
             -D MYSQL_DATABASE="${{env.LOCAL_DB_NAME}}"
           cmake --build test-compatibility
@@ -456,7 +485,7 @@ jobs:
           TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
           TEST_USERNAME: ${{env.LOCAL_DB_UID}}
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
-          TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so
+          TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
@@ -476,7 +505,7 @@ jobs:
           TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
           TEST_USERNAME: ${{env.LOCAL_DB_UID}}
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
-          TEST_BASE_DRIVER: ${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so
+          TEST_BASE_DRIVER: ${{ steps.mysql-path.outputs.MYSQL_DRIVER_PATH }}
           TEST_BASE_DSN: mysql-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"

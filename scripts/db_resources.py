@@ -156,11 +156,14 @@ def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=Fa
 
 def create_aurora_cluster(rds_client, args):
     version = resolve_engine_version(rds_client, args.engine, args.engine_version)
+    username = args.username
+    if args.extra_mysql_user is not None:
+        username = args.extra_mysql_user
 
     create_kwargs = dict(
         DBClusterIdentifier=args.cluster_id,
         DatabaseName=args.database,
-        MasterUsername=args.username,
+        MasterUsername=username,
         MasterUserPassword=args.password,
         SourceRegion=args.region,
         EnableIAMDatabaseAuthentication=True,
@@ -291,6 +294,9 @@ def create_rds_instance(rds_client, args, multi_az=False):
     rds_engine = args.engine.replace("aurora-", "")
     version = resolve_rds_engine_version(rds_client, rds_engine, args.engine_version)
     az_label = "Multi-AZ" if multi_az else "Single-AZ"
+    username = args.username
+    if args.extra_mysql_user is not None:
+        username = args.extra_mysql_user
 
     print(f"Creating {az_label} RDS instance ({rds_engine} {version})...")
     rds_client.create_db_instance(
@@ -298,7 +304,7 @@ def create_rds_instance(rds_client, args, multi_az=False):
         DBInstanceClass=args.instance_class,
         Engine=rds_engine,
         EngineVersion=version,
-        MasterUsername=args.username,
+        MasterUsername=username,
         MasterUserPassword=args.password,
         DBName=args.database,
         AllocatedStorage=args.allocated_storage,
@@ -376,12 +382,16 @@ def setup_pg_iam_user(endpoint, port, database, username, password, iam_user):
 def setup_mysql_iam_user(endpoint, database, username, password, iam_user,
                          extra_user=None, extra_password=None):
     print(f"Connecting to MySQL via AWS Advanced Python Wrapper: {endpoint}:3306/{database}")
+    current_user = username
+    if extra_user:
+        current_user = extra_user
+
     try:
         with AwsWrapperConnection.connect(
             mysql.connector.Connect,
             host=endpoint,
             database=database,
-            user=username,
+            user=current_user,
             password=password,
             wrapper_dialect="aurora-mysql",
             plugins="",
@@ -394,9 +404,9 @@ def setup_mysql_iam_user(endpoint, database, username, password, iam_user,
             cur.execute("FLUSH PRIVILEGES")
 
             if extra_user and extra_password:
-                print(f"  CREATE USER {extra_user}")
-                cur.execute(f"CREATE USER '{extra_user}' IDENTIFIED WITH caching_sha2_password BY '{extra_password}'")
-                cur.execute(f"GRANT ALL ON {database}.* TO '{extra_user}'@'%'")
+                print(f"  CREATE USER {username}")
+                cur.execute(f"CREATE USER '{username}' IDENTIFIED WITH caching_sha2_password BY '{extra_password}'")
+                cur.execute(f"GRANT ALL ON {database}.* TO '{username}'@'%'")
                 cur.execute("FLUSH PRIVILEGES")
 
             cur.close()

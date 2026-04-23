@@ -69,6 +69,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
         .withDatabase(test_db)
         .withAuroraInitialConnectionStrategy(true)
         .withDatabaseDialect(test_dialect)
+        .withClusterId("AuroraInitialConnectionStrategyWriterDns")
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
@@ -89,6 +90,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
         .withDatabase(test_db)
         .withAuroraInitialConnectionStrategy(true)
         .withDatabaseDialect(test_dialect)
+        .withClusterId("AuroraInitialConnectionStrategyReaderDns")
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
@@ -112,6 +114,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
         .withDatabaseDialect(test_dialect)
         .withAuroraInitialConnectionStrategy(true)
         .withVerifyInitialConnectionType("READER")
+        .withClusterId("AuroraInitialConnectionStrategyWriterDnsReaderOverride")
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
@@ -136,6 +139,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
         .withDatabaseDialect(test_dialect)
         .withAuroraInitialConnectionStrategy(true)
         .withVerifyInitialConnectionType("WRITER")
+        .withClusterId("AuroraInitialConnectionStrategyReaderDnsWriterOverride")
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);

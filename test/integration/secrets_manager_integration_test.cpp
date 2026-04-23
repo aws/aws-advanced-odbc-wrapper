@@ -57,6 +57,7 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithRegion) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId(test_secret_arn)
+        .withClusterId("EnableSecretsManagerWithRegion")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -71,6 +72,7 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWithoutRegion) {
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withSecretId(test_secret_arn)
+        .withClusterId("EnableSecretsManagerWithoutRegion")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -88,6 +90,7 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerWrongRegion) {
         .withAuthMode(auth_type)
         .withAuthRegion("us-fake-1")
         .withSecretId(test_secret_arn)
+        .withClusterId("EnableSecretsManagerWrongRegion")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
@@ -103,6 +106,7 @@ TEST_F(SecretsManagerIntegrationTest, EnableSecretsManagerInvalidSecretID) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withSecretId("invalid-id")
+        .withClusterId("EnableSecretsManagerInvalidSecretID")
         .getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);

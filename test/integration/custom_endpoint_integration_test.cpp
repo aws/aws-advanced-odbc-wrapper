@@ -81,6 +81,7 @@ TEST_F(CustomEndpointIntegrationTest, CustomEndpointFailover) {
         .withEnableClusterFailover(true)
         .withFailoverMode("READER_OR_WRITER")
         .withDatabaseDialect(test_dialect)
+        .withClusterId("CustomEndpointFailover")
         .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
