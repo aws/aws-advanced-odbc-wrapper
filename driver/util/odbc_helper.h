@@ -59,9 +59,9 @@ public:
 
     // Converts a user-app SQLTCHAR* input to the encoding expected by the base
     // driver, respecting the current user_4_byte / driver_4_byte flags.
-    // Returns a ConvertedSqltchar whose `ptr` is nullptr when `in` is nullptr.
+    // Returns a ConvertedSqltchar whose `tchar_ptr` is nullptr when `in` is nullptr.
     // In non-Unicode builds the input pointer is passed through unchanged.
-    ConvertedSqltchar ConvertInput(SQLTCHAR* in, SQLSMALLINT in_length) const;
+    ConvertedSqltchar ConvertInput(SQLTCHAR* in, SQLINTEGER in_length) const;
 
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
 

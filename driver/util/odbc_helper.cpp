@@ -143,7 +143,7 @@ void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
     this->use_4_bytes_user_app_ = use_4_bytes;
 }
 
-ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLSMALLINT in_length) const {
+ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLINTEGER in_length) const {
     ConvertedSqltchar result;
 #if UNICODE
     if (!in) {
@@ -151,7 +151,10 @@ ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLSMALLINT in_length) 
         return result;
     }
     result.data = ConvertUserAppInputToBaseDriver(
-        use_4_bytes_user_app_, use_4_bytes_base_driver_, in, in_length);
+        use_4_bytes_user_app_,
+        use_4_bytes_base_driver_,
+        in,
+        in_length);
     result.tchar_ptr = result.data.data();
 #else
     result.tchar_ptr = in;

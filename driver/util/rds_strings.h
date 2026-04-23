@@ -143,7 +143,7 @@ inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size
 
 inline std::string Convert4ByteSqlWChar(
     SQLTCHAR *     InputStr,
-    SQLSMALLINT    BufferLength
+    SQLINTEGER     BufferLength
     ) {
     bool end_found = false;
     int i = 0;
@@ -166,7 +166,7 @@ inline std::string Convert4ByteSqlWChar(
     return str_utf8_w;
 }
 
-inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
+inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
     if (user_4_byte) {
         size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
         return Convert4ByteSqlWChar(in, length);
@@ -186,12 +186,12 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
     }
 }
 
-inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLSMALLINT in_length) {
+inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
     LOG(INFO) << "[ConvertUserAppInputToBaseDriver] in_length=" << in_length
               << " (sizeof(SQLTCHAR)=" << sizeof(SQLTCHAR) << ", "
               << (sizeof(SQLTCHAR) == 4 ? "4-byte" : "2-byte") << " SQLTCHAR)";
 
-    // nullptr is valid ODBC inputå
+    // nullptr is valid ODBC input
     if (in == nullptr) {
         return std::vector<SQLTCHAR>();
     }
@@ -200,7 +200,7 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
     if (driver_4_byte) {
         std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
         size_t utf16_len = utf16.size() > 0 ? utf16.size() - 1 : 0;
-å
+
         size_t size;
         if (in_length == SQL_NTS || in_length < 0) {
             size = utf16_len;
