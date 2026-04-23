@@ -67,10 +67,20 @@ inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_
 
 #ifdef UNICODE
 #include "unicode/unistr.h"
-inline size_t UShortStrlen(const uint16_t* str) {
+inline size_t UShortStrlen(const uint16_t* str, const bool use_4_byte = false) {
     size_t length = 0;
-    while (str[length] != 0) {
-        length++;
+    if (!str) {
+        return length;
+    }
+
+    if (use_4_byte) {
+        while (str[length * 2] != 0 || str[length * 2 + 1] != 0) {
+            length++;
+        }
+    } else {
+        while (str[length] != 0) {
+            length++;
+        }
     }
     return length;
 }
