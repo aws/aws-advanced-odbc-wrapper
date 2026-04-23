@@ -67,10 +67,20 @@ inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_
 
 #ifdef UNICODE
 #include "unicode/unistr.h"
-inline size_t UShortStrlen(const uint16_t* str) {
+inline size_t UShortStrlen(const uint16_t* str, const bool use_4_byte = false) {
     size_t length = 0;
-    while (str[length] != 0) {
-        length++;
+    if (!str) {
+        return length;
+    }
+
+    if (use_4_byte) {
+        while (str[length * 2] != 0 || str[length * 2 + 1] != 0) {
+            length++;
+        }
+    } else {
+        while (str[length] != 0) {
+            length++;
+        }
     }
     return length;
 }
@@ -139,6 +149,23 @@ inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size
     dst[(written * 2) + 1] = 0;
 
     return written;
+}
+
+inline void ExpandUTF16ToUTF32InPlace(SQLTCHAR* buf, size_t src_chars, size_t buf_slots) {
+    if (buf == nullptr || src_chars == 0) {
+        return;
+    }
+
+    const size_t max_chars = (buf_slots >= 2) ? (buf_slots - 2) / 2 : 0;
+    const size_t chars = src_chars < max_chars ? src_chars : max_chars;
+
+    // Work backwards to avoid overwriting source data
+    for (size_t i = chars; i > 0; --i) {
+        buf[((i - 1) * 2) + 1] = 0;
+        buf[(i - 1) * 2] = buf[i - 1];
+    }
+    buf[chars * 2] = 0;
+    buf[(chars * 2) + 1] = 0;
 }
 
 inline std::string Convert4ByteSqlWChar(

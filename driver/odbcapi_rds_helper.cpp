@@ -37,6 +37,7 @@
 #include "util/odbc_dsn_helper.h"
 #include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
+#include "util/rds_strings.h"
 
 #ifdef WIN32
     #include "gui/setup.h"
@@ -400,8 +401,13 @@ SQLRETURN RDS_FreeStmt(
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
                 }
 
+                // Let underlying driver cleanup before we remove any of our data
                 if (Option == SQL_UNBIND) {
                     stmt->bound_col_buffers.clear();
+                }
+                if (Option == SQL_RESET_PARAMS) {
+                    stmt->put_data_char_conversion = false;
+                    stmt->bound_param_buffers.clear();
                 }
 
                 return ret;
@@ -1835,7 +1841,6 @@ SQLRETURN RDS_SQLPrepare(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
@@ -1865,7 +1870,6 @@ SQLRETURN RDS_SQLPrimaryKeys(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
