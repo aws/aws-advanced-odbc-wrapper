@@ -146,6 +146,7 @@ SQLRETURN BlueGreenPlugin::Connect(
                 last_failed_route = current_route;
             }
         }
+        this->end_time_ = std::chrono::steady_clock::now();
         if (!SQL_SUCCEEDED(rc)) {
             LOG(WARNING) << "[FALLBACK-F] All routes exhausted, falling back to direct. role: " << host_role.ToString()
                          << ", host: " << conn_host
@@ -236,6 +237,7 @@ SQLRETURN BlueGreenPlugin::Execute(
                 last_failed_route = current_route;
             }
         }
+        this->end_time_ = std::chrono::steady_clock::now();
         if (SQL_SUCCEEDED(rc)) {
             return rc;
         }

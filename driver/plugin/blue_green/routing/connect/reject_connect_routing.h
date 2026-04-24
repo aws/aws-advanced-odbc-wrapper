@@ -35,7 +35,7 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, std::unique_ptr<BaseConnectRouting>>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
 };
 
 #endif // REJECT_CONNECT_ROUTING_H_

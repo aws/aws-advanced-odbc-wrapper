@@ -9,6 +9,7 @@ Checks: ">
   readability-*,
   llvm-include-order,
   -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
   -bugprone-throwing-static-initialization,
   -clang-analyzer-optin.cplusplus.VirtualCall,
   -clang-diagnostic-unused-parameter,

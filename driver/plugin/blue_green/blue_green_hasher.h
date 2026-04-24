@@ -15,8 +15,6 @@
 #ifndef BLUE_GREEN_HASHER_H
 #define BLUE_GREEN_HASHER_H
 
-#include <chrono>
-#include <map>
 #include <string>
 
 namespace BlueGreenHasher {

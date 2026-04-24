@@ -101,7 +101,7 @@ private:
 
     BlueGreenRole current_role_;
     BlueGreenPhase current_phase_ = BlueGreenPhase::NOT_CREATED;
-    std::string current_version_ = "1.0";
+    std::string current_version_ = BlueGreenRole::VERSION_1_0;
     int current_port_ = -1;
 
     std::unordered_map<BlueGreenIntervalRate, std::chrono::milliseconds> check_interval_map_;

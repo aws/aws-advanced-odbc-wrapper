@@ -18,6 +18,8 @@
 #include <map>
 #include <string>
 
+#include "../../util/logger_wrapper.h"
+
 BlueGreenRole::BlueGreenRole() : BlueGreenRole(BlueGreenRole::UNKNOWN) {}
 
 BlueGreenRole::BlueGreenRole(Role role) {
@@ -40,11 +42,13 @@ BlueGreenRole BlueGreenRole::ParseRole(std::string value, std::string version) {
     BlueGreenRole::Role role = UNKNOWN;
 
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return std::toupper(c); });
-    if (version == "1.0") {
+    if (version == BlueGreenRole::VERSION_1_0) {
         auto itr = BlueGreenRole::ROLE_MAPPING_V1_0.find(value);
         if (itr != BlueGreenRole::ROLE_MAPPING_V1_0.end()) {
             role = itr->second;
         }
+    } else {
+        LOG(ERROR) << "BlueGreenRole unable to parse for version: " << version;
     }
 
     return {role};

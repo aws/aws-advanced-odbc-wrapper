@@ -26,6 +26,8 @@ public:
         UNKNOWN
     } Role;
 
+    static inline std::string VERSION_1_0 = "1.0";
+
     static inline std::map<std::string, Role> const ROLE_MAPPING_V1_0 = {
         {"BLUE_GREEN_DEPLOYMENT_SOURCE",    Role::SOURCE},
         {"BLUE_GREEN_DEPLOYMENT_TARGET",    Role::TARGET}

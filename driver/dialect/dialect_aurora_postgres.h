@@ -85,7 +85,7 @@ private:
 
     // "id", "endpoint", "port", "role", "status", "version", "update_stamp"
     const std::string BG_STATUS_QUERY =
-        "SELECT * FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_odbc_driver-1.0.0')";
+        "SELECT * FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_odbc_driver-1.1.0')";
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",

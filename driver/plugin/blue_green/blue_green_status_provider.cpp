@@ -331,6 +331,7 @@ void BlueGreenStatusProvider::UpdateSummaryStatus(BlueGreenRole role, BlueGreenI
             this->summary_status_ = this->GetStatusOfCompleted();
             break;
         default:
+            LOG(ERROR) << "Unexpected Phase for role: " << role.ToString() << ", " << this->latest_status_phase_.ToString();
             break;
     }
 }
