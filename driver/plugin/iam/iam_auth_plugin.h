@@ -19,12 +19,20 @@
 
 #include "../base_plugin.h"
 #include "../../driver.h"
+#include "../../dialect/dialect.h"
+#include "../../util/odbc_helper.h"
+
+#include <memory>
 
 class IamAuthPlugin : public BasePlugin {
 public:
     IamAuthPlugin(DBC* dbc);
-    IamAuthPlugin(DBC* dbc, BasePlugin* next_plugin);
-    IamAuthPlugin(DBC* dbc, BasePlugin* next_plugin, const std::shared_ptr<AuthProvider>& auth_provider);
+    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider);
+    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,
+                  const std::shared_ptr<AuthProvider>& auth_provider,
+                  std::shared_ptr<Dialect> dialect,
+                  std::shared_ptr<OdbcHelper> odbc_helper);
     ~IamAuthPlugin() override;
 
     SQLRETURN Connect(
@@ -37,6 +45,8 @@ public:
 
 private:
     std::shared_ptr<AuthProvider> auth_provider;
+    std::shared_ptr<Dialect> dialect_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 
     static bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
                                 const std::string& port, const std::string& username);

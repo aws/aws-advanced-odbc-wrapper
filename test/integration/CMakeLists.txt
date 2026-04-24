@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
 set(BUILD_FAILOVER OFF CACHE BOOL "Build Failover Tests")
 set(BUILD_LIMITLESS OFF CACHE BOOL "Build Limitless Tests")
+set(BUILD_BLUE_GREEN OFF CACHE BOOL "Build Blue Green Tests")
 set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
@@ -52,6 +53,12 @@ if(BUILD_FAILOVER)
 elseif(BUILD_LIMITLESS)
     list(APPEND TEST_SUITE
         ${CMAKE_CURRENT_SOURCE_DIR}/limitless_integration_test.cpp
+    )
+elseif(BUILD_BLUE_GREEN)
+    set(USES_AWS_SDK ON)
+    set(TEST_SUITE
+        ${CMAKE_CURRENT_SOURCE_DIR}/base_failover_integration_test.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/blue_green_integration_test.cpp
     )
 endif()
 

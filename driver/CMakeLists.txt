@@ -43,6 +43,24 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.h
     ## Aurora Initial Connection Strategy
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h
+    ## Blue Green
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/base_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/reject_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/substitute_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_until_node_found_connect_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/base_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/close_connection_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/suspend_execute_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_hasher.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_role.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status.h
     ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.h
@@ -50,6 +68,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.h
     ## Federated
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.h
@@ -77,6 +96,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_chain_builder.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_strings.h
@@ -124,6 +144,24 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/base_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/default_plugin.cpp
+    ## Blue Green
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/reject_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/substitute_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/suspend_until_node_found_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/close_connection_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/suspend_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/base_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/connect/base_connect_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/routing/execute/base_execute_routing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_hasher.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_interim_status.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_phase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_role.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status_provider.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/blue_green/blue_green_status.cpp
     ## Custom Endpoint
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/custom_endpoint/custom_endpoint_plugin.cpp
@@ -131,6 +169,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
     ## Federated Auth
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp
@@ -155,6 +194,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_chain_builder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/plugin_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_lib_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.cpp

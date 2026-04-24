@@ -18,16 +18,11 @@
 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
-BasePlugin::BasePlugin(DBC *dbc, BasePlugin *next_plugin) :
+BasePlugin::BasePlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) :
     next_plugin(next_plugin),
     plugin_name("BasePlugin") {}
 
-BasePlugin::~BasePlugin() {
-    if (next_plugin != this) {
-        delete next_plugin;
-        next_plugin = nullptr;
-    }
-}
+BasePlugin::~BasePlugin() = default;
 
 // codechecker_suppress [misc-no-recursion]
 SQLRETURN BasePlugin::Connect(
@@ -38,7 +33,7 @@ SQLRETURN BasePlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    if (next_plugin && next_plugin != this) {
+    if (next_plugin) {
         return next_plugin->Connect(
             ConnectionHandle,
             WindowHandle,
@@ -57,7 +52,7 @@ SQLRETURN BasePlugin::Execute(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    if (next_plugin && next_plugin != this) {
+    if (next_plugin) {
         return next_plugin->Execute(StatementHandle, StatementText, TextLength);
     }
     return SQL_ERROR;

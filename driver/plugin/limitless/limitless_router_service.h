@@ -24,6 +24,9 @@
 #include "../../util/odbc_helper.h"
 #include "../../dialect/dialect.h"
 
+#include <memory>
+#include <mutex>
+
 typedef enum {
     MONITOR_INTERVAL_MS = 7500,
     CONNECT_RETRY_ATTEMPTS = 5
@@ -43,10 +46,10 @@ public:
 
     virtual std::shared_ptr<LimitlessRouterMonitor> CreateMonitor(
         const std::map<std::string, std::string>& conn_attr,
-        BasePlugin* plugin_head,
+        std::shared_ptr<BasePlugin> plugin_head,
         DBC* dbc,
         const std::shared_ptr<DialectLimitless>& dialect) const;
-    virtual SQLRETURN EstablishConnection(BasePlugin* plugin_head, DBC* dbc);
+    virtual SQLRETURN EstablishConnection(std::shared_ptr<BasePlugin> plugin_head, DBC* dbc);
     virtual void StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect);
 
     static std::unordered_map<std::string, std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>> limitless_router_monitors_;

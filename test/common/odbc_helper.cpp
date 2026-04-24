@@ -21,6 +21,7 @@
 #include <sqlext.h>
 
 #include <string>
+#include <sstream>
 #include <iostream>
 
 #include "../common/string_helper.h"
@@ -86,7 +87,7 @@ SQLRETURN ODBC_HELPER::ExecuteQuery(SQLHSTMT stmt, std::string query) {
     return ret;
 }
 
-void ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
+std::string ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
     SQLTCHAR    sqlstate[6] = { 0 };
     SQLTCHAR    message[1024] = { 0 };
     SQLINTEGER  native_error = 0;
@@ -94,13 +95,47 @@ void ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
     SQLRETURN   ret = SQL_ERROR;
     SQLSMALLINT recno = 0;
 
+    std::ostringstream out_stream;
     do {
         recno++;
         ret = SQLGetDiagRec(handle_type, handle, recno, sqlstate, &native_error, message, sizeof(message), &textlen);
         if (ret == SQL_INVALID_HANDLE) {
-            std::cout << "Invalid handle" << std::endl;
+            out_stream << "Invalid handle" << std::endl;
         } else if (SQL_SUCCEEDED(ret)) {
-            std::cout << STRING_HELPER::SqltcharToAnsi(sqlstate) << ": " << STRING_HELPER::SqltcharToAnsi(message) << std::endl;
+            out_stream << STRING_HELPER::SqltcharToAnsi(sqlstate) << ": " << STRING_HELPER::SqltcharToAnsi(message) << std::endl;
         }
     } while (ret == SQL_SUCCESS);
+
+    std::string err_msgs = out_stream.str();
+    std::cout << err_msgs;
+    return err_msgs;
+}
+
+bool ODBC_HELPER::IsClosed(SQLHDBC hdbc) {
+    if (hdbc == SQL_NULL_HDBC) {
+        return true;
+    }
+    SQLUINTEGER connection_state = SQL_CD_FALSE;
+    SQLRETURN rc = SQLGetConnectAttr(hdbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, sizeof(SQLUINTEGER), nullptr);
+
+    if (SQL_SUCCEEDED(rc)) {
+        return connection_state == SQL_CD_TRUE;
+    }
+
+    return true;
+}
+
+bool ODBC_HELPER::TestSimpleQuery(SQLHDBC hdbc) {
+    if (hdbc == SQL_NULL_HDBC) {
+        return false;
+    }
+    SQLHSTMT hstmt = SQL_NULL_HSTMT;
+    SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
+
+    SQLTCHAR buffer[STRING_HELPER::MAX_SQLCHAR] = { 0 };
+    STRING_HELPER::AnsiToUnicode("SELECT 1;", buffer);
+    SQLRETURN ret = SQLExecDirect(hstmt, buffer, SQL_NTS);
+    CleanUpHandles(SQL_NULL_HENV, SQL_NULL_HENV, hstmt);
+
+    return SQL_SUCCEEDED(ret);
 }

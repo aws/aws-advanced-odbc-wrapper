@@ -42,7 +42,7 @@ class FailoverPlugin : public BasePlugin {
 public:
     FailoverPlugin() = default;
     explicit FailoverPlugin(DBC* dbc);
-    FailoverPlugin(DBC* dbc, BasePlugin* next_plugin);
+    FailoverPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
@@ -76,7 +76,7 @@ private:
     FailoverMode failover_mode_ = UNKNOWN_FAILOVER_MODE;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<TopologyUtil> topology_util_;
-    std::shared_ptr<PluginService> plugin_service_;
+    std::weak_ptr<PluginService> plugin_service_;
 };
 
 #endif // FAILOVER_PLUGIN_H_

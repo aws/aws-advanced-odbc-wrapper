@@ -30,7 +30,7 @@
 
 class CustomEndpointPluginTest : public testing::Test {
 protected:
-    MOCK_BASE_PLUGIN* mock_base_plugin;
+    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
     std::shared_ptr<MOCK_CUSTOM_ENDPOINT_MONITOR> mock_custom_endpoint_monitor;
     DBC* dbc;
 
@@ -39,7 +39,7 @@ protected:
     static void TearDownTestSuite() {}
 
     void SetUp() override {
-        mock_base_plugin = new MOCK_BASE_PLUGIN();
+        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         mock_custom_endpoint_monitor = std::make_shared<MOCK_CUSTOM_ENDPOINT_MONITOR>();
         dbc = new DBC();
         dbc->conn_attr.insert_or_assign(KEY_CLUSTER_ID, "cluster_id");

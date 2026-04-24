@@ -34,15 +34,15 @@ FailoverPlugin::FailoverPlugin(DBC* dbc) : FailoverPlugin(dbc, nullptr) {}
 
 FailoverPlugin::FailoverPlugin(
     DBC* dbc,
-    BasePlugin* next_plugin) : BasePlugin(dbc, next_plugin)
+    std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "FAILOVER";
     this->plugin_service_ = dbc->plugin_service;
-    this->cluster_id_ = plugin_service_->GetClusterId();
-    this->dialect_ = plugin_service_->GetDialect();
-    this->host_selector_ = plugin_service_->GetHostSelector();
-    this->topology_util_ = plugin_service_->GetTopologyUtil();
-    this->odbc_helper_ = plugin_service_->GetOdbcHelper();
+    this->cluster_id_ = dbc->plugin_service->GetClusterId();
+    this->dialect_ = dbc->plugin_service->GetDialect();
+    this->host_selector_ = dbc->plugin_service->GetHostSelector();
+    this->topology_util_ = dbc->plugin_service->GetTopologyUtil();
+    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 
     std::map<std::string, std::string> &conn_info = dbc->conn_attr;
     this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
@@ -158,12 +158,14 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
     auto end = curr_time + failover_timeout_ms_;
 
     LOG(INFO) << "Starting reader failover procedure";
-    // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
-    // for it to get updated, since we do not need updated topology to establish a reader connection.
-    plugin_service_->ForceRefreshHosts(false, 0);
-
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.
-    const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();
+    std::vector<HostInfo> hosts;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        // When we pass a timeout of 0, we inform the plugin service that it should update its topology without waiting
+        // for it to get updated, since we do not need updated topology to establish a reader connection.
+        service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
+        hosts = service->GetFilteredHosts();
+    }
     if (hosts.empty()) {
         LOG(INFO) << "No topology available";
         return false;
@@ -268,10 +270,13 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
 
 bool FailoverPlugin::FailoverWriter(DBC *dbc)
 {
-    plugin_service_->ForceRefreshHosts(true, failover_timeout_ms_.count());
+    std::vector<HostInfo> hosts;
+    if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
+        service->ForceRefreshHosts(true, failover_timeout_ms_);
+        hosts = service->GetFilteredHosts();
+    }
 
     // Try connecting to a writer
-    const std::vector<HostInfo> hosts = plugin_service_->GetFilteredHosts();;
     std::unordered_map<std::string, std::string> properties;
     RoundRobinHostSelector::SetRoundRobinWeight(hosts, properties);
     HostInfo host;

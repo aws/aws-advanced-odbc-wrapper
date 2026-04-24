@@ -104,11 +104,13 @@ protected:
         if (std::string::npos == cluster_id_index) {
             GTEST_FAIL() << "Invalid test_server, cannot find Cluster ID for: " << test_server;
         }
+        ASSERT_FALSE(std::string::npos == cluster_id_index);
         cluster_id = test_server.substr(0, cluster_id_index);
         size_t cluster_id_prefix_index = test_server.find(cluster_prefix);
         if (std::string::npos == cluster_id_prefix_index) {
             GTEST_FAIL() << "Invalid test_server, cannot find Cluster ID for: " << test_server;
         }
+        ASSERT_FALSE(std::string::npos == cluster_id_prefix_index);
         instance_endpoint =
             test_server.substr(cluster_id_prefix_index + cluster_prefix.size(), test_server.size());
         db_conn_str_suffix = "." + instance_endpoint;
@@ -209,7 +211,7 @@ protected:
         auto outcome = client.DescribeDBClusters(rds_req);
 
         if (!outcome.IsSuccess()) {
-            std::cerr << "Error with Aurora::GDescribeDBClusters. " << outcome.GetError().GetMessage() << std::endl;
+            std::cerr << "Error with Aurora::DescribeDBClusters. " << outcome.GetError().GetMessage() << std::endl;
             throw std::runtime_error("Unable to get cluster topology using SDK.");
         }
 
@@ -253,7 +255,11 @@ protected:
         Aws::RDS::Model::DescribeDBClusterEndpointsRequest request;
         request.SetDBClusterEndpointIdentifier(endpoint_id);
         const auto response = client.DescribeDBClusterEndpoints(request);
-        return response.GetResult().GetDBClusterEndpoints()[0];
+        const auto& endpoints = response.GetResult().GetDBClusterEndpoints();
+        if (endpoints.empty()) {
+            throw std::runtime_error("DescribeDBClusterEndpoints returned no endpoints for: " + endpoint_id);
+        }
+        return endpoints[0];
     }
 
     static Aws::RDS::Model::DBClusterMember GetDbClusterWriter(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {

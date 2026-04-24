@@ -22,7 +22,7 @@
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
 
-LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessPlugin(
+LimitlessPlugin::LimitlessPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : LimitlessPlugin(
     dbc,
     next_plugin,
     nullptr,
@@ -31,7 +31,7 @@ LimitlessPlugin::LimitlessPlugin(DBC *dbc, BasePlugin *next_plugin) : LimitlessP
 
 LimitlessPlugin::LimitlessPlugin(
     DBC *dbc,
-    BasePlugin *next_plugin,
+    std::shared_ptr<BasePlugin> next_plugin,
     const std::shared_ptr<Dialect>& dialect,
     const std::shared_ptr<LimitlessRouterService> &limitless_router_service,
     const std::shared_ptr<OdbcHelper> &odbc_helper) : BasePlugin(dbc, next_plugin)
@@ -45,7 +45,7 @@ LimitlessPlugin::LimitlessPlugin(
 }
 
 LimitlessPlugin::~LimitlessPlugin() {
-    this->limitless_router_service_.reset();
+    this->limitless_router_service_ = nullptr;
 }
 
 SQLRETURN LimitlessPlugin::Connect(

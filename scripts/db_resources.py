@@ -575,16 +575,29 @@ def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
     except ClientError as e:
         print(f"  Warning: delete blue/green deployment failed: {e}")
 
-    print("  Waiting for BG deletion to propagate (30m)...")
-    time.sleep(1800)
+    # Poll until the BG deployment is deleted (up to 30 min).
+    print("  Waiting for BG deployment deletion...")
+    for attempt in range(60):
+        try:
+            resp = rds_client.describe_blue_green_deployments(
+                BlueGreenDeploymentIdentifier=deployment_id,
+            )
+            status = resp["BlueGreenDeployments"][0].get("Status", "")
+            print(f"    BG deployment status: {status} (attempt {attempt + 1}/60)")
+            if status.upper() == "DELETED":
+                break
+        except ClientError:
+            # Deployment no longer found — deletion complete.
+            print("    BG deployment no longer found, deletion complete.")
+            break
+        time.sleep(30)
+    else:
+        print("  Warning: timed out waiting for BG deployment deletion, proceeding with cleanup.")
 
     if target_cluster_id:
         delete_aurora_cluster_by_id(rds_client, target_cluster_id)
     if source_cluster_id:
         delete_aurora_cluster_by_id(rds_client, source_cluster_id)
-
-    print("  Waiting for cluster deletion to complete (30m)...")
-    time.sleep(1800)
 
     print(f"  Blue/Green Deployment {deployment_id} cleanup complete.")
 

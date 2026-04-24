@@ -18,6 +18,8 @@
 #include "../driver.h"
 #include "../error.h"
 
+#include <memory>
+
 struct DBC;
 struct STMT;
 
@@ -25,7 +27,7 @@ class BasePlugin {
 public:
     BasePlugin() = default;
     BasePlugin(DBC* dbc);
-    BasePlugin(DBC* dbc, BasePlugin* next_plugin);
+    BasePlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     virtual ~BasePlugin();
 
     virtual SQLRETURN Connect(
@@ -43,7 +45,7 @@ public:
 
 protected:
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
-    BasePlugin* next_plugin = nullptr;
+    std::shared_ptr<BasePlugin> next_plugin = nullptr;
     std::string plugin_name;
 
 private:

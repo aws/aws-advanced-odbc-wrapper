@@ -75,13 +75,13 @@ public:
 
 private:
     static constexpr char HOST_PORT_SEPARATOR = ':';
-    std::string host_;
-    std::string host_id_;
+    std::string host_ = "";
+    std::string host_id_ = "";
     int port_ = NO_PORT;
     uint64_t weight_ = DEFAULT_WEIGHT;
 
-    HOST_ROLE role_;
-    HOST_STATE state_;
+    HOST_ROLE role_ = UNKNOWN;
+    HOST_STATE state_ = DOWN;
 
     std::chrono::steady_clock::time_point last_update_;
 };

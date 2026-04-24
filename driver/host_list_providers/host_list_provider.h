@@ -15,6 +15,7 @@
 #ifndef HOST_LIST_PROVIDER_H_
 #define HOST_LIST_PROVIDER_H_
 
+#include <chrono>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,7 +28,7 @@ public:
     HostListProvider(std::string cluster_id) : cluster_id_{ cluster_id } {};
     virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) { return {}; };
     virtual std::vector<HostInfo> Refresh()  { return {}; };
-    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms) { return {}; };
+    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) { return {}; };
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) { return HOST_ROLE::UNKNOWN; };
     virtual HostInfo GetConnectionInfo(SQLHDBC hdbc) { return {}; }
     virtual std::string GetClusterId() { return {}; }
