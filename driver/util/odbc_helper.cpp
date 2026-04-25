@@ -143,6 +143,7 @@ void OdbcHelper::SetUse4BytesUserApp(const bool use_4_bytes) {
     this->use_4_bytes_user_app_ = use_4_bytes;
 }
 
+// codechecker_suppress [readability-convert-member-functions-to-static]
 ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLINTEGER in_length) const {
     ConvertedSqltchar result;
 #if UNICODE

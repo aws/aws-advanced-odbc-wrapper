@@ -145,24 +145,21 @@ inline std::string Convert4ByteSqlWChar(
     SQLTCHAR *     InputStr,
     SQLINTEGER     BufferLength
     ) {
-    bool end_found = false;
-    int i = 0;
     std::vector<SQLTCHAR> conn_in_vector;
-    while (!end_found) {
-        if (BufferLength > 0 && i > BufferLength) {
+    int i = 0;
+    while (true) {
+        if (BufferLength > 0 && (i / 2) >= BufferLength) {
             break;
         }
-        if (InputStr[i] == '\0' && InputStr[i + 1] == '\0') {
-            end_found = true;
+        if (InputStr[i] == 0 && InputStr[i + 1] == 0) {
+            break;
         }
-        // TODO: is this missing a char??
         conn_in_vector.push_back(InputStr[i]);
         i += 2;
     }
+    conn_in_vector.push_back(0);
 
-    SQLTCHAR* conn_in_w = conn_in_vector.data();
-
-    const std::string str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_w));
+    const std::string str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_vector.data()));
     return str_utf8_w;
 }
 
@@ -175,12 +172,16 @@ inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEG
 }
 
 inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR* out, SQLSMALLINT out_length) {
+    if (out_length <= 0) {
+        return;
+    }
     if (driver_4_byte) {
         std::wstring w_input = ConvertUTF8ToWString(input);
-        size_t copy_size = out_length > w_input.length()
+        size_t copy_size = static_cast<size_t>(out_length) > w_input.length()
             ? w_input.length()
-            : out_length - 1; // For null terminating character
+            : static_cast<size_t>(out_length) - 1; // For null terminating character
         std::copy(w_input.begin(), w_input.begin() + copy_size, out);
+        out[copy_size] = 0;
     } else {
         CopyUTF8ToUTF16Buffer(out, out_length, input);
     }
