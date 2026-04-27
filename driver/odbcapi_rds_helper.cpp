@@ -975,10 +975,15 @@ SQLRETURN RDS_SQLExecDirect(
 
     SQLTCHAR* stmt_text = StatementText;
 #if UNICODE
-    const size_t buffer_len = GetLenOfSqltcharArray(StatementText, TextLength, dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp());
-    std::vector<SQLTCHAR> stmt_buf_vector(buffer_len, '\0');
-    stmt_text = stmt_buf_vector.data();
-    Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(), StatementText, stmt_text, buffer_len);
+    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    std::vector<uint16_t> stmt_utf16;
+    if (StatementText) {
+        const std::string utf8 = ConvertUserAppToUTF8(
+            odbc_helper->GetUse4BytesUserApp(), StatementText, TextLength);
+        // Plugin chain expects UTF16 
+        stmt_utf16 = ConvertUTF8ToUTF16(utf8);
+        stmt_text = reinterpret_cast<SQLTCHAR*>(stmt_utf16.data());
+    }
 #endif
 
     if (dbc->plugin_head) {
