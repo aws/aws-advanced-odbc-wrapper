@@ -34,6 +34,37 @@
 #include "unicode/utypes.h"
 #include "unicode/ucasemap.h"
 
+inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
+    if (buffer_len > 0) {
+        return static_cast<int>(buffer_len);
+    }
+
+    if (buffer_len == SQL_NTS) {
+        bool end_found = false;
+        size_t len = 0;
+        int i = 0;
+
+        while (!end_found) {
+            if (!use_4_bytes) {
+                if (in[i] == '\0') {
+                    end_found = true;
+                }
+                i++;
+            } else {
+                if (in[i] == '\0' && in[i + 1] == '\0') {
+                    end_found = true;
+                }
+                i += 2;
+            }
+            len++;
+        }
+
+        return len;
+    }
+
+    return 0;
+}
+
 #ifdef UNICODE
 #include "unicode/unistr.h"
 inline size_t UShortStrlen(const uint16_t* str) {
@@ -59,7 +90,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     return wstr;
 }
 
-inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
+inline std::vector<uint16_t>  ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
@@ -90,6 +121,104 @@ inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
     std::string buffer_utf8;
     unicode_str.toUTF8String(buffer_utf8);
     return buffer_utf8;
+}
+
+// Expand UTF16 (2-byte) into UTF32 (4-byte)
+inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_len, const size_t dst_len) {
+    if (src == nullptr || dst == nullptr || dst_len < 2) {
+        return 0;
+    }
+
+    const size_t max_copy = (dst_len - 2) / 2;
+    const size_t written = src_len < max_copy ? src_len : max_copy;
+    for (size_t i = 0; i < written; i++) {
+        dst[i * 2] = src[i];
+        dst[(i * 2) + 1] = 0;
+    }
+    dst[written * 2] = 0;
+    dst[(written * 2) + 1] = 0;
+
+    return written;
+}
+
+inline std::string Convert4ByteSqlWChar(
+    SQLTCHAR *     InputStr,
+    SQLINTEGER     BufferLength
+    ) {
+    std::vector<SQLTCHAR> conn_in_vector;
+    int i = 0;
+    while (true) {
+        if (BufferLength > 0 && (i / 2) >= BufferLength) {
+            break;
+        }
+        if (InputStr[i] == 0 && InputStr[i + 1] == 0) {
+            break;
+        }
+        conn_in_vector.push_back(InputStr[i]);
+        i += 2;
+    }
+    conn_in_vector.push_back(0);
+
+    const std::string str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_vector.data()));
+    return str_utf8_w;
+}
+
+inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
+    if (user_4_byte) {
+        size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
+        return Convert4ByteSqlWChar(in, length);
+    }
+    return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(in));
+}
+
+inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR* out, SQLSMALLINT out_length) {
+    if (out_length <= 0) {
+        return;
+    }
+    if (driver_4_byte) {
+        std::wstring w_input = ConvertUTF8ToWString(input);
+        size_t copy_size = static_cast<size_t>(out_length) > w_input.length()
+            ? w_input.length()
+            : static_cast<size_t>(out_length) - 1; // For null terminating character
+        std::copy(w_input.begin(), w_input.begin() + copy_size, out);
+        out[copy_size] = 0;
+    } else {
+        CopyUTF8ToUTF16Buffer(out, out_length, input);
+    }
+}
+
+inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
+    // nullptr is valid ODBC input
+    if (in == nullptr) {
+        return std::vector<SQLTCHAR>();
+    }
+
+    const std::string utf8 = ConvertUserAppToUTF8(user_4_byte, in, in_length);
+    if (driver_4_byte) {
+        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+        size_t utf16_len = utf16.size() > 0 ? utf16.size() - 1 : 0;
+
+        size_t size;
+        if (in_length == SQL_NTS || in_length < 0) {
+            size = utf16_len;
+        } else {
+            size = static_cast<size_t>(in_length) < utf16_len
+                ? static_cast<size_t>(in_length)
+                : utf16_len;
+        }
+
+        size_t size_converted = size * 2 + 2; // Each char expands to 2 SQLTCHAR + null pair
+        SQLTCHAR* wide_converted_4byte = new SQLTCHAR[size_converted];
+        ConvertUTF16ToUTF32(reinterpret_cast<const SQLTCHAR*>(utf16.data()), wide_converted_4byte, size, size_converted);
+        std::vector<SQLTCHAR> result(wide_converted_4byte, wide_converted_4byte + size_converted);
+        delete[] wide_converted_4byte;
+        return result;
+    } else {
+        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+        return std::vector<SQLTCHAR>(
+            reinterpret_cast<SQLTCHAR*>(utf16.data()),
+            reinterpret_cast<SQLTCHAR*>(utf16.data() + utf16.size()));
+    }
 }
 #endif
 
@@ -189,37 +318,6 @@ inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out,
             in[len - 1] = '\0';
         }
     }
-}
-
-inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
-    if (buffer_len > 0) {
-        return static_cast<int>(buffer_len);
-    }
-
-    if (buffer_len == SQL_NTS) {
-        bool end_found = false;
-        size_t len = 0;
-        int i = 0;
-
-        while (!end_found) {
-            if (!use_4_bytes) {
-                if (in[i] == '\0') {
-                    end_found = true;
-                }
-                i++;
-            } else {
-                if (in[i] == '\0' && in[i + 1] == '\0') {
-                    end_found = true;
-                }
-                i += 2;
-            }
-            len++;
-        }
-
-        return len;
-    }
-
-    return 0;
 }
 
 #endif // RDS_STRINGS_H_
