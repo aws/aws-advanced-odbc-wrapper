@@ -49,7 +49,7 @@ public:
         std::shared_ptr<BasePlugin> plugin_head,
         DBC* dbc,
         const std::shared_ptr<DialectLimitless>& dialect) override {
-        return std::make_shared<MockLimitlessRouterMonitor>(plugin_head, std::make_shared<OdbcHelper>(nullptr), dialect);
+        return std::make_shared<MockLimitlessRouterMonitor>(plugin_head, std::make_shared<OdbcHelper>(nullptr, nullptr), dialect);
     };
 };
 

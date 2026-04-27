@@ -41,7 +41,7 @@ protected:
         dbc->plugin_head = mock_base_plugin.get();
         dbc->plugin_service = std::make_shared<PluginService>();
         dbc->plugin_service->SetPluginChain(mock_base_plugin);
-        odbc_helper_ = std::make_shared<OdbcHelper>(nullptr);
+        odbc_helper_ = std::make_shared<OdbcHelper>(nullptr, nullptr);
     }
     void TearDown() override {
         if (dbc) delete dbc;

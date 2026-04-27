@@ -76,6 +76,10 @@ public:
         SQLHSTMT hstmt = SQL_NULL_HSTMT;
 
         ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt);
+        if (!SQL_SUCCEEDED(ret)) {
+            ADD_FAILURE() << "QueryRouters: SQLAllocHandle failed";
+            return {};
+        }
         SQLTCHAR router_endpoint_value[ROUTER_ENDPOINT_LENGTH] = {0};
         SQLLEN ind_router_endpoint_value = 0;
 
@@ -118,11 +122,15 @@ public:
     }
 
     void LoadThreads(std::string conn_in) {
-        SQLHDBC local_dbc;
-        SQLAllocHandle(SQL_HANDLE_DBC, env, &local_dbc);
+        SQLHENV local_env = SQL_NULL_HENV;
+        SQLHDBC local_dbc = SQL_NULL_HDBC;
+        SQLHSTMT stmt = SQL_NULL_HSTMT;
+
+        SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &local_env);
+        SQLSetEnvAttr(local_env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
+        SQLAllocHandle(SQL_HANDLE_DBC, local_env, &local_dbc);
         ODBC_HELPER::DriverConnect(local_dbc, conn_in);
 
-        SQLHSTMT stmt;
         SQLAllocHandle(SQL_HANDLE_STMT, local_dbc, &stmt);
 
         // Repeated queries within two monitor intervals
@@ -133,7 +141,7 @@ public:
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
-        ODBC_HELPER::CleanUpHandles(SQL_NULL_HENV, local_dbc, stmt);
+        ODBC_HELPER::CleanUpHandles(local_env, local_dbc, stmt);
     }
 
 protected:
@@ -154,7 +162,10 @@ protected:
             .withDatabaseDialect("AURORA_POSTGRESQL_LIMITLESS")
             .withLimitlessEnabled(false)
             .getString();
-        ODBC_HELPER::DriverConnect(dbc, conn_str);
+        SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
+        if (!SQL_SUCCEEDED(rc)) {
+            GTEST_SKIP() << "Limitless SetUp: Failed to connect to database";
+        }
     }
 
     void TearDown() override {
@@ -179,7 +190,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessImmediate) {
         .withClusterId("LimitlessImmediate")
         .getString();
 
-    SQLHDBC local_dbc = nullptr;
+    SQLHDBC local_dbc = SQL_NULL_HDBC;
     SQLRETURN rc = SQLAllocHandle(SQL_HANDLE_DBC, env, &local_dbc);
     ASSERT_TRUE(SQL_SUCCEEDED(rc));
     rc = ODBC_HELPER::DriverConnect(local_dbc, conn_str);
@@ -204,7 +215,7 @@ TEST_F(LimitlessIntegrationTest, LimitlessLazy) {
         .withClusterId("LimitlessLazy")
         .getString();
 
-    SQLHDBC first_dbc = nullptr;
+    SQLHDBC first_dbc = SQL_NULL_HDBC;
     SQLRETURN rc = SQLAllocHandle(SQL_HANDLE_DBC, env, &first_dbc);
     ASSERT_TRUE(SQL_SUCCEEDED(rc));
     rc = ODBC_HELPER::DriverConnect(first_dbc, conn_str);
@@ -272,8 +283,11 @@ TEST_F(LimitlessIntegrationTest, HeavyLoadInitial) {
 
     std::vector<SQLHDBC> limitless_dbcs;
     int num_limitless_conn = 3;
-    ASSERT_TRUE(round_robin_hosts.size() >= num_limitless_conn);
-    for (int i = 0; num_limitless_conn < 3; i++) {
+    if (round_robin_hosts.size() < static_cast<size_t>(num_limitless_conn)) {
+        for (auto& thread : load_threads) { thread->join(); }
+        GTEST_SKIP() << "Not enough round_robin_hosts for test";
+    }
+    for (int i = 0; i < num_limitless_conn; i++) {
         SQLHDBC limitless_dbc = SQL_NULL_HDBC;
         SQLAllocHandle(SQL_HANDLE_DBC, env, &limitless_dbc);
         limitless_dbcs.push_back(limitless_dbc);

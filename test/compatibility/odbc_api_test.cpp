@@ -108,7 +108,7 @@ auto GetErrorMessage = [](SQLSMALLINT handle_type, SQLHANDLE handle, SQLRETURN o
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN], message[MAX_SQL_MESSAGE_LEN];
     SQLINTEGER native_error;
     SQLSMALLINT msg_len;
-    SQLRETURN diag_ret = SQLGetDiagRec(handle_type, handle, 1, sql_state, &native_error, message, sizeof(message), &msg_len);
+    SQLRETURN diag_ret = SQLGetDiagRec(handle_type, handle, 1, sql_state, &native_error, message, sizeof(message) / sizeof(SQLTCHAR), &msg_len);
     if (SQL_SUCCESS == diag_ret) {
         return std::string("Error: ") + STRING_HELPER::SqltcharToAnsi(sql_state) + " - " + STRING_HELPER::SqltcharToAnsi(message);
     }

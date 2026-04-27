@@ -24,7 +24,7 @@
 
 void STRING_HELPER::AnsiToUnicode(const char* in, SQLTCHAR* out) {
     int i;
-    for (i = 0; in[i]; i++) {
+    for (i = 0; in[i] && i < MAX_SQLCHAR - 1; i++) {
         out[i] = in[i];
     }
     out[i] = 0;

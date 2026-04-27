@@ -28,6 +28,10 @@
 #include "../common/string_helper.h"
 
 SQLRETURN ODBC_HELPER::DriverConnect(SQLHDBC hdbc, std::string conn_str) {
+    if (hdbc == SQL_NULL_HDBC) {
+        std::cout << "DriverConnect: null hdbc handle" << std::endl;
+        return SQL_INVALID_HANDLE;
+    }
     std::cout << "Connecting to: " << conn_str << std::endl;
 
     SQLTCHAR conn_str_in[STRING_HELPER::MAX_SQLCHAR] = { 0 };
@@ -77,6 +81,10 @@ void ODBC_HELPER::CleanUpHandles(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt) {
 }
 
 SQLRETURN ODBC_HELPER::ExecuteQuery(SQLHSTMT stmt, std::string query) {
+    if (stmt == SQL_NULL_HSTMT) {
+        std::cout << "ExecuteQuery: null stmt handle" << std::endl;
+        return SQL_INVALID_HANDLE;
+    }
     SQLTCHAR buffer[STRING_HELPER::MAX_SQLCHAR] = { 0 };
     STRING_HELPER::AnsiToUnicode(query.c_str(), buffer);
 
@@ -99,7 +107,7 @@ std::string ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type)
     std::ostringstream out_stream;
     do {
         recno++;
-        ret = SQLGetDiagRec(handle_type, handle, recno, sqlstate, &native_error, message, sizeof(message), &textlen);
+        ret = SQLGetDiagRec(handle_type, handle, recno, sqlstate, &native_error, message, sizeof(message) / sizeof(SQLTCHAR), &textlen);
         if (ret == SQL_INVALID_HANDLE) {
             out_stream << "Invalid handle" << std::endl;
         } else if (SQL_SUCCEEDED(ret)) {

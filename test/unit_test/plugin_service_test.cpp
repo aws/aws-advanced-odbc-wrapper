@@ -41,7 +41,7 @@ protected:
         all_hosts.push_back(host_b);
         all_hosts.push_back(host_c);
         std::map<std::string, std::string> empty_map;
-        plugin_service = std::make_shared<PluginService>(nullptr, empty_map, "ClusterId");
+        plugin_service = std::make_shared<PluginService>(nullptr, nullptr, empty_map, "ClusterId");
         plugin_service->SetHosts(all_hosts);
     }
     void TearDown() override {}
