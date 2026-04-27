@@ -84,7 +84,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
 }
 
 TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionStrategyReaderDns) {
-    conn_str = ConnectionStringBuilder(test_dsn, cluster_id + cluster_ro_url, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, cluster_ro_url, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)
@@ -132,7 +132,7 @@ TEST_F(AuroraInitialConnectionStrategyIntegrationTest, AuroraInitialConnectionSt
     const std::string writer_id = GetWriterId(cluster_instances);
     writer_endpoint = GetEndpoint(writer_id);
 
-    conn_str = ConnectionStringBuilder(test_dsn, cluster_id + cluster_ro_url, test_port)
+    conn_str = ConnectionStringBuilder(test_dsn, cluster_ro_url, test_port)
         .withUID(test_uid)
         .withPWD(test_pwd)
         .withDatabase(test_db)

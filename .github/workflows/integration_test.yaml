@@ -940,7 +940,7 @@ jobs:
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_limitless_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
-            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_ansi --config ${{env.BUILD_CONFIG}}
           echo "Limitless Ansi Test Built"
           gdb -q -x ./.gdbinit .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -960,7 +960,7 @@ jobs:
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
           cmake -S test/integration -B build_limitless_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
-            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_unicode --config ${{env.BUILD_CONFIG}}
           echo "Limitless Unicode Test Built"
           gdb -q -x ./.gdbinit .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe

@@ -294,3 +294,19 @@ TEST_F(RoundRobinHostSelectorTest, invalid_default_non_int) {
     std::vector<HostInfo> hosts = {reader_host_info_a, reader_host_info_b};
     EXPECT_THROW(host_selector.GetHost(hosts, false, props), std::runtime_error);
 }
+
+TEST_F(RoundRobinHostSelectorTest, get_reader_fallback_to_writer) {
+    RoundRobinHostSelector host_selector;
+    std::vector<HostInfo> hosts = {writer_host_info_a};
+    HostInfo host_info = host_selector.GetHost(hosts, false, {});
+    EXPECT_EQ(writer_host_info_a.GetHost(), host_info.GetHost());
+}
+
+TEST_F(RoundRobinHostSelectorTest, get_reader_prefers_reader_over_writer) {
+    RoundRobinHostSelector host_selector;
+    std::vector<HostInfo> hosts = {writer_host_info_a, reader_host_info_a, reader_host_info_b};
+    for (int i = 0; i < 100; i++) {
+        HostInfo host_info = host_selector.GetHost(hosts, false, {});
+        EXPECT_FALSE(host_info.IsHostWriter());
+    }
+}

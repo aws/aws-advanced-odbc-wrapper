@@ -41,6 +41,8 @@ public:
         SQLTCHAR *     StatementText = 0,
         SQLINTEGER     TextLength = -1);
 
+    virtual void ReleaseResources();
+
 protected:
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
     BasePlugin* next_plugin = nullptr;

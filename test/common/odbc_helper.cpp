@@ -20,6 +20,7 @@
 
 #include <sqlext.h>
 
+#include <gtest/gtest.h>
 #include <string>
 #include <iostream>
 
@@ -103,4 +104,11 @@ void ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
             std::cout << STRING_HELPER::SqltcharToAnsi(sqlstate) << ": " << STRING_HELPER::SqltcharToAnsi(message) << std::endl;
         }
     } while (ret == SQL_SUCCESS);
+}
+
+void ODBC_HELPER::Query(SQLHDBC dbc, std::string query) {
+    SQLHSTMT hstmt;
+    EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+    EXPECT_EQ(SQL_SUCCESS, ExecuteQuery(hstmt, query));
+    EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
 }

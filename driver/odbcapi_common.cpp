@@ -358,6 +358,11 @@ SQLRETURN SQL_API SQLDisconnect(
     }
     dbc->stmt_list.clear();
 
+    // Clean up plugin internal connections before disconnecting main handle
+    if (dbc->plugin_head) {
+        dbc->plugin_head->ReleaseResources();
+    }
+
     CHECK_WRAPPED_DBC(dbc);
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
         dbc->wrapped_dbc
