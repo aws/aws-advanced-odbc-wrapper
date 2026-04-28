@@ -468,6 +468,50 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 }
 
+TEST_P(ODBC_API_TEST, SQLGetDiagRecTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+
+    std::ofstream out_file = CreateResultsFile(test_dsn, "SQLGetDiagRecTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT * FROM nonexistent_table");
+    EXPECT_NE(ret, SQL_SUCCESS);
+
+    if (ret == SQL_ERROR || ret == SQL_SUCCESS_WITH_INFO) {
+        SQLSMALLINT recNumber = 1;
+        SQLCHAR sqlState[6];
+        SQLINTEGER nativeError;
+        SQLCHAR messageText[SQL_MAX_MESSAGE_LENGTH];
+        SQLSMALLINT textLength;
+
+        while (SQLGetDiagRec(
+            SQL_HANDLE_STMT,
+            stmt,
+            recNumber,
+            sqlState,
+            &nativeError,
+            messageText,
+            sizeof(messageText),
+            &textLength) == SQL_SUCCESS) {
+            out_file << "Record: " << recNumber << ":\n"
+                      << "  SQLSTATE:     " << sqlState << "\n"
+                      << "  Native Error: " << nativeError << "\n"
+                      << "  Message:      " << messageText << "\n";
+            recNumber++;
+        }
+    } else {
+        out_file << ""; // TODO: log something to indicate there was not an error as expected
+    }
+
+    SQLCloseCursor(stmt);
+    out_file.close();
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+}
+
 static std::vector<std::string> getDsnValues() {
     test_server = TEST_UTILS::GetEnvVar("TEST_SERVER", "localhost");
     std::string port_str = TEST_UTILS::GetEnvVar("TEST_PORT", "5432");
