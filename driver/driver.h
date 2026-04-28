@@ -60,6 +60,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 /* Forward Declarations */
 struct ENV;
@@ -128,6 +129,31 @@ struct DBC {
     ~DBC();
 };  // DBC
 
+// Tracks SQLBindCol WCHAR binding for 2-byte/4-byte conversion.
+struct BoundColBuffer {
+    SQLUSMALLINT            column_number;
+    SQLPOINTER              app_ptr;            // User's TargetValuePtr
+    SQLLEN                  app_buf_len;        // User's BufferLength
+    SQLLEN*                 app_str_len_ptr;    // User's StrLen_or_IndPtr
+    std::vector<SQLTCHAR>   local_buf;          // Wrapper buffer passed to underlying driver
+    SQLLEN                  local_str_len;      // Wrapper StrLen_or_Ind
+};
+
+// Tracks SQLBindParameter WCHAR binding for 2-byte/4-byte conversion.
+struct BoundParamBuffer {
+    SQLUSMALLINT            param_number;
+    SQLSMALLINT             input_output_type;  // SQL_PARAM_INPUT, SQL_PARAM_OUTPUT, SQL_PARAM_INPUT_OUTPUT
+    SQLSMALLINT             value_type;
+    SQLSMALLINT             param_type;
+    SQLULEN                 column_size;
+    SQLSMALLINT             decimal_digits;
+    SQLPOINTER              app_ptr;            // User's ParameterValuePtr
+    SQLLEN                  app_buf_len;        // User's BufferLength
+    SQLLEN*                 app_str_len_ptr;    // User's StrLen_or_IndPtr
+    std::vector<SQLTCHAR>   local_buf;          // Wrapper buffer passed to underlying driver
+    SQLLEN                  local_str_len;      // Wrapper StrLen_or_Ind
+};
+
 struct STMT {
     // TODO - Do we need lock?
     std::recursive_mutex lock;
@@ -142,6 +168,11 @@ struct STMT {
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map;  // Key, <Value, Length>
     std::string cursor_name;
+
+    // Buffers for UTF32 support
+    std::vector<BoundColBuffer> bound_col_buffers;      // Intercepted WCHAR column bindings
+    std::vector<BoundParamBuffer> bound_param_buffers;  // Intercepted WCHAR param bindings
+    bool put_data_char_conversion = false;
 
     ERR_INFO* err = nullptr;
     char sql_error_called = 0;
