@@ -18,6 +18,7 @@
 #include "../base_plugin.h"
 
 #include <regex>
+#include <memory>
 
 #ifndef SECRETS_MANAGER_PLUGIN_H_
 #define SECRETS_MANAGER_PLUGIN_H_
@@ -32,8 +33,8 @@ public:
 class SecretsManagerPlugin : public BasePlugin {
 public:
     SecretsManagerPlugin(DBC* dbc);
-    SecretsManagerPlugin(DBC* dbc, BasePlugin* next_plugin);
-    SecretsManagerPlugin(DBC* dbc, BasePlugin* next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client);
+    SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client);
     ~SecretsManagerPlugin() override;
 
     SQLRETURN Connect(

@@ -122,7 +122,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
 
     // Execute setup query
     EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
-    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY)));
 
     // Execute queries within the transaction
     std::string begin_query = "BEGIN;";
@@ -172,7 +172,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
 
     // Execute setup query
     EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, DROP_TABLE_QUERY))); // May return SQL_SUCCESS_WITH_INFO if table does not exist
-    EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY));
+    EXPECT_TRUE(SQL_SUCCEEDED(ODBC_HELPER::ExecuteQuery(handle, CREATE_TABLE_QUERY)));
 
     // Set autocommit = false
     EXPECT_EQ(SQL_SUCCESS, SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0));

@@ -15,6 +15,7 @@
 #ifndef RDS_HOST_LIST_PROVIDER_H_
 #define RDS_HOST_LIST_PROVIDER_H_
 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -30,11 +31,16 @@
 
 class RdsHostListProvider : public HostListProvider {
 public:
-    RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service);
+    RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service);
+    RdsHostListProvider(
+        const std::shared_ptr<TopologyUtil>& topology_util,
+        const std::shared_ptr<PluginService>& plugin_service,
+        std::map<std::string, std::string> conn_attr,
+        std::string cluster_id);
     ~RdsHostListProvider();
     virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host);
     virtual std::vector<HostInfo> Refresh() override;
-    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms) override;
+    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) override;
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;
     virtual HostInfo GetConnectionInfo(SQLHDBC hdbc) override;
     virtual std::string GetClusterId() override;
@@ -44,11 +50,12 @@ private:
 
     std::shared_ptr<ClusterTopologyMonitor> monitor_;
     std::shared_ptr<TopologyUtil> topology_util_;
-    PluginService* plugin_service_;
+    std::shared_ptr<PluginService> plugin_service_;
+    std::map<std::string, std::string> conn_attr_;
     HostInfo initial_host_info_;
     HostInfo template_host_info_;
 
-    const uint32_t DEFAULT_TOPOLOGY_WAIT_MS = std::chrono::milliseconds(5000).count();
+    const std::chrono::milliseconds DEFAULT_TOPOLOGY_WAIT_MS = std::chrono::milliseconds(5000);
 
     // Shared resources
     static inline std::mutex monitor_map_mutex_;

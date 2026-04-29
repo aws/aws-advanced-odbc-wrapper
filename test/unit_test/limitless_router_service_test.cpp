@@ -22,10 +22,11 @@
 #include "../../driver/dialect/dialect_aurora_postgres.h"
 #include "../../driver/plugin/limitless/limitless_router_service.h"
 #include "../../driver/util/connection_string_keys.h"
+#include "../../driver/util/plugin_service.h"
 
 class LimitlessRouterServiceTest : public testing::Test {
 protected:
-    MOCK_BASE_PLUGIN* mock_base_plugin;
+    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
     DBC* dbc;
     std::shared_ptr<OdbcHelper> odbc_helper_;
 
@@ -35,13 +36,14 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = new MOCK_BASE_PLUGIN();
+        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
         dbc = new DBC();
-        dbc->plugin_head = mock_base_plugin;
+        dbc->plugin_head = mock_base_plugin.get();
+        dbc->plugin_service = std::make_shared<PluginService>();
+        dbc->plugin_service->SetPluginChain(mock_base_plugin);
         odbc_helper_ = std::make_shared<OdbcHelper>(nullptr);
     }
     void TearDown() override {
-        // mock_base_plugin should be cleaned up by plugin chain
         if (dbc) delete dbc;
     }
 };

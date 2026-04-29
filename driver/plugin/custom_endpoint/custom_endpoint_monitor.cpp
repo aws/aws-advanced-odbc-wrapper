@@ -29,7 +29,7 @@
 SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache;
 
 CustomEndpointMonitor::CustomEndpointMonitor(
-    const std::shared_ptr<PluginService>& plugin_service,
+    const std::weak_ptr<PluginService>& plugin_service,
     const std::string& endpoint,
     std::string region,
     std::chrono::milliseconds refresh_rate_ms,
@@ -55,7 +55,9 @@ CustomEndpointMonitor::~CustomEndpointMonitor() {
         monitoring_thread_->join();
     }
     monitoring_thread_ = nullptr;
-    AwsSdkHelper::Shutdown();
+    if (sdk_initialized_) {
+        AwsSdkHelper::Shutdown();
+    }
 }
 
 void CustomEndpointMonitor::Run() {
@@ -102,7 +104,9 @@ void CustomEndpointMonitor::Run() {
                 const HostFilter cached_filter = endpoint_cache.Get(endpoint_identifier_);
                 if (cached_filter != filter) {
                     LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_identifier_;
-                    this->plugin_service_->SetHostFilter(filter);
+                    if (const std::shared_ptr<PluginService> service = this->plugin_service_.lock()) {
+                        service->SetHostFilter(filter);
+                    }
                     endpoint_cache.Put(this->endpoint_identifier_, filter);
                     DecreaseDelay();
                 }

@@ -33,97 +33,50 @@
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
 
-OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : OktaAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : OktaAuthPlugin(dbc, next_plugin, nullptr, nullptr) {}
 
-OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider) : BasePlugin(dbc, next_plugin)
-{
-    this->plugin_name = "OKTA";
-
-    if (saml_util) {
-        this->saml_util = saml_util;
-    } else {
-        this->saml_util = std::make_shared<OktaSamlUtil>(dbc->conn_attr);
+namespace {
+    std::shared_ptr<SamlUtil> CreateOktaSamlUtil(
+        DBC* dbc,
+        const std::shared_ptr<SamlUtil>& saml_util)
+    {
+        if (saml_util) {
+            return saml_util;
+        }
+        return std::make_shared<OktaSamlUtil>(dbc->conn_attr);
     }
 
-    if (auth_provider) {
-        this->auth_provider = auth_provider;
-    } else {
+    std::shared_ptr<AuthProvider> CreateOktaAuthProvider(
+        DBC* dbc,
+        const std::shared_ptr<SamlUtil>& resolved_saml,
+        const std::shared_ptr<AuthProvider>& auth_provider)
+    {
+        if (auth_provider) {
+            return auth_provider;
+        }
         std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
-
         if (region.empty()) {
             region = dbc->conn_attr.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
                 : Aws::Region::US_EAST_1;
         }
-        const std::string saml_assertion = this->saml_util->GetSamlAssertion();
-        this->auth_provider = std::make_shared<AuthProvider>(region, this->saml_util->GetAwsCredentials(saml_assertion));
+        const std::string assertion = resolved_saml->GetSamlAssertion();
+        return std::make_shared<AuthProvider>(region, resolved_saml->GetAwsCredentials(assertion));
     }
-}
+}  // namespace
 
-OktaAuthPlugin::~OktaAuthPlugin()
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider)
+    : OktaAuthPlugin(dbc, next_plugin, saml_util, auth_provider, nullptr, nullptr) {}
+
+OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
+                               const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider,
+                               std::shared_ptr<Dialect> dialect, std::shared_ptr<OdbcHelper> odbc_helper)
+    : BaseSamlAuthPlugin(dbc, next_plugin,
+        CreateOktaSamlUtil(dbc, saml_util),
+        CreateOktaAuthProvider(dbc, CreateOktaSamlUtil(dbc, saml_util), auth_provider),
+        dialect, odbc_helper)
 {
-    if (auth_provider) {
-        auth_provider.reset();
-    }
-    if (saml_util) {
-        saml_util.reset();
-    }
-}
-
-SQLRETURN OktaAuthPlugin::Connect(
-    SQLHDBC        ConnectionHandle,
-    SQLHWND        WindowHandle,
-    SQLTCHAR *     OutConnectionString,
-    SQLSMALLINT    BufferLength,
-    SQLSMALLINT *  StringLengthPtr,
-    SQLUSMALLINT   DriverCompletion)
-{
-    LOG(INFO) << "Entering Connect";
-    DBC* dbc = static_cast<DBC*>(ConnectionHandle);
-
-    const std::string server = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
-    const std::string iam_host = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_HOST, server);
-    std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
-    if (region.empty()) {
-        region = dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
-            : Aws::Region::US_EAST_1;
-    }
-    const std::string port = AuthProvider::GetPort(dbc);
-    const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
-    const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 0))
-        : AuthProvider::DEFAULT_EXPIRATION_MS;
-    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
-
-    if (iam_host.empty() || region.empty() || port.empty() || username.empty()) {
-        LOG(ERROR) << "Missing required parameters for Okta Authentication";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Missing required parameters for Okta Authentication", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
-        return SQL_ERROR;
-    }
-    std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
-
-    SQLRETURN ret = SQL_ERROR;
-
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-    ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-
-    // Unsuccessful connection using cached token
-    // Skip cache and generate a new token to retry
-    if (!SQL_SUCCEEDED(ret) && token.second) {
-        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
-        // Update AWS Credentials
-        const std::string saml_assertion = saml_util->GetSamlAssertion();
-        const Aws::Auth::AWSCredentials credentials = saml_util->GetAwsCredentials(saml_assertion);
-        auth_provider->UpdateAwsCredential(credentials);
-        //  and retry without cache
-        token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-        ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
-    }
-
-    return ret;
+    this->plugin_name = "OKTA";
 }
 
 OktaSamlUtil::OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes)

@@ -20,15 +20,34 @@
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/map_utils.h"
+#include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 
 IamAuthPlugin::IamAuthPlugin(DBC *dbc) : IamAuthPlugin(dbc, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr) {}
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : IamAuthPlugin(dbc, next_plugin, nullptr, nullptr, nullptr) {}
 
-IamAuthPlugin::IamAuthPlugin(DBC *dbc, BasePlugin *next_plugin, const std::shared_ptr<AuthProvider>& auth_provider) : BasePlugin(dbc, next_plugin)
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider)
+    : IamAuthPlugin(dbc, next_plugin, auth_provider, nullptr, nullptr) {}
+
+IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
+                             const std::shared_ptr<AuthProvider>& auth_provider,
+                             std::shared_ptr<Dialect> dialect,
+                             std::shared_ptr<OdbcHelper> odbc_helper) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name = "IAM";
+
+    if (dialect) {
+        this->dialect_ = dialect;
+    } else if (dbc->plugin_service) {
+        this->dialect_ = dbc->plugin_service->GetDialect();
+    }
+
+    if (odbc_helper) {
+        this->odbc_helper_ = odbc_helper;
+    } else if (dbc->plugin_service) {
+        this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
+    }
 
     if (auth_provider) {
         this->auth_provider = auth_provider;
@@ -81,20 +100,33 @@ SQLRETURN IamAuthPlugin::Connect(
     }
 
     std::pair<std::string, bool> token = auth_provider->GetToken(iam_host, region, port, username, true, extra_url_encode, token_expiration);
-
-    SQLRETURN ret = SQL_ERROR;
+    const bool is_cached_token = token.second;
 
     dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-    ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    SQLRETURN ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
-    // Unsuccessful connection using cached token
-    // Skip cache and generate a new token to retry
-    if (!SQL_SUCCEEDED(ret) && token.second) {
-        LOG(WARNING) << "Cached token failed to connect. Retrying with fresh token";
-        token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-        ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    if (SQL_SUCCEEDED(ret)) {
+        return ret;
     }
+
+    // Check if the failure is a login/access error
+    std::string sql_state;
+    std::string error_message;
+    if (odbc_helper_) {
+        sql_state = odbc_helper_->GetSqlStateAndLogMessage(dbc, error_message);
+    }
+
+    // Only retry with a fresh token if the token was from cache AND the error is an access/login error.
+    // Non-access errors (network, DNS, etc.) are not token-related and should not trigger a retry.
+    if (const bool is_access_error = dialect_ && !sql_state.empty() && dialect_->IsSqlStateAccessError(sql_state.c_str(), error_message);
+        !is_cached_token || !is_access_error) {
+        return ret;
+    }
+
+    LOG(WARNING) << "Cached token failed to connect with access error (sql_state=" << sql_state << "). Retrying with fresh token";
+    token = auth_provider->GetToken(iam_host, region, port, username, false, extra_url_encode, token_expiration);
+    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
+    ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     return ret;
 }

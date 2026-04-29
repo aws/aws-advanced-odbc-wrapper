@@ -32,7 +32,9 @@ namespace ODBC_HELPER {
     SQLRETURN DsnConnect(SQLHDBC hdbc, std::string dsn, std::string uid, std::string pwd);
     void CleanUpHandles(SQLHENV henv, SQLHDBC hdbc, SQLHSTMT hstmt);
     SQLRETURN ExecuteQuery(SQLHSTMT stmt, std::string query);
-    void PrintHandleError(SQLHANDLE handle, int32_t handle_type);
+    std::string PrintHandleError(SQLHANDLE handle, int32_t handle_type);
+    bool IsClosed(SQLHDBC hdbc);
+    bool TestSimpleQuery(SQLHDBC hdbc);
 };
 
 #endif // ODBC_HELPER_H_

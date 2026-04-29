@@ -25,7 +25,7 @@
 
 class MOCK_CUSTOM_ENDPOINT_MONITOR : public CustomEndpointMonitor {
 public:
-    MOCK_CUSTOM_ENDPOINT_MONITOR() : CustomEndpointMonitor(nullptr, "", "", std::chrono::milliseconds(0), std::chrono::milliseconds(0), 0) {};
+    MOCK_CUSTOM_ENDPOINT_MONITOR() : CustomEndpointMonitor() {};
 
     MOCK_METHOD(bool, HasInfo, (), ());
     MOCK_METHOD(void, Run, (), ());

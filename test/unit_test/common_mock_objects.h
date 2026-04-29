@@ -15,19 +15,23 @@
 #ifndef TEST_COMMON_MOCK_OBJECTS_H
 #define TEST_COMMON_MOCK_OBJECTS_H
 
-
 #include "gmock/gmock.h"
 
+#include <chrono>
 #include <sqltypes.h>
 
 #include "../../driver/host_list_providers/topology_util.h"
 #include "../../driver/host_selector/highest_weight_host_selector.h"
 #include "../../driver/util/plugin_service.h"
 
+#include <chrono>
+
 class MOCK_DIALECT : public Dialect {
 public:
     MOCK_DIALECT() : Dialect() {};
     MOCK_METHOD(bool, IsSqlStateNetworkError, (const char* sql_state), ());
+    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), (override));
+    MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state, const std::string& error_message), (override));
 };
 
 class MOCK_HOST_SELECTOR : public HighestWeightHostSelector {
@@ -54,7 +58,10 @@ public:
 class MOCK_ODBC_HELPER : public OdbcHelper {
 public:
     MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
-    MOCK_METHOD(void, Disconnect, (const DBC *dbc), ());
+    MOCK_METHOD(void, Disconnect, (DBC *dbc), (override));
+    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
+    MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc, std::string& out_message), ());
+    MOCK_METHOD(std::string, GetStmtErrorMessage, (SQLHSTMT stmt), ());
 };
 
 class MOCK_PLUGIN_SERVICE : public PluginService {
@@ -63,7 +70,7 @@ public:
 
     MOCK_METHOD(std::vector<HostInfo>, GetHosts, (), ());
     MOCK_METHOD(void, SetInitialHostInfo, (const HostInfo& info), ());
-    MOCK_METHOD(void, ForceRefreshHosts, (bool verify_writer, uint32_t timeout_ms), ());
+    MOCK_METHOD(void, ForceRefreshHosts, (bool verify_writer, std::chrono::milliseconds timeout_ms), ());
     MOCK_METHOD(std::shared_ptr<HostListProvider>, GetHostListProvider, (), ());
     MOCK_METHOD(std::shared_ptr<HostSelector>, GetHostSelector, (), ());
     MOCK_METHOD(std::shared_ptr<OdbcHelper>, GetOdbcHelper, (), ());

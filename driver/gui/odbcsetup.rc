@@ -1,3 +1,6 @@
+// Microsoft Visual C++ generated resource script.
+//
+
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +15,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Microsoft Visual C++ generated resource script.
-//
 #include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
@@ -39,18 +40,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include ""winres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "\r\n"
     "\0"
@@ -271,6 +272,26 @@ BEGIN
     COMBOBOX        IDC_VERIFY_INITIAL_CONNECTION_TYPE,127,70,125,30,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
 END
 
+IDC_TAB_BLUE_GREEN DIALOGEX 5, 15, 386, 243
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_ENABLE_BLUE_GREEN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,122,7,12,10
+    LTEXT           "Connect Timeout (ms):",IDC_STATIC,13,43,103,8,0,WS_EX_RIGHT
+    LTEXT           "Baseline Refresh (ms):",IDC_STATIC,44,61,72,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_BG_CONNECT_TIMEOUT,122,40,131,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BG_BASE_REFRESH,122,58,131,14,ES_AUTOHSCROLL
+    LTEXT           "Increased Refresh (ms)",IDC_STATIC,20,79,96,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_BG_INCREASED_REFRESH,122,76,131,14,ES_AUTOHSCROLL
+    LTEXT           "Enable Blue Green:",IDC_STATIC,7,8,109,8,0,WS_EX_RIGHT
+    LTEXT           "Blue Green ID:",IDC_STATIC,13,25,103,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_BG_ID,122,22,131,14,ES_AUTOHSCROLL
+    LTEXT           "High Refresh (ms):",IDC_STATIC,44,97,72,8,0,WS_EX_RIGHT
+    LTEXT           "Switch Timeout (ms):",IDC_STATIC,20,115,96,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_BG_HIGH_REFRESH,122,94,131,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_BG_SWITCH_TIMEOUT,122,112,131,14,ES_AUTOHSCROLL
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -347,6 +368,16 @@ BEGIN
         VERTGUIDE, 126
         VERTGUIDE, 253
         TOPMARGIN, 8
+    IDC_TAB_BLUE_GREEN, DIALOG
+    END
+
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 315
+        VERTGUIDE, 116
+        VERTGUIDE, 122
+        VERTGUIDE, 253
+        TOPMARGIN, 7
         BOTTOMMARGIN, 194
     END
 END
@@ -388,6 +419,11 @@ BEGIN
     0
 END
 
+IDC_TAB_BLUE_GREEN AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -402,4 +438,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
