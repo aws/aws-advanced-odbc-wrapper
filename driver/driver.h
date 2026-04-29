@@ -136,7 +136,9 @@ struct BoundColBuffer {
     SQLLEN                  app_buf_len;        // User's BufferLength
     SQLLEN*                 app_str_len_ptr;    // User's StrLen_or_IndPtr
     std::vector<SQLTCHAR>   local_buf;          // Wrapper buffer passed to underlying driver
-    SQLLEN                  local_str_len;      // Wrapper StrLen_or_Ind
+    // Wrapper StrLen_or_Ind, heap-safe w/ shared_ptr
+    std::shared_ptr<SQLLEN> local_str_len = std::make_shared<SQLLEN>(0);
+
 };
 
 // Tracks SQLBindParameter WCHAR binding for 2-byte/4-byte conversion.
@@ -151,7 +153,8 @@ struct BoundParamBuffer {
     SQLLEN                  app_buf_len;        // User's BufferLength
     SQLLEN*                 app_str_len_ptr;    // User's StrLen_or_IndPtr
     std::vector<SQLTCHAR>   local_buf;          // Wrapper buffer passed to underlying driver
-    SQLLEN                  local_str_len;      // Wrapper StrLen_or_Ind
+    // Wrapper StrLen_or_Ind, heap-safe w/ shared_ptr
+    std::shared_ptr<SQLLEN> local_str_len = std::make_shared<SQLLEN>(0);
 };
 
 struct STMT {

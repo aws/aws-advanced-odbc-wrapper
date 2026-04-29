@@ -991,7 +991,7 @@ SQLRETURN RDS_SQLExecDirect(
     if (StatementText) {
         const std::string utf8 = ConvertUserAppToUTF8(
             odbc_helper->GetUse4BytesUserApp(), StatementText, TextLength);
-        // Plugin chain expects UTF16 
+        // Plugin chain expects UTF16
         stmt_utf16 = ConvertUTF8ToUTF16(utf8);
         stmt_text = reinterpret_cast<SQLTCHAR*>(stmt_utf16.data());
     }
