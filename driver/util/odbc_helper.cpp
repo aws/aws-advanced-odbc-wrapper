@@ -247,3 +247,33 @@ std::vector<SQLTCHAR> OdbcHelper::AllocateConversionBuffer(const size_t char_cou
         : char_count;
     return std::vector<SQLTCHAR>(local_buf_size, 0);
 }
+
+bool OdbcHelper::IsStringConnectAttr(const SQLINTEGER attribute) {
+    switch (attribute) {
+        case SQL_ATTR_CURRENT_CATALOG:
+        case SQL_ATTR_TRACEFILE:
+        case SQL_ATTR_TRANSLATE_LIB:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool OdbcHelper::IsStringDescField(const SQLSMALLINT field_identifier) {
+    switch (field_identifier) {
+        case SQL_DESC_BASE_COLUMN_NAME:
+        case SQL_DESC_BASE_TABLE_NAME:
+        case SQL_DESC_CATALOG_NAME:
+        case SQL_DESC_LABEL:
+        case SQL_DESC_LITERAL_PREFIX:
+        case SQL_DESC_LITERAL_SUFFIX:
+        case SQL_DESC_LOCAL_TYPE_NAME:
+        case SQL_DESC_NAME:
+        case SQL_DESC_SCHEMA_NAME:
+        case SQL_DESC_TABLE_NAME:
+        case SQL_DESC_TYPE_NAME:
+            return true;
+        default:
+            return false;
+    }
+}

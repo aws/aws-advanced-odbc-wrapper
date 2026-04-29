@@ -78,6 +78,9 @@ public:
     // Caller should check NeedsConversion() first.
     std::vector<SQLTCHAR> AllocateConversionBuffer(size_t char_count) const;
 
+    static bool IsStringConnectAttr(SQLINTEGER attribute);
+    static bool IsStringDescField(SQLSMALLINT field_identifier);
+
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
     bool use_4_bytes_base_driver_ = false;

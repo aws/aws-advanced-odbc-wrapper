@@ -460,10 +460,24 @@ SQLRETURN RDS_GetConnectAttr(
 
     // If already connected, query value from underlying DBC
     if (dbc->wrapped_dbc) {
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
-            dbc->wrapped_dbc, Attribute, ValuePtr, BufferLength, StringLengthPtr
-        );
-        ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+#if UNICODE
+        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        if (odbc_helper->NeedsConversion() && ValuePtr && BufferLength > 0
+            && OdbcHelper::IsStringConnectAttr(Attribute)) {
+            auto attr_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+                dbc->wrapped_dbc, Attribute, attr_buf.data(), BufferLength, StringLengthPtr
+            );
+            odbc_helper->ConvertDriverOutputToTarget(attr_buf.data(), static_cast<SQLTCHAR*>(ValuePtr), static_cast<size_t>(BufferLength));
+            ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+        } else
+#endif
+        {
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+                dbc->wrapped_dbc, Attribute, ValuePtr, BufferLength, StringLengthPtr
+            );
+            ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+        }
     }
     // Otherwise get from the DBC's attribute map
     else if (dbc->attr_map.contains(Attribute)) {
@@ -500,10 +514,24 @@ SQLRETURN RDS_SQLSetConnectAttr(
 
     // If already connected, apply value to underlying DBC, otherwise track and apply on connect
     if (dbc->wrapped_dbc) {
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
-            dbc->wrapped_dbc, Attribute, ValuePtr, StringLength
-        );
-        ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+#if UNICODE
+        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        if (odbc_helper->NeedsConversion() && ValuePtr
+            && OdbcHelper::IsStringConnectAttr(Attribute)
+            && (StringLength == SQL_NTS || StringLength > 0)) {
+            auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), StringLength);
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+                dbc->wrapped_dbc, Attribute, value_converted.tchar_ptr, StringLength
+            );
+            ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+        } else
+#endif
+        {
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+                dbc->wrapped_dbc, Attribute, ValuePtr, StringLength
+            );
+            ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+        }
     }
     dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
 
@@ -2156,6 +2184,20 @@ SQLRETURN RDS_SQLSetDescField(
     const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
+#if UNICODE
+    {
+        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        if (odbc_helper->NeedsConversion() && ValuePtr
+            && OdbcHelper::IsStringDescField(FieldIdentifier)
+            && (BufferLength == SQL_NTS || BufferLength > 0)) {
+            auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), BufferLength);
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescField, RDS_STR_SQLSetDescField,
+                desc->wrapped_desc, RecNumber, FieldIdentifier, value_converted.tchar_ptr, BufferLength
+            );
+            return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+        }
+    }
+#endif
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescField, RDS_STR_SQLSetDescField,
         desc->wrapped_desc, RecNumber, FieldIdentifier, ValuePtr, BufferLength
     );
