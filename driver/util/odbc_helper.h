@@ -65,11 +65,14 @@ public:
 
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
 
+    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, size_t dst_char_count) const;
     void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, size_t dst_char_count) const;
+
+    void ConvertWrapperOutputToTarget(SQLTCHAR* buf, size_t char_count, size_t buf_elements) const;
     void ConvertWrapperOutputToTarget(bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_elements) const;
 
     // Returns true if driver and user app character widths differ and conversion is needed.
-    bool NeedsConversion(bool wrapper_call) const;
+    bool NeedsConversion() const;
 
     // Returns an appropriately sized intermediate buffer for driver output conversion.
     // Caller should check NeedsConversion() first.

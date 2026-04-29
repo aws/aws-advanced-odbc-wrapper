@@ -174,6 +174,14 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
 }
 
 // Convert base driver output to either 2-byte or 4-byte output for the client application
+void OdbcHelper::ConvertDriverOutputToTarget(
+    const SQLTCHAR* src,
+    SQLTCHAR* dst,
+    const size_t dst_char_count) const
+{
+    ConvertDriverOutputToTarget(false, src, dst, dst_char_count);
+}
+
 // codechecker_suppress [readability-convert-member-functions-to-static]
 void OdbcHelper::ConvertDriverOutputToTarget(
     const bool wrapper_call,
@@ -203,6 +211,14 @@ void OdbcHelper::ConvertDriverOutputToTarget(
 
 // Convert wrapper output to either 2-byte or 4-byte output for the client application
 void OdbcHelper::ConvertWrapperOutputToTarget(
+    SQLTCHAR* buf,
+    const size_t char_count,
+    const size_t buf_elements) const
+{
+    ConvertWrapperOutputToTarget(false, buf, char_count, buf_elements);
+}
+
+void OdbcHelper::ConvertWrapperOutputToTarget(
     const bool wrapper_call,
     SQLTCHAR* buf,
     const size_t char_count,
@@ -217,10 +233,9 @@ void OdbcHelper::ConvertWrapperOutputToTarget(
 }
 
 // codechecker_suppress [readability-convert-member-functions-to-static]
-bool OdbcHelper::NeedsConversion(const bool wrapper_call) const {
+bool OdbcHelper::NeedsConversion() const {
 #if UNICODE
-    const bool user_4_byte = !wrapper_call && use_4_bytes_user_app_;
-    return user_4_byte != use_4_bytes_base_driver_;
+    return use_4_bytes_user_app_ != use_4_bytes_base_driver_;
 #else
     return false;
 #endif
