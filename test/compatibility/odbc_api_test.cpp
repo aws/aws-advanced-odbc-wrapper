@@ -468,46 +468,117 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 }
 
-TEST_P(ODBC_API_TEST, SQLGetDiagRecTest) {
+TEST_P(ODBC_API_TEST, DiagnosticsFunctionsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
-
-    std::ofstream out_file = CreateResultsFile(test_dsn, "SQLGetDiagRecTest");
+    std::ofstream out_file = CreateResultsFile(test_dsn, "DiagnosticsFunctionsTest");
     out_file << "{\n";
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     EXPECT_EQ(ret, SQL_SUCCESS);
 
-    ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT * FROM nonexistent_table");
+    // Trigger an error
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT * FROM nonexistent_table_diag_test");
     EXPECT_NE(ret, SQL_SUCCESS);
 
-    if (ret == SQL_ERROR || ret == SQL_SUCCESS_WITH_INFO) {
-        SQLSMALLINT recNumber = 1;
-        SQLCHAR sqlState[6];
-        SQLINTEGER nativeError;
-        SQLCHAR messageText[SQL_MAX_MESSAGE_LENGTH];
-        SQLSMALLINT textLength;
+    // SQLGetDiagRec
+    {
+        SQLTCHAR sqlstate[MAX_SQL_STATE_LEN] = {0};
+        SQLINTEGER native_error = 0;
+        SQLTCHAR message[MAX_SQL_MESSAGE_LEN] = {0};
+        SQLSMALLINT msg_len = 0;
 
-        while (SQLGetDiagRec(
-            SQL_HANDLE_STMT,
-            stmt,
-            recNumber,
-            sqlState,
-            &nativeError,
-            messageText,
-            sizeof(messageText),
-            &textLength) == SQL_SUCCESS) {
-            out_file << "Record: " << recNumber << ":\n"
-                      << "  SQLSTATE:     " << sqlState << "\n"
-                      << "  Native Error: " << nativeError << "\n"
-                      << "  Message:      " << messageText << "\n";
-            recNumber++;
+        ret = SQLGetDiagRec(SQL_HANDLE_STMT, stmt, 1, sqlstate, &native_error,
+            message, MAX_SQL_MESSAGE_LEN, &msg_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << "  \"SQLGetDiagRec\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"sqlstate\": \"" << STRING_HELPER::SqltcharToAnsi(sqlstate) << "\",\n";
+            out_file << "    \"native_error\": " << native_error << ",\n";
+            out_file << "    \"message_length\": " << msg_len << "\n";
+        } else {
+            out_file << "    \"error\": \"no diagnostic record available\"\n";
         }
-    } else {
-        out_file << ""; // TODO: log something to indicate there was not an error as expected
+        out_file << "  }";
     }
 
-    SQLCloseCursor(stmt);
+    // SQLGetDiagField - string field (SQL_DIAG_SQLSTATE)
+    {
+        SQLTCHAR diag_info[MAX_BUFFER_LEN] = {0};
+        SQLSMALLINT str_len = 0;
+        ret = SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_SQLSTATE,
+            diag_info, sizeof(diag_info), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetDiagField_SQLSTATE\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(diag_info) << "\",\n";
+            out_file << "    \"string_length\": " << str_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLGetDiagField - numeric header field (SQL_DIAG_NUMBER)
+    {
+        SQLINTEGER diag_count = 0;
+        SQLSMALLINT str_len = 0;
+        ret = SQLGetDiagField(SQL_HANDLE_STMT, stmt, 0, SQL_DIAG_NUMBER,
+            &diag_count, sizeof(diag_count), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetDiagField_NUMBER\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"value\": " << diag_count << "\n";
+        out_file << "  }";
+    }
+
+    // SQLGetDiagField - string record field (SQL_DIAG_MESSAGE_TEXT)
+    {
+        SQLTCHAR diag_msg[MAX_BUFFER_LEN] = {0};
+        SQLSMALLINT str_len = 0;
+        ret = SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_MESSAGE_TEXT,
+            diag_msg, sizeof(diag_msg), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetDiagField_MESSAGE_TEXT\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"string_length\": " << str_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLError (deprecated but implemented in the driver)
+    {
+        // Trigger a fresh error for SQLError
+        SQLCloseCursor(stmt);
+        ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT * FROM another_nonexistent_table");
+        EXPECT_NE(ret, SQL_SUCCESS);
+
+        SQLTCHAR sqlstate[MAX_SQL_STATE_LEN] = {0};
+        SQLINTEGER native_error = 0;
+        SQLTCHAR message[MAX_SQL_MESSAGE_LEN] = {0};
+        SQLSMALLINT msg_len = 0;
+
+        ret = SQLError(SQL_NULL_HENV, SQL_NULL_HDBC, stmt, sqlstate, &native_error,
+            message, MAX_SQL_MESSAGE_LEN, &msg_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLError\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"sqlstate\": \"" << STRING_HELPER::SqltcharToAnsi(sqlstate) << "\",\n";
+            out_file << "    \"native_error\": " << native_error << ",\n";
+            out_file << "    \"message_length\": " << msg_len << "\n";
+        } else {
+            out_file << "    \"error\": \"no error record available\"\n";
+        }
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
     out_file.close();
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 }
