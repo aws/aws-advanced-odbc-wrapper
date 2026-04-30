@@ -56,6 +56,11 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     std::wstring wstr(size, 0);
     u_strToWCS(wstr.data(), wstr.size(), nullptr, string_utf16.getBuffer(), string_utf16.length(), &error);
 
+    if (U_FAILURE(error)) {
+        LOG(ERROR) << "ConvertUTF8ToWString conversion failed: " << u_errorName(error);
+        return std::wstring();
+    }
+
     return wstr;
 }
 
@@ -169,54 +174,104 @@ inline std::vector<std::string> SplitStr(std::string &str, std::string &delimite
 }
 
 inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out, size_t len) {
-    if (in != nullptr && len > 0) {
-        for (int i = 0; i < len - 1; i++) {
-            if (use_4_bytes) {
-                if (out != nullptr) {
-                    out[i] = in[i * 2];
-                } else {
-                    in[i] = in[i * 2];
-                }
-            } else {
-                if (out != nullptr) {
-                    out[i] = in[i];
-                }
-            }
-        }
+    if (in == nullptr || len == 0) {
+        return;
+    }
+
+    if (!use_4_bytes) {
         if (out != nullptr) {
-            out[len - 1] = '\0';
-        } else {
-            in[len - 1] = '\0';
+            std::copy(in, in + len, out);
+            out[len - 1] = 0;
+        }
+        return;
+    }
+
+    UErrorCode err = U_ZERO_ERROR;
+    SQLTCHAR *output = out == nullptr ? in : out;
+    const int32_t output_size = static_cast<int32_t>(len - 1);
+    int32_t written = 0;
+    std::vector<SQLTCHAR> temp(len, 0);
+
+    const int32_t max_src_codepoints = static_cast<int32_t>(len);
+    const UChar32 *src = reinterpret_cast<const UChar32 *>(in);
+    int32_t num_codepoints = 0;
+    while (num_codepoints < max_src_codepoints && src[num_codepoints] != 0) {
+        num_codepoints++;
+    }
+
+    u_strFromUTF32(
+        reinterpret_cast<UChar *>(temp.data()),
+        output_size,
+        &written,
+        src,
+        num_codepoints,
+        &err
+    );
+
+    if (U_FAILURE(err) && err != U_BUFFER_OVERFLOW_ERROR) {
+        LOG(ERROR) << "ICU conversion failed: " << u_errorName(err);
+        output[0] = 0;
+        return;
+    }
+
+    int32_t end_index = written < output_size ? written : output_size;
+
+    if (end_index > 0) {
+        UChar last = reinterpret_cast<UChar *>(temp.data())[end_index - 1];
+        if (U16_IS_LEAD(last)) {
+            end_index--;
         }
     }
+
+    std::copy(temp.begin(), temp.begin() + end_index, output);
+    output[end_index] = 0;
 }
 
 inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
     if (buffer_len > 0) {
-        return static_cast<int>(buffer_len);
+        if (!use_4_bytes || in == nullptr) {
+            return static_cast<size_t>(buffer_len) + 1;
+        }
+
+        const UChar32* utf32 = reinterpret_cast<const UChar32*>(in);
+        const int32_t num_codepoints = static_cast<int32_t>(buffer_len);
+
+        UErrorCode err = U_ZERO_ERROR;
+        int32_t utf16_len = 0;
+        u_strFromUTF32(nullptr, 0, &utf16_len, utf32, num_codepoints, &err);
+        if (err != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(err)) {
+            LOG(ERROR) << "ICU preflight conversion failed: " << u_errorName(err);
+            return (static_cast<size_t>(buffer_len) * 2) + 1;
+        }
+
+        return static_cast<size_t>(utf16_len) + 1;
     }
 
     if (buffer_len == SQL_NTS) {
-        bool end_found = false;
-        size_t len = 0;
-        int i = 0;
-
-        while (!end_found) {
-            if (!use_4_bytes) {
-                if (in[i] == '\0') {
-                    end_found = true;
-                }
-                i++;
-            } else {
-                if (in[i] == '\0' && in[i + 1] == '\0') {
-                    end_found = true;
-                }
-                i += 2;
-            }
-            len++;
+        if (in == nullptr) {
+            return 0;
+        }
+        if (!use_4_bytes) {
+            return u_strlen(reinterpret_cast<const UChar *>(in)) + 1;
         }
 
-        return len;
+        const UChar32* utf32 = reinterpret_cast<const UChar32*>(in);
+        size_t num_codepoints = 0;
+        while (utf32[num_codepoints] != 0) {
+            num_codepoints++;
+        }
+
+        UErrorCode err = U_ZERO_ERROR;
+        int32_t utf16_len = 0;
+        u_strFromUTF32(nullptr, 0, &utf16_len, utf32, static_cast<int32_t>(num_codepoints), &err);
+        // U_BUFFER_OVERFLOW_ERROR is expected
+        if (err != U_BUFFER_OVERFLOW_ERROR && U_FAILURE(err)) {
+            LOG(ERROR) << "ICU preflight conversion failed: " << u_errorName(err);
+            // Fallback: worst case each codepoint becomes a surrogate pair
+            return (num_codepoints * 2) + 1;
+        }
+
+        return static_cast<size_t>(utf16_len) + 1;
     }
 
     return 0;

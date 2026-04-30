@@ -47,6 +47,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rds_strings_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
