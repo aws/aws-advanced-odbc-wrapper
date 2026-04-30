@@ -468,6 +468,156 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 }
 
+TEST_P(ODBC_API_TEST, ConnectionAttributesTest) {
+    std::string test_dsn = GetParam();
+    std::ofstream out_file = CreateResultsFile(test_dsn, "ConnectionAttributesTest");
+    out_file << "{\n";
+
+    // SQLGetConnectAttr - string attribute (SQL_ATTR_CURRENT_CATALOG)
+    {
+        SQLTCHAR buffer[MAX_BUFFER_LEN] = {0};
+        SQLINTEGER str_len = 0;
+        ret = SQLGetConnectAttr(dbc, SQL_ATTR_CURRENT_CATALOG, buffer, sizeof(buffer), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << "  \"SQLGetConnectAttr_CURRENT_CATALOG\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(buffer) << "\",\n";
+            out_file << "    \"string_length\": " << str_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DBC, dbc, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLGetConnectAttr - numeric attribute (SQL_ATTR_AUTOCOMMIT)
+    {
+        SQLUINTEGER value = 0;
+        SQLINTEGER str_len = 0;
+        ret = SQLGetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, &value, sizeof(value), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetConnectAttr_AUTOCOMMIT\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"value\": " << value << "\n";
+        out_file << "  }";
+    }
+
+    // SQLSetConnectAttr
+    {
+        ret = SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT,
+            reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_OFF), SQL_IS_UINTEGER);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLSetConnectAttr_AUTOCOMMIT_OFF\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+        // Reset
+        SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT,
+            reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_ON), SQL_IS_UINTEGER);
+    }
+
+    // SQLGetConnectOption (deprecated variant)
+    {
+        SQLTCHAR buffer[MAX_BUFFER_LEN] = {0};
+        ret = SQLGetConnectOption(dbc, SQL_ATTR_CURRENT_CATALOG, buffer);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetConnectOption_CURRENT_CATALOG\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(buffer) << "\"\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DBC, dbc, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+}
+
+TEST_P(ODBC_API_TEST, StatementAttributesTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+    std::ofstream out_file = CreateResultsFile(test_dsn, "StatementAttributesTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // SQLSetStmtAttr
+    {
+        ret = SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT,
+            reinterpret_cast<SQLPOINTER>(30), SQL_IS_UINTEGER);
+        out_file << "  \"SQLSetStmtAttr_QUERY_TIMEOUT\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+    }
+
+    // SQLGetStmtAttr
+    {
+        SQLULEN value = 0;
+        SQLINTEGER str_len = 0;
+        ret = SQLGetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, &value, sizeof(value), &str_len);
+        out_file << ",\n  \"SQLGetStmtAttr_QUERY_TIMEOUT\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"value\": " << value << "\n";
+        out_file << "  }";
+    }
+
+    {
+        SQLULEN value = 0;
+        SQLINTEGER str_len = 0;
+        ret = SQLGetStmtAttr(stmt, SQL_ATTR_CURSOR_TYPE, &value, sizeof(value), &str_len);
+        out_file << ",\n  \"SQLGetStmtAttr_CURSOR_TYPE\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"value\": " << value << "\n";
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+}
+
+TEST_P(ODBC_API_TEST, CursorNameTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+    std::ofstream out_file = CreateResultsFile(test_dsn, "CursorNameTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // SQLSetCursorName
+    {
+        SQLTCHAR cursor_name[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("test_cursor", cursor_name);
+        ret = SQLSetCursorName(stmt, cursor_name, SQL_NTS);
+        out_file << "  \"SQLSetCursorName\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+    }
+
+    // SQLGetCursorName
+    {
+        SQLTCHAR cursor_out[MAX_BUFFER_LEN] = {0};
+        SQLSMALLINT name_len = 0;
+        ret = SQLGetCursorName(stmt, cursor_out, MAX_BUFFER_LEN, &name_len);
+        out_file << ",\n  \"SQLGetCursorName\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"cursor_name\": \"" << STRING_HELPER::SqltcharToAnsi(cursor_out) << "\",\n";
+            out_file << "    \"name_length\": " << name_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+}
+
 TEST_P(ODBC_API_TEST, DiagnosticsFunctionsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
