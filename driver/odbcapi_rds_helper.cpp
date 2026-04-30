@@ -989,7 +989,7 @@ SQLRETURN RDS_SQLDriverConnect(
     if (OutConnectionString && StringLength2Ptr) {
         const SQLULEN len = conn_out_str_utf8.length();
 #ifdef UNICODE
-    const SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, conn_out_str_utf8);
+    const SQLULEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(OutConnectionString), MAX_KEY_SIZE, conn_out_str_utf8);
     if (dbc->plugin_service) {
         dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(OutConnectionString, written, BufferLength);
     }
@@ -1216,7 +1216,7 @@ SQLRETURN RDS_SQLGetCursorName(
         const SQLULEN len = name.length();
         if (CursorName) {
 #ifdef UNICODE
-            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(CursorName), static_cast<size_t>(BufferLength), name.c_str());
+            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(CursorName), static_cast<size_t>(BufferLength), name);
             if (dbc->plugin_service) {
                 const size_t buf_bytes = static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR);
                 dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(CursorName, written, buf_bytes);
@@ -1788,7 +1788,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate);
             if (odbc_helper) {
-                odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, MAX_SQL_STATE_LEN * 2 * sizeof(SQLTCHAR));
+                odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
             }
 #else
             snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", err->sqlstate);
@@ -1833,7 +1833,7 @@ SQLRETURN RDS_SQLGetDiagRec(
             {
                 const auto odbc_helper = RDS_GetOdbcHelper(dbc, env);
                 if (odbc_helper) {
-                    odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, MAX_SQL_STATE_LEN * 2 * sizeof(SQLTCHAR));
+                    odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
                 }
             }
 #else
