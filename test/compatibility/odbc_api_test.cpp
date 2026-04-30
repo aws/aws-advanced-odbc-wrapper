@@ -547,6 +547,7 @@ TEST_P(ODBC_API_TEST, StatementAttributesTest) {
     {
         ret = SQLSetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT,
             reinterpret_cast<SQLPOINTER>(30), SQL_IS_UINTEGER);
+        EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << "  \"SQLSetStmtAttr_QUERY_TIMEOUT\": {\n";
         out_file << "    \"return_code\": " << ret << "\n";
         out_file << "  }";
@@ -557,6 +558,7 @@ TEST_P(ODBC_API_TEST, StatementAttributesTest) {
         SQLULEN value = 0;
         SQLINTEGER str_len = 0;
         ret = SQLGetStmtAttr(stmt, SQL_ATTR_QUERY_TIMEOUT, &value, sizeof(value), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << ",\n  \"SQLGetStmtAttr_QUERY_TIMEOUT\": {\n";
         out_file << "    \"return_code\": " << ret << ",\n";
         out_file << "    \"value\": " << value << "\n";
@@ -567,6 +569,7 @@ TEST_P(ODBC_API_TEST, StatementAttributesTest) {
         SQLULEN value = 0;
         SQLINTEGER str_len = 0;
         ret = SQLGetStmtAttr(stmt, SQL_ATTR_CURSOR_TYPE, &value, sizeof(value), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << ",\n  \"SQLGetStmtAttr_CURSOR_TYPE\": {\n";
         out_file << "    \"return_code\": " << ret << ",\n";
         out_file << "    \"value\": " << value << "\n";
@@ -592,6 +595,7 @@ TEST_P(ODBC_API_TEST, CursorNameTest) {
         SQLTCHAR cursor_name[MAX_BUFFER_LEN] = {0};
         STRING_HELPER::AnsiToUnicode("test_cursor", cursor_name);
         ret = SQLSetCursorName(stmt, cursor_name, SQL_NTS);
+        EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << "  \"SQLSetCursorName\": {\n";
         out_file << "    \"return_code\": " << ret << "\n";
         out_file << "  }";
@@ -602,6 +606,7 @@ TEST_P(ODBC_API_TEST, CursorNameTest) {
         SQLTCHAR cursor_out[MAX_BUFFER_LEN] = {0};
         SQLSMALLINT name_len = 0;
         ret = SQLGetCursorName(stmt, cursor_out, MAX_BUFFER_LEN, &name_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << ",\n  \"SQLGetCursorName\": {\n";
         out_file << "    \"return_code\": " << ret << ",\n";
         if (SQL_SUCCEEDED(ret)) {
@@ -724,6 +729,171 @@ TEST_P(ODBC_API_TEST, DiagnosticsFunctionsTest) {
             out_file << "    \"message_length\": " << msg_len << "\n";
         } else {
             out_file << "    \"error\": \"no error record available\"\n";
+        }
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+}
+
+TEST_P(ODBC_API_TEST, StatementExecutionTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+    std::ofstream out_file = CreateResultsFile(test_dsn, "StatementExecutionTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // SQLExecDirect with string result + SQLGetData
+    {
+        SQLTCHAR query[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("SELECT 'hello_encoding_test' AS test_col", query);
+        ret = SQLExecDirect(stmt, query, SQL_NTS);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << "  \"SQLExecDirect\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+            SQLLEN indicator = 0;
+            SQLFetch(stmt);
+            ret = SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            EXPECT_EQ(ret, SQL_SUCCESS);
+            out_file << "    \"SQLGetData_return_code\": " << ret << ",\n";
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\",\n";
+            out_file << "    \"indicator\": " << indicator << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+        SQLCloseCursor(stmt);
+    }
+
+    // SQLPrepare + SQLBindParameter + SQLExecute
+    {
+        SQLTCHAR prepare_query[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("SELECT ? AS param_result", prepare_query);
+        ret = SQLPrepare(stmt, prepare_query, SQL_NTS);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLPrepare\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+
+        SQLTCHAR param_value[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("test_param_value", param_value);
+        SQLLEN param_len = SQL_NTS;
+
+        ret = SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_TCHAR, SQL_VARCHAR,
+            MAX_BUFFER_LEN, 0, param_value, sizeof(param_value), &param_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLBindParameter\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+
+        ret = SQLExecute(stmt);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLExecute\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLTCHAR result[MAX_BUFFER_LEN] = {0};
+            SQLLEN ind = 0;
+            SQLFetch(stmt);
+            SQLGetData(stmt, 1, SQL_C_TCHAR, result, sizeof(result), &ind);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(result) << "\"\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+        SQLCloseCursor(stmt);
+    }
+
+    // SQLBindCol + SQLFetch
+    {
+        SQLTCHAR query[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("SELECT 'bind_col_test' AS col1, 42 AS col2", query);
+        ret = SQLExecDirect(stmt, query, SQL_NTS);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+
+        SQLTCHAR str_result[MAX_BUFFER_LEN] = {0};
+        SQLLEN str_ind = 0;
+        SQLINTEGER int_result = 0;
+        SQLLEN int_ind = 0;
+
+        SQLBindCol(stmt, 1, SQL_C_TCHAR, str_result, sizeof(str_result), &str_ind);
+        ret = SQLBindCol(stmt, 2, SQL_C_SLONG, &int_result, sizeof(int_result), &int_ind);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLBindCol\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+
+        ret = SQLFetch(stmt);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << "    \"fetch_return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"string_value\": \"" << STRING_HELPER::SqltcharToAnsi(str_result) << "\",\n";
+            out_file << "    \"int_value\": " << int_result << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+        SQLCloseCursor(stmt);
+    }
+
+    // SQLPutData (data-at-execution flow)
+    {
+        SQLTCHAR put_query[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("SELECT ? AS put_result", put_query);
+        ret = SQLPrepare(stmt, put_query, SQL_NTS);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+
+        SQLLEN data_at_exec = SQL_DATA_AT_EXEC;
+        SQLPOINTER param_id = reinterpret_cast<SQLPOINTER>(1);
+        ret = SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_TCHAR, SQL_VARCHAR,
+            MAX_BUFFER_LEN, 0, param_id, 0, &data_at_exec);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+
+        ret = SQLExecute(stmt);
+        out_file << ",\n  \"SQLPutData\": {\n";
+        out_file << "    \"execute_return_code\": " << ret << ",\n";
+
+        if (ret == SQL_NEED_DATA) {
+            SQLPOINTER value_ptr = nullptr;
+            ret = SQLParamData(stmt, &value_ptr);
+            if (ret == SQL_NEED_DATA) {
+                SQLTCHAR put_value[MAX_BUFFER_LEN] = {0};
+                STRING_HELPER::AnsiToUnicode("put_data_test", put_value);
+                ret = SQLPutData(stmt, put_value, SQL_NTS);
+                out_file << "    \"put_data_return_code\": " << ret << ",\n";
+
+                ret = SQLParamData(stmt, &value_ptr);
+                out_file << "    \"final_return_code\": " << ret << "\n";
+            } else {
+                out_file << "    \"param_data_return_code\": " << ret << "\n";
+            }
+        } else {
+            out_file << "    \"note\": \"SQL_NEED_DATA not returned\"\n";
+        }
+        out_file << "  }";
+        SQLCloseCursor(stmt);
+    }
+
+    // SQLNativeSql
+    {
+        SQLTCHAR sql_in[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode("SELECT {fn NOW()}", sql_in);
+        SQLTCHAR sql_out[MAX_BUFFER_LEN] = {0};
+        SQLINTEGER out_len = 0;
+
+        ret = SQLNativeSql(dbc, sql_in, SQL_NTS, sql_out, MAX_BUFFER_LEN, &out_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLNativeSql\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"output\": \"" << STRING_HELPER::SqltcharToAnsi(sql_out) << "\",\n";
+            out_file << "    \"output_length\": " << out_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DBC, dbc, ret) << "\"\n";
         }
         out_file << "  }";
     }
