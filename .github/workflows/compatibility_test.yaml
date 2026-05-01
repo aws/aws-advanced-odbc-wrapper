@@ -37,13 +37,23 @@ jobs:
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
     runs-on: windows-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          $VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Download psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
@@ -57,13 +67,23 @@ jobs:
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
     runs-on: macos-15
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -86,13 +106,23 @@ jobs:
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
     runs-on: ubuntu-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -129,7 +159,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -146,7 +176,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -163,7 +193,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -211,7 +241,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Install psqlODBC Driver
         shell: pwsh
@@ -247,7 +277,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         shell: pwsh
@@ -391,7 +421,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Detect psqlODBC driver path
         id: psqlodbc-path
@@ -428,7 +458,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         id: mysql-path
@@ -557,7 +587,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Log psqlODBC driver location
         run: |
@@ -580,7 +610,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         run: |
