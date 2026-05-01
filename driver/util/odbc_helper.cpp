@@ -277,3 +277,18 @@ bool OdbcHelper::IsStringDescField(const SQLSMALLINT field_identifier) {
             return false;
     }
 }
+
+bool OdbcHelper::IsStringDiagField(const SQLSMALLINT diag_identifier) {
+    switch (diag_identifier) {
+        case SQL_DIAG_CLASS_ORIGIN:
+        case SQL_DIAG_CONNECTION_NAME:
+        case SQL_DIAG_DYNAMIC_FUNCTION:
+        case SQL_DIAG_MESSAGE_TEXT:
+        case SQL_DIAG_SERVER_NAME:
+        case SQL_DIAG_SQLSTATE:
+        case SQL_DIAG_SUBCLASS_ORIGIN:
+            return true;
+        default:
+            return false;
+    }
+}

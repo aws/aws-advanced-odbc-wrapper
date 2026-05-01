@@ -42,6 +42,21 @@
     #include "gui/setup.h"
 #endif
 
+#if UNICODE
+std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env) {
+    if (dbc && dbc->plugin_service) {
+        return dbc->plugin_service->GetOdbcHelper();
+    }
+    if (env && !env->dbc_list.empty()) {
+        const DBC* env_dbc = env->dbc_list.front();
+        if (env_dbc && env_dbc->plugin_service) {
+            return env_dbc->plugin_service->GetOdbcHelper();
+        }
+    }
+    return nullptr;
+}
+#endif
+
 SQLRETURN RDS_ProcessLibRes(
     SQLSMALLINT         HandleType,
     SQLHANDLE           InputHandle,
@@ -1226,6 +1241,20 @@ SQLRETURN RDS_SQLGetDescField(
     const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
     CHECK_WRAPPED_DESC(desc);
+#if UNICODE
+    {
+        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        if (odbc_helper->NeedsConversion() && ValuePtr && BufferLength > 0
+            && OdbcHelper::IsStringDescField(FieldIdentifier)) {
+            auto field_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescField, RDS_STR_SQLGetDescField,
+                desc->wrapped_desc, RecNumber, FieldIdentifier, field_buf.data(), BufferLength, StringLengthPtr
+            );
+            odbc_helper->ConvertDriverOutputToTarget(field_buf.data(), static_cast<SQLTCHAR*>(ValuePtr), static_cast<size_t>(BufferLength));
+            return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+        }
+    }
+#endif
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDescField, RDS_STR_SQLGetDescField,
         desc->wrapped_desc, RecNumber, FieldIdentifier, ValuePtr, BufferLength, StringLengthPtr
     );
@@ -1298,10 +1327,27 @@ SQLRETURN RDS_SQLGetDiagField(
                 env = static_cast<ENV*>(Handle);
                 const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
                 if (env->wrapped_env) {
-                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
-                        HandleType, env->wrapped_env, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
-                    );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+#if UNICODE
+                    const auto odbc_helper = RDS_GetOdbcHelper(nullptr, env);
+                    if (odbc_helper && odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
+                        && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
+                        auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, env->wrapped_env, RecNumber, DiagIdentifier, diag_buf.data(), BufferLength, StringLengthPtr
+                        );
+                        odbc_helper->ConvertDriverOutputToTarget(
+                            diag_buf.data(),
+                            static_cast<SQLTCHAR*>(DiagInfoPtr),
+                            static_cast<size_t>(BufferLength));
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+                    } else
+#endif
+                    {
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, env->wrapped_env, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
+                        );
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
+                    }
                 } else if (env->err) {
                     err = new ERR_INFO(*env->err);
                 }
@@ -1314,10 +1360,27 @@ SQLRETURN RDS_SQLGetDiagField(
                 env = dbc->env;
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 if (dbc->wrapped_dbc) {
-                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
-                        HandleType, dbc->wrapped_dbc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
-                    );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+#if UNICODE
+                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
+                        && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
+                        auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, dbc->wrapped_dbc, RecNumber, DiagIdentifier, diag_buf.data(), BufferLength, StringLengthPtr
+                        );
+                        odbc_helper->ConvertDriverOutputToTarget(
+                            diag_buf.data(),
+                            static_cast<SQLTCHAR*>(DiagInfoPtr),
+                            static_cast<size_t>(BufferLength));
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                    } else
+#endif
+                    {
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, dbc->wrapped_dbc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
+                        );
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                    }
                 } else if (dbc->err) {
                     err = new ERR_INFO(*dbc->err);
                 }
@@ -1331,10 +1394,27 @@ SQLRETURN RDS_SQLGetDiagField(
                 env = dbc->env;
                 const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
                 if (stmt->wrapped_stmt) {
-                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
-                        HandleType, stmt->wrapped_stmt, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
-                    );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+#if UNICODE
+                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
+                        && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
+                        auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, stmt->wrapped_stmt, RecNumber, DiagIdentifier, diag_buf.data(), BufferLength, StringLengthPtr
+                        );
+                        odbc_helper->ConvertDriverOutputToTarget(
+                            diag_buf.data(),
+                            static_cast<SQLTCHAR*>(DiagInfoPtr),
+                            static_cast<size_t>(BufferLength));
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                    } else
+#endif
+                    {
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, stmt->wrapped_stmt, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
+                        );
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+                    }
                 } else if (stmt->err) {
                     err = new ERR_INFO(*stmt->err);
                 }
@@ -1350,10 +1430,24 @@ SQLRETURN RDS_SQLGetDiagField(
                 const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
 
                 if (desc->wrapped_desc) {
-                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
-                        HandleType, desc->wrapped_desc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
-                    );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+#if UNICODE
+                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
+                        && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
+                        auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, desc->wrapped_desc, RecNumber, DiagIdentifier, diag_buf.data(), BufferLength, StringLengthPtr
+                        );
+                        odbc_helper->ConvertDriverOutputToTarget(diag_buf.data(), static_cast<SQLTCHAR*>(DiagInfoPtr), static_cast<size_t>(BufferLength));
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+                    } else
+#endif
+                    {
+                        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagField, RDS_STR_SQLGetDiagField,
+                            HandleType, desc->wrapped_desc, RecNumber, DiagIdentifier, DiagInfoPtr, BufferLength, StringLengthPtr
+                        );
+                        ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+                    }
                 } else if (desc->err) {
                     err = new ERR_INFO(*desc->err);
                 }
@@ -1550,9 +1644,8 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
 
-                    if (!env->dbc_list.empty()) {
-                        const DBC* dbc = env->dbc_list.front();
-                        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    const auto odbc_helper = RDS_GetOdbcHelper(nullptr, env);
+                    if (odbc_helper) {
                         odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, MAX_SQL_STATE_LEN);
                         odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, BufferLength);
                     }
@@ -1671,15 +1764,7 @@ SQLRETURN RDS_SQLGetDiagRec(
 
 #if UNICODE
         // Resolve the OdbcHelper for wrapper-generated output conversion
-        std::shared_ptr<OdbcHelper> odbc_helper;
-        if (dbc && dbc->plugin_service) {
-            odbc_helper = dbc->plugin_service->GetOdbcHelper();
-        } else if (env && !env->dbc_list.empty()) {
-            const DBC* env_dbc = env->dbc_list.front();
-            if (env_dbc->plugin_service) {
-                odbc_helper = env_dbc->plugin_service->GetOdbcHelper();
-            }
-        }
+        const auto odbc_helper = RDS_GetOdbcHelper(dbc, env);
 #endif
 
         ret = SQL_SUCCESS;
@@ -1704,7 +1789,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         }
         if (MessageText && (BufferLength > 0) && err->error_msg) {
 #ifdef UNICODE
-            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(uint16_t), err->error_msg);
+            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength), err->error_msg);
             if (odbc_helper) {
                 odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, MessageText, written, BufferLength);
             }
@@ -1730,15 +1815,7 @@ SQLRETURN RDS_SQLGetDiagRec(
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
             // Expand to 4-byte if user app expects it
             {
-                std::shared_ptr<OdbcHelper> odbc_helper;
-                if (dbc && dbc->plugin_service) {
-                    odbc_helper = dbc->plugin_service->GetOdbcHelper();
-                } else if (env && !env->dbc_list.empty()) {
-                    const DBC* env_dbc = env->dbc_list.front();
-                    if (env_dbc->plugin_service) {
-                        odbc_helper = env_dbc->plugin_service->GetOdbcHelper();
-                    }
-                }
+                const auto odbc_helper = RDS_GetOdbcHelper(dbc, env);
                 if (odbc_helper) {
                     odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, MAX_SQL_STATE_LEN * 2);
                 }
@@ -1800,6 +1877,24 @@ SQLRETURN RDS_SQLGetInfo(
             if (dbc->wrapped_dbc) {
                 const ENV* env = dbc->env;
                 CLEAR_DBC_ERROR(dbc);
+#if UNICODE
+                const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                if (odbc_helper->NeedsConversion() && InfoValuePtr && BufferLength > 0) {
+                    auto info_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
+                    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
+                        dbc->wrapped_dbc, InfoType, info_buf.data(), BufferLength, StringLengthPtr
+                    );
+                    if (StringLengthPtr && *StringLengthPtr > 0) {
+                        odbc_helper->ConvertDriverOutputToTarget(
+                            info_buf.data(),
+                            static_cast<SQLTCHAR*>(InfoValuePtr),
+                            static_cast<size_t>(BufferLength));
+                    } else {
+                        std::memcpy(InfoValuePtr, info_buf.data(), static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR));
+                    }
+                    return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                }
+#endif
                 const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetInfo, RDS_STR_SQLGetInfo,
                     dbc->wrapped_dbc, InfoType, InfoValuePtr, BufferLength, StringLengthPtr
                 );
@@ -1836,7 +1931,11 @@ SQLRETURN RDS_SQLGetInfo(
         len = strlen(char_value);
         if (InfoValuePtr) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(InfoValuePtr), BufferLength / sizeof(uint16_t), char_value);
+            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(InfoValuePtr), static_cast<size_t>(BufferLength), char_value);
+            if (dbc->plugin_service) {
+                dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(
+                    static_cast<SQLTCHAR*>(InfoValuePtr), written, static_cast<size_t>(BufferLength));
+            }
 #else
             snprintf(static_cast<char*>(InfoValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", char_value);
 #endif

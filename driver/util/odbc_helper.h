@@ -80,6 +80,7 @@ public:
 
     static bool IsStringConnectAttr(SQLINTEGER attribute);
     static bool IsStringDescField(SQLSMALLINT field_identifier);
+    static bool IsStringDiagField(SQLSMALLINT diag_identifier);
 
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
