@@ -172,3 +172,126 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
     LOG(WARNING) << "SQL State: " << AS_UTF8_CSTR(sql_state) << ". Message: " << AS_UTF8_CSTR(message);
     return AS_UTF8_CSTR(sql_state);
 }
+
+// Convert base driver output to either 2-byte or 4-byte output for the client application
+void OdbcHelper::ConvertDriverOutputToTarget(
+    const SQLTCHAR* src,
+    SQLTCHAR* dst,
+    const size_t dst_byte_count) const
+{
+    ConvertDriverOutputToTarget(false, src, dst, dst_byte_count);
+}
+
+// codechecker_suppress [readability-convert-member-functions-to-static]
+void OdbcHelper::ConvertDriverOutputToTarget(
+    const bool wrapper_call,
+    const SQLTCHAR* src,
+    SQLTCHAR* dst,
+    const size_t dst_byte_count) const
+{
+#if UNICODE
+    const size_t dst_char_count = dst_byte_count / sizeof(SQLTCHAR);
+    const bool user_4_byte = !wrapper_call && use_4_bytes_user_app_;
+
+    if (user_4_byte && use_4_bytes_base_driver_) {
+        // Both the client application and the base driver use 4-byte data.
+        // Copy the data as-is.
+        std::memcpy(dst, src, dst_byte_count);
+    } else if (user_4_byte) {
+        // Expand the driver output from 2-byte to 4-byte for the client application.
+        ConvertUTF16ToUTF32(src, dst, dst_char_count > 0 ? dst_char_count - 1 : 0, dst_char_count);
+    } else {
+        // Narrow driver output from 4-byte to 2-byte for the client application.
+        // Or copy as-is if both are 2-byte.
+        Convert4To2ByteString(use_4_bytes_base_driver_, const_cast<SQLTCHAR*>(src), dst, dst_char_count);
+    }
+#else
+    std::memcpy(dst, src, dst_byte_count);
+#endif
+}
+
+// Convert wrapper output to either 2-byte or 4-byte output for the client application
+void OdbcHelper::ConvertWrapperOutputToTarget(
+    SQLTCHAR* buf,
+    const size_t char_count,
+    const size_t buf_byte_count) const
+{
+    ConvertWrapperOutputToTarget(false, buf, char_count, buf_byte_count);
+}
+
+void OdbcHelper::ConvertWrapperOutputToTarget(
+    const bool wrapper_call,
+    SQLTCHAR* buf,
+    const size_t char_count,
+    const size_t buf_byte_count) const
+{
+#if UNICODE
+    // Wrapper output is already in 2-bytes. Only need to expand if client application requires 4-bytes.
+    if (!wrapper_call && use_4_bytes_user_app_) {
+        const size_t buf_char_count = buf_byte_count / sizeof(SQLTCHAR);
+        ExpandUTF16ToUTF32InPlace(buf, char_count, buf_char_count);
+    }
+#endif
+}
+
+// codechecker_suppress [readability-convert-member-functions-to-static]
+bool OdbcHelper::NeedsConversion() const {
+#if UNICODE
+    return use_4_bytes_user_app_ != use_4_bytes_base_driver_;
+#else
+    return false;
+#endif
+}
+
+std::vector<SQLTCHAR> OdbcHelper::AllocateConversionBuffer(const size_t byte_count) const {
+    const size_t char_count = byte_count / sizeof(SQLTCHAR);
+    const size_t local_buf_size = use_4_bytes_base_driver_
+        ? char_count * 2
+        : char_count;
+    return std::vector<SQLTCHAR>(local_buf_size, 0);
+}
+
+bool OdbcHelper::IsStringConnectAttr(const SQLINTEGER attribute) {
+    switch (attribute) {
+        case SQL_ATTR_CURRENT_CATALOG:
+        case SQL_ATTR_TRACEFILE:
+        case SQL_ATTR_TRANSLATE_LIB:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool OdbcHelper::IsStringDescField(const SQLSMALLINT field_identifier) {
+    switch (field_identifier) {
+        case SQL_DESC_BASE_COLUMN_NAME:
+        case SQL_DESC_BASE_TABLE_NAME:
+        case SQL_DESC_CATALOG_NAME:
+        case SQL_DESC_LABEL:
+        case SQL_DESC_LITERAL_PREFIX:
+        case SQL_DESC_LITERAL_SUFFIX:
+        case SQL_DESC_LOCAL_TYPE_NAME:
+        case SQL_DESC_NAME:
+        case SQL_DESC_SCHEMA_NAME:
+        case SQL_DESC_TABLE_NAME:
+        case SQL_DESC_TYPE_NAME:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool OdbcHelper::IsStringDiagField(const SQLSMALLINT diag_identifier) {
+    switch (diag_identifier) {
+        case SQL_DIAG_CLASS_ORIGIN:
+        case SQL_DIAG_CONNECTION_NAME:
+        case SQL_DIAG_DYNAMIC_FUNCTION:
+        case SQL_DIAG_MESSAGE_TEXT:
+        case SQL_DIAG_SERVER_NAME:
+        case SQL_DIAG_SQLSTATE:
+        case SQL_DIAG_SUBCLASS_ORIGIN:
+            return true;
+        default:
+            return false;
+    }
+}

@@ -65,6 +65,23 @@ public:
 
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc);
 
+    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, size_t dst_byte_count) const;
+    void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, size_t dst_byte_count) const;
+
+    void ConvertWrapperOutputToTarget(SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
+    void ConvertWrapperOutputToTarget(bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
+
+    // Returns true if driver and user app character widths differ and conversion is needed.
+    bool NeedsConversion() const;
+
+    // Returns an appropriately sized intermediate buffer for driver output conversion.
+    // Caller should check NeedsConversion() first.
+    std::vector<SQLTCHAR> AllocateConversionBuffer(size_t byte_count) const;
+
+    static bool IsStringConnectAttr(SQLINTEGER attribute);
+    static bool IsStringDescField(SQLSMALLINT field_identifier);
+    static bool IsStringDiagField(SQLSMALLINT diag_identifier);
+
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
     bool use_4_bytes_base_driver_ = false;
