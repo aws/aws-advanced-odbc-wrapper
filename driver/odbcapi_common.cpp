@@ -18,6 +18,188 @@
 #include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
 
+// Unicode buffer helpers
+#if UNICODE && !defined(_WIN32)
+static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
+    std::vector<BoundColBuffer>& buffers = stmt->bound_col_buffers;
+    if (buffers.empty()) {
+        return;
+    }
+
+    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+    for (BoundColBuffer& buffer : buffers) {
+        if (*buffer.local_str_len == SQL_NULL_DATA || *buffer.local_str_len < 0) {
+            if (buffer.app_str_len_ptr) {
+                *buffer.app_str_len_ptr = *buffer.local_str_len;
+            }
+            continue;
+        }
+
+        SQLTCHAR* local = buffer.local_buf.data();
+
+        // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
+        if (use_4_base) {
+            const size_t char_count = 1 + static_cast<size_t>(*buffer.local_str_len) / sizeof(SQLTCHAR) / 2;
+            Convert4To2ByteString(true, local, nullptr, char_count);
+        }
+
+        // Copy to user's buffer in the expected encoding
+        const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t *>(local));
+        const size_t dst_len = use_4_app
+            ? static_cast<size_t>(buffer.app_buf_len) / 4
+            : static_cast<size_t>(buffer.app_buf_len) / 2;
+        if (use_4_app) {
+            ConvertUTF16ToUTF32(local, static_cast<SQLTCHAR*>(buffer.app_ptr), src_len, dst_len);
+            if (buffer.app_str_len_ptr) {
+                *buffer.app_str_len_ptr = static_cast<SQLLEN>(src_len) * 4;
+            }
+        } else {
+            const size_t max_chars = dst_len > 0 ? dst_len - 1 : 0;
+            const size_t copy_chars = src_len < max_chars ? src_len : max_chars;
+            SQLTCHAR* dst = reinterpret_cast<SQLTCHAR*>(buffer.app_ptr);
+            std::memcpy(dst, local, copy_chars * sizeof(SQLTCHAR));
+            dst[copy_chars] = '\0';
+            if (buffer.app_str_len_ptr) {
+                *buffer.app_str_len_ptr = static_cast<SQLLEN>(src_len) * sizeof(SQLTCHAR);
+            }
+        }
+    }
+}
+
+static void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
+    const DBC* dbc = stmt->dbc;
+    const ENV* env = dbc->env;
+
+    std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
+    if (bindings.empty()) {
+        return;
+    }
+
+    const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+    for (BoundParamBuffer& buffer : bindings) {
+        if (buffer.input_output_type == SQL_PARAM_OUTPUT) {
+            continue;
+        }
+
+        const SQLLEN app_ind = buffer.app_str_len_ptr ? *buffer.app_str_len_ptr : 0;
+        if (app_ind == SQL_NULL_DATA) {
+            *buffer.local_str_len = SQL_NULL_DATA;
+            continue;
+        }
+        // Skip as data will be put by SQLPutData
+        if (app_ind == SQL_DATA_AT_EXEC
+            || app_ind <= SQL_LEN_DATA_AT_EXEC(0)) {
+            continue;
+        }
+
+        SQLTCHAR* app_data = static_cast<SQLTCHAR*>(buffer.app_ptr);
+
+        // Get explicit user length or get length of app_data
+        size_t char_count;
+        if (app_ind == SQL_NTS || app_ind < 0) {
+            char_count = UShortStrlen(reinterpret_cast<const uint16_t*>(app_data), use_4_app);
+        } else {
+            char_count = static_cast<size_t>(app_ind);
+            // app_ind is byte count, divide by app's SQLWCHAR size
+            char_count = use_4_app
+                ? char_count / 4
+                : char_count / 2;
+        }
+
+        // Resize local buffer to runtime length of app_data
+        const size_t app_data_size = 1 + char_count;
+        const size_t local_buf_resize = use_4_base
+            ? app_data_size * 2
+            : app_data_size;
+        if (local_buf_resize > buffer.local_buf.size()) {
+            buffer.local_buf.resize(local_buf_resize, 0);
+        }
+
+        if (use_4_app) {
+            // User app UTF32 -> local buffer UTF16
+            Convert4To2ByteString(true, app_data, buffer.local_buf.data(), app_data_size);
+        } else {
+            // Copy as-is
+            const size_t src_len = char_count;
+            const size_t max_copy = static_cast<size_t>(buffer.local_buf.size());
+            const size_t copy_len = src_len < max_copy ? src_len : max_copy;
+            std::memcpy(buffer.local_buf.data(), app_data, copy_len * sizeof(SQLTCHAR));
+            buffer.local_buf[copy_len] = 0;
+        }
+
+        if (use_4_base) {
+            // Expand to UTF32 if needed
+            ExpandUTF16ToUTF32InPlace(buffer.local_buf.data(), app_data_size, buffer.local_buf.size());
+        }
+
+        *buffer.local_str_len = SQL_NTS;
+
+        // Rebind parameter
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+            env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+            buffer.param_number, buffer.input_output_type, buffer.value_type, buffer.param_type, buffer.column_size,
+            buffer.decimal_digits, buffer.local_buf.data(), buffer.app_buf_len, buffer.local_str_len.get()
+        );
+    }
+}
+
+static void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
+    std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
+    if (bindings.empty()) {
+        return;
+    }
+
+    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+    for (BoundParamBuffer& param : bindings) {
+        if (param.input_output_type == SQL_PARAM_INPUT) {
+            continue;
+        }
+
+        if (*param.local_str_len == SQL_NULL_DATA || *param.local_str_len < 0) {
+            if (param.app_str_len_ptr) {
+                *param.app_str_len_ptr = *param.local_str_len;
+            }
+            continue;
+        }
+
+        SQLTCHAR* local = param.local_buf.data();
+
+        // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
+        if (use_4_base) {
+            const size_t char_count = 1 + static_cast<size_t>(*param.local_str_len) / sizeof(SQLTCHAR) / 2;
+            Convert4To2ByteString(true, local, nullptr, char_count);
+        }
+
+        // Copy to user's buffer in the expected encoding
+        const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t*>(local));
+        const size_t dst_len = use_4_app
+            ? static_cast<size_t>(param.app_buf_len) / 4
+            : static_cast<size_t>(param.app_buf_len) / 2;
+        if (use_4_app) {
+            ConvertUTF16ToUTF32(local, static_cast<SQLTCHAR*>(param.app_ptr), src_len, dst_len);
+            if (param.app_str_len_ptr) {
+                *param.app_str_len_ptr = static_cast<SQLLEN>(src_len) * 4;
+            }
+        } else {
+            const size_t max_chars = dst_len > 0 ? dst_len - 1 : 0;
+            const size_t copy_chars = src_len < max_chars ? src_len : max_chars;
+            SQLTCHAR* dst = static_cast<SQLTCHAR*>(param.app_ptr);
+            std::memcpy(dst, local, copy_chars * sizeof(SQLTCHAR));
+            dst[copy_chars] = '\0';
+            if (param.app_str_len_ptr) {
+                *param.app_str_len_ptr = static_cast<SQLLEN>(src_len) * 2;
+            }
+        }
+    }
+}
+#endif
+
 // Common ODBC Functions
 SQLRETURN SQL_API SQLAllocConnect(
     SQLHENV        EnvironmentHandle,
@@ -98,7 +280,6 @@ SQLRETURN SQL_API SQLBindCol(
                 std::remove_if(bindings.begin(), bindings.end(),
                     [ColumnNumber](const BoundColBuffer &b) { return b.column_number == ColumnNumber; }),
                 bindings.end());
-
         } else if ((use_4_base || use_4_app) && TargetType == SQL_C_TCHAR && BufferLength > 0) {
             bindings.erase(
                 std::remove_if(bindings.begin(), bindings.end(),
@@ -115,13 +296,12 @@ SQLRETURN SQL_API SQLBindCol(
             new_buffer.app_buf_len = BufferLength;
             new_buffer.app_str_len_ptr = StrLen_or_IndPtr;
             new_buffer.local_buf.resize(local_buf_size, 0);
-            new_buffer.local_str_len = 0;
             bindings.push_back(std::move(new_buffer));
 
             BoundColBuffer& ref = bindings.back();
             const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
                 stmt->wrapped_stmt, ColumnNumber, TargetType, ref.local_buf.data(),
-                BufferLength, &ref.local_str_len
+                BufferLength, ref.local_str_len.get()
             );
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         }
@@ -154,8 +334,96 @@ SQLRETURN SQL_API SQLBindParameter(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
+
+    #if UNICODE && !defined(_WIN32)
+    {
+        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+        std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
+        if ((use_4_base || use_4_app) && ValueType == SQL_C_TCHAR) {
+            bindings.erase(
+                std::remove_if(bindings.begin(), bindings.end(),
+                    [ParameterNumber](const BoundParamBuffer& b) { return b.param_number == ParameterNumber; }),
+                bindings.end());
+
+            // Data to be handled at execute runtime
+            const bool is_data_at_exec = StrLen_or_IndPtr &&
+                (
+                    *StrLen_or_IndPtr == SQL_DATA_AT_EXEC
+                    || *StrLen_or_IndPtr <= SQL_LEN_DATA_AT_EXEC(0)
+                );
+
+            BoundParamBuffer new_buffer;
+            new_buffer.param_number = ParameterNumber;
+            new_buffer.input_output_type = InputOutputType;
+            new_buffer.value_type = ValueType;
+            new_buffer.param_type = ParameterType;
+            new_buffer.column_size = ColumnSize;
+            new_buffer.decimal_digits = DecimalDigits;
+            new_buffer.app_ptr = ParameterValuePtr;
+            new_buffer.app_buf_len = BufferLength;
+            new_buffer.app_str_len_ptr = StrLen_or_IndPtr;
+
+            // Get explicit user length or get length of app_data
+            const SQLLEN app_ind = new_buffer.app_str_len_ptr ? *new_buffer.app_str_len_ptr : 0;
+            size_t char_count = 0;
+            if (app_ind == SQL_NTS) {
+                char_count = UShortStrlen(reinterpret_cast<const uint16_t*>(new_buffer.app_ptr), use_4_app);
+            } else {
+                char_count = static_cast<size_t>(app_ind);
+                // app_ind is byte count, divide by app's SQLWCHAR size
+                char_count = use_4_app
+                    ? char_count / 4
+                    : char_count / 2;
+            }
+            const size_t str_len_bytes = use_4_base
+                ? char_count * 4
+                : char_count * 2;
+
+            if (ParameterValuePtr != nullptr && BufferLength > 0 && !is_data_at_exec) {
+                // Create a buffer if the input size was set
+                const size_t local_buf_size = use_4_base
+                    ? static_cast<size_t>(BufferLength) * 2
+                    : static_cast<size_t>(BufferLength);
+                new_buffer.local_buf.resize(1 + local_buf_size, 0);
+                *new_buffer.local_str_len = str_len_bytes;
+            } else if (!is_data_at_exec) {
+                // Pass null data to underlying if user did not pass data at exec
+                const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+                    env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+                    ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize,
+                    DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
+                );
+                return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+            }
+
+            bindings.push_back(std::move(new_buffer));
+            BoundParamBuffer& ref = bindings.back(); // Get stored reference instead of local stack reference
+
+            // If data_at_exec, pass original pointer
+            // so the driver can return token location properly
+            SQLPOINTER bind_ptr = is_data_at_exec
+                ? ParameterValuePtr
+                : ref.local_buf.data();
+            SQLLEN bind_len = is_data_at_exec
+                ? BufferLength
+                : ref.local_buf.size() * sizeof(SQLTCHAR);
+            SQLLEN* bind_itr = is_data_at_exec
+                ? StrLen_or_IndPtr
+                : ref.local_str_len.get();
+
+            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+                env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+                ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize,
+                DecimalDigits, bind_ptr, bind_len, bind_itr
+            );
+            return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+        }
+    }
+    #endif
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter,
         stmt->wrapped_stmt, ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
     );
@@ -431,54 +699,25 @@ SQLRETURN SQL_API SQLExecute(
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
+    SQLRETURN rc = SQL_ERROR;
     if (dbc->plugin_head) {
-        return dbc->plugin_head->Execute(StatementHandle);
+        #if UNICODE && !defined(_WIN32)
+            ConvertBoundParamBuffersBeforeExecute(stmt);
+        #endif
+        rc = dbc->plugin_head->Execute(StatementHandle);
+    } else {
+        LOG(ERROR) << "Cannot execute without an open connection";
+        stmt->err = new ERR_INFO("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
     }
-
-    LOG(ERROR) << "Cannot execute without an open connection";
-    stmt->err = new ERR_INFO("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
-    return SQL_ERROR;
-}
 
 #if UNICODE && !defined(_WIN32)
-static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
-    std::vector<BoundColBuffer>& buffers = stmt->bound_col_buffers;
-    if (buffers.empty()) {
-        return;
+    if (SQL_SUCCEEDED(rc)) {
+        ConvertBoundParamBuffersAfterExecute(stmt);
     }
-
-    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
-
-    for (BoundColBuffer& buffer : buffers) {
-        if (buffer.local_str_len == SQL_NULL_DATA || buffer.local_str_len < 0) {
-            if (buffer.app_str_len_ptr) {
-                *buffer.app_str_len_ptr = buffer.local_str_len;
-            }
-            continue;
-        }
-
-        SQLTCHAR* local = buffer.local_buf.data();
-
-        // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
-        if (use_4_base) {
-            Convert4To2ByteString(true, local, nullptr, static_cast<size_t>(buffer.local_str_len));
-        }
-
-        // Copy to user's buffer in the expected encoding
-        const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t *>(local));
-        const size_t dst_len = buffer.app_buf_len;
-        if (use_4_app) {
-            ConvertUTF16ToUTF32(local, static_cast<SQLTCHAR*>(buffer.app_ptr), src_len, dst_len);
-        } else {
-            const size_t copy_chars = src_len < dst_len ? src_len : dst_len;
-            SQLTCHAR* dst = reinterpret_cast<SQLTCHAR*>(buffer.app_ptr);
-            std::memcpy(dst, local, copy_chars * sizeof(SQLTCHAR));
-            dst[copy_chars] = '\0';
-        }
-    }
-}
 #endif
+
+    return rc;
+}
 
 SQLRETURN SQL_API SQLExtendedFetch(
     SQLHSTMT       StatementHandle,
@@ -628,21 +867,37 @@ SQLRETURN SQL_API SQLGetData(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
 
 #if UNICODE
     RdsLibResult res;
-    if (!dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp() && TargetType == SQL_C_TCHAR) {
-        SQLTCHAR* buf = reinterpret_cast<SQLTCHAR*>(TargetValuePtr);
-        std::vector<SQLTCHAR> new_buf_vector(static_cast<size_t>(BufferLength) * 2, '\0');
-        SQLTCHAR* new_buf = new_buf_vector.data();
+    const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+
+    if ((use_4_app || use_4_base) && TargetType == SQL_C_TCHAR) {
+        std::vector<SQLTCHAR> buffer(static_cast<size_t>(BufferLength) * 2, 0);
 
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
-            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, new_buf, BufferLength, StrLen_or_IndPtr
+            stmt->wrapped_stmt, Col_or_Param_Num, TargetType, buffer.data(), BufferLength, StrLen_or_IndPtr
         );
 
-        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_buf, buf, BufferLength);
+        if (SQL_SUCCEEDED(res.fn_result) && StrLen_or_IndPtr && *StrLen_or_IndPtr != SQL_NULL_DATA) {
+            SQLTCHAR* dst = reinterpret_cast<SQLTCHAR*>(TargetValuePtr);
+
+            if (use_4_base) {
+                Convert4To2ByteString(true, buffer.data(), nullptr, buffer.size());
+            }
+
+            const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t*>(buffer.data()));
+            const size_t dst_len = static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR);
+            if (use_4_app) {
+                ConvertUTF16ToUTF32(buffer.data(), dst, src_len, dst_len);
+            } else {
+                const size_t copy_len = src_len < dst_len ? src_len : dst_len - 1;
+                std::memcpy(dst, buffer.data(), copy_len * sizeof(SQLTCHAR));
+                dst[copy_len] = 0;
+            }
+        }
     } else {
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
             stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
@@ -817,11 +1072,30 @@ SQLRETURN SQL_API SQLParamData(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamData, RDS_STR_SQLParamData,
         stmt->wrapped_stmt, ValuePtrPtr
     );
+
+#if UNICODE && !defined(_WIN32)
+    stmt->put_data_char_conversion = false;
+    if (res.fn_result == SQL_NEED_DATA && ValuePtrPtr && *ValuePtrPtr) {
+        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+        if (use_4_base || use_4_app) {
+            // Check if this parameter was bound as SQL_C_TCHAR
+            for (const auto& p : stmt->bound_param_buffers) {
+                if (p.app_ptr == *ValuePtrPtr && p.value_type == SQL_C_TCHAR) {
+                    stmt->put_data_char_conversion = true;
+                    break;
+                }
+            }
+        }
+    }
+#endif
+
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
@@ -858,8 +1132,37 @@ SQLRETURN SQL_API SQLPutData(
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
-
     CHECK_WRAPPED_STMT(stmt);
+
+#if UNICODE && !defined(_WIN32)
+    if (stmt->put_data_char_conversion && DataPtr != nullptr && StrLen_or_Ind != SQL_NULL_DATA && StrLen_or_Ind != 0) {
+        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+
+        const SQLTCHAR* app_data = static_cast<const SQLTCHAR*>(DataPtr);
+
+        const size_t src_len = GetLenOfSqltcharArray(const_cast<SQLTCHAR*>(app_data), StrLen_or_Ind, use_4_app);
+        const size_t local_buf_size = use_4_base ? (src_len + 1) * 2 : src_len + 1;
+        std::vector<SQLTCHAR> local_buf(local_buf_size, 0);
+
+        if (use_4_app) {
+            Convert4To2ByteString(true, const_cast<SQLTCHAR*>(app_data), local_buf.data(), src_len + 1);
+        } else {
+            std::memcpy(local_buf.data(), app_data, src_len * sizeof(SQLTCHAR));
+            local_buf[src_len] = 0;
+        }
+
+        if (use_4_base) {
+            const size_t utf16_len = UShortStrlen(reinterpret_cast<const uint16_t*>(local_buf.data()));
+            ExpandUTF16ToUTF32InPlace(local_buf.data(), utf16_len, local_buf.size());
+        }
+
+        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
+            env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData, stmt->wrapped_stmt, local_buf.data(), SQL_NTS);
+        return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    }
+#endif
+
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData,
         stmt->wrapped_stmt, DataPtr, StrLen_or_Ind
     );
