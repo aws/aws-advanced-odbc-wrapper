@@ -55,11 +55,9 @@ jobs:
       - name: Get psqlODBC latest release version
         id: psqlodbc-version
         run: |
-          $VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          $VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
           echo "psqlODBC version: $VERSION"
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
@@ -86,11 +84,9 @@ jobs:
       - name: Get psqlODBC latest release version
         id: psqlodbc-version
         run: |
-          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "psqlODBC version: $VERSION"
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
@@ -120,11 +116,9 @@ jobs:
       - name: Get psqlODBC latest release version
         id: psqlodbc-version
         run: |
-          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].tag_name')
+          VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "psqlODBC version: $VERSION"
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
