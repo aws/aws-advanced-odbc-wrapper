@@ -183,7 +183,7 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
         std::copy(w_input.begin(), w_input.begin() + copy_size, out);
         out[copy_size] = 0;
     } else {
-        CopyUTF8ToUTF16Buffer(out, out_length, input);
+        CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(out), out_length, input);
     }
 }
 
