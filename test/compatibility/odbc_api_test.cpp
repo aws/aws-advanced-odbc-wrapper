@@ -225,10 +225,9 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     FetchResults(stmt, out_file, "SQLForeignKeys", ret);
     SQLCloseCursor(stmt);
 
-    // TODO: uncomment after fixing SQLSpecialColumns
-    // ret = SQLSpecialColumns(stmt, SQL_BEST_ROWID, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE);
-    // FetchResults(stmt, out_file, "SQLSpecialColumns", ret);
-    // SQLCloseCursor(stmt);
+    ret = SQLSpecialColumns(stmt, SQL_BEST_ROWID, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, SQL_SCOPE_CURROW, SQL_NULLABLE);
+    FetchResults(stmt, out_file, "SQLSpecialColumns", ret);
+    SQLCloseCursor(stmt);
 
     ret = SQLStatistics(stmt, NULL, 0, catalog, SQL_NTS, schema, SQL_NTS, SQL_INDEX_ALL, SQL_QUICK);
     FetchResults(stmt, out_file, "SQLStatistics", ret);
@@ -750,7 +749,7 @@ TEST_P(ODBC_API_TEST, StatementExecutionTest) {
     // SQLExecDirect with string result + SQLGetData
     {
         SQLTCHAR query[MAX_BUFFER_LEN] = {0};
-        STRING_HELPER::AnsiToUnicode("SELECT 'hello_encoding_test' AS test_col", query);
+        STRING_HELPER::AnsiToUnicode("SELECT 'some_value' AS test_col", query);
         ret = SQLExecDirect(stmt, query, SQL_NTS);
         EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << "  \"SQLExecDirect\": {\n";
@@ -895,6 +894,110 @@ TEST_P(ODBC_API_TEST, StatementExecutionTest) {
         } else {
             out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DBC, dbc, ret) << "\"\n";
         }
+        out_file << "  }";
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+}
+
+TEST_P(ODBC_API_TEST, DescriptorFunctionsTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+    std::ofstream out_file = CreateResultsFile(test_dsn, "DescriptorFunctionsTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // Execute a query to populate the IRD (Implementation Row Descriptor)
+    ret = ODBC_HELPER::ExecuteQuery(stmt, "SELECT 'desc_test' AS col1, 123 AS col2");
+    EXPECT_TRUE(SQL_SUCCEEDED(ret));
+
+    // Get the IRD handle
+    SQLHDESC ird = SQL_NULL_HDESC;
+    ret = SQLGetStmtAttr(stmt, SQL_ATTR_IMP_ROW_DESC, &ird, SQL_IS_POINTER, nullptr);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // SQLGetDescField - get column name (string field)
+    {
+        SQLTCHAR field_value[MAX_BUFFER_LEN] = {0};
+        SQLINTEGER str_len = 0;
+        ret = SQLGetDescField(ird, 1, SQL_DESC_NAME, field_value, sizeof(field_value), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << "  \"SQLGetDescField_NAME\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(field_value) << "\",\n";
+            out_file << "    \"string_length\": " << str_len << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DESC, ird, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLGetDescField - get column type (numeric field)
+    {
+        SQLSMALLINT type_value = 0;
+        SQLINTEGER str_len = 0;
+        ret = SQLGetDescField(ird, 1, SQL_DESC_TYPE, &type_value, sizeof(type_value), &str_len);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetDescField_TYPE\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"value\": " << type_value << "\n";
+        out_file << "  }";
+    }
+
+    // SQLGetDescRec
+    {
+        SQLTCHAR name[MAX_BUFFER_LEN] = {0};
+        SQLSMALLINT name_len = 0, type = 0, sub_type = 0, precision = 0, scale = 0, nullable = 0;
+        SQLLEN length = 0;
+        ret = SQLGetDescRec(ird, 1, name, MAX_BUFFER_LEN, &name_len,
+            &type, &sub_type, &length, &precision, &scale, &nullable);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLGetDescRec\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            out_file << "    \"name\": \"" << STRING_HELPER::SqltcharToAnsi(name) << "\",\n";
+            out_file << "    \"name_length\": " << name_len << ",\n";
+            out_file << "    \"type\": " << type << ",\n";
+            out_file << "    \"nullable\": " << nullable << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_DESC, ird, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    SQLCloseCursor(stmt);
+
+    // SQLSetDescField on APD (Application Parameter Descriptor)
+    {
+        SQLHDESC apd = SQL_NULL_HDESC;
+        SQLGetStmtAttr(stmt, SQL_ATTR_APP_PARAM_DESC, &apd, SQL_IS_POINTER, nullptr);
+
+        ret = SQLSetDescField(apd, 1, SQL_DESC_TYPE,
+            reinterpret_cast<SQLPOINTER>(SQL_C_CHAR), SQL_IS_SMALLINT);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLSetDescField\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
+        out_file << "  }";
+    }
+
+    // SQLSetDescRec on ARD (Application Row Descriptor)
+    {
+        SQLHDESC ard = SQL_NULL_HDESC;
+        SQLGetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, &ard, SQL_IS_POINTER, nullptr);
+
+        SQLTCHAR data_buf[MAX_BUFFER_LEN] = {0};
+        SQLLEN str_len = 0;
+        SQLLEN indicator = 0;
+        ret = SQLSetDescRec(ard, 1, SQL_C_TCHAR, 0, MAX_BUFFER_LEN, 0, 0,
+            data_buf, &str_len, &indicator);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+        out_file << ",\n  \"SQLSetDescRec\": {\n";
+        out_file << "    \"return_code\": " << ret << "\n";
         out_file << "  }";
     }
 
