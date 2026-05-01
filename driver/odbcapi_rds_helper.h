@@ -397,4 +397,10 @@ SQLRETURN RDS_SQLTables(
 
 SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str);
 
+#if UNICODE
+// Forward declaration for RDS_GetOdbcHelper
+class OdbcHelper;
+std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env);
+#endif
+
 #endif // ODBCAPI_RDS_HELPER_H_
