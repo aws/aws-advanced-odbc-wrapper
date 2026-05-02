@@ -771,52 +771,65 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
+    bool use_4_bytes_user_app = false;
     std::string conn_str_utf8;
+    std::string current_utf8;
     size_t load_len = -1;
     if (ServerName) {
         // Load input DSN followed by Base DSN retrieved from input DSN
 #ifdef UNICODE
-        conn_str_utf8 = ConvertUserAppToUTF8(
-            dbc->plugin_service ? dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp() : false,
-            ServerName, NameLength1);
+        current_utf8 = ConvertUserAppToUTF8(false, ServerName, NameLength1);
 #else
-        conn_str_utf8 = reinterpret_cast<const char *>(ServerName);
+        current_utf8 = reinterpret_cast<const char *>(ServerName);
 #endif
-        load_len = NameLength1 == SQL_NTS ? conn_str_utf8.length() : NameLength1;
-        OdbcDsnHelper::LoadAll(conn_str_utf8.substr(0, load_len), dbc->conn_attr);
-        ret = RDS_InitializeConnection(dbc, conn_str_utf8);
+        load_len = NameLength1 == SQL_NTS ? current_utf8.length() : NameLength1;
+        OdbcDsnHelper::LoadAll(current_utf8.substr(0, load_len), dbc->conn_attr);
+#ifdef UNICODE
+        if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
+            current_utf8 = ConvertUserAppToUTF8(true, ServerName, NameLength1);
+            load_len = NameLength1 == SQL_NTS ? current_utf8.length() : NameLength1;
+            OdbcDsnHelper::LoadAll(current_utf8.substr(0, load_len), dbc->conn_attr);
+            if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
+                use_4_bytes_user_app = true;
+            }
+        }
+#endif
+        dbc->conn_attr.insert_or_assign(KEY_DSN, current_utf8.substr(0, load_len));
+        conn_str_utf8 += "DSN=" + current_utf8 + ";";
     } else {
         // Error, no DSN
         // TODO - Load default DSN?
-        ret = SQL_ERROR;
+        dbc->err = new ERR_INFO("SQLConnect - DSN not provided", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return SQL_ERROR;
     }
 
     // Replace with input parameters
     if (UserName) {
 #ifdef UNICODE
-        conn_str_utf8 = ConvertUserAppToUTF8(
-            dbc->plugin_service ? dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp() : false,
-            UserName, NameLength2);
+        current_utf8 = ConvertUserAppToUTF8(use_4_bytes_user_app, UserName, NameLength2);
 #else
-        conn_str_utf8 = reinterpret_cast<const char *>(UserName);
+        current_utf8 = reinterpret_cast<const char *>(UserName);
 #endif
-        load_len = NameLength2 == SQL_NTS ? conn_str_utf8.length() : NameLength2;
-        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, conn_str_utf8.substr(0, load_len));
+        load_len = NameLength2 == SQL_NTS ? current_utf8.length() : NameLength2;
+        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, current_utf8.substr(0, load_len));
+        conn_str_utf8 += "UID=" + current_utf8 + ";";
     }
     if (Authentication) {
 #ifdef UNICODE
-        conn_str_utf8 = ConvertUserAppToUTF8(
-            dbc->plugin_service ? dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp() : false,
-            Authentication, NameLength3);
+        current_utf8 = ConvertUserAppToUTF8(use_4_bytes_user_app, Authentication, NameLength3);
 #else
-        conn_str_utf8 = reinterpret_cast<const char *>(Authentication);
+        current_utf8 = reinterpret_cast<const char *>(Authentication);
 #endif
-        load_len = NameLength3 == SQL_NTS ? conn_str_utf8.length() : NameLength3;
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, conn_str_utf8.substr(0, load_len));
+        load_len = NameLength3 == SQL_NTS ? current_utf8.length() : NameLength3;
+        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, current_utf8.substr(0, load_len));
+        conn_str_utf8 += "PWD=" + current_utf8 + ";";
     }
 
     // Connect if initialization successful
-    if (SQL_SUCCEEDED(ret)) {
+    if (SQL_SUCCEEDED(RDS_InitializeConnection(dbc, conn_str_utf8))) {
+        if (use_4_bytes_user_app) {
+            dbc->plugin_service->GetOdbcHelper()->SetUse4BytesUserApp(true);
+        }
         ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
@@ -2595,7 +2608,11 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         if (!dbc->plugin_service) {
             // Create Plugin Service
             PluginService::InitClusterId(dbc->conn_attr);
-            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, dbc->conn_attr, conn_str);
+            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, dbc->conn_attr,
+                conn_str.empty()
+                ? ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr)
+                : conn_str
+            );
         }
         // Plugin Builder
         if (!dbc->plugin_head) {
