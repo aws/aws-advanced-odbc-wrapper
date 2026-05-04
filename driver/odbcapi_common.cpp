@@ -539,7 +539,8 @@ SQLRETURN SQL_API SQLGetData(
             stmt->wrapped_stmt, Col_or_Param_Num, TargetType, new_buf, BufferLength, StrLen_or_IndPtr
         );
 
-        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_buf, buf, BufferLength);
+        const size_t len_in_elements = static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR);
+        Convert4To2ByteString(dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver(), new_buf, buf, len_in_elements);
     } else {
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
             stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr

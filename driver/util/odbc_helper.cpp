@@ -143,7 +143,7 @@ RdsLibResult OdbcHelper::BindCol(
 RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &query) {
 #if UNICODE
     if (this->GetUse4BytesBaseDriver()) {
-        const std::wstring wide_conn(query.begin(), query.end());
+        const std::wstring wide_conn = ConvertUTF8ToWString(query);
         SQLTCHAR* conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
         return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
             *stmt, conn_in_sqltchar, SQL_NTS

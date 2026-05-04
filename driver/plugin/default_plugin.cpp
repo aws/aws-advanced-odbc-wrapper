@@ -101,7 +101,7 @@ SQLRETURN DefaultPlugin::Connect(
 
                 if (this->odbc_helper_->GetUse4BytesBaseDriver()) {
                     // Try connecting again with 4-byte characters
-                    const std::wstring wide_conn(conn_in.begin(), conn_in.end());
+                    const std::wstring wide_conn = ConvertUTF8ToWString(conn_in);
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
                         dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
