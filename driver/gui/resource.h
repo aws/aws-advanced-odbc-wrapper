@@ -102,6 +102,16 @@
 #define IDC_BG_INCREASED_REFRESH        1083
 #define IDC_BG_HIGH_REFRESH             1084
 #define IDC_BG_SWITCH_TIMEOUT           1085
+#define IDC_TAB_RW_SPLITTING            1086
+#define IDC_RW_SPLIT_MODE               1087
+#define IDC_RW_HOST_SELECTOR            1088
+#define IDC_RW_CACHED_READER_TIMEOUT    1089
+#define IDC_SRW_WRITE_ENDPOINT          1090
+#define IDC_SRW_READ_ENDPOINT           1091
+#define IDC_SRW_VERIFY_CONNS            1092
+#define IDC_SRW_VERIFY_INITIAL_CONN     1093
+#define IDC_SRW_CONN_TIMEOUT            1094
+#define IDC_SRW_CONN_INTERVAL           1095
 
 // Next default values for new objects
 //
@@ -109,7 +119,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        129
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1086
+#define _APS_NEXT_CONTROL_VALUE         1096
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

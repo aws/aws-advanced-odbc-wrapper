@@ -33,7 +33,7 @@
 
 #include "topology_util.h"
 
-#include "../plugin/base_plugin.h"
+#include "../plugin/default_plugin.h"
 #include "../driver.h"
 #include "../host_info.h"
 

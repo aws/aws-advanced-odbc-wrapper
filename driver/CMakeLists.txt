@@ -81,6 +81,10 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.h
+    ## RW Splitting
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/abstract_read_write_splitting_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/read_write_splitting_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/simple_read_write_splitting_plugin.h
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.h
@@ -182,6 +186,10 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_monitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_router_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/limitless/limitless_plugin.cpp
+    ## RW Splitting
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/abstract_read_write_splitting_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/read_write_splitting_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/read_write_splitting/simple_read_write_splitting_plugin.cpp
 
     # Utils
     ${CMAKE_CURRENT_SOURCE_DIR}/util/attribute_validator.cpp

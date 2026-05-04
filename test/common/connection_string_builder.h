@@ -72,6 +72,18 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withEnableRwSplitting(const bool& enable_rw_splitting) {
+        length += sprintf(conn_in + length, "ENABLE_RW_SPLIT=%d;", enable_rw_splitting ? 1 : 0);
+        return *this;
+    }
+
+    ConnectionStringBuilder& withEnableSrwSplitting(const bool& enable_srw_splitting, const std::string& write_endpoint, const std::string& read_endpoint) {
+        length += sprintf(conn_in + length, "ENABLE_SRW_SPLIT=%d;", enable_srw_splitting ? 1 : 0);
+        length += sprintf(conn_in + length, "SRW_READ_ENDPOINT=%s;", read_endpoint.c_str());
+        length += sprintf(conn_in + length, "SRW_WRITE_ENDPOINT=%s;", write_endpoint.c_str());
+        return *this;
+    }
+
     ConnectionStringBuilder& withEnableClusterFailover(const bool& enable_cluster_failover) {
         length += sprintf(conn_in + length, "ENABLE_CLUSTER_FAILOVER=%d;", enable_cluster_failover ? 1 : 0);
         return *this;

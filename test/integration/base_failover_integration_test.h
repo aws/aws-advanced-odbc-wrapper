@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #include <aws/rds/model/TargetHealth.h>
 #include <aws/rds/model/TargetState.h>
 
@@ -114,7 +116,7 @@ protected:
         instance_endpoint =
             test_server.substr(cluster_id_prefix_index + cluster_prefix.size(), test_server.size());
         db_conn_str_suffix = "." + instance_endpoint;
-        cluster_ro_url = ".cluster-ro-" + instance_endpoint;
+        cluster_ro_url = cluster_id + ".cluster-ro-" + instance_endpoint;
 
         if (test_dialect == "AURORA_POSTGRESQL") {
             SERVER_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier();";

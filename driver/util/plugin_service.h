@@ -94,6 +94,8 @@ class PluginService {
     std::shared_ptr<HostListProvider> host_list_provider_;
     std::shared_ptr<BasePlugin> plugin_chain_;
 
+    mutable std::mutex lock_;
+
     // Shared resources
     // SlidingCacheMap internally thread safe
     static inline std::shared_ptr<SlidingCacheMap<std::string, std::vector<HostInfo>>> topology_map_ =

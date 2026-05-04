@@ -26,6 +26,7 @@ set(TEST_UTILITIES
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_mocks.h
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_mock_objects.h
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_mock_objects.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/rw_splitting_mock_objects.h
 )
 
 set(TEST_SUITE
@@ -46,9 +47,11 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/read_write_splitting_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/secrets_manager_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/simple_read_write_splitting_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "rds_strings.h"
+#include "../dialect/dialect.h"
 #include "../driver.h"
 
 class SqlQueryAnalyzer {
@@ -31,6 +32,8 @@ public:
     static bool IsStatementSettingAutoCommit(const std::string& statement);
     static bool DoesSwitchAutoCommitFalseTrue(DBC* dbc, const std::string& statement);
     static bool GetAutoCommitValueFromSqlStatement(const std::string& statement);
+    static std::optional<bool> DoesSetReadOnly(const std::string &statement,
+                                               std::shared_ptr<Dialect> dialect);
 };
 
 #endif // SQL_QUERY_ANALYZER_H_

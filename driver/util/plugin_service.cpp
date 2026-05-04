@@ -79,6 +79,18 @@ std::map<std::string, std::string> PluginService::GetOriginalConnAttr() {
 }
 
 HostInfo PluginService::GetCurrentHostInfo() {
+    const std::lock_guard<std::mutex> lock_guard(lock_);
+    const std::vector<HostInfo> hosts = GetHosts();
+    if (this->current_host_ != HostInfo{} || hosts.empty()) {
+        return this->current_host_;
+    }
+
+    if (const HostInfo writer = topology_util_->GetWriter(hosts); writer != HostInfo{}) {
+        this->current_host_ = writer;
+        return writer;
+    }
+
+    this->current_host_ = hosts.at(0);
     return this->current_host_;
 }
 
@@ -91,6 +103,7 @@ HostInfo PluginService::GetTemplateHostInfo() {
 }
 
 void PluginService::SetCurrentHostInfo(const HostInfo& info) {
+    const std::lock_guard<std::mutex> lock_guard(lock_);
     this->current_host_ = info;
 }
 
@@ -119,6 +132,9 @@ std::shared_ptr<TopologyUtil> PluginService::GetTopologyUtil() {
 }
 
 std::shared_ptr<HostListProvider> PluginService::GetHostListProvider() {
+    if (host_list_provider_ == nullptr) {
+        InitHostListProvider();
+    }
     return this->host_list_provider_;
 }
 
