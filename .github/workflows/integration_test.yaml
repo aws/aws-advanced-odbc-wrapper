@@ -49,13 +49,21 @@ jobs:
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
     runs-on: windows-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          $VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "psqlODBC version: $VERSION"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Download psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
@@ -70,13 +78,21 @@ jobs:
     name: MacOS - Build psqlODBC
     runs-on:
       - codebuild-odbc-wrapper-macos-pg-${{ github.run_id }}-${{ github.run_attempt }}
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -94,13 +110,21 @@ jobs:
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
     runs-on: ubuntu-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(curl -s https://api.github.com/repos/postgresql-interfaces/psqlodbc/releases | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['tag_name'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -137,7 +161,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -155,7 +179,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -172,7 +196,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -258,12 +282,12 @@ jobs:
         run: |
           if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9a.dll" >> $GITHUB_OUTPUT
             echo "driver_path_unicode=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9w.dll" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
@@ -508,14 +532,14 @@ jobs:
         run: |
           if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
@@ -681,14 +705,14 @@ jobs:
         run: |
           if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
@@ -866,7 +890,7 @@ jobs:
         shell: bash
         run: |
           echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
-          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
           echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
       - name: Retrieve Base Driver
@@ -1081,7 +1105,7 @@ jobs:
         shell: bash
         run: |
           echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
           echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
           echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
@@ -1243,7 +1267,7 @@ jobs:
         shell: bash
         run: |
           echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-          echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+          echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
           echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
           echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
@@ -1417,12 +1441,12 @@ jobs:
         run: |
           if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9a.dll" >> $GITHUB_OUTPUT
             echo "driver_path_unicode=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9w.dll" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
@@ -1639,14 +1663,14 @@ jobs:
         run: |
           if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
@@ -1779,14 +1803,14 @@ jobs:
         run: |
           if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-psqlodbc-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
             echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
           elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
-            echo "cache_key=${{ runner.os }}-mysql-driver" >> $GITHUB_OUTPUT
+            echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
