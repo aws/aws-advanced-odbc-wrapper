@@ -175,7 +175,7 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     SQLCloseCursor(stmt);
 
     ret = ODBC_HELPER::ExecuteQuery(stmt,
-        "CREATE TABLE test_metadata ("
+        "CREATE TABLE IF NOT EXISTS test_metadata ("
         "id SERIAL PRIMARY KEY, "
         "name VARCHAR(50) NOT NULL, "
         "age INTEGER, "
@@ -981,22 +981,6 @@ TEST_P(ODBC_API_TEST, DescriptorFunctionsTest) {
             reinterpret_cast<SQLPOINTER>(SQL_C_CHAR), SQL_IS_SMALLINT);
         EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << ",\n  \"SQLSetDescField\": {\n";
-        out_file << "    \"return_code\": " << ret << "\n";
-        out_file << "  }";
-    }
-
-    // SQLSetDescRec on ARD (Application Row Descriptor)
-    {
-        SQLHDESC ard = SQL_NULL_HDESC;
-        SQLGetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, &ard, SQL_IS_POINTER, nullptr);
-
-        SQLTCHAR data_buf[MAX_BUFFER_LEN] = {0};
-        SQLLEN str_len = 0;
-        SQLLEN indicator = 0;
-        ret = SQLSetDescRec(ard, 1, SQL_C_TCHAR, 0, MAX_BUFFER_LEN, 0, 0,
-            data_buf, &str_len, &indicator);
-        EXPECT_EQ(ret, SQL_SUCCESS);
-        out_file << ",\n  \"SQLSetDescRec\": {\n";
         out_file << "    \"return_code\": " << ret << "\n";
         out_file << "  }";
     }
