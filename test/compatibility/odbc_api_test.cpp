@@ -856,6 +856,7 @@ TEST_P(ODBC_API_TEST, StatementExecutionTest) {
         out_file << ",\n  \"SQLPutData\": {\n";
         out_file << "    \"execute_return_code\": " << ret << ",\n";
 
+        EXPECT_EQ(ret, SQL_NEED_DATA);
         if (ret == SQL_NEED_DATA) {
             SQLPOINTER value_ptr = nullptr;
             ret = SQLParamData(stmt, &value_ptr);
