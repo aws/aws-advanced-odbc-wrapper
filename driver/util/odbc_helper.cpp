@@ -177,9 +177,10 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
 void OdbcHelper::ConvertDriverOutputToTarget(
     const SQLTCHAR* src,
     SQLTCHAR* dst,
+    const size_t src_byte_count,
     const size_t dst_byte_count) const
 {
-    ConvertDriverOutputToTarget(false, src, dst, dst_byte_count);
+    ConvertDriverOutputToTarget(false, src, dst, src_byte_count, dst_byte_count);
 }
 
 // codechecker_suppress [readability-convert-member-functions-to-static]
@@ -187,26 +188,38 @@ void OdbcHelper::ConvertDriverOutputToTarget(
     const bool wrapper_call,
     const SQLTCHAR* src,
     SQLTCHAR* dst,
+    const size_t src_byte_count,
     const size_t dst_byte_count) const
 {
 #if UNICODE
-    const size_t dst_char_count = dst_byte_count / sizeof(SQLTCHAR);
     const bool user_4_byte = !wrapper_call && use_4_bytes_user_app_;
+    const size_t src_char_count = use_4_bytes_base_driver_
+        ? src_byte_count / sizeof(SQLTCHAR) / 2
+        : src_byte_count / sizeof(SQLTCHAR);
+    const size_t dst_char_count = user_4_byte
+        ? dst_byte_count / sizeof(SQLTCHAR) / 2
+        : dst_byte_count / sizeof(SQLTCHAR);
 
-    if (user_4_byte && use_4_bytes_base_driver_) {
+    if (user_4_byte == use_4_bytes_base_driver_) {
         // Both the client application and the base driver use 4-byte data.
         // Copy the data as-is.
-        std::memcpy(dst, src, dst_byte_count);
+        const size_t max_copy = src_byte_count > dst_byte_count
+            ? dst_byte_count
+            : src_byte_count;
+        std::memcpy(dst, src, max_copy);
     } else if (user_4_byte) {
         // Expand the driver output from 2-byte to 4-byte for the client application.
-        ConvertUTF16ToUTF32(src, dst, dst_char_count > 0 ? dst_char_count - 1 : 0, dst_char_count);
+        ConvertUTF16ToUTF32(src, dst, src_char_count, dst_char_count * 2);
     } else {
         // Narrow driver output from 4-byte to 2-byte for the client application.
         // Or copy as-is if both are 2-byte.
         Convert4To2ByteString(use_4_bytes_base_driver_, const_cast<SQLTCHAR*>(src), dst, dst_char_count);
     }
 #else
-    std::memcpy(dst, src, dst_byte_count);
+    const size_t max_copy = src_byte_count > dst_byte_count
+        ? dst_byte_count
+        : src_byte_count;
+    std::memcpy(dst, src, max_copy);
 #endif
 }
 
@@ -249,6 +262,11 @@ std::vector<SQLTCHAR> OdbcHelper::AllocateConversionBuffer(const size_t byte_cou
         ? char_count * 2
         : char_count;
     return std::vector<SQLTCHAR>(local_buf_size, 0);
+}
+
+size_t OdbcHelper::GetTargetByteCount(const bool wrapper_call, const size_t char_count) const {
+    const size_t multiplier = !wrapper_call && use_4_bytes_user_app_ ? 2 : 1;
+    return char_count * multiplier * sizeof(SQLTCHAR);
 }
 
 bool OdbcHelper::IsStringConnectAttr(const SQLINTEGER attribute) {
