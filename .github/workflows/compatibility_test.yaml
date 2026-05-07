@@ -54,13 +54,17 @@ jobs:
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}-
       - name: Download psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
-          mkdir psqlodbc
-          cd psqlodbc
-          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
-          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+          if (-not (Test-Path psqlodbc)) { mkdir psqlodbc }
+          if (-not (Test-Path psqlodbc/psqlodbc_x64.msi)) {
+            cd psqlodbc
+            $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
+            curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+          }
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -69,6 +73,7 @@ jobs:
     runs-on: macos-15
     outputs:
       psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
+      pg-major-version: ${{ steps.pg-version.outputs.pg_major }}
     steps:
       - name: Get psqlODBC latest release version
         id: psqlodbc-version
@@ -78,12 +83,18 @@ jobs:
           echo "psqlODBC version: $VERSION"
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Detect installed PostgreSQL major version
+        id: pg-version
+        run: |
+          PG_MAJOR=$(brew info --json=v2 --formula postgresql | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['formulae'][0]['versions']['stable'].split('.')[0])")
+          echo "pg_major=$PG_MAJOR" >> "$GITHUB_OUTPUT"
+          echo "Detected PostgreSQL major version: $PG_MAJOR"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ steps.pg-version.outputs.pg_major }}-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -419,7 +430,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Detect psqlODBC driver path
         id: psqlodbc-path
@@ -449,7 +460,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
