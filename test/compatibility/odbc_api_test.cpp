@@ -991,6 +991,159 @@ TEST_P(ODBC_API_TEST, DescriptorFunctionsTest) {
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 }
 
+TEST_P(ODBC_API_TEST, ScrollableFetchTest) {
+    std::string test_dsn = GetParam();
+    SQLHSTMT stmt;
+    std::ofstream out_file = CreateResultsFile(test_dsn, "ScrollableFetchTest");
+    out_file << "{\n";
+
+    ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    EXPECT_EQ(ret, SQL_SUCCESS);
+
+    // Use a static cursor to enable scrollable fetching
+    ret = SQLSetStmtAttr(stmt, SQL_ATTR_CURSOR_TYPE,
+        reinterpret_cast<SQLPOINTER>(SQL_CURSOR_STATIC), SQL_IS_UINTEGER);
+    out_file << "  \"SQLSetStmtAttr_CURSOR_STATIC\": {\n";
+    out_file << "    \"return_code\": " << ret << "\n";
+    out_file << "  }";
+
+    // Execute a multi-row query using literals (no table needed)
+    SQLTCHAR query[MAX_BUFFER_LEN] = {0};
+    STRING_HELPER::AnsiToUnicode(
+        "SELECT 'row1' AS col1 UNION ALL "
+        "SELECT 'row2' UNION ALL "
+        "SELECT 'row3'", query);
+    ret = SQLExecDirect(stmt, query, SQL_NTS);
+    out_file << ",\n  \"SQLExecDirect\": {\n";
+    out_file << "    \"return_code\": " << ret << "\n";
+    out_file << "  }";
+
+    // SQLFetchScroll - fetch first row
+    {
+        SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+        SQLLEN indicator = 0;
+
+        ret = SQLFetchScroll(stmt, SQL_FETCH_FIRST, 0);
+        out_file << ",\n  \"SQLFetchScroll_FIRST\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\"\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLFetchScroll - fetch next row
+    {
+        SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+        SQLLEN indicator = 0;
+
+        ret = SQLFetchScroll(stmt, SQL_FETCH_NEXT, 0);
+        out_file << ",\n  \"SQLFetchScroll_NEXT\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\"\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    // SQLFetchScroll - fetch last row
+    {
+        SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+        SQLLEN indicator = 0;
+
+        ret = SQLFetchScroll(stmt, SQL_FETCH_LAST, 0);
+        out_file << ",\n  \"SQLFetchScroll_LAST\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\"\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+    }
+
+    SQLCloseCursor(stmt);
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+    // SQLExtendedFetch (deprecated, uses different cursor model)
+    {
+        ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+        EXPECT_EQ(ret, SQL_SUCCESS);
+
+        // SQLExtendedFetch requires SQL_CURSOR_STATIC or KEYSET_DRIVEN
+        SQLSetStmtAttr(stmt, SQL_ATTR_CURSOR_TYPE,
+            reinterpret_cast<SQLPOINTER>(SQL_CURSOR_STATIC), SQL_IS_UINTEGER);
+
+        SQLTCHAR ext_query[MAX_BUFFER_LEN] = {0};
+        STRING_HELPER::AnsiToUnicode(
+            "SELECT 'ext_row1' AS col1 UNION ALL "
+            "SELECT 'ext_row2' UNION ALL "
+            "SELECT 'ext_row3'", ext_query);
+        ret = SQLExecDirect(stmt, ext_query, SQL_NTS);
+
+        SQLULEN row_count = 0;
+        SQLUSMALLINT row_status[3] = {0};
+
+        ret = SQLExtendedFetch(stmt, SQL_FETCH_FIRST, 0, &row_count, row_status);
+        out_file << ",\n  \"SQLExtendedFetch_FIRST\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"row_count\": " << row_count << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+            SQLLEN indicator = 0;
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\",\n";
+            out_file << "    \"row_status\": " << row_status[0] << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+
+        ret = SQLExtendedFetch(stmt, SQL_FETCH_NEXT, 0, &row_count, row_status);
+        out_file << ",\n  \"SQLExtendedFetch_NEXT\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"row_count\": " << row_count << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+            SQLLEN indicator = 0;
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\",\n";
+            out_file << "    \"row_status\": " << row_status[0] << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+
+        ret = SQLExtendedFetch(stmt, SQL_FETCH_LAST, 0, &row_count, row_status);
+        out_file << ",\n  \"SQLExtendedFetch_LAST\": {\n";
+        out_file << "    \"return_code\": " << ret << ",\n";
+        out_file << "    \"row_count\": " << row_count << ",\n";
+        if (SQL_SUCCEEDED(ret)) {
+            SQLTCHAR data[MAX_BUFFER_LEN] = {0};
+            SQLLEN indicator = 0;
+            SQLGetData(stmt, 1, SQL_C_TCHAR, data, sizeof(data), &indicator);
+            out_file << "    \"value\": \"" << STRING_HELPER::SqltcharToAnsi(data) << "\",\n";
+            out_file << "    \"row_status\": " << row_status[0] << "\n";
+        } else {
+            out_file << "    \"error\": \"" << GetErrorMessage(SQL_HANDLE_STMT, stmt, ret) << "\"\n";
+        }
+        out_file << "  }";
+
+        SQLCloseCursor(stmt);
+        SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    }
+
+    out_file << "\n}\n";
+    out_file.close();
+}
+
 static std::vector<std::string> getDsnValues() {
     test_server = TEST_UTILS::GetEnvVar("TEST_SERVER", "localhost");
     std::string port_str = TEST_UTILS::GetEnvVar("TEST_PORT", "5432");
