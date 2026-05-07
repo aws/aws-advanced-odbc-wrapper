@@ -955,7 +955,7 @@ TEST_P(ODBC_API_TEST, DescriptorFunctionsTest) {
         SQLTCHAR name[MAX_BUFFER_LEN] = {0};
         SQLSMALLINT name_len = 0, type = 0, sub_type = 0, precision = 0, scale = 0, nullable = 0;
         SQLLEN length = 0;
-        ret = SQLGetDescRec(ird, 1, name, MAX_BUFFER_LEN, &name_len,
+        ret = SQLGetDescRec(ird, 1, name, sizeof(name), &name_len,
             &type, &sub_type, &length, &precision, &scale, &nullable);
         EXPECT_EQ(ret, SQL_SUCCESS);
         out_file << ",\n  \"SQLGetDescRec\": {\n";
