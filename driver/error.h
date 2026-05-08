@@ -155,6 +155,12 @@ typedef enum {
     ERR_FAILOVER_FAILED,
     ERR_FAILOVER_SUCCESS,
     ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE,
+    /* Read Write Splitting Related */
+    ERR_RW_SWITCH_FAILED,
+    ERR_RW_SWITCH_ON_CLOSED_CONN,
+    ERR_RW_READER_SWITCH_FAILED,
+    ERR_RW_WRITER_SWITCH_FAILED,
+    ERR_RW_TX_SWITCH_FAILED,
 
     /* End Error, used for sizing */
     INVALID_ERR
@@ -178,6 +184,8 @@ const std::string ODBC_STATE_MAP[] = {
     "LD001", "LD002", "LD003", "LD004",
     /* Failover Related */
     "08S01", "08S02", "08007",
+    /* RW Splitting Related */
+    "08007", "08003", "08001", "08001", "25001",
     /* END */
     "ERROR"
 };

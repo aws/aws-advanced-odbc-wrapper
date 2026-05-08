@@ -74,6 +74,8 @@ class PluginService {
 
     virtual void InitHostListProvider();
 
+    virtual void ReleaseHostListProvider();
+
     static std::shared_ptr<HostSelector> InitHostSelector(const std::map<std::string, std::string>& conn_info);
     static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
     static std::shared_ptr<Dialect> InitDialect(const std::map<std::string, std::string>& conn_info);
@@ -93,6 +95,8 @@ class PluginService {
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
     std::shared_ptr<BasePlugin> plugin_chain_;
+
+    mutable std::mutex lock_;
 
     // Shared resources
     // SlidingCacheMap internally thread safe

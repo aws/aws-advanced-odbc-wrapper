@@ -35,6 +35,7 @@ namespace ODBC_HELPER {
     std::string PrintHandleError(SQLHANDLE handle, int32_t handle_type);
     bool IsClosed(SQLHDBC hdbc);
     bool TestSimpleQuery(SQLHDBC hdbc);
+    void Query(SQLHDBC dbc, std::string query);
 };
 
 #endif // ODBC_HELPER_H_

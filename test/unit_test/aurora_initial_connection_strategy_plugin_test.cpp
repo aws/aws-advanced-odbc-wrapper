@@ -176,7 +176,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
     EXPECT_CALL(*mock_host_list_provider, GetConnectionInfo)
     .WillOnce(testing::Return(*reader_host_a));
 
-    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::A<DBC*>()))
     .Times(testing::Exactly(1));
 
     EXPECT_CALL(
@@ -224,7 +224,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Network
     .Times(testing::Exactly(2))
     .WillRepeatedly(testing::Return(*writer_host));
 
-    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::A<DBC*>()))
     .Times(testing::Exactly(1));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
@@ -322,7 +322,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
         GetHosts())
     .WillRepeatedly(testing::Return(all_hosts));
 
-    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::_))
+    EXPECT_CALL(*mock_odbc_helper, Disconnect(testing::A<DBC*>()))
     .Times(testing::Exactly(1));
 
     EXPECT_CALL(*mock_host_list_provider, GetConnectionRole)

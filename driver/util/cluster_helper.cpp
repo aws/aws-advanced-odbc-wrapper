@@ -65,8 +65,8 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, con
 
 #if UNICODE
     Convert4To2ByteString(odbc_helper->GetUse4BytesBaseDriver(), node_id, nullptr, MAX_HOST_SIZE);
-    return AS_UTF8_CSTR(node_id);
+    return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(node_id));
 #endif
 
-    return AS_UTF8_CSTR(node_id);
+    return {reinterpret_cast<const char*>(node_id)};
 }

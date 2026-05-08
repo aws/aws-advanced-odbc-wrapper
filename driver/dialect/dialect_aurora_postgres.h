@@ -31,6 +31,9 @@ public:
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
     std::string GetBlueGreenStatusAvailableQuery() override { return BG_TOPOLOGY_EXISTS_QUERY; };
     std::string GetBlueGreenStatusQuery() override { return BG_STATUS_QUERY; };
+    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetSetReadOnlyQuery() override { return SET_READ_ONLY_QUERY; };
+    std::string GetSetReadWriteQuery() override { return SET_READ_WRITE_QUERY; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -63,6 +66,16 @@ public:
 
     virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
 
+    std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
+        if (statement.starts_with(SET_READ_ONLY_QUERY)) {
+            return true;
+        }
+        if (statement.starts_with(SET_READ_WRITE_QUERY)) {
+            return false;
+        }
+        return {};
+    }
+
 private:
     const int DEFAULT_POSTGRES_PORT = 5432;
     const std::string TOPOLOGY_QUERY =
@@ -86,6 +99,10 @@ private:
     // "id", "endpoint", "port", "role", "status", "version", "update_stamp"
     const std::string BG_STATUS_QUERY =
         "SELECT * FROM pg_catalog.get_blue_green_fast_switchover_metadata('aws_odbc_driver-1.1.0')";
+
+    const std::string SET_READ_ONLY_QUERY = "SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY";
+
+    const std::string SET_READ_WRITE_QUERY = "SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE";
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",

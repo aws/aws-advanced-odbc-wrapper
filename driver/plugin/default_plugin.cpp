@@ -172,9 +172,17 @@ SQLRETURN DefaultPlugin::Execute(
         }
         // Cursor Name
         const std::string cursor_name = stmt->cursor_name;
+#if UNICODE
+        const std::vector<uint16_t> cursor_name_vector = ConvertUTF8ToUTF16(cursor_name);
+        SQLTCHAR* cursor_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(cursor_name_vector.data()));
+        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+            stmt->wrapped_stmt, cursor_name_sqltchar, cursor_name.length()
+        );
+#else
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
             stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );
+#endif
     }
 
     if (query.empty()) {

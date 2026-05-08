@@ -63,10 +63,10 @@ std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 
 #if UNICODE
     Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), writer_id, nullptr, BUFFER_SIZE);
-    return AS_UTF8_CSTR(writer_id);
+    return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(writer_id));
 #endif
 
-    return AS_UTF8_CSTR(writer_id);
+    return {reinterpret_cast<const char*>(writer_id)};
 }
 
 std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
@@ -96,9 +96,10 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
 
 #if UNICODE
     Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), instance_id, nullptr, BUFFER_SIZE);
+    return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(instance_id));
+#else
+    return {reinterpret_cast<const char*>(instance_id)};
 #endif
-
-    return AS_UTF8_CSTR(instance_id);
 }
 
 std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template)

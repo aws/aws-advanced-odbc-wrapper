@@ -32,6 +32,9 @@ public:
     MOCK_METHOD(bool, IsSqlStateNetworkError, (const char* sql_state), ());
     MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), (override));
     MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state, const std::string& error_message), (override));
+    MOCK_METHOD(int, GetDefaultPort, (), ());
+    MOCK_METHOD(std::string, GetIsReaderQuery, (), ());
+    MOCK_METHOD(std::optional<bool>, DoesStatementSetReadOnly, (std::string statement), ());
 };
 
 class MOCK_HOST_SELECTOR : public HighestWeightHostSelector {
@@ -46,6 +49,8 @@ public:
     MOCK_HOST_LIST_PROVIDER(): HostListProvider("someClusterId") {};
     MOCK_METHOD(HostInfo, GetConnectionInfo, (SQLHDBC hdbc), ());
     MOCK_METHOD(HOST_ROLE, GetConnectionRole, (SQLHDBC hdbc), ());
+    MOCK_METHOD(std::vector<HostInfo>, Refresh, (), ());
+    MOCK_METHOD(std::vector<HostInfo>, ForceRefresh, (bool verify_writer, uint32_t timeout_ms), ());
 };
 
 class MockHostSelector : public HostSelector {
@@ -55,13 +60,25 @@ public:
     }
 };
 
+class MOCK_HOST_SELECTOR_GMOCK : public HostSelector {
+public:
+    using PropMap = std::unordered_map<std::string, std::string>;
+    MOCK_METHOD(HostInfo, GetHost,
+        (std::vector<HostInfo> hosts, bool is_writer,
+         PropMap properties), ());
+};
+
 class MOCK_ODBC_HELPER : public OdbcHelper {
 public:
     MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
     MOCK_METHOD(void, Disconnect, (DBC *dbc), (override));
+    MOCK_METHOD(void, Disconnect, (SQLHDBC *hdbc), (override));
     MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
     MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc, std::string& out_message), ());
     MOCK_METHOD(std::string, GetStmtErrorMessage, (SQLHSTMT stmt), ());
+    MOCK_METHOD(void, DisconnectAndFree, (SQLHDBC* hdbc), ());
+    MOCK_METHOD(SQLRETURN, AllocDbc, (SQLHENV& henv, SQLHDBC& hdbc), ());
+    MOCK_METHOD(bool, IsClosed, (SQLHDBC hdbc), (override));
 };
 
 class MOCK_PLUGIN_SERVICE : public PluginService {
@@ -69,13 +86,18 @@ public:
     MOCK_PLUGIN_SERVICE() : PluginService() {}
 
     MOCK_METHOD(std::vector<HostInfo>, GetHosts, (), ());
+    MOCK_METHOD(HostInfo, GetCurrentHostInfo, (), ());
+    MOCK_METHOD(void, SetCurrentHostInfo, (const HostInfo& info), ());
     MOCK_METHOD(void, SetInitialHostInfo, (const HostInfo& info), ());
     MOCK_METHOD(void, ForceRefreshHosts, (bool verify_writer, std::chrono::milliseconds timeout_ms), ());
+    MOCK_METHOD(void, RefreshHosts, (), ());
     MOCK_METHOD(std::shared_ptr<HostListProvider>, GetHostListProvider, (), ());
     MOCK_METHOD(std::shared_ptr<HostSelector>, GetHostSelector, (), ());
     MOCK_METHOD(std::shared_ptr<OdbcHelper>, GetOdbcHelper, (), ());
     MOCK_METHOD(std::shared_ptr<Dialect>, GetDialect, (), ());
     MOCK_METHOD(std::shared_ptr<TopologyUtil>, GetTopologyUtil, (), ());
+    MOCK_METHOD((std::map<std::string, std::string>), GetOriginalConnAttr, (), ());
+    MOCK_METHOD(void, NotifyConnectionChanged, (), ());
 };
 
 class MOCK_TOPOLOGY_UTIL : public TopologyUtil {

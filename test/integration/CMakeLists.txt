@@ -49,6 +49,8 @@ if(BUILD_FAILOVER)
         ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_integration_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_integration_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/failover_integration_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/read_write_splitting_integration_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/simple_read_write_splitting_integration_test.cpp
     )
 elseif(BUILD_LIMITLESS)
     list(APPEND TEST_SUITE
