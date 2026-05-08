@@ -1367,6 +1367,7 @@ jobs:
 # Blue Green
   windows-bg-integration-tests:
     # MySQL disabled until IAM is resolved
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Windows - Blue/Green Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
@@ -1597,6 +1598,7 @@ jobs:
 
   macos-bg-integration-tests:
     # MySQL disabled until IAM is resolved
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: MacOS - Blue/Green Integration Tests
     needs: [ build-macos-psqlodbc ]
     runs-on:
@@ -1736,6 +1738,7 @@ jobs:
           retention-days: 7
 
   linux-bg-integration-tests:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Linux Ubuntu - Blue/Green Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-latest
