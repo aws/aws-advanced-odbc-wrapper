@@ -92,6 +92,9 @@ SQLRETURN CustomEndpointPlugin::Connect(
 {
     LOG(INFO) << "Entering Connect";
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
+    if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
+        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    }
 
     const std::string host = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
 
