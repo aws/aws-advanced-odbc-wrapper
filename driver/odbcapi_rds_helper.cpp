@@ -1002,7 +1002,7 @@ SQLRETURN RDS_SQLDriverConnect(
     if (OutConnectionString && StringLength2Ptr) {
         const SQLULEN len = conn_out_str_utf8.length();
 #ifdef UNICODE
-    const SQLULEN written = CopyUTF8ToUTF16Buffer(OutConnectionString, MAX_KEY_SIZE, conn_out_str_utf8);
+    const SQLULEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(OutConnectionString), MAX_KEY_SIZE, conn_out_str_utf8);
     if (dbc->plugin_service) {
         dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(OutConnectionString, written, BufferLength);
     }
