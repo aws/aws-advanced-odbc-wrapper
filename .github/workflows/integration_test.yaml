@@ -351,10 +351,13 @@ jobs:
             Get-OdbcDsn | Format-Table Name, DriverName, DsnType, Platform
             Write-Host "Ansi DSN properties:"
             Get-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} | Select-Object -ExpandProperty PropertyValue
-      - name: Setup GDB
+      - name: Setup Debugger
+        shell: pwsh
         run: |
-          choco install mingw
-          echo "set auto-load safe-path /" > "$HOME/.gdbinit"
+          $cdb = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\*\Debuggers\x64\cdb.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          if (-not $cdb) { Write-Error "cdb.exe not found"; exit 1 }
+          echo "CDB_PATH=$cdb" >> $env:GITHUB_ENV
+          Write-Host "Found cdb at: $cdb"
       - name: Build and Run Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -363,7 +366,8 @@ jobs:
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           echo "Ansi Test Built"
-          gdb -q -x ./.gdbinit .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -384,7 +388,8 @@ jobs:
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
-          gdb -q -x ./.gdbinit .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -931,10 +936,13 @@ jobs:
             Get-OdbcDsn | Format-Table Name, DriverName, DsnType, Platform
             Write-Host "Ansi DSN properties:"
             Get-OdbcDsn -Name ${{ env.TEST_DSN_ANSI }} | Select-Object -ExpandProperty PropertyValue
-      - name: Setup GDB
+      - name: Setup Debugger
+        shell: pwsh
         run: |
-          choco install mingw
-          echo "set auto-load safe-path /" > "$HOME/.gdbinit"
+          $cdb = (Get-ChildItem "C:\Program Files (x86)\Windows Kits\*\Debuggers\x64\cdb.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          if (-not $cdb) { Write-Error "cdb.exe not found"; exit 1 }
+          echo "CDB_PATH=$cdb" >> $env:GITHUB_ENV
+          Write-Host "Found cdb at: $cdb"
       - name: Build and Run Limitless Ansi Integration Tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
@@ -943,7 +951,8 @@ jobs:
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
           cmake --build build_limitless_ansi --config ${{env.BUILD_CONFIG}}
           echo "Limitless Ansi Test Built"
-          gdb -q -x ./.gdbinit .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_limitless_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
@@ -963,7 +972,8 @@ jobs:
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON 
           cmake --build build_limitless_unicode --config ${{env.BUILD_CONFIG}}
           echo "Limitless Unicode Test Built"
-          gdb -q -x ./.gdbinit .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_limitless_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_LIMITLESS_DATABASE }}
