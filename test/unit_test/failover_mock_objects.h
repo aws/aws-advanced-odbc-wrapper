@@ -31,6 +31,9 @@ SQLRETURN MockFunction() {
 
 class MockRdsLibLoader : public RdsLibLoader {
     public:
+        // Pass a dummy path so the base constructor initializes function_cache.
+        MockRdsLibLoader() : RdsLibLoader("") {}
+
         FUNC_HANDLE GetFunction(const std::string& function_name) override {
             return reinterpret_cast<FUNC_HANDLE>(&MockFunction);
         }

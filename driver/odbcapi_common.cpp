@@ -20,7 +20,8 @@
 
 // Unicode buffer helpers
 #if UNICODE && !defined(_WIN32)
-static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
+namespace {
+void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
     std::vector<BoundColBuffer>& buffers = stmt->bound_col_buffers;
     if (buffers.empty()) {
         return;
@@ -41,7 +42,7 @@ static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
 
         // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
         if (use_4_base) {
-            const size_t char_count = 1 + static_cast<size_t>(*buffer.local_str_len) / sizeof(SQLTCHAR) / 2;
+            const size_t char_count = 1 + (static_cast<size_t>(*buffer.local_str_len) / sizeof(SQLTCHAR) / 2);
             Convert4To2ByteString(true, local, nullptr, char_count);
         }
 
@@ -62,13 +63,13 @@ static void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
             std::memcpy(dst, local, copy_chars * sizeof(SQLTCHAR));
             dst[copy_chars] = '\0';
             if (buffer.app_str_len_ptr) {
-                *buffer.app_str_len_ptr = static_cast<SQLLEN>(src_len) * sizeof(SQLTCHAR);
+                *buffer.app_str_len_ptr = static_cast<SQLLEN>(src_len * sizeof(SQLTCHAR));
             }
         }
     }
 }
 
-static void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
+void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
     const DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
@@ -147,7 +148,7 @@ static void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
     }
 }
 
-static void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
+void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
     std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
     if (bindings.empty()) {
         return;
@@ -172,7 +173,7 @@ static void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
 
         // If base driver is 4-byte, convert UTF-32 to UTF-16 in place
         if (use_4_base) {
-            const size_t char_count = 1 + static_cast<size_t>(*param.local_str_len) / sizeof(SQLTCHAR) / 2;
+            const size_t char_count = 1 + (static_cast<size_t>(*param.local_str_len) / sizeof(SQLTCHAR) / 2);
             Convert4To2ByteString(true, local, nullptr, char_count);
         }
 
@@ -198,6 +199,7 @@ static void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
         }
     }
 }
+} // namespace
 #endif
 
 // Common ODBC Functions
@@ -349,7 +351,7 @@ SQLRETURN SQL_API SQLBindParameter(
                 bindings.end());
 
             // Data to be handled at execute runtime
-            const bool is_data_at_exec = StrLen_or_IndPtr &&
+            const bool is_data_at_exec = (StrLen_or_IndPtr != nullptr) &&
                 (
                     *StrLen_or_IndPtr == SQL_DATA_AT_EXEC
                     || *StrLen_or_IndPtr <= SQL_LEN_DATA_AT_EXEC(0)
@@ -388,7 +390,7 @@ SQLRETURN SQL_API SQLBindParameter(
                     ? static_cast<size_t>(BufferLength) * 2
                     : static_cast<size_t>(BufferLength);
                 new_buffer.local_buf.resize(1 + local_buf_size, 0);
-                *new_buffer.local_str_len = str_len_bytes;
+                *new_buffer.local_str_len = static_cast<SQLLEN>(str_len_bytes);
             } else if (!is_data_at_exec) {
                 // Pass null data to underlying if user did not pass data at exec
                 const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
@@ -407,9 +409,9 @@ SQLRETURN SQL_API SQLBindParameter(
             SQLPOINTER bind_ptr = is_data_at_exec
                 ? ParameterValuePtr
                 : ref.local_buf.data();
-            SQLLEN bind_len = is_data_at_exec
+            const SQLLEN bind_len = is_data_at_exec
                 ? BufferLength
-                : ref.local_buf.size() * sizeof(SQLTCHAR);
+                : static_cast<SQLLEN>(ref.local_buf.size() * sizeof(SQLTCHAR));
             SQLLEN* bind_itr = is_data_at_exec
                 ? StrLen_or_IndPtr
                 : ref.local_str_len.get();
