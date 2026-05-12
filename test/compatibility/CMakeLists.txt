@@ -30,8 +30,6 @@ set(TEST_UTILITIES
 )
 
 set(TEST_SUITE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
-
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/odbc_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transactions_test.cpp
@@ -53,8 +51,7 @@ FetchContent_MakeAvailable(googletest)
 list(APPEND EXTERNAL_LIBRARIES gtest_main)
 
 # -- ODBC --
-if(APPLE)
-    # Use UnixODBC instead of iODBC
+if(APPLE AND NOT ODBC_INCLUDE_DIR)
     set(ODBC_INCLUDE_DIR /opt/homebrew/opt/unixodbc/include)
 endif()
 
@@ -68,17 +65,6 @@ if(WIN32)
     )
 endif()
 
-if(UNICODE)
-    add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
-        UNICODE
-        _UNICODE
-    )
-else()
-    add_compile_definitions(${COMPILE_FILE_NAME} PRIVATE
-        SQL_NOUNICODEMAP
-    )
-endif()
-
 enable_testing()
 add_executable(
   ${PROJECT_NAME}
@@ -88,6 +74,17 @@ add_executable(
   ${TEST_RUNNER}
 )
 include(GoogleTest)
+
+if(UNICODE)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        UNICODE
+        _UNICODE
+    )
+else()
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        SQL_NOUNICODEMAP
+    )
+endif()
 
 # Link ------------------------------------------------------------------------------------------------------
 target_include_directories(
@@ -113,6 +110,16 @@ SET(THREADING "0")
 # -D MYSQL_DRIVER_PATH
 # -D MYSQL_SERVER
 # -D MYSQL_DATABASE
+
+# When ON, the test binary also runs against the base (community) drivers and
+# writes their output to disk so it can be used as a reference.
+# When OFF (default), only the wrapper DSN is exercised and results are
+# compared against the checked-in expected_output/ folder.
+option(TEST_BASE_OUTPUT "Run tests against base drivers and store their output" OFF)
+
+if(TEST_BASE_OUTPUT)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_BASE_OUTPUT)
+endif()
 
 CONFIGURE_FILE(
     ${ODBC_PATH}/odbcinst.ini.in
