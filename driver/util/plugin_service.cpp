@@ -16,6 +16,8 @@
 
 #include "plugin_service.h"
 
+
+#include "../driver.h"
 #include "map_utils.h"
 #include "rds_utils.h"
 
@@ -64,6 +66,7 @@ PluginService::~PluginService()
     dialect_ = nullptr;
     host_selector_ = nullptr;
     plugin_chain_ = nullptr;
+    delete monitor_dbc_;
 }
 
 std::string PluginService::GetClusterId() {
@@ -208,8 +211,11 @@ void PluginService::InitHostListProvider() {
             monitoring_cluster_id = monitoring_cluster_id + "-monitor";
             monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
 
+            delete monitor_dbc_;
+            monitor_dbc_ = new DBC();
+            monitor_dbc_->conn_attr = monitoring_map;
             const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
-            const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
+            const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
             monitor_plugin_service->SetPluginChain(plugin_head);
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
                 monitor_plugin_service->GetTopologyUtil(),
@@ -224,6 +230,8 @@ void PluginService::InitHostListProvider() {
 
 void PluginService::ReleaseHostListProvider() {
     host_list_provider_ = nullptr;
+    delete monitor_dbc_;
+    monitor_dbc_ = nullptr;
 }
 
 std::shared_ptr<HostSelector> PluginService::InitHostSelector(const std::map<std::string, std::string>& conn_info) {

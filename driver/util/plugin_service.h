@@ -95,6 +95,7 @@ class PluginService {
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
     std::shared_ptr<BasePlugin> plugin_chain_;
+    DBC* monitor_dbc_ = nullptr;
 
     mutable std::mutex lock_;
 

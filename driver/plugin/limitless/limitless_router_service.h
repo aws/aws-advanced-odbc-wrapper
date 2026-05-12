@@ -48,7 +48,7 @@ public:
         const std::map<std::string, std::string>& conn_attr,
         std::shared_ptr<BasePlugin> plugin_head,
         DBC* dbc,
-        const std::shared_ptr<DialectLimitless>& dialect) const;
+        const std::shared_ptr<DialectLimitless>& dialect);
     virtual SQLRETURN EstablishConnection(std::shared_ptr<BasePlugin> plugin_head, DBC* dbc);
     virtual void StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect);
 
@@ -64,6 +64,7 @@ private:
     int host_port_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<LimitlessQueryHelper> limitless_query_helper_;
+    DBC* monitor_dbc_ = nullptr;
 };
 
 #endif // LIMITLESS_ROUTER_SERVICE_H_

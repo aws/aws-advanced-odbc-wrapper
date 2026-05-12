@@ -21,6 +21,7 @@
 
 #include "../../util/logger_wrapper.h"
 #include "../../util/plugin_chain_builder.h"
+#include "../../driver.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
@@ -59,18 +60,22 @@ LimitlessRouterService::~LimitlessRouterService() {
             LOG(INFO) << "Decremented Limitless Monitor count for: " << router_monitor_key_ << ", to: " << pair.first;
         }
     }
+    delete monitor_dbc_;
 }
 
 std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     const std::map<std::string, std::string> &conn_attr,
     std::shared_ptr<BasePlugin> plugin_head,
     DBC* dbc,
-    const std::shared_ptr<DialectLimitless>& dialect) const
+    const std::shared_ptr<DialectLimitless>& dialect)
 {
+    delete monitor_dbc_;
+    monitor_dbc_ = new DBC();
+    monitor_dbc_->conn_attr = conn_attr;
     const std::shared_ptr<PluginService> monitor_plugin_service =
         std::make_shared<PluginService>(dbc->env->driver_lib_loader, conn_attr);
     const std::shared_ptr<BasePlugin> monitoring_plugin_head =
-        PluginChainBuilder::MonitoringBuild(conn_attr, monitor_plugin_service);
+        PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
     monitor_plugin_service->SetPluginChain(monitoring_plugin_head);
 
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(monitoring_plugin_head, dialect, odbc_helper_, limitless_query_helper_);

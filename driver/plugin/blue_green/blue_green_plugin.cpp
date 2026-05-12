@@ -42,6 +42,7 @@ BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plug
 
 BlueGreenPlugin::~BlueGreenPlugin() {
     CleanUpStatusProvider();
+    delete monitor_dbc_;
 }
 
 SQLRETURN BlueGreenPlugin::Connect(
@@ -311,8 +312,11 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
         std::string monitoring_cluster_id = MapUtils::GetStringValue(monitoring_map, KEY_CLUSTER_ID, "<empty>");
         monitoring_cluster_id = monitoring_cluster_id + "-bg-monitor";
         monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
+        delete monitor_dbc_;
+        monitor_dbc_ = new DBC();
+        monitor_dbc_->conn_attr = monitoring_map;
         const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
-        const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitoring_map, monitor_plugin_service);
+        const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
         monitor_plugin_service->SetPluginChain(plugin_head);
         provider = std::make_shared<BlueGreenStatusProvider>(
             monitor_plugin_service,
