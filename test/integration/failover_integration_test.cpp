@@ -51,8 +51,14 @@ protected:
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
+        if (cluster_instances.empty()) {
+            GTEST_SKIP() << "No cluster instances found";
+        }
         writer_id = GetWriterId(cluster_instances);
         writer_endpoint = GetEndpoint(writer_id);
+        if (cluster_instances.size() < 2) {
+            GTEST_SKIP() << "Failover tests require at least 2 instances (1 writer + 1 reader)";
+        }
         readers = GetReaders(cluster_instances);
         reader_id = GetFirstReaderId(cluster_instances);
         target_writer_id = GetRandomDbReaderId(readers);
@@ -117,7 +123,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_DisableAutocommit) {
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests
-    SQLHSTMT handle;
+    SQLHSTMT handle = SQL_NULL_HSTMT;
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
 
     // Execute setup query
@@ -167,7 +173,7 @@ TEST_F(FailoverIntegrationTest, WriterFailWithinTransaction_setAutoCommitFalse) 
     EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
 
     // Setup tests
-    SQLHSTMT handle;
+    SQLHSTMT handle = SQL_NULL_HSTMT;
     EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &handle));
 
     // Execute setup query

@@ -52,6 +52,9 @@ protected:
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
+        if (cluster_instances.empty()) {
+            GTEST_SKIP() << "No cluster instances found";
+        }
     }
 
     void TearDown() override {

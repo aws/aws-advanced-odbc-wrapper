@@ -20,157 +20,157 @@
 class ConnectionStringBuilder {
 public:
     ConnectionStringBuilder(const std::string& dsn, const std::string& server, int port) {
-        length += sprintf(conn_in, "DSN=%s;SERVER=%s;PORT=%d;SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;", dsn.c_str(), server.c_str(), port);
+        conn_str_ = "DSN=" + dsn + ";SERVER=" + server + ";PORT=" + std::to_string(port) + ";SSLMODE=prefer;COMMLOG=1;DEBUG=1;LOGDIR=logs/;";
     }
 
-    ConnectionStringBuilder(const std::string& str) { length += sprintf(conn_in, "%s", str.c_str()); }
+    ConnectionStringBuilder(const std::string& str) : conn_str_(str) {}
 
     ConnectionStringBuilder& withUID(const std::string& uid) {
-        length += sprintf(conn_in + length, "UID=%s;", uid.c_str());
+        conn_str_ += "UID=" + uid + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withPWD(const std::string& pwd) {
-        length += sprintf(conn_in + length, "PWD=%s;", pwd.c_str());
+        conn_str_ += "PWD=" + pwd + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withDatabase(const std::string& db) {
-        length += sprintf(conn_in + length, "DATABASE=%s;", db.c_str());
+        conn_str_ += "DATABASE=" + db + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withBaseDriver(const std::string& driver) {
-        length += sprintf(conn_in + length, "BASE_DRIVER=%s;", driver.c_str());
+        conn_str_ += "BASE_DRIVER=" + driver + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withBaseDSN(const std::string& dsn) {
-        length += sprintf(conn_in + length, "BASE_DSN=%s;", dsn.c_str());
+        conn_str_ += "BASE_DSN=" + dsn + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withDatabaseDialect(const std::string& dialect) {
-        length += sprintf(conn_in + length, "DATABASE_DIALECT=%s;", dialect.c_str());
+        conn_str_ += "DATABASE_DIALECT=" + dialect + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withEnableClusterFailover(const bool& enable_cluster_failover) {
-        length += sprintf(conn_in + length, "ENABLE_CLUSTER_FAILOVER=%d;", enable_cluster_failover ? 1 : 0);
+        conn_str_ += "ENABLE_CLUSTER_FAILOVER=" + std::to_string(enable_cluster_failover ? 1 : 0) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withFailoverMode(const std::string& failover_mode) {
-        length += sprintf(conn_in + length, "FAILOVER_MODE=%s;", failover_mode.c_str());
+        conn_str_ += "FAILOVER_MODE=" + failover_mode + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withReaderHostSelectorStrategy(const std::string& strategy) {
-        length += sprintf(conn_in + length, "HOST_SELECTOR_STRATEGY=%s;", strategy.c_str());
+        conn_str_ += "HOST_SELECTOR_STRATEGY=" + strategy + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withIgnoreTopologyRequest(const int& ignore_topology_request) {
-        length += sprintf(conn_in + length, "IGNORE_TOPOLOGY_REQUEST_MS=%d;", ignore_topology_request);
+        conn_str_ += "IGNORE_TOPOLOGY_REQUEST_MS=" + std::to_string(ignore_topology_request) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withTopologyHighRefreshRate(const int& topology_high_refresh_rate) {
-        length += sprintf(conn_in + length, "TOPOLOGY_HIGH_REFRESH_RATE_MS=%d;", topology_high_refresh_rate);
+        conn_str_ += "TOPOLOGY_HIGH_REFRESH_RATE_MS=" + std::to_string(topology_high_refresh_rate) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withTopologyRefreshRate(const int& topology_refresh_rate) {
-        length += sprintf(conn_in + length, "TOPOLOGY_REFRESH_RATE_MS=%d;", topology_refresh_rate);
+        conn_str_ += "TOPOLOGY_REFRESH_RATE_MS=" + std::to_string(topology_refresh_rate) + ";";
         return *this;
     }
+
     ConnectionStringBuilder& withFailoverTimeout(const int& failover_t) {
-        length += sprintf(conn_in + length, "FAILOVER_TIMEOUT_MS=%d;", failover_t);
+        conn_str_ += "FAILOVER_TIMEOUT_MS=" + std::to_string(failover_t) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withHostPattern(const std::string& host_pattern) {
-        length += sprintf(conn_in + length, "HOST_PATTERN=%s;", host_pattern.c_str());
+        conn_str_ += "HOST_PATTERN=" + host_pattern + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withAuthMode(const std::string& auth_mode) {
-        length += sprintf(conn_in + length, "RDS_AUTH_TYPE=%s;", auth_mode.c_str());
+        conn_str_ += "RDS_AUTH_TYPE=" + auth_mode + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withAuthRegion(const std::string& auth_region) {
-        length += sprintf(conn_in + length, "REGION=%s;", auth_region.c_str());
+        conn_str_ += "REGION=" + auth_region + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withAuthExpiration(const int& auth_expiration) {
-        length += sprintf(conn_in + length, "TOKEN_EXPIRATION=%d;", auth_expiration);
+        conn_str_ += "TOKEN_EXPIRATION=" + std::to_string(auth_expiration) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withIamHost(const std::string& iam_host) {
-        length += sprintf(conn_in + length, "IAM_HOST=%s;", iam_host.c_str());
+        conn_str_ += "IAM_HOST=" + iam_host + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withSecretId(const std::string& secret_id) {
-        length += sprintf(conn_in + length, "SECRET_ID=%s;", secret_id.c_str());
+        conn_str_ += "SECRET_ID=" + secret_id + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withLimitlessEnabled(const bool& limitless_enabled) {
-        length += sprintf(conn_in + length, "ENABLE_LIMITLESS=%d;", limitless_enabled ? 1 : 0);
+        conn_str_ += "ENABLE_LIMITLESS=" + std::to_string(limitless_enabled ? 1 : 0) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withLimitlessMode(const std::string& limitless_mode) {
-        length += sprintf(conn_in + length, "LIMITLESS_MODE=%s;", limitless_mode.c_str());
+        conn_str_ += "LIMITLESS_MODE=" + limitless_mode + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withLimitlessMonitorIntervalMs(const int& interval) {
-        length += sprintf(conn_in + length, "LIMITLESS_MONITOR_INTERVAL_MS=%d;", interval);
+        conn_str_ += "LIMITLESS_MONITOR_INTERVAL_MS=" + std::to_string(interval) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withExtraUrlEncode(const bool& with_encode) {
-        length += sprintf(conn_in + length, "EXTRA_URL_ENCODE=%d;", with_encode ? 1 : 0);
+        conn_str_ += "EXTRA_URL_ENCODE=" + std::to_string(with_encode ? 1 : 0) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withSslMode(const std::string& ssl_mode) {
-        length += sprintf(conn_in + length, "SSLMODE=%s;", ssl_mode.c_str());
+        conn_str_ += "SSLMODE=" + ssl_mode + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withCustomEndpoint(const bool& custom_endpoint_enabled) {
-        length += sprintf(conn_in + length, "ENABLE_CUSTOM_ENDPOINT=%d;", custom_endpoint_enabled ? 1 : 0);
+        conn_str_ += "ENABLE_CUSTOM_ENDPOINT=" + std::to_string(custom_endpoint_enabled ? 1 : 0) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withAuroraInitialConnectionStrategy(const bool& aurora_initial_connection_strategy_enabled) {
-        length += sprintf(conn_in + length, "ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY=%d;", aurora_initial_connection_strategy_enabled ? 1 : 0);
+        conn_str_ += "ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY=" + std::to_string(aurora_initial_connection_strategy_enabled ? 1 : 0) + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withVerifyInitialConnectionType(const std::string& connection_type) {
-        length += sprintf(conn_in + length, "VERIFY_INITIAL_CONNECTION_TYPE=%s;", connection_type.c_str());
+        conn_str_ += "VERIFY_INITIAL_CONNECTION_TYPE=" + connection_type + ";";
         return *this;
     }
 
     ConnectionStringBuilder& withClusterId(const std::string& cluster_id) {
-        length += sprintf(conn_in + length, "CLUSTER_ID=%s;", cluster_id.c_str());
+        conn_str_ += "CLUSTER_ID=" + cluster_id + ";";
         return *this;
     }
 
     std::string getString() const {
-        return conn_in;
+        return conn_str_;
     }
 
 private:
-    char conn_in[4096] = {0};
-    int length = 0;
+    std::string conn_str_;
 };
 
 #endif  // CONNECTION_STRING_BUILDER_H_

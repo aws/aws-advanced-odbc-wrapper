@@ -56,11 +56,18 @@ protected:
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
+        if (cluster_instances.empty()) {
+            GTEST_SKIP() << "No cluster instances found";
+        }
         writer_id = GetWriterId(cluster_instances);
 
-        const auto endpoint_info = GetCustomEndpointInfo(rds_client, custom_endpoint_id);
-        custom_endpoint_url = endpoint_info.GetEndpoint();
-        custom_endpoint_members = endpoint_info.GetStaticMembers();
+        try {
+            const auto endpoint_info = GetCustomEndpointInfo(rds_client, custom_endpoint_id);
+            custom_endpoint_url = endpoint_info.GetEndpoint();
+            custom_endpoint_members = endpoint_info.GetStaticMembers();
+        } catch (const std::runtime_error& e) {
+            GTEST_SKIP() << "Custom endpoint not available: " << e.what();
+        }
 
         // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
