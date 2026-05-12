@@ -940,7 +940,7 @@ TEST_P(ODBC_API_TEST, DescriptorFunctionsTest) {
 
     // SQLGetDescField - get column type (numeric field)
     {
-        SQLSMALLINT type_value = 0;
+        SQLINTEGER type_value = 0;
         SQLINTEGER str_len = 0;
         ret = SQLGetDescField(ird, 1, SQL_DESC_TYPE, &type_value, sizeof(type_value), &str_len);
         EXPECT_EQ(ret, SQL_SUCCESS);
