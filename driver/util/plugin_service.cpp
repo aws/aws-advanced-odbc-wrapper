@@ -16,7 +16,6 @@
 
 #include "plugin_service.h"
 
-
 #include "../driver.h"
 #include "map_utils.h"
 #include "rds_utils.h"
