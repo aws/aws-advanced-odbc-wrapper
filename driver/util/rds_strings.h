@@ -184,11 +184,11 @@ inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size
 }
 
 inline void ExpandUTF16ToUTF32InPlace(SQLTCHAR* buf, size_t src_chars, size_t buf_slots) {
-    if (buf == nullptr || src_chars == 0) {
+    if (buf == nullptr || src_chars == 0 || buf_slots < 2) {
         return;
     }
 
-    const size_t max_chars = (buf_slots >= 2) ? (buf_slots - 2) / 2 : 0;
+    const size_t max_chars = (buf_slots - 2) / 2;
     const size_t chars = src_chars < max_chars ? src_chars : max_chars;
 
     // Work backwards to avoid overwriting source data
@@ -203,7 +203,12 @@ inline void ExpandUTF16ToUTF32InPlace(SQLTCHAR* buf, size_t src_chars, size_t bu
 inline std::string Convert4ByteSqlWChar(
     SQLTCHAR *     InputStr,
     SQLINTEGER     BufferLength
-    ) {
+    )
+{
+    if (!InputStr) {
+        return "";
+    }
+
     std::vector<SQLTCHAR> conn_in_vector;
     int i = 0;
     while (true) {
@@ -223,6 +228,10 @@ inline std::string Convert4ByteSqlWChar(
 }
 
 inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
+    if (!in) {
+        return "";
+    }
+
     if (user_4_byte) {
         size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
         return Convert4ByteSqlWChar(in, length);
