@@ -20,6 +20,8 @@
 
 #include "../../util/plugin_chain_builder.h"
 
+#include "../../driver.h"
+
 #include "../../util/rds_utils.h"
 
 #include <algorithm>
@@ -79,6 +81,8 @@ BlueGreenMonitor::~BlueGreenMonitor() {
 
     odbc_helper_->DisconnectAndFree(&hdbc_);
     odbc_helper_->FreeEnv(&henv_);
+    host_list_provider_ = nullptr;
+    delete monitor_dbc_;
 }
 
 void BlueGreenMonitor::StartMonitoring() {
@@ -578,8 +582,11 @@ void BlueGreenMonitor::InitHostListProvider() {
     host_list_provider_conn_attr.insert_or_assign(KEY_CLUSTER_ID, custom_cluster_id);
     host_list_provider_conn_attr.insert_or_assign(KEY_SERVER, this->connecting_host_info_.GetHost());
     host_list_provider_conn_attr.insert_or_assign(KEY_PORT, std::to_string(this->connecting_host_info_.GetPort()));
+    delete monitor_dbc_;
+    monitor_dbc_ = new DBC();
+    monitor_dbc_->conn_attr = host_list_provider_conn_attr;
     const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(odbc_helper_->GetLibLoader(), host_list_provider_conn_attr);
-    const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(host_list_provider_conn_attr, monitor_plugin_service);
+    const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
     monitor_plugin_service->SetPluginChain(plugin_head);
     this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
         monitor_plugin_service->GetTopologyUtil(),

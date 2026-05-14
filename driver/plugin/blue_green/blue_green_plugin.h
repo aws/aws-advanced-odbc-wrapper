@@ -67,6 +67,7 @@ private:
     std::map<std::string, std::string> conn_attr_;
     std::weak_ptr<PluginService> plugin_service_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
+    DBC* monitor_dbc_ = nullptr;
 
     BlueGreenStatus blue_green_status_;
 

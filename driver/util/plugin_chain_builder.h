@@ -21,12 +21,12 @@
 
 #include "../plugin/base_plugin.h"
 
-#include <map>
 #include <memory>
-#include <string>
+
+struct DBC;
 
 namespace PluginChainBuilder {
-    std::shared_ptr<BasePlugin> MonitoringBuild(std::map<std::string, std::string> conn_attr, std::shared_ptr<PluginService> plugin_service);
+    std::shared_ptr<BasePlugin> MonitoringBuild(DBC* dbc, std::shared_ptr<PluginService> plugin_service);
 }  // namespace PluginChainBuilder
 
-#endif PLUGIN_CHAIN_BUILDER_H_
+#endif // PLUGIN_CHAIN_BUILDER_H_

@@ -140,6 +140,7 @@ private:
     std::condition_variable sleep_cv_;
     std::mutex sleep_mutex_;
     std::shared_ptr<HostListProvider> host_list_provider_;
+    DBC* monitor_dbc_ = nullptr;
     std::shared_ptr<std::thread> monitoring_thread_;
     SQLHENV henv_ = SQL_NULL_HENV;
     std::mutex hdbc_mutex_;

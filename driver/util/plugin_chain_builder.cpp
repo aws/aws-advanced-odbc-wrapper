@@ -23,31 +23,29 @@
 #include "../plugin/iam/iam_auth_plugin.h"
 #include "../plugin/secrets_manager/secrets_manager_plugin.h"
 
-std::shared_ptr<BasePlugin> PluginChainBuilder::MonitoringBuild(std::map<std::string, std::string> conn_attr, std::shared_ptr<PluginService> plugin_service) {
-    DBC dbc;
-    dbc.conn_attr = conn_attr;
-    dbc.plugin_service = plugin_service;
-    std::shared_ptr<BasePlugin> plugin_head = std::make_shared<DefaultPlugin>(&dbc);
+std::shared_ptr<BasePlugin> PluginChainBuilder::MonitoringBuild(DBC* dbc, std::shared_ptr<PluginService> plugin_service) {
+    dbc->plugin_service = plugin_service;
+    std::shared_ptr<BasePlugin> plugin_head = std::make_shared<DefaultPlugin>(dbc);
     std::shared_ptr<BasePlugin> next_plugin;
 
     // Auth Plugins
-    if (dbc.conn_attr.contains(KEY_AUTH_TYPE)) {
-        const AuthType type = AuthProvider::AuthTypeFromString(dbc.conn_attr.at(KEY_AUTH_TYPE));
+    if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
+        const AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
         switch (type) {
                 case AuthType::IAM:
-                    next_plugin = std::make_shared<IamAuthPlugin>(&dbc, plugin_head);
+                    next_plugin = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
                     plugin_head = next_plugin;
                     break;
                 case AuthType::SECRETS_MANAGER:
-                    next_plugin = std::make_shared<SecretsManagerPlugin>(&dbc, plugin_head);
+                    next_plugin = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
                     plugin_head = next_plugin;
                     break;
                 case AuthType::ADFS:
-                    next_plugin = std::make_shared<AdfsAuthPlugin>(&dbc, plugin_head);
+                    next_plugin = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
                     plugin_head = next_plugin;
                     break;
                 case AuthType::OKTA:
-                    next_plugin = std::make_shared<OktaAuthPlugin>(&dbc, plugin_head);
+                    next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
                     plugin_head = next_plugin;
                     break;
                 case AuthType::DATABASE:
