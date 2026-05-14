@@ -12,17 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
 #include "gtest/gtest.h"
 
+class FlushingListener : public testing::EmptyTestEventListener {
+public:
+    void OnTestStart(const testing::TestInfo& info) override {
+        std::cout << "[ RUN      ] "
+                  << info.test_suite_name() << "." << info.name()
+                  << std::endl;
+        std::cout.flush();
+        std::cerr.flush();
+    }
+
+    void OnTestEnd(const testing::TestInfo& info) override {
+        const char* status = info.result()->Passed() ? "[       OK ]" : "[  FAILED  ]";
+        std::cout << status << " "
+                  << info.test_suite_name() << "." << info.name()
+                  << " (" << info.result()->elapsed_time() << " ms)"
+                  << std::endl;
+        std::cout.flush();
+        std::cerr.flush();
+    }
+};
+
 int main(int argc, char** argv) {
-    testing::internal::CaptureStdout();
     ::testing::InitGoogleTest(&argc, argv);
 
+    testing::TestEventListeners& listeners = testing::UnitTest::GetInstance()->listeners();
+    delete listeners.Release(listeners.default_result_printer());
+    listeners.Append(new FlushingListener());
+
     int failures = RUN_ALL_TESTS();
-
-    std::string output = testing::internal::GetCapturedStdout();
-    std::cout << output << std::endl;
     std::cout << (failures ? "Not all tests passed." : "All tests passed") << std::endl;
-
     return failures;
 }

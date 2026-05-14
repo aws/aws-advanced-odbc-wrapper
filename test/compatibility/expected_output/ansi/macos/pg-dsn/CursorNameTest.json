@@ -1,0 +1,10 @@
+{
+  "SQLSetCursorName": {
+    "return_code": 0
+  },
+  "SQLGetCursorName": {
+    "return_code": 0,
+    "cursor_name": "test_cursor",
+    "name_length": 11
+  }
+}

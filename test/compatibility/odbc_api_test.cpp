@@ -108,7 +108,7 @@ auto GetErrorMessage = [](SQLSMALLINT handle_type, SQLHANDLE handle, SQLRETURN o
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN], message[MAX_SQL_MESSAGE_LEN];
     SQLINTEGER native_error;
     SQLSMALLINT msg_len;
-    SQLRETURN diag_ret = SQLGetDiagRec(handle_type, handle, 1, sql_state, &native_error, message, sizeof(message), &msg_len);
+    SQLRETURN diag_ret = SQLGetDiagRec(handle_type, handle, 1, sql_state, &native_error, message, MAX_SQL_MESSAGE_LEN, &msg_len);
     if (SQL_SUCCESS == diag_ret) {
         return std::string("Error: ") + STRING_HELPER::SqltcharToAnsi(sql_state) + " - " + STRING_HELPER::SqltcharToAnsi(message);
     }
@@ -138,13 +138,16 @@ auto FetchResults = [](SQLHSTMT stmt, std::ofstream& out_file, const std::string
                 if (i > 1) out_file << ", ";
                 SQLTCHAR data[MAX_SQL_MESSAGE_LEN] = {0};
                 SQLLEN indicator = 0;
-                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_TCHAR, data, sizeof(data) - 1, &indicator);
+                // Use (sizeof(data) - sizeof(SQLTCHAR)) to keep BufferLength even and leave room for null terminator
+                SQLRETURN get_ret = SQLGetData(stmt, i, SQL_C_TCHAR, data,
+                    sizeof(data) - sizeof(SQLTCHAR), &indicator);
                 if (get_ret == SQL_SUCCESS || get_ret == SQL_SUCCESS_WITH_INFO) {
                     if (indicator == SQL_NULL_DATA) {
                         out_file << "null";
                     } else {
-                        data[sizeof(data) - 1] = '\0';
-                        out_file << "\"" << reinterpret_cast<char*>(data) << "\"";
+                        // Ensure null termination at the element level
+                        data[MAX_SQL_MESSAGE_LEN - 1] = 0;
+                        out_file << "\"" << STRING_HELPER::SqltcharToAnsi(data) << "\"";
                     }
                 } else {
                     out_file << "null";
@@ -152,6 +155,8 @@ auto FetchResults = [](SQLHSTMT stmt, std::ofstream& out_file, const std::string
             }
             out_file << "]";
             row_count++;
+            if (row_count % 50 == 0) {
+            }
         }
         out_file << "\n    ],\n";
         out_file << "    \"row_count\": " << row_count << "\n";
@@ -165,12 +170,14 @@ TEST_P(ODBC_API_TEST, MetadataFunctionsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
 
+
     std::ofstream out_file = CreateResultsFile(test_dsn, "MetadataFunctionsTest");
 
     out_file << "{\n";
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
     EXPECT_EQ(ret, SQL_SUCCESS);
+
     ret = ODBC_HELPER::ExecuteQuery(stmt, "DROP TABLE IF EXISTS test_metadata");
     SQLCloseCursor(stmt);
 
@@ -625,6 +632,7 @@ TEST_P(ODBC_API_TEST, CursorNameTest) {
 TEST_P(ODBC_API_TEST, DiagnosticsFunctionsTest) {
     std::string test_dsn = GetParam();
     SQLHSTMT stmt;
+
     std::ofstream out_file = CreateResultsFile(test_dsn, "DiagnosticsFunctionsTest");
     out_file << "{\n";
 
@@ -1163,7 +1171,9 @@ static std::vector<std::string> getDsnValues() {
 
     return std::vector<std::string> {
         test_dsn,
+#ifdef TEST_BASE_OUTPUT
         test_base_dsn
+#endif
     };
 }
 

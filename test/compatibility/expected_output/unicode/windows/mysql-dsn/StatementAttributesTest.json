@@ -1,0 +1,13 @@
+{
+  "SQLSetStmtAttr_QUERY_TIMEOUT": {
+    "return_code": 0
+  },
+  "SQLGetStmtAttr_QUERY_TIMEOUT": {
+    "return_code": 0,
+    "value": 30
+  },
+  "SQLGetStmtAttr_CURSOR_TYPE": {
+    "return_code": 0,
+    "value": 0
+  }
+}

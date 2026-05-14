@@ -1,0 +1,6 @@
+{
+  "SQLColumns": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  }
+}

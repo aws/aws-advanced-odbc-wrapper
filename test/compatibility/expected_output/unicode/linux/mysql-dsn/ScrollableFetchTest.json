@@ -1,0 +1,38 @@
+{
+  "SQLSetStmtAttr_CURSOR_STATIC": {
+    "return_code": 0
+  },
+  "SQLExecDirect": {
+    "return_code": 0
+  },
+  "SQLFetchScroll_FIRST": {
+    "return_code": 0,
+    "value": "row1"
+  },
+  "SQLFetchScroll_NEXT": {
+    "return_code": 0,
+    "value": "row2"
+  },
+  "SQLFetchScroll_LAST": {
+    "return_code": 0,
+    "value": "row3"
+  },
+  "SQLExtendedFetch_FIRST": {
+    "return_code": 0,
+    "row_count": 1,
+    "value": "ext_row1",
+    "row_status": 0
+  },
+  "SQLExtendedFetch_NEXT": {
+    "return_code": 0,
+    "row_count": 1,
+    "value": "ext_row2",
+    "row_status": 0
+  },
+  "SQLExtendedFetch_LAST": {
+    "return_code": 0,
+    "row_count": 1,
+    "value": "ext_row3",
+    "row_status": 0
+  }
+}

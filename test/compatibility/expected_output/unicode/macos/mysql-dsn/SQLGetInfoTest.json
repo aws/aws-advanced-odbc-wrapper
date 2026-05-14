@@ -1,0 +1,218 @@
+{
+  "SQL_ACTIVE_CONNECTIONS": {
+    "return_code": -1,
+    "attribute_id": 0
+  },
+  "SQL_SERVER_NAME": {
+    "return_code": -1,
+    "attribute_id": 13
+  },
+  "SQL_DATABASE_NAME": {
+    "return_code": -1,
+    "attribute_id": 16
+  },
+  "SQL_DBMS_NAME": {
+    "return_code": -1,
+    "attribute_id": 17
+  },
+  "SQL_DBMS_VER": {
+    "return_code": -1,
+    "attribute_id": 18
+  },
+  "SQL_CURSOR_COMMIT_BEHAVIOR": {
+    "return_code": -1,
+    "attribute_id": 23
+  },
+  "SQL_CURSOR_ROLLBACK_BEHAVIOR": {
+    "return_code": -1,
+    "attribute_id": 24
+  },
+  "SQL_DEFAULT_TXN_ISOLATION": {
+    "return_code": -1,
+    "attribute_id": 26
+  },
+  "SQL_MAX_COLUMN_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 30
+  },
+  "SQL_MAX_CURSOR_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 31
+  },
+  "SQL_MAX_SCHEMA_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 32
+  },
+  "SQL_MAX_PROCEDURE_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 33
+  },
+  "SQL_MAX_CATALOG_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 34
+  },
+  "SQL_MAX_TABLE_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 35
+  },
+  "SQL_SCHEMA_TERM": {
+    "return_code": -1,
+    "attribute_id": 39
+  },
+  "SQL_PROCEDURE_TERM": {
+    "return_code": -1,
+    "attribute_id": 40
+  },
+  "SQL_CATALOG_TERM": {
+    "return_code": -1,
+    "attribute_id": 42
+  },
+  "SQL_SCROLL_OPTIONS": {
+    "return_code": -1,
+    "attribute_id": 44
+  },
+  "SQL_TABLE_TERM": {
+    "return_code": -1,
+    "attribute_id": 45
+  },
+  "SQL_TXN_CAPABLE": {
+    "return_code": -1,
+    "attribute_id": 46
+  },
+  "SQL_USER_NAME": {
+    "return_code": -1,
+    "attribute_id": 47
+  },
+  "SQL_CONVERT_FUNCTIONS": {
+    "return_code": -1,
+    "attribute_id": 48
+  },
+  "SQL_NUMERIC_FUNCTIONS": {
+    "return_code": -1,
+    "attribute_id": 49
+  },
+  "SQL_STRING_FUNCTIONS": {
+    "return_code": -1,
+    "attribute_id": 50
+  },
+  "SQL_SYSTEM_FUNCTIONS": {
+    "return_code": -1,
+    "attribute_id": 51
+  },
+  "SQL_TIMEDATE_FUNCTIONS": {
+    "return_code": -1,
+    "attribute_id": 52
+  },
+  "SQL_CONVERT_BIGINT": {
+    "return_code": -1,
+    "attribute_id": 53
+  },
+  "SQL_CONVERT_BINARY": {
+    "return_code": -1,
+    "attribute_id": 54
+  },
+  "SQL_CONVERT_BIT": {
+    "return_code": -1,
+    "attribute_id": 55
+  },
+  "SQL_CONVERT_CHAR": {
+    "return_code": -1,
+    "attribute_id": 56
+  },
+  "SQL_CONVERT_DATE": {
+    "return_code": -1,
+    "attribute_id": 57
+  },
+  "SQL_CONVERT_DECIMAL": {
+    "return_code": -1,
+    "attribute_id": 58
+  },
+  "SQL_CONVERT_DOUBLE": {
+    "return_code": -1,
+    "attribute_id": 59
+  },
+  "SQL_CONVERT_FLOAT": {
+    "return_code": -1,
+    "attribute_id": 60
+  },
+  "SQL_CONVERT_INTEGER": {
+    "return_code": -1,
+    "attribute_id": 61
+  },
+  "SQL_CONVERT_NUMERIC": {
+    "return_code": -1,
+    "attribute_id": 63
+  },
+  "SQL_CONVERT_REAL": {
+    "return_code": -1,
+    "attribute_id": 64
+  },
+  "SQL_CONVERT_SMALLINT": {
+    "return_code": -1,
+    "attribute_id": 65
+  },
+  "SQL_CONVERT_TIME": {
+    "return_code": -1,
+    "attribute_id": 66
+  },
+  "SQL_CONVERT_TIMESTAMP": {
+    "return_code": -1,
+    "attribute_id": 67
+  },
+  "SQL_CONVERT_VARBINARY": {
+    "return_code": -1,
+    "attribute_id": 69
+  },
+  "SQL_CONVERT_VARCHAR": {
+    "return_code": -1,
+    "attribute_id": 70
+  },
+  "SQL_TXN_ISOLATION_OPTION": {
+    "return_code": -1,
+    "attribute_id": 72
+  },
+  "SQL_KEYWORDS": {
+    "return_code": -1,
+    "attribute_id": 89
+  },
+  "SQL_MAX_USER_NAME_LEN": {
+    "return_code": -1,
+    "attribute_id": 107
+  },
+  "SQL_SQL_CONFORMANCE": {
+    "return_code": -1,
+    "attribute_id": 118
+  },
+  "SQL_DATETIME_LITERALS": {
+    "return_code": -1,
+    "attribute_id": 119
+  },
+  "SQL_DYNAMIC_CURSOR_ATTRIBUTES1": {
+    "return_code": -1,
+    "attribute_id": 144
+  },
+  "SQL_DYNAMIC_CURSOR_ATTRIBUTES2": {
+    "return_code": -1,
+    "attribute_id": 145
+  },
+  "SQL_ODBC_INTERFACE_CONFORMANCE": {
+    "return_code": -1,
+    "attribute_id": 152
+  },
+  "SQL_STANDARD_CLI_CONFORMANCE": {
+    "return_code": -1,
+    "attribute_id": 166
+  },
+  "SQL_STATIC_CURSOR_ATTRIBUTES1": {
+    "return_code": -1,
+    "attribute_id": 167
+  },
+  "SQL_STATIC_CURSOR_ATTRIBUTES2": {
+    "return_code": -1,
+    "attribute_id": 168
+  },
+  "SQL_MAX_IDENTIFIER_LEN": {
+    "return_code": -1,
+    "attribute_id": 10005
+  }
+}

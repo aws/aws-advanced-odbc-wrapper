@@ -1,0 +1,272 @@
+{
+  "SQL_ACTIVE_CONNECTIONS": {
+    "return_code": 0,
+    "attribute_id": 0,
+    "value": 0
+  },
+  "SQL_SERVER_NAME": {
+    "return_code": 0,
+    "attribute_id": 13,
+    "value": "localhost via TCP/IP"
+  },
+  "SQL_DATABASE_NAME": {
+    "return_code": 0,
+    "attribute_id": 16,
+    "value": "test_database"
+  },
+  "SQL_DBMS_NAME": {
+    "return_code": 0,
+    "attribute_id": 17,
+    "value": "MySQL"
+  },
+  "SQL_DBMS_VER": {
+    "return_code": 0,
+    "attribute_id": 18,
+    "value": "8.0.45-0ubuntu0.24.04.1"
+  },
+  "SQL_CURSOR_COMMIT_BEHAVIOR": {
+    "return_code": 0,
+    "attribute_id": 23,
+    "value": 2
+  },
+  "SQL_CURSOR_ROLLBACK_BEHAVIOR": {
+    "return_code": 0,
+    "attribute_id": 24,
+    "value": 2
+  },
+  "SQL_DEFAULT_TXN_ISOLATION": {
+    "return_code": 0,
+    "attribute_id": 26,
+    "value": 0
+  },
+  "SQL_MAX_COLUMN_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 30,
+    "value": 192
+  },
+  "SQL_MAX_CURSOR_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 31,
+    "value": 18
+  },
+  "SQL_MAX_SCHEMA_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 32,
+    "value": 0
+  },
+  "SQL_MAX_PROCEDURE_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 33,
+    "value": 192
+  },
+  "SQL_MAX_CATALOG_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 34,
+    "value": 64
+  },
+  "SQL_MAX_TABLE_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 35,
+    "value": 192
+  },
+  "SQL_SCHEMA_TERM": {
+    "return_code": 0,
+    "attribute_id": 39,
+    "value": ""
+  },
+  "SQL_PROCEDURE_TERM": {
+    "return_code": 0,
+    "attribute_id": 40,
+    "value": "stored procedure"
+  },
+  "SQL_CATALOG_TERM": {
+    "return_code": 0,
+    "attribute_id": 42,
+    "value": "database"
+  },
+  "SQL_SCROLL_OPTIONS": {
+    "return_code": 0,
+    "attribute_id": 44,
+    "value": 17
+  },
+  "SQL_TABLE_TERM": {
+    "return_code": 0,
+    "attribute_id": 45,
+    "value": "table"
+  },
+  "SQL_TXN_CAPABLE": {
+    "return_code": 0,
+    "attribute_id": 46,
+    "value": 3
+  },
+  "SQL_USER_NAME": {
+    "return_code": 0,
+    "attribute_id": 47,
+    "value": "test_username"
+  },
+  "SQL_CONVERT_FUNCTIONS": {
+    "return_code": 0,
+    "attribute_id": 48,
+    "value": 0
+  },
+  "SQL_NUMERIC_FUNCTIONS": {
+    "return_code": 0,
+    "attribute_id": 49,
+    "value": 16777215
+  },
+  "SQL_STRING_FUNCTIONS": {
+    "return_code": 0,
+    "attribute_id": 50,
+    "value": 14647295
+  },
+  "SQL_SYSTEM_FUNCTIONS": {
+    "return_code": 0,
+    "attribute_id": 51,
+    "value": 7
+  },
+  "SQL_TIMEDATE_FUNCTIONS": {
+    "return_code": 0,
+    "attribute_id": 52,
+    "value": 2097151
+  },
+  "SQL_CONVERT_BIGINT": {
+    "return_code": 0,
+    "attribute_id": 53,
+    "value": 14939135
+  },
+  "SQL_CONVERT_BINARY": {
+    "return_code": 0,
+    "attribute_id": 54,
+    "value": 0
+  },
+  "SQL_CONVERT_BIT": {
+    "return_code": 0,
+    "attribute_id": 55,
+    "value": 14939135
+  },
+  "SQL_CONVERT_CHAR": {
+    "return_code": 0,
+    "attribute_id": 56,
+    "value": 14939135
+  },
+  "SQL_CONVERT_DATE": {
+    "return_code": 0,
+    "attribute_id": 57,
+    "value": 14939135
+  },
+  "SQL_CONVERT_DECIMAL": {
+    "return_code": 0,
+    "attribute_id": 58,
+    "value": 14939135
+  },
+  "SQL_CONVERT_DOUBLE": {
+    "return_code": 0,
+    "attribute_id": 59,
+    "value": 14939135
+  },
+  "SQL_CONVERT_FLOAT": {
+    "return_code": 0,
+    "attribute_id": 60,
+    "value": 14939135
+  },
+  "SQL_CONVERT_INTEGER": {
+    "return_code": 0,
+    "attribute_id": 61,
+    "value": 14939135
+  },
+  "SQL_CONVERT_NUMERIC": {
+    "return_code": 0,
+    "attribute_id": 63,
+    "value": 14939135
+  },
+  "SQL_CONVERT_REAL": {
+    "return_code": 0,
+    "attribute_id": 64,
+    "value": 14939135
+  },
+  "SQL_CONVERT_SMALLINT": {
+    "return_code": 0,
+    "attribute_id": 65,
+    "value": 14939135
+  },
+  "SQL_CONVERT_TIME": {
+    "return_code": 0,
+    "attribute_id": 66,
+    "value": 14939135
+  },
+  "SQL_CONVERT_TIMESTAMP": {
+    "return_code": 0,
+    "attribute_id": 67,
+    "value": 14939135
+  },
+  "SQL_CONVERT_VARBINARY": {
+    "return_code": 0,
+    "attribute_id": 69,
+    "value": 0
+  },
+  "SQL_CONVERT_VARCHAR": {
+    "return_code": 0,
+    "attribute_id": 70,
+    "value": 14939135
+  },
+  "SQL_TXN_ISOLATION_OPTION": {
+    "return_code": 0,
+    "attribute_id": 72,
+    "value": 15
+  },
+  "SQL_KEYWORDS": {
+    "return_code": 1,
+    "attribute_id": 89,
+    "value": "ACCESSIBLE,ANALYZE,ASENSITIVE,BEFORE,BIGINT,BINARY,BLOB,CALL,CHANGE,CONDITION,DATABASE,DATABASES,DAY_HOUR,DAY_MICROSECOND,DAY_MINUTE,DAY_SECOND,DELAYED,DETERMINISTIC,DISTINCTROW,DIV,DUAL,EACH,ELSEIF,ENCLOSED,ESCAPED,EXIT,EXPLAIN,FLOAT4,FLOAT8,FORCE,FULLTEXT,GENERAL,GET,HIGH_PRIORITY,HOUR_MICROSECOND,HOUR_MINUTE,HOUR_SECOND,IF,IGNORE,IGNORE_SERVER_IDS,INFILE,INOUT,INT1,INT2,INT3,INT4,INT8,IO_AFTER_GTIDS,IO_BEFORE_GTIDS,ITERATE,KEYS,KILL,LEAVE,LIMIT,LINEAR,LINES,LOAD,LOCALTIME,LOCALTIMESTAMP,LOCK,LONG,LONGBLOB,LONGTEXT,LOOP,LOW_PRIORITY,SOURCE_BIND,SOURCE_HEARTBEAT_PERIOD,SOURCE_SSL_VERIFY_SERVER_CERT,MAXVALUE,MEDIUMBLOB,MEDIUMINT,MEDIUMTEXT,MIDDLEINT,MINUTE_MICROSECOND,MINUTE_SECOND,MOD,MODIFIES,NO_WRITE_TO_BINLOG,NONBLOCKING,ONE_SHOT,OPTIMIZE,OPTIONALLY,OUT,OUTFILE,PARTITION,PURGE,RANGE,READ_ONLY,READS,READ_WRITE,REGEXP,RELEASE,RENAME,REPEAT,REPLACE,REQUIRE,RESIGNAL,RETURN,RLIKE,SCHEMAS,SECOND_MICROSECOND,SENSITIVE,SEPARATOR,SHOW,SIGNAL,SLOW,SPATIAL,SPECIFIC,SQL_AFTER_GTIDS,SQL_BEFORE_GTIDS,SQL_BIG_RESULT,SQ"
+  },
+  "SQL_MAX_USER_NAME_LEN": {
+    "return_code": 0,
+    "attribute_id": 107,
+    "value": 96
+  },
+  "SQL_SQL_CONFORMANCE": {
+    "return_code": 0,
+    "attribute_id": 118,
+    "value": 4
+  },
+  "SQL_DATETIME_LITERALS": {
+    "return_code": 0,
+    "attribute_id": 119,
+    "value": 7
+  },
+  "SQL_DYNAMIC_CURSOR_ATTRIBUTES1": {
+    "return_code": 0,
+    "attribute_id": 144,
+    "value": 0
+  },
+  "SQL_DYNAMIC_CURSOR_ATTRIBUTES2": {
+    "return_code": 0,
+    "attribute_id": 145,
+    "value": 0
+  },
+  "SQL_ODBC_INTERFACE_CONFORMANCE": {
+    "return_code": 0,
+    "attribute_id": 152,
+    "value": 2
+  },
+  "SQL_STANDARD_CLI_CONFORMANCE": {
+    "return_code": 0,
+    "attribute_id": 166,
+    "value": 2
+  },
+  "SQL_STATIC_CURSOR_ATTRIBUTES1": {
+    "return_code": 0,
+    "attribute_id": 167,
+    "value": 97863
+  },
+  "SQL_STATIC_CURSOR_ATTRIBUTES2": {
+    "return_code": 0,
+    "attribute_id": 168,
+    "value": 6016
+  },
+  "SQL_MAX_IDENTIFIER_LEN": {
+    "return_code": 0,
+    "attribute_id": 10005,
+    "value": 192
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "SQLGetDescField_NAME": {
+    "return_code": 0,
+    "value": "",
+    "string_length": 0
+  },
+  "SQLGetDescField_TYPE": {
+    "return_code": 0,
+    "value": 0
+  },
+  "SQLGetDescRec": {
+    "return_code": -1,
+    "error": "Unknown error - Original return code: -1, SQLGetDiagRec return code: 100 (no diagnostic information available)"
+  },
+  "SQLSetDescField": {
+    "return_code": 0
+  }
+}

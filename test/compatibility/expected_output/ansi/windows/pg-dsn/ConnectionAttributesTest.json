@@ -1,0 +1,18 @@
+{
+  "SQLGetConnectAttr_CURRENT_CATALOG": {
+    "return_code": 0,
+    "value": "test_database",
+    "string_length": 13
+  },
+  "SQLGetConnectAttr_AUTOCOMMIT": {
+    "return_code": 0,
+    "value": 1
+  },
+  "SQLSetConnectAttr_AUTOCOMMIT_OFF": {
+    "return_code": 0
+  },
+  "SQLGetConnectOption_CURRENT_CATALOG": {
+    "return_code": 0,
+    "value": "test_database"
+  }
+}
