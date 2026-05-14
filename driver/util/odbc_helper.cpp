@@ -313,3 +313,33 @@ bool OdbcHelper::IsStringDiagField(const SQLSMALLINT diag_identifier) {
             return false;
     }
 }
+
+void OdbcHelper::AdjustByteLength(SQLSMALLINT* length_ptr) const {
+#ifdef UNICODE
+    if (length_ptr && *length_ptr > 0) {
+        // Expanded, driver 2-byte -> user 4-byte
+        if (use_4_bytes_user_app_ && !use_4_bytes_base_driver_) {
+            *length_ptr *= 2;
+        }
+        // Shrunk, driver 4-byte -> user 2-byte
+        if (!use_4_bytes_user_app_ && use_4_bytes_base_driver_) {
+            *length_ptr /= 2;
+        }
+    }
+#endif
+}
+
+void OdbcHelper::AdjustByteLength(SQLINTEGER* length_ptr) const {
+    #ifdef UNICODE
+        if (length_ptr && *length_ptr > 0) {
+            // Expanded, driver 2-byte -> user 4-byte
+            if (use_4_bytes_user_app_ && !use_4_bytes_base_driver_) {
+                *length_ptr *= 2;
+            }
+            // Shrunk, driver 4-byte -> user 2-byte
+            if (!use_4_bytes_user_app_ && use_4_bytes_base_driver_) {
+                *length_ptr /= 2;
+            }
+        }
+    #endif
+}

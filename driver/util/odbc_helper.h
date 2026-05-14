@@ -84,6 +84,10 @@ public:
     static bool IsStringDescField(SQLSMALLINT field_identifier);
     static bool IsStringDiagField(SQLSMALLINT diag_identifier);
 
+    // Adjust StringLengthPtr due to potential manipulation by wrapper
+    void AdjustByteLength(SQLSMALLINT* length_ptr) const;
+    void AdjustByteLength(SQLINTEGER* length_ptr) const;
+
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
     bool use_4_bytes_base_driver_ = false;
