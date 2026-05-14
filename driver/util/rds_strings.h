@@ -145,12 +145,17 @@ inline std::vector<uint16_t>  ConvertUTF8ToUTF16(std::string input) {
 
 // Assumes that the passed in vec is null terminated and was produced by ConvertUTF8ToUTF16
 inline int CopyUTF16StringToBuffer(uint16_t* buf, size_t buf_len, std::vector<uint16_t> vec) {
-    size_t end = buf_len < vec.size() ? buf_len : vec.size();
-    std::copy(vec.begin(), vec.begin() + end, buf);
-    if (end > 0) {
-        buf[end - 1] = 0;
+    int32_t str_len = static_cast<int32_t>(vec.size() > 0 ? vec.size() - 1 : 0);
+    if (buf_len == 0) {
+        return str_len;
     }
-    return vec.size() - 1;
+    icu::UnicodeString ustr(reinterpret_cast<const char16_t*>(vec.data()), str_len);
+    UErrorCode err = U_ZERO_ERROR;
+    ustr.extract(reinterpret_cast<char16_t*>(buf), static_cast<int32_t>(buf_len), err);
+    if (U_FAILURE(err)) {
+        buf[buf_len - 1] = 0;
+    }
+    return str_len;
 }
 
 inline int CopyUTF8ToUTF16Buffer(uint16_t* buf, size_t buf_len, std::string str) {
@@ -171,33 +176,28 @@ inline size_t ConvertUTF16ToUTF32(const SQLTCHAR* src, SQLTCHAR* dst, const size
         return 0;
     }
 
-    const size_t max_copy = (dst_len - 2) / 2;
-    const size_t written = src_len < max_copy ? src_len : max_copy;
-    for (size_t i = 0; i < written; i++) {
-        dst[i * 2] = src[i];
-        dst[(i * 2) + 1] = 0;
-    }
-    dst[written * 2] = 0;
-    dst[(written * 2) + 1] = 0;
-
-    return written;
+    const int32_t capacity = static_cast<int32_t>((dst_len - 2) / 2);
+    icu::UnicodeString ustr(reinterpret_cast<const char16_t*>(src), static_cast<int32_t>(src_len));
+    UErrorCode err = U_ZERO_ERROR;
+    int32_t written = ustr.toUTF32(reinterpret_cast<UChar32*>(dst), capacity, err);
+    int32_t actual = (U_SUCCESS(err) || err == U_BUFFER_OVERFLOW_ERROR)
+        ? (written < capacity ? written : capacity) : 0;
+    reinterpret_cast<UChar32*>(dst)[actual] = 0;
+    return static_cast<size_t>(actual);
 }
 
 inline void ExpandUTF16ToUTF32InPlace(SQLTCHAR* buf, size_t src_chars, size_t buf_slots) {
     if (buf == nullptr || src_chars == 0 || buf_slots < 2) {
         return;
     }
-
-    const size_t max_chars = (buf_slots - 2) / 2;
-    const size_t chars = src_chars < max_chars ? src_chars : max_chars;
-
-    // Work backwards to avoid overwriting source data
-    for (size_t i = chars; i > 0; --i) {
-        buf[((i - 1) * 2) + 1] = 0;
-        buf[(i - 1) * 2] = buf[i - 1];
-    }
-    buf[chars * 2] = 0;
-    buf[(chars * 2) + 1] = 0;
+    const int32_t capacity = static_cast<int32_t>((buf_slots - 2) / 2);
+    // UnicodeString copies the source data internally, so writing to buf is safe
+    icu::UnicodeString ustr(reinterpret_cast<const char16_t*>(buf), static_cast<int32_t>(src_chars));
+    UErrorCode err = U_ZERO_ERROR;
+    int32_t written = ustr.toUTF32(reinterpret_cast<UChar32*>(buf), capacity, err);
+    int32_t actual = (U_SUCCESS(err) || err == U_BUFFER_OVERFLOW_ERROR)
+        ? (written < capacity ? written : capacity) : 0;
+    reinterpret_cast<UChar32*>(buf)[actual] = 0;
 }
 
 inline std::string Convert4ByteSqlWChar(
@@ -208,23 +208,24 @@ inline std::string Convert4ByteSqlWChar(
     if (!InputStr) {
         return "";
     }
-
-    std::vector<SQLTCHAR> conn_in_vector;
+    std::vector<UChar32> utf32_buf;
     int i = 0;
     while (true) {
         if (BufferLength > 0 && (i / 2) >= BufferLength) {
             break;
         }
-        if (InputStr[i] == 0 && InputStr[i + 1] == 0) {
+        UChar32 cp = static_cast<UChar32>(InputStr[i])
+                   | (static_cast<UChar32>(InputStr[i + 1]) << 16);
+        if (cp == 0) {
             break;
         }
-        conn_in_vector.push_back(InputStr[i]);
+        utf32_buf.push_back(cp);
         i += 2;
     }
-    conn_in_vector.push_back(0);
-
-    const std::string str_utf8_w = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(conn_in_vector.data()));
-    return str_utf8_w;
+    icu::UnicodeString ustr = icu::UnicodeString::fromUTF32(utf32_buf.data(), static_cast<int32_t>(utf32_buf.size()));
+    std::string result;
+    ustr.toUTF8String(result);
+    return result;
 }
 
 inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
@@ -244,12 +245,17 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
         return;
     }
     if (driver_4_byte) {
-        std::wstring w_input = ConvertUTF8ToWString(input);
-        size_t copy_size = static_cast<size_t>(out_length) > w_input.length()
-            ? w_input.length()
-            : static_cast<size_t>(out_length) - 1; // For null terminating character
-        std::copy(w_input.begin(), w_input.begin() + copy_size, out);
-        out[copy_size] = 0;
+        if (out_length < 2) {
+            out[0] = 0;
+            return;
+        }
+        icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(icu::StringPiece(input.c_str(), input.length()));
+        int32_t capacity = (static_cast<int32_t>(out_length) - 2) / 2;
+        UErrorCode err = U_ZERO_ERROR;
+        int32_t written = ustr.toUTF32(reinterpret_cast<UChar32*>(out), capacity, err);
+        int32_t actual = (U_SUCCESS(err) || err == U_BUFFER_OVERFLOW_ERROR)
+            ? (written < capacity ? written : capacity) : 0;
+        reinterpret_cast<UChar32*>(out)[actual] = 0;
     } else {
         CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(out), out_length, input);
     }
