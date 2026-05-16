@@ -89,13 +89,15 @@ protected:
         EXPECT_EQ(SQL_SUCCESS, SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
         EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc));
 
-        std::string conn_str = ConnectionStringBuilder(test_dsn.c_str(), test_server, test_port)
-            .withDatabase(test_db)
-            .withUID(test_uid)
-            .withPWD(test_pwd)
-            .withBaseDriver(test_base_driver)
-            .withBaseDSN(test_base_dsn)
-            .getString();
+        // BASE_DRIVER/BASE_DSN are wrapper-specific connection attributes. Only add
+        // them when connecting through the wrapper DSN; the base driver does not
+        // recognise them and would reject the connection.
+        ConnectionStringBuilder builder(test_dsn.c_str(), test_server, test_port);
+        builder.withDatabase(test_db).withUID(test_uid).withPWD(test_pwd);
+        if (test_dsn != test_base_dsn) {
+            builder.withBaseDriver(test_base_driver).withBaseDSN(test_base_dsn);
+        }
+        std::string conn_str = builder.getString();
         EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::DriverConnect(dbc, conn_str));
     }
 

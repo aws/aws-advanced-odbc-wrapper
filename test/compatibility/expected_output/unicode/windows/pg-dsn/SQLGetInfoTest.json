@@ -22,7 +22,7 @@
   "SQL_DBMS_VER": {
     "return_code": 0,
     "attribute_id": 18,
-    "value": "17.0.10"
+    "value": "17.0.9"
   },
   "SQL_CURSOR_COMMIT_BEHAVIOR": {
     "return_code": 0,
