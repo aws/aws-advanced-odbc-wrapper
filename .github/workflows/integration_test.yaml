@@ -3,20 +3,6 @@ run-name: AWS Advanced ODBC Wrapper Integration Tests - ${{ github.event.head_co
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - '**'
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.jpg'
-      - '**/*.png'
-      - '**/README.*'
-      - '**/LICENSE.*'
-      - 'docs/**'
-      - 'ISSUE_TEMPLATE/**'
 
 env:
   BUILD_CONFIG: Debug

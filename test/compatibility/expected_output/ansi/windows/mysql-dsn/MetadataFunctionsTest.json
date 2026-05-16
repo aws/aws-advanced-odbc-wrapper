@@ -1,0 +1,127 @@
+{
+  "SQLGetTypeInfo": {
+    "return_code": 0,
+    "rows": [
+      ["bit", "-7", "1", "'", "'", null, "1", "0", "3", null, "0", null, "bit", null, null, "-7", null, null, null],
+      ["tinyint", "-6", "3", "'", "'", null, "1", "0", "3", "0", "0", "0", "tinyint", null, null, "-6", null, "10", null],
+      ["tinyint unsigned", "-6", "3", "'", "'", null, "1", "0", "3", "1", "0", "0", "tinyint unsigned", null, null, "-6", null, "10", null],
+      ["tinyint auto_increment", "-6", "3", "'", "'", null, "0", "0", "3", "0", "0", "1", "tinyint auto_increment", null, null, "-6", null, "10", null],
+      ["tinyint unsigned auto_increment", "-6", "3", "'", "'", null, "0", "0", "3", "1", "0", "1", "tinyint unsigned auto_increment", null, null, "-6", null, "10", null],
+      ["bigint", "-5", "19", "'", "'", null, "1", "0", "3", "0", "0", "0", "bigint", null, null, "-5", null, "10", null],
+      ["bigint unsigned", "-5", "20", "'", "'", null, "1", "0", "3", "1", "0", "0", "bigint unsigned", null, null, "-5", null, "10", null],
+      ["bigint auto_increment", "-5", "19", "'", "'", null, "0", "0", "3", "0", "0", "1", "bigint auto_increment", null, null, "-5", null, "10", null],
+      ["bigint unsigned auto_increment", "-5", "20", "'", "'", null, "0", "0", "3", "1", "0", "1", "bigint unsigned auto_increment", null, null, "-5", null, "10", null],
+      ["long varbinary", "-4", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "long varbinary", null, null, "-4", null, null, null],
+      ["blob", "-4", "65535", "'", "'", null, "1", "0", "3", null, "0", null, "blob", null, null, "-4", null, null, null],
+      ["longblob", "-4", "2147483647", "'", "'", null, "1", "0", "3", null, "0", null, "longblob", null, null, "-4", null, null, null],
+      ["tinyblob", "-4", "255", "'", "'", null, "1", "0", "3", null, "0", null, "tinyblob", null, null, "-4", null, null, null],
+      ["mediumblob", "-4", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "mediumblob", null, null, "-4", null, null, null],
+      ["varbinary", "-3", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "varbinary", null, null, "-3", null, null, null],
+      ["vector()", "-3", "16382", null, null, "length", "1", "0", "3", null, "0", null, "vector", null, null, "-3", null, null, null],
+      ["binary", "-2", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "binary", null, null, "-2", null, null, null],
+      ["long varchar", "-1", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "mediumtext", null, null, "-1", null, null, null],
+      ["text", "-1", "65535", "'", "'", null, "1", "0", "3", null, "0", null, "text", null, null, "-1", null, null, null],
+      ["mediumtext", "-1", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "mediumtext", null, null, "-1", null, null, null],
+      ["longtext", "-1", "2147483647", "'", "'", null, "1", "0", "3", null, "0", null, "longtext", null, null, "-1", null, null, null],
+      ["tinytext", "-1", "255", "'", "'", null, "1", "0", "3", null, "0", null, "tinytext", null, null, "-1", null, null, null],
+      ["json", "-1", "1073741823", "'", "'", null, "1", "1", "1", null, "0", null, "json", null, null, "-1", null, null, null],
+      ["long varchar", "-10", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "mediumtext", null, null, "-1", null, null, null],
+      ["text", "-10", "65535", "'", "'", null, "1", "0", "3", null, "0", null, "text", null, null, "-1", null, null, null],
+      ["mediumtext", "-10", "16777215", "'", "'", null, "1", "0", "3", null, "0", null, "mediumtext", null, null, "-1", null, null, null],
+      ["longtext", "-10", "2147483647", "'", "'", null, "1", "0", "3", null, "0", null, "longtext", null, null, "-1", null, null, null],
+      ["tinytext", "-10", "255", "'", "'", null, "1", "0", "3", null, "0", null, "tinytext", null, null, "-1", null, null, null],
+      ["json", "-10", "1073741823", "'", "'", null, "1", "1", "1", null, "0", null, "json", null, null, "-10", null, null, null],
+      ["char", "1", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "char", null, null, "1", "0", null, null],
+      ["char", "-8", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "char", null, null, "-8", "0", null, null],
+      ["numeric", "2", "19", "'", "'", "precision,scale", "1", "0", "3", "0", "0", "0", "numeric", "0", "19", "2", null, "10", null],
+      ["decimal", "3", "19", "'", "'", "precision,scale", "1", "0", "3", "0", "0", "0", "decimal", "0", "19", "3", null, "10", null],
+      ["integer", "4", "10", "'", "'", null, "1", "0", "3", "0", "0", "0", "integer", null, null, "4", null, "10", null],
+      ["integer unsigned", "4", "10", "'", "'", null, "1", "0", "3", "1", "0", "0", "integer unsigned", null, null, "4", null, "10", null],
+      ["int", "4", "10", "'", "'", null, "1", "0", "3", "0", "0", "0", "integer", null, null, "4", null, "10", null],
+      ["int unsigned", "4", "10", "'", "'", null, "1", "0", "3", "1", "0", "0", "integer unsigned", null, null, "4", null, "10", null],
+      ["mediumint", "4", "7", "'", "'", null, "1", "0", "3", "0", "0", "0", "Medium integer", null, null, "4", null, "10", null],
+      ["mediumint unsigned", "4", "8", "'", "'", null, "1", "0", "3", "1", "0", "0", "Medium integer unsigned", null, null, "4", null, "10", null],
+      ["integer auto_increment", "4", "10", "'", "'", null, "0", "0", "3", "0", "0", "1", "integer auto_increment", null, null, "4", null, "10", null],
+      ["integer unsigned auto_increment", "4", "10", "'", "'", null, "0", "0", "3", "1", "0", "1", "integer unsigned auto_increment", null, null, "4", null, "10", null],
+      ["int auto_increment", "4", "10", "'", "'", null, "0", "0", "3", "0", "0", "1", "integer auto_increment", null, null, "4", null, "10", null],
+      ["int unsigned auto_increment", "4", "10", "'", "'", null, "0", "0", "3", "1", "0", "1", "integer unsigned auto_increment", null, null, "4", null, "10", null],
+      ["mediumint auto_increment", "4", "7", "'", "'", null, "0", "0", "3", "0", "0", "1", "Medium integer auto_increment", null, null, "4", null, "10", null],
+      ["mediumint unsigned auto_increment", "4", "8", "'", "'", null, "0", "0", "3", "1", "0", "1", "Medium integer unsigned auto_increment", null, null, "4", null, "10", null],
+      ["smallint", "5", "5", "'", "'", null, "1", "0", "3", "0", "0", "0", "smallint", null, null, "5", null, "10", null],
+      ["smallint unsigned", "5", "5", "'", "'", null, "1", "0", "3", "1", "0", "0", "smallint unsigned", null, null, "5", null, "10", null],
+      ["smallint auto_increment", "5", "5", "'", "'", null, "0", "0", "3", "0", "0", "1", "smallint auto_increment", null, null, "5", null, "10", null],
+      ["smallint unsigned auto_increment", "5", "5", "'", "'", null, "0", "0", "3", "1", "0", "1", "smallint unsigned auto_increment", null, null, "5", null, "10", null],
+      ["double", "6", "15", "'", "'", null, "1", "0", "3", "0", "0", "0", "double", "0", "4", "6", null, "2", null],
+      ["double auto_increment", "6", "15", "'", "'", null, "0", "0", "3", "0", "0", "1", "double auto_increment", "0", "4", "6", null, "2", null],
+      ["float", "7", "7", "'", "'", null, "1", "0", "0", "0", "0", "0", "float", "0", "2", "7", null, "2", null],
+      ["float auto_increment", "7", "7", "'", "'", null, "0", "0", "0", "0", "0", "1", "float auto_increment", "0", "2", "7", null, "2", null],
+      ["double", "8", "15", "'", "'", null, "1", "0", "3", "0", "0", "0", "double", "0", "4", "8", null, "2", null],
+      ["double auto_increment", "8", "15", "'", "'", null, "0", "0", "3", "0", "0", "1", "double auto_increment", "0", "4", "8", null, "2", null],
+      ["date", "91", "10", "'", "'", null, "1", "0", "3", null, "0", null, "date", null, null, "9", "91", null, null],
+      ["time", "92", "8", "'", "'", null, "1", "0", "3", null, "0", null, "time", null, null, "9", "92", null, null],
+      ["year", "5", "4", "'", "'", null, "1", "0", "3", "0", "0", "0", "year", null, null, "5", null, "10", null],
+      ["datetime", "93", "21", "'", "'", null, "1", "0", "3", null, "0", null, "datetime", "0", "0", "9", "93", null, null],
+      ["timestamp", "93", "14", "'", "'", null, "0", "0", "3", null, "0", null, "timestamp", "0", "0", "9", "93", null, null],
+      ["varchar", "12", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "varchar", "0", "0", "12", null, "10", null],
+      ["varchar", "-9", "255", "'", "'", "length", "1", "0", "3", null, "0", null, "varchar", "0", "0", "-9", null, "10", null]
+    ],
+    "row_count": 62
+  },
+  "SQLTables": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLProcedures": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLProcedureColumns": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLTablePrivileges": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLColumnPrivileges": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLPrimaryKeys": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLForeignKeys": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLSpecialColumns": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLStatistics": {
+    "return_code": -1,
+    "error": "Error: HY000 - [MySQL][ODBC 9.5(a) Driver][mysqld-9.2.0]Support for schemas is disabled by NO_SCHEMA option, but non-empty schema is specified."
+  },
+  "SQLNumResultCols": {
+    "return_code": 0,
+    "column_count": 1
+  },
+  "SQLDescribeCol": {
+    "return_code": 0,
+    "column_name": "1",
+    "data_type": -5
+  },
+  "SQLColAttribute": {
+    "return_code": 0,
+    "attribute_type": -5
+  },
+  "SQLColAttributes": {
+    "return_code": 0,
+    "column_type": -5
+  },
+  "SQLNumParams": {
+    "return_code": 0,
+    "parameter_count": 5
+  }
+}

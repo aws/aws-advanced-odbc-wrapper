@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - '**'
   pull_request:
     branches:
       - main
@@ -37,33 +37,64 @@ jobs:
   build-win-psqlodbc:
     name: Windows - Build psqlODBC
     runs-on: windows-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          $VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
+          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}-
       - name: Download psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
-          mkdir psqlodbc
-          cd psqlodbc
-          $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
-          curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+          if (-not (Test-Path psqlodbc)) { mkdir psqlodbc }
+          if (-not (Test-Path psqlodbc/psqlodbc_x64.msi)) {
+            cd psqlodbc
+            $DOWNLOAD_URL=$(gh api repos/postgresql-interfaces/psqlodbc/releases --jq '.[0].assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url')
+            curl.exe -L ${DOWNLOAD_URL} --output psqlodbc_x64.msi
+          }
         env:
           GH_TOKEN: ${{ github.token }}
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
     runs-on: macos-15
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
+      pg-major-version: ${{ steps.pg-version.outputs.pg_major }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Detect installed PostgreSQL major version
+        id: pg-version
+        run: |
+          PG_MAJOR=$(brew info --json=v2 --formula postgresql | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['formulae'][0]['versions']['stable'].split('.')[0])")
+          echo "pg_major=$PG_MAJOR" >> "$GITHUB_OUTPUT"
+          echo "Detected PostgreSQL major version: $PG_MAJOR"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ steps.pg-version.outputs.pg_major }}-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -86,13 +117,23 @@ jobs:
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
     runs-on: ubuntu-latest
+    outputs:
+      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Get psqlODBC latest release version
+        id: psqlodbc-version
+        run: |
+          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "psqlODBC version: $VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@v6
@@ -129,7 +170,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -146,7 +187,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -163,7 +204,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
       - name: Download mysql-connector
         if: ${{steps.cache-mysql-connector.outputs.cache-hit != 'true'}}
         run: |
@@ -211,7 +252,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Install psqlODBC Driver
         shell: pwsh
@@ -247,7 +288,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         shell: pwsh
@@ -302,12 +343,12 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}
           TEST_BASE_DSN: pg-dsn
-      - name: Compare Test Results
+      - name: Compare Test Results for PostgreSQL
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
           pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+          python test/compatibility/compare_results.py wrapper-pg-dsn --expected test/compatibility/expected_output/ansi/windows/pg-dsn
       - name: Install MySQL Ansi DSNs
         shell: pwsh
         run: |
@@ -342,12 +383,12 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9a.dll
           TEST_BASE_DSN: mysql-dsn
-      - name: Compare Test Results
+      - name: Compare Test Results for MySQL
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
           pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
+          python test/compatibility/compare_results.py wrapper-mysql-dsn --expected test/compatibility/expected_output/ansi/windows/mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v6
         if: always()
@@ -391,7 +432,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Detect psqlODBC driver path
         id: psqlodbc-path
@@ -421,14 +462,14 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         id: mysql-path
@@ -489,12 +530,12 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results
+      - name: Compare Test Results for PostgreSQL
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected test/compatibility/expected_output/ansi/macos/pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
           ./test-compatibility/compatibility-test
@@ -509,12 +550,12 @@ jobs:
           TEST_BASE_DSN: mysql-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results
+      - name: Compare Test Results for MySQL
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected test/compatibility/expected_output/ansi/macos/mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v6
         if: always()
@@ -557,7 +598,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Log psqlODBC driver location
         run: |
@@ -580,7 +621,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: mysql-connector/
-          key: ${{ runner.os }}-mysql-driver
+          key: ${{ runner.os }}-mysql-driver-9.5.0
           fail-on-cache-miss: true
       - name: Log MySQL driver location
         run: |
@@ -621,12 +662,12 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results
+      - name: Compare Test Results for PostgreSQL
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn pg-dsn
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected test/compatibility/expected_output/ansi/linux/pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
           ./test-compatibility/compatibility-test
@@ -641,17 +682,484 @@ jobs:
           TEST_BASE_DSN: mysql-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results
+      - name: Compare Test Results for MySQL
         run: |
           python3 -m venv venv
           source venv/bin/activate
           pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn mysql-dsn
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected test/compatibility/expected_output/ansi/linux/mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@v6
         if: always()
         with:
           name: odbc-api-compatibility-test-results-linux
+          path: |
+            wrapper-pg-dsn/
+            pg-dsn/
+            wrapper-mysql-dsn/
+            mysql-dsn/
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Unicode compatibility tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+  test-win-compat-unicode:
+    name: Windows - Compatibility Test (Unicode)
+    needs: [build-win-psqlodbc, build-win-mysql]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
+      - name: Setup Dotnet for WiX
+        uses: actions/setup-dotnet@v5
+      - name: Install WiX
+        shell: cmd
+        run: |
+          dotnet tool install --global wix --version ${{env.WIX_VERSION}}
+          wix extension add --global WixToolset.UI.wixext/${{env.WIX_VERSION}}
+      - name: Run build installer script
+        shell: pwsh
+        run: |
+          ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
+      - name: Install driver
+        shell: pwsh
+        working-directory: installer
+        run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
+      # Setup PostgreSQL
+      - name: Retrieve psqlODBC Cache
+        uses: actions/cache@v5
+        with:
+          path: psqlodbc
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}
+          fail-on-cache-miss: true
+      - name: Install psqlODBC Driver
+        shell: pwsh
+        working-directory: psqlodbc
+        run: |
+          Start-Process msiexec "/i psqlodbc_x64.msi /quiet /norestart" -Wait;
+      - name: Detect psqlODBC Unicode Driver Path
+        id: psqlodbc-path
+        shell: pwsh
+        run: |
+          $driverFile = Get-ChildItem -Path "C:\Program Files\psqlODBC" -Recurse -Filter "psqlodbc35w.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $driverFile) {
+            $driverFile = Get-ChildItem -Path "C:\Program Files\psqlODBC" -Recurse -Filter "podbc35w.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $driverFile) {
+            Write-Error "Could not find psqlODBC Unicode driver DLL under C:\Program Files\psqlODBC"
+            exit 1
+          }
+          $driverPath = $driverFile.FullName
+          Write-Host "Detected psqlODBC Unicode driver path: $driverPath"
+          echo "PSQLODBC_UNICODE_DRIVER_PATH=$driverPath" >> $env:GITHUB_OUTPUT
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v8
+        with:
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
+          port: 5432
+          postgres-version: 17
+          ssl: true
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v5
+        with:
+          path: mysql-connector
+          key: ${{ runner.os }}-mysql-driver-9.5.0
+          fail-on-cache-miss: true
+      - name: Install MySQL Connector ODBC
+        shell: pwsh
+        working-directory: mysql-connector
+        run: |
+          Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
+      - name: Setup Local MySQL
+        run: |
+          choco install mysql --version 9.2.0
+          $mysqlExe = Get-ChildItem -Path "C:\tools\mysql" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          & $mysqlExe.FullName --protocol=TCP -u root -P 3306 --execute="source ${{ github.workspace }}/scripts/init_local_mysql_query.sql"
+      - name: Build Compatibility Tests (Unicode)
+        run: |
+          cmake -S test/compatibility -B build_test_w -DUNICODE=ON
+          cmake --build build_test_w --config ${{env.BUILD_CONFIG}}
+      - name: Install PostgreSQL Unicode DSNs
+        shell: pwsh
+        run: |
+          Add-OdbcDsn -Name wrapper-pg-dsn-w `
+            -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+            -DsnType User `
+            -SetPropertyValue `
+            @("RDS_AUTH_TYPE=database", `
+            "Server=localhost", `
+            "Database=${{env.LOCAL_DB_NAME}}", `
+            "Port=5432", `
+            "SSLMode=prefer", `
+            "BASE_DRIVER=${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}")
+          Add-OdbcDsn -Name pg-dsn-w `
+            -DriverName "PostgreSQL Unicode(x64)" `
+            -DsnType User `
+            -SetPropertyValue `
+            @("SERVER=localhost", "PORT=5432")
+      - name: Run Compatibility Tests for PostgreSQL (Unicode)
+        run: |
+          ./build_test_w/${{env.BUILD_CONFIG}}/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-pg-dsn-w
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}
+          TEST_BASE_DSN: pg-dsn-w
+      - name: Compare Test Results for PostgreSQL (Unicode)
+        run: |
+          python3 -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip3 install deepdiff
+          python test/compatibility/compare_results.py wrapper-pg-dsn-w --expected test/compatibility/expected_output/unicode/windows/pg-dsn
+      - name: Install MySQL Unicode DSNs
+        shell: pwsh
+        run: |
+          Add-OdbcDsn -Name wrapper-mysql-dsn-w `
+            -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+            -DsnType User `
+            -SetPropertyValue `
+            @("RDS_AUTH_TYPE=database", `
+            "Server=localhost", `
+            "Database=${{env.LOCAL_DB_NAME}}", `
+            "Port=3306", `
+            "SSLMode=prefer", `
+            "BASE_DRIVER=C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9w.dll")
+          Add-OdbcDsn -Name mysql-dsn-w `
+            -DriverName "MySQL ODBC 9.5 Unicode Driver" `
+            -DsnType User `
+            -SetPropertyValue `
+            @("SERVER=localhost", "PORT=3306")
+      - name: Run Compatibility Tests for MySQL (Unicode)
+        run: |
+          ./build_test_w/${{env.BUILD_CONFIG}}/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn-w
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9w.dll
+          TEST_BASE_DSN: mysql-dsn-w
+      - name: Compare Test Results for MySQL (Unicode)
+        run: |
+          python3 -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip3 install deepdiff
+          python test/compatibility/compare_results.py wrapper-mysql-dsn-w --expected test/compatibility/expected_output/unicode/windows/mysql-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-windows-unicode
+          path: |
+            wrapper-pg-dsn-w/
+            pg-dsn-w/
+            wrapper-mysql-dsn-w/
+            mysql-dsn-w/
+
+  test-macos-compat-unicode:
+    name: MacOS - Compatibility Test (Unicode)
+    needs: [build-macos-psqlodbc, build-macos-mysql]
+    runs-on: macos-15
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper (Unicode)
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/
+          cmake --build build
+      # Setup PostgreSQL
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v5
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
+          fail-on-cache-miss: true
+      - name: Detect psqlODBC Unicode driver path
+        id: psqlodbc-path
+        run: |
+          if [ -f "${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so" ]; then
+            PG_DRIVER_W="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so"
+          elif [ -f "${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.dylib" ]; then
+            PG_DRIVER_W="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.dylib"
+          else
+            echo "ERROR: Could not find psqlODBC Unicode driver in psqlodbc/.libs/"
+            exit 1
+          fi
+          echo "Detected psqlODBC Unicode driver: $PG_DRIVER_W"
+          echo "PSQLODBC_UNICODE_DRIVER_PATH=$PG_DRIVER_W" >> "$GITHUB_OUTPUT"
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v8
+        with:
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
+          port: 5432
+          postgres-version: ${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}
+          ssl: true
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v5
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver-9.5.0
+          fail-on-cache-miss: true
+      - name: Detect MySQL Unicode driver path
+        id: mysql-path
+        run: |
+          if [ -f "${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so" ]; then
+            MYSQL_DRIVER_W="${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so"
+          elif [ -f "${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.dylib" ]; then
+            MYSQL_DRIVER_W="${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.dylib"
+          else
+            echo "ERROR: Could not find MySQL ODBC Unicode driver in mysql-connector/lib/"
+            exit 1
+          fi
+          echo "Detected MySQL Unicode driver: $MYSQL_DRIVER_W"
+          echo "MYSQL_UNICODE_DRIVER_PATH=$MYSQL_DRIVER_W" >> "$GITHUB_OUTPUT"
+      - name: Setup Local MySQL
+        run: |
+          brew install mysql
+          brew services restart mysql
+          mysql.server start
+          mysql -u root < ./scripts/init_local_mysql_query.sql
+      - name: Build Compatibility Tests (Unicode)
+        run: |
+          cmake -S test/compatibility -B test-compatibility-w \
+            -D UNICODE=ON \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+            -D PG_DRIVER_PATH="${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}" \
+            -D PG_SERVER="localhost" \
+            -D PG_DATABASE="${{env.LOCAL_DB_NAME}}" \
+            -D MYSQL_DRIVER_PATH="${{ steps.mysql-path.outputs.MYSQL_UNICODE_DRIVER_PATH }}" \
+            -D MYSQL_SERVER="localhost" \
+            -D MYSQL_DATABASE="${{env.LOCAL_DB_NAME}}"
+          cmake --build test-compatibility-w
+      - name: Run Compatibility Tests for PostgreSQL (Unicode)
+        run: |
+          ./test-compatibility-w/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-pg-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}
+          TEST_BASE_DSN: pg-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results for PostgreSQL (Unicode)
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected test/compatibility/expected_output/unicode/macos/pg-dsn
+      - name: Setup iODBC for MySQL Unicode driver
+        run: |
+          curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
+          MOUNTDIR=$(echo `hdiutil mount iodbc.dmg | tail -1 \
+          | awk '{$1=$2=""; print $0}'` | xargs -0 echo) \
+          && sudo installer -pkg "${MOUNTDIR}/"*.pkg -target /
+      - name: Run Compatibility Tests for MySQL (Unicode)
+        run: |
+          ./test-compatibility-w/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: ${{ steps.mysql-path.outputs.MYSQL_UNICODE_DRIVER_PATH }}
+          TEST_BASE_DSN: mysql-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          ODBCINSTINI: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          ODBCINI_IODBC: "${{ github.workspace }}/test/resources/odbc.ini"
+      - name: Compare Test Results for MySQL (Unicode)
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected test/compatibility/expected_output/unicode/macos/mysql-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-macos-unicode
+          path: |
+            wrapper-pg-dsn/
+            pg-dsn/
+            wrapper-mysql-dsn/
+            mysql-dsn/
+
+  test-linux-compat-unicode:
+    name: Linux Ubuntu - Compatibility Test (Unicode)
+    needs: [build-linux-psqlodbc, build-linux-mysql]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+      - name: Build AWS SDK for C++
+        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Build aws-advanced-odbc-wrapper (Unicode)
+        run: |
+          cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_UNIT_TEST=OFF
+          cmake --build build
+      # Setup PostgreSQL
+      - name: Retrieve psqlODBC Cache
+        id: cache-psqlodbc
+        uses: actions/cache@v5
+        with:
+          path: psqlodbc/.libs/
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}
+          fail-on-cache-miss: true
+      - name: Setup Local PostgreSQL Server
+        uses: ikalnytskyi/action-setup-postgres@v8
+        with:
+          username: ${{env.LOCAL_DB_UID}}
+          password: ${{env.LOCAL_DB_PWD}}
+          database: ${{env.LOCAL_DB_NAME}}
+          port: 5432
+          postgres-version: 17
+          ssl: true
+      # Setup MySQL
+      - name: Retrieve MySQL Cache
+        uses: actions/cache@v5
+        with:
+          path: mysql-connector/
+          key: ${{ runner.os }}-mysql-driver-9.5.0
+          fail-on-cache-miss: true
+      - name: Install MySQL Connector
+        run: |
+          sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
+      - name: Setup Local MySQL
+        run: |
+          sudo systemctl start mysql.service
+          sudo mysql -u root -proot < ./scripts/init_local_mysql_query.sql
+      - name: Build Compatibility Tests (Unicode)
+        run: |
+          cmake -S test/compatibility -B test-compatibility-w \
+            -D UNICODE=ON \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+            -D PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so" \
+            -D PG_SERVER="localhost" \
+            -D PG_DATABASE="${{env.LOCAL_DB_NAME}}" \
+            -D MYSQL_DRIVER_PATH="/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so" \
+            -D MYSQL_SERVER="localhost" \
+            -D MYSQL_DATABASE="${{env.LOCAL_DB_NAME}}"
+          cmake --build test-compatibility-w
+      - name: Run Compatibility Tests for PostgreSQL (Unicode)
+        run: |
+          ./test-compatibility-w/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '5432'
+          TEST_DSN: wrapper-pg-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: ${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so
+          TEST_BASE_DSN: pg-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+      - name: Compare Test Results for PostgreSQL (Unicode)
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected test/compatibility/expected_output/unicode/linux/pg-dsn
+      - name: Build iODBC from source for MySQL Unicode driver
+        # Built after PG tests finish so unixodbc-dev stays intact during the
+        # cmake build and PG test run. The source build avoids apt removing
+        # unixodbc-dev as a conflicting package.
+        run: |
+          sudo apt-get remove -y unixodbc unixodbc-dev libodbc2 || true
+          curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/libiodbc-3.52.16.tar.gz/download \
+            --output libiodbc.tar.gz
+          tar xzf libiodbc.tar.gz
+          cd libiodbc-3.52.16
+          ./configure --prefix=/usr/local/iodbc --disable-gui --disable-gtktest
+          make
+          sudo make install
+          # The compatibility-test binary was linked against unixODBC's libodbc.so.2
+          # before unixodbc was removed. Symlink libiodbc.so.2 to libodbc.so.2 so
+          # the binary's runtime loader can still find an ODBC driver manager.
+          sudo ln -sf /usr/local/iodbc/lib/libiodbc.so.2 /usr/local/iodbc/lib/libodbc.so.2
+      - name: Run Compatibility Tests for MySQL (Unicode)
+        run: |
+          ./test-compatibility-w/compatibility-test
+        env:
+          TEST_SERVER: localhost
+          TEST_PORT: '3306'
+          TEST_DSN: wrapper-mysql-dsn
+          TEST_DATABASE: ${{env.LOCAL_DB_NAME}}
+          TEST_USERNAME: ${{env.LOCAL_DB_UID}}
+          TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
+          TEST_BASE_DRIVER: /usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so
+          TEST_BASE_DSN: mysql-dsn
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          ODBCINSTINI: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          LD_LIBRARY_PATH: "/usr/local/iodbc/lib"
+      - name: Compare Test Results for MySQL (Unicode)
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip3 install deepdiff
+          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected test/compatibility/expected_output/unicode/linux/mysql-dsn
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: odbc-api-compatibility-test-results-linux-unicode
           path: |
             wrapper-pg-dsn/
             pg-dsn/

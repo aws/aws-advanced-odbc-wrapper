@@ -1,0 +1,9 @@
+{
+  "SQLSetCursorName": {
+    "return_code": -2
+  },
+  "SQLGetCursorName": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  }
+}

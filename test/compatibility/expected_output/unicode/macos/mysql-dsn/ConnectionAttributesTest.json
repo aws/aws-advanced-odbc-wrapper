@@ -1,0 +1,17 @@
+{
+  "SQLGetConnectAttr_CURRENT_CATALOG": {
+    "return_code": -1,
+    "error": "Error: 08003 - [unixODBC][Driver Manager]Connection not open"
+  },
+  "SQLGetConnectAttr_AUTOCOMMIT": {
+    "return_code": 0,
+    "value": 1
+  },
+  "SQLSetConnectAttr_AUTOCOMMIT_OFF": {
+    "return_code": 0
+  },
+  "SQLGetConnectOption_CURRENT_CATALOG": {
+    "return_code": -1,
+    "error": "Error: 08003 - [unixODBC][Driver Manager]Connection not open"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "SQLGetDiagRec": {
+    "return_code": -2,
+    "error": "no diagnostic record available"
+  },
+  "SQLGetDiagField_SQLSTATE": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLGetDiagField_NUMBER": {
+    "return_code": -2,
+    "value": 0
+  },
+  "SQLGetDiagField_MESSAGE_TEXT": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLError": {
+    "return_code": -2,
+    "error": "no error record available"
+  }
+}

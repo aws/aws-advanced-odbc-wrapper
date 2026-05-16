@@ -1,0 +1,42 @@
+{
+  "SQLGetTypeInfo": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLTables": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLProcedures": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLProcedureColumns": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLTablePrivileges": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLColumnPrivileges": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLPrimaryKeys": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLForeignKeys": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLSpecialColumns": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLStatistics": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  }
+}

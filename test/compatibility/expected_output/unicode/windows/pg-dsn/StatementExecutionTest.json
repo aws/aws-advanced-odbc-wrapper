@@ -1,0 +1,34 @@
+{
+  "SQLExecDirect": {
+    "return_code": 0,
+    "SQLGetData_return_code": 0,
+    "value": "some_value",
+    "indicator": 20
+  },
+  "SQLPrepare": {
+    "return_code": 0
+  },
+  "SQLBindParameter": {
+    "return_code": 0
+  },
+  "SQLExecute": {
+    "return_code": 0,
+    "value": "test_param_value"
+  },
+  "SQLBindCol": {
+    "return_code": 0,
+    "fetch_return_code": 0,
+    "string_value": "bind_col_test",
+    "int_value": 42
+  },
+  "SQLPutData": {
+    "execute_return_code": 99,
+    "put_data_return_code": 0,
+    "final_return_code": 0
+  },
+  "SQLNativeSql": {
+    "return_code": 0,
+    "output": "SELECT {fn NOW()}",
+    "output_length": 17
+  }
+}

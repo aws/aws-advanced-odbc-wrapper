@@ -1,0 +1,29 @@
+{
+  "SQLExecDirect": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLPrepare": {
+    "return_code": -2
+  },
+  "SQLBindParameter": {
+    "return_code": -2
+  },
+  "SQLExecute": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLBindCol": {
+    "return_code": -2,
+    "fetch_return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLPutData": {
+    "execute_return_code": -2,
+    "note": "SQL_NEED_DATA not returned"
+  },
+  "SQLNativeSql": {
+    "return_code": -1,
+    "error": "Error: 08003 - [unixODBC][Driver Manager]Connection not open"
+  }
+}

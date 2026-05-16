@@ -1,0 +1,35 @@
+{
+  "SQLSetStmtAttr_CURSOR_STATIC": {
+    "return_code": -2
+  },
+  "SQLExecDirect": {
+    "return_code": -2
+  },
+  "SQLFetchScroll_FIRST": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLFetchScroll_NEXT": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLFetchScroll_LAST": {
+    "return_code": -2,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLExtendedFetch_FIRST": {
+    "return_code": -2,
+    "row_count": 0,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLExtendedFetch_NEXT": {
+    "return_code": -2,
+    "row_count": 0,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  },
+  "SQLExtendedFetch_LAST": {
+    "return_code": -2,
+    "row_count": 0,
+    "error": "Unknown error - Original return code: -2, SQLGetDiagRec return code: -2 (no diagnostic information available)"
+  }
+}

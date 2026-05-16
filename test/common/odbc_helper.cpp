@@ -25,6 +25,9 @@
 
 #include "../common/string_helper.h"
 
+#define SQL_MAX_MESSAGE_LENGTH  1024
+#define SQL_STATE_LENGTH  6
+
 SQLRETURN ODBC_HELPER::DriverConnect(SQLHDBC hdbc, std::string conn_str) {
     std::cout << "Connecting to: " << conn_str << std::endl;
 
@@ -87,8 +90,8 @@ SQLRETURN ODBC_HELPER::ExecuteQuery(SQLHSTMT stmt, std::string query) {
 }
 
 void ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
-    SQLTCHAR    sqlstate[6] = { 0 };
-    SQLTCHAR    message[1024] = { 0 };
+    SQLTCHAR    sqlstate[SQL_STATE_LENGTH] = { 0 };
+    SQLTCHAR    message[SQL_MAX_MESSAGE_LENGTH] = { 0 };
     SQLINTEGER  native_error = 0;
     SQLSMALLINT textlen = 0;
     SQLRETURN   ret = SQL_ERROR;
@@ -96,7 +99,7 @@ void ODBC_HELPER::PrintHandleError(SQLHANDLE handle, int32_t handle_type) {
 
     do {
         recno++;
-        ret = SQLGetDiagRec(handle_type, handle, recno, sqlstate, &native_error, message, sizeof(message), &textlen);
+        ret = SQLGetDiagRec(handle_type, handle, recno, sqlstate, &native_error, message, SQL_MAX_MESSAGE_LENGTH, &textlen);
         if (ret == SQL_INVALID_HANDLE) {
             std::cout << "Invalid handle" << std::endl;
         } else if (SQL_SUCCEEDED(ret)) {

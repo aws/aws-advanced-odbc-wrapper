@@ -1,0 +1,27 @@
+{
+  "SQLGetDiagRec": {
+    "return_code": 0,
+    "sqlstate": "42P01",
+    "native_error": 1,
+    "message_length": 93
+  },
+  "SQLGetDiagField_SQLSTATE": {
+    "return_code": 0,
+    "value": "42P01",
+    "string_length": 5
+  },
+  "SQLGetDiagField_NUMBER": {
+    "return_code": 0,
+    "value": 1
+  },
+  "SQLGetDiagField_MESSAGE_TEXT": {
+    "return_code": 0,
+    "string_length": 93
+  },
+  "SQLError": {
+    "return_code": 0,
+    "sqlstate": "42P01",
+    "native_error": 1,
+    "message_length": 91
+  }
+}

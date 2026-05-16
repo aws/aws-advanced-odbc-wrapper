@@ -1,0 +1,21 @@
+{
+  "SQLGetDescField_NAME": {
+    "return_code": 0,
+    "value": "col1",
+    "string_length": 8
+  },
+  "SQLGetDescField_TYPE": {
+    "return_code": 0,
+    "value": -10
+  },
+  "SQLGetDescRec": {
+    "return_code": 0,
+    "name": "col1",
+    "name_length": 4,
+    "type": -10,
+    "nullable": 1
+  },
+  "SQLSetDescField": {
+    "return_code": 0
+  }
+}
