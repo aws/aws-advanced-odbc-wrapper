@@ -37,6 +37,8 @@ public:
 private:
     std::vector<HostInfo> hosts_;
     std::shared_ptr<HostSelector> host_selector_;
+
+    static inline const std::chrono::milliseconds DEFAULT_TOPOLOGY_REFRESH_TIMEOUT_MS = std::chrono::milliseconds(30000);
 };
 
 #endif // READ_WRITE_SPLITTING_PLUGIN_H

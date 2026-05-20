@@ -20,6 +20,10 @@
 #else
     #include <arpa/inet.h>
     #include <netdb.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
+    #include <fcntl.h>
+    #include <poll.h>
     /* Below adds memset_s if available */
     #ifdef __STDC_LIB_EXT1__
         #define __STDC_WANT_LIB_EXT1__ 1
@@ -84,6 +88,83 @@ std::string TEST_UTILS::HostToIp(std::string hostname) {
 
     freeaddrinfo(servinfo);
     return std::string(ipstr);
+}
+
+bool TEST_UTILS::CanTcpConnect(const std::string& hostname, int port, int timeout_seconds) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2,2), &wsaData);
+#endif
+
+    struct addrinfo hints;
+    struct addrinfo* servinfo = nullptr;
+    ClearMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+
+    std::string port_str = std::to_string(port);
+    if (getaddrinfo(hostname.c_str(), port_str.c_str(), &hints, &servinfo) != 0) {
+        return false;
+    }
+
+    bool connected = false;
+    for (struct addrinfo* p = servinfo; p != nullptr; p = p->ai_next) {
+        int sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if (sock < 0) continue;
+
+#ifdef _WIN32
+        unsigned long mode = 1;
+        ioctlsocket(sock, FIONBIO, &mode);
+#else
+        int flags = fcntl(sock, F_GETFL, 0);
+        fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+#endif
+
+        int rc = connect(sock, p->ai_addr, p->ai_addrlen);
+        if (rc == 0) {
+            connected = true;
+        } else {
+#ifdef _WIN32
+            if (WSAGetLastError() == WSAEWOULDBLOCK) {
+                fd_set writefds;
+                FD_ZERO(&writefds);
+                FD_SET(sock, &writefds);
+                struct timeval tv;
+                tv.tv_sec = timeout_seconds;
+                tv.tv_usec = 0;
+                if (select(sock + 1, nullptr, &writefds, nullptr, &tv) > 0) {
+                    int err = 0;
+                    int len = sizeof(err);
+                    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+                    connected = (err == 0);
+                }
+            }
+#else
+            if (errno == EINPROGRESS) {
+                struct pollfd pfd;
+                pfd.fd = sock;
+                pfd.events = POLLOUT;
+                if (poll(&pfd, 1, timeout_seconds * 1000) > 0) {
+                    int err = 0;
+                    socklen_t len = sizeof(err);
+                    getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
+                    connected = (err == 0);
+                }
+            }
+#endif
+        }
+
+#ifdef _WIN32
+        closesocket(sock);
+#else
+        close(sock);
+#endif
+
+        if (connected) break;
+    }
+
+    freeaddrinfo(servinfo);
+    return connected;
 }
 
 void TEST_UTILS::ClearMemory(void* dest, size_t count) {

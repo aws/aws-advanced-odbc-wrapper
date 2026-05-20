@@ -102,6 +102,12 @@ ClusterTopologyMonitor::~ClusterTopologyMonitor() {
     odbc_helper_->FreeEnv(&henv_);
 }
 
+void ClusterTopologyMonitor::UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {
+    const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+    dialect_ = dialect;
+    topology_util_ = topology_util;
+}
+
 void ClusterTopologyMonitor::SetClusterId(const std::string& cluster_id) {
     this->cluster_id_ = cluster_id;
 }
@@ -118,8 +124,24 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
 
     if (verify_writer) {
         const std::lock_guard hdbc_lock(hdbc_mutex_);
-        CleanUpDbc(main_hdbc_);
-        is_writer_connection_.store(false);
+        // For Multi-AZ clusters, skip destroying the monitor connection immediately.
+        // After failover, the connection is likely dead (RDS terminates the primary),
+        // but we let the monitor's next poll cycle detect this via GetNodeId() returning
+        // empty, which triggers CleanUpDbc in OpenAnyConnGetHosts. This avoids the full
+        // panic-mode node-thread reconnection and allows faster topology rediscovery
+        // through the normal monitoring flow.
+        std::shared_ptr<Dialect> local_dialect;
+        {
+            const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+            local_dialect = dialect_;
+        }
+        const DatabaseDialectType dialect_type = local_dialect ? local_dialect->GetDialectType() : UNKNOWN_DIALECT;
+        if (dialect_type == DatabaseDialectType::MULTI_AZ_MYSQL || dialect_type == DatabaseDialectType::MULTI_AZ_PG) {
+            is_writer_connection_.store(false);
+        } else {
+            CleanUpDbc(main_hdbc_);
+            is_writer_connection_.store(false);
+        }
     }
 
     std::vector<HostInfo> hosts = WaitForTopologyUpdate(timeout_ms);
@@ -224,11 +246,18 @@ void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
 
 std::vector<HostInfo> ClusterTopologyMonitor::FetchTopologyUpdateCache(const SQLHDBC hdbc) {
     std::vector<HostInfo> hosts;
-    if (GetNodeId(hdbc, dialect_, odbc_helper_).empty()) {
+    std::shared_ptr<Dialect> local_dialect;
+    std::shared_ptr<TopologyUtil> local_topology_util;
+    {
+        const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+        local_dialect = dialect_;
+        local_topology_util = topology_util_;
+    }
+    if (GetNodeId(hdbc, local_dialect, odbc_helper_).empty()) {
         LOG(ERROR) << "Cluster Monitor invalid connection for querying for ClusterId: " << cluster_id_;
         return hosts;
     }
-    hosts = topology_util_->QueryTopology(hdbc, initial_host_, template_host_);
+    hosts = local_topology_util->QueryTopology(hdbc, initial_host_, template_host_);
     if (hosts.empty()) {
         LOG(ERROR) << "Cluster Monitor queried and found no topology for ClusterId: " << cluster_id_;
     } else {
@@ -276,6 +305,9 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
         local_dbc->plugin_service = this->plugin_service_;
+        local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+        local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rc)) {
             odbc_helper_->DisconnectAndFree(&local_hdbc);
@@ -285,15 +317,20 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         const std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
         if (!main_hdbc_) {
             main_hdbc_ = std::make_shared<SQLHDBC>(local_hdbc);
-            const std::string writer_id = topology_util_->GetWriterId(local_dbc);
-            if (!writer_id.empty()) {
+            std::shared_ptr<TopologyUtil> local_topology_util;
+            {
+                const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+                local_topology_util = topology_util_;
+            }
+            if (local_topology_util->GetConnectionRole(local_dbc) == WRITER) {
+                const std::string writer_id = local_topology_util->GetWriterId(local_dbc);
                 LOG(INFO) << "Cluster topology monitor detected writer: " << writer_id;
                 thread_writer_verified = true;
                 is_writer_connection_.store(true);
                 // TODO(yuenhcol), double lock makes this complicated & complex, need to come back to refactor
                 const std::lock_guard host_info_lock(node_threads_writer_hdbc_mutex_);
                 main_writer_host_info_ = std::make_shared<HostInfo>(
-                    topology_util_->CreateHost(
+                    local_topology_util->CreateHost(
                         writer_id, template_host_.GetPort(), UP, WRITER, 0, std::chrono::steady_clock::now()
                     )
                 );
@@ -407,10 +444,15 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
 bool ClusterTopologyMonitor::GetPossibleWriterConn() {
     const std::lock_guard<std::mutex> node_lock(node_threads_writer_hdbc_mutex_);
     const std::lock_guard<std::mutex> hostinfo_lock(node_threads_writer_host_info_mutex_);
+    std::shared_ptr<Dialect> local_dialect;
+    {
+        const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+        local_dialect = dialect_;
+    }
     auto* local_hdbc = node_threads_writer_hdbc_ ?
         static_cast<SQLHDBC>(*node_threads_writer_hdbc_) : SQL_NULL_HDBC;
     const HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, READER);
-    if (SQL_NULL_HDBC != local_hdbc && !GetNodeId(local_hdbc, dialect_, odbc_helper_).empty() && local_hostinfo.IsHostUp()) {
+    if (SQL_NULL_HDBC != local_hdbc && !GetNodeId(local_hdbc, local_dialect, odbc_helper_).empty() && local_hostinfo.IsHostUp()) {
         LOG(INFO) << "The writer host detected by the node monitors was picked up by the topology monitor: " << local_hostinfo;
         const std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
         CleanUpDbc(main_hdbc_);
@@ -456,6 +498,9 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
     this->writer_host_info_ = writer_host_info;
     this->odbc_helper_ = odbc_helper;
     odbc_helper_->AllocDbc(monitor->henv_, hdbc_);
+    DBC *init_dbc = static_cast<DBC*>(hdbc_);
+    init_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+    init_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
@@ -484,19 +529,25 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     local_dbc->plugin_service = main_monitor_->plugin_service_;
     try {
         while (!main_monitor_->node_threads_stop_.load()) {
-            if (GetNodeId(hdbc_, main_monitor_->dialect_, odbc_helper_).empty()) {
+            std::shared_ptr<Dialect> local_dialect;
+            std::shared_ptr<TopologyUtil> local_topology_util;
+            {
+                const std::lock_guard<std::mutex> lock(main_monitor_->topology_dialect_mutex_);
+                local_dialect = main_monitor_->dialect_;
+                local_topology_util = main_monitor_->topology_util_;
+            }
+            if (GetNodeId(hdbc_, local_dialect, odbc_helper_).empty()) {
                 if (hdbc_ != SQL_NULL_HDBC) {
                     // Not an initial connection.
                     LOG(WARNING) << "Failover Monitor for: " << thread_host << " not connected. Trying to reconnect";
                 }
                 HandleReconnect();
             } else {
-                // Get Writer ID
-                const std::string writer_id = main_monitor_->topology_util_->GetWriterId(hdbc_);
-                if (!writer_id.empty()) { // Connected to a Writer
-                    LOG(WARNING) << "Writer " << writer_id << " detected by node monitoring thread: " << thread_host;
+                const HOST_ROLE role = local_topology_util->GetConnectionRole(hdbc_);
+                if (role == WRITER) {
+                    LOG(WARNING) << "Writer detected by node monitoring thread: " << thread_host;
                     HandleWriterConn();
-                } else { // Connected to a Reader
+                } else {
                     HandleReaderConn();
                 }
             }
@@ -524,6 +575,8 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     local_dbc->conn_attr = conn_info_;
     local_dbc->plugin_service = main_monitor_->plugin_service_;
     local_dbc->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE);
+    local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+    local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
     const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(rc)) {
         odbc_helper_->DisconnectAndFree(&hdbc_);
@@ -579,12 +632,19 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
 
 void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
     auto* local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
+    std::shared_ptr<Dialect> local_dialect;
+    std::shared_ptr<TopologyUtil> local_topology_util;
+    {
+        const std::lock_guard<std::mutex> lock(main_monitor_->topology_dialect_mutex_);
+        local_dialect = main_monitor_->dialect_;
+        local_topology_util = main_monitor_->topology_util_;
+    }
     // Check connection
-    if (GetNodeId(local_hdbc, main_monitor_->dialect_, odbc_helper_).empty()) {
+    if (GetNodeId(local_hdbc, local_dialect, odbc_helper_).empty()) {
         return;
     };
     // Query for hosts
-    const std::vector<HostInfo> hosts = main_monitor_->topology_util_->QueryTopology(
+    const std::vector<HostInfo> hosts = local_topology_util->QueryTopology(
         local_hdbc, main_monitor_->initial_host_, main_monitor_->template_host_);
 
     // Share / update topology to main monitor

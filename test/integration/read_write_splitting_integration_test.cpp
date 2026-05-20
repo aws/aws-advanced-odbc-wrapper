@@ -54,16 +54,17 @@ protected:
         }
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
-        if (test_dialect == "AURORA_MYSQL") {
+        if (test_dialect == "AURORA_MYSQL" || test_dialect == "MULTI_AZ_MYSQL") {
             stmt_set_read_only_true = "set session transaction read only";
             stmt_set_read_only_false = "set session transaction read write";
-        } else if (test_dialect == "AURORA_POSTGRESQL") {
+        } else if (test_dialect == "AURORA_POSTGRESQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
             stmt_set_read_only_true = "set session characteristics as transaction read only";
             stmt_set_read_only_false = "set session characteristics as transaction read write";
         }
 
         // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
+        WaitForAllInstancesReady(rds_client, cluster_id);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         writer_id = GetWriterId(cluster_instances);
@@ -78,6 +79,7 @@ protected:
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
+            .withClusterId(cluster_id)
             .getString();
 
         reader_conn_str = ConnectionStringBuilder(test_dsn, GetEndpoint(reader_id), test_port)
@@ -86,6 +88,7 @@ protected:
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
+            .withClusterId(cluster_id)
             .getString();
     }
 
@@ -159,6 +162,7 @@ TEST_F(ReadWriteSplittingIntegrationTest, ReaderClusterConnectSetReadOnly) {
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
+            .withClusterId(cluster_id)
             .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, reader_cluster_conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);

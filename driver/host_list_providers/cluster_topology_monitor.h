@@ -61,6 +61,8 @@ public:
     );
     ~ClusterTopologyMonitor();
 
+    void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect);
+
     virtual void SetClusterId(const std::string& cluster_id);
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms);
     virtual std::vector<HostInfo> ForceRefresh(SQLHDBC hdbc, std::chrono::milliseconds timeout_ms);
@@ -78,6 +80,7 @@ protected:
 private:
     class NodeMonitoringThread;
     std::shared_ptr<TopologyUtil> topology_util_;
+    mutable std::mutex topology_dialect_mutex_;
     bool InPanicMode() const;
     std::vector<HostInfo> OpenAnyConnGetHosts();
     void CleanUpDbc(std::shared_ptr<SQLHDBC>& dbc);
@@ -146,6 +149,8 @@ private:
     std::shared_ptr<HostInfo> main_writer_host_info_;
 
     std::shared_ptr<Dialect> dialect_;
+
+    static constexpr int DEFAULT_TIMEOUT_SECONDS = 10;
 };
 
 class ClusterTopologyMonitor::NodeMonitoringThread {

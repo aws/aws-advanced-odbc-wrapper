@@ -45,6 +45,11 @@ protected:
     }
 
     void SetUp() override {
+        if (test_dialect == "MULTI_AZ_MYSQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
+            GTEST_SKIP() << "Custom endpoints aren't supported for multi-az clusters";
+            return;
+        }
+
         BaseFailoverIntegrationTest::SetUp();
         Aws::Auth::AWSCredentials credentials =
             session_token.empty() ? Aws::Auth::AWSCredentials(access_key, secret_access_key)

@@ -44,6 +44,8 @@ public:
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;
     virtual HostInfo GetConnectionInfo(SQLHDBC hdbc) override;
     virtual std::string GetClusterId() override;
+    virtual void UpdateDialect() override;
+    virtual void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) override;
 
 private:
     std::shared_ptr<ClusterTopologyMonitor> GetOrCreateMonitor();

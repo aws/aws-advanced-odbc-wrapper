@@ -105,7 +105,7 @@ public:
     MOCK_TOPOLOGY_UTIL() : TopologyUtil() {};
     MOCK_TOPOLOGY_UTIL(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect) : TopologyUtil(odbc_helper, dialect) {};
 
-    MOCK_METHOD(std::vector<HostInfo>, GetHosts, (SQLHSTMT stmt, const HostInfo& initial_host, const HostInfo& host_template), ());
+    MOCK_METHOD(std::vector<HostInfo>, GetHosts, (SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template), (override));
     MOCK_METHOD(HostInfo, GetWriter, (const std::vector<HostInfo>& hosts), ());
 };
 #endif //TEST_COMMON_MOCK_OBJECTS_H

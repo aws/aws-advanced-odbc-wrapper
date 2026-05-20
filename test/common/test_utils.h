@@ -21,6 +21,7 @@ namespace TEST_UTILS {
     std::string GetEnvVar(const char* key, const char* default_value = "");
     int StrToInt(std::string str);
     std::string HostToIp(std::string hostname);
+    bool CanTcpConnect(const std::string& hostname, int port, int timeout_seconds = 5);
 	void ClearMemory(void* dest, size_t count);
 };
 

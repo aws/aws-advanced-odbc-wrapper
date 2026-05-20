@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef INIT_PLUGIN_HELPER_H
-#define INIT_PLUGIN_HELPER_H
+#ifndef MULTI_AZ_TOPOLOGY_UTIL_H
+#define MULTI_AZ_TOPOLOGY_UTIL_H
 
-#include "../dialect/dialect.h"
+#include "topology_util.h"
 
-std::shared_ptr<Dialect> InitDialect(std::map<std::string, std::string> conn_info);
+class MultiAzTopologyUtil : public TopologyUtil {
+public:
+    MultiAzTopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect);
+    std::string GetWriterId(SQLHDBC hdbc) override;
+    std::vector<HostInfo> GetHosts(SQLHDBC hdbc, const HostInfo &initial_host, const HostInfo &host_template) override;
+    virtual HostInfo CreateHost(SQLTCHAR *endpoint, HOST_ROLE role, const HostInfo &host_template);
+};
 
-#endif // INIT_PLUGIN_HELPER_H
+#endif // MULTI_AZ_TOPOLOGY_UTIL_H

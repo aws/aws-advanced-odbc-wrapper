@@ -120,13 +120,16 @@ SQLRETURN DefaultPlugin::Connect(
 
     // Apply Tracked Connection Attributes
     for (auto const& [key, val] : dbc->attr_map) {
+        if (key == SQL_ATTR_LOGIN_TIMEOUT || key == SQL_ATTR_CONNECTION_TIMEOUT) {
+            continue;
+        }
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
             dbc->wrapped_dbc, key, val.first, val.second
         );
-        if (!res.fn_result) {
+        if (!SQL_SUCCEEDED(res.fn_result)) {
             LOG(WARNING) << "Error setting connection attribute: " << key;
+            has_conn_attr_errors  = true;
         }
-        has_conn_attr_errors = res.fn_result == 0 ? has_conn_attr_errors : true;
     }
     dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
 
@@ -136,6 +139,10 @@ SQLRETURN DefaultPlugin::Connect(
         dbc->conn_status = CONN_CONNECTED;
         if (has_conn_attr_errors) {
             ret = SQL_SUCCESS_WITH_INFO;
+        }
+
+        if (!dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
+            dbc->plugin_service->UpdateDialect(dbc);
         }
     }
     return ret;

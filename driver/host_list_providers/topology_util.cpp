@@ -35,6 +35,28 @@ TopologyUtil::TopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const
     : odbc_helper_{ odbc_helper },
       dialect_{ dialect } {}
 
+HOST_ROLE TopologyUtil::GetConnectionRole(SQLHDBC hdbc) {
+    const DBC* dbc = static_cast<DBC*>(hdbc);
+    if (!dbc || !dbc->wrapped_dbc) {
+        LOG(ERROR) << "GetConnectionRole passed in null DBC";
+        return UNKNOWN;
+    }
+
+    SQLHSTMT stmt = SQL_NULL_HANDLE;
+    bool is_reader = false;
+    SQLLEN len = 0;
+
+    const RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
+    if (SQL_SUCCEEDED(res.fn_result)) {
+        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery());
+        this->odbc_helper_->BindCol(&stmt, IS_READER_COL, SQL_BIT, &is_reader, sizeof(is_reader), &len);
+        this->odbc_helper_->Fetch(&stmt);
+        this->odbc_helper_->BaseFreeStmt(&stmt);
+    }
+
+    return is_reader ? READER : WRITER;
+}
+
 std::string TopologyUtil::GetWriterId(SQLHDBC hdbc)
 {
     SQLRETURN rc;
@@ -104,24 +126,14 @@ std::string TopologyUtil::GetInstanceId(SQLHDBC hdbc) {
 
 std::vector<HostInfo> TopologyUtil::QueryTopology(SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template)
 {
-    SQLHSTMT stmt = SQL_NULL_HANDLE;
-    std::vector<HostInfo> hosts;
     const DBC* dbc = static_cast<DBC*>(hdbc);
 
     if (!dbc || !dbc->wrapped_dbc) {
         LOG(ERROR) << "Topology Query passed in null DBC";
-        return hosts;
+        return {};
     }
 
-    RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
-
-    if (SQL_SUCCEEDED(res.fn_result)) {
-        res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery());
-        if (SQL_SUCCEEDED(res.fn_result)) {
-            hosts = GetHosts(stmt, initial_host, host_template);
-        }
-        this->odbc_helper_->BaseFreeStmt(&stmt);
-    }
+    const std::vector<HostInfo> hosts = GetHosts(hdbc, initial_host, host_template);
 
     LOG_IF(WARNING, hosts.empty()) << "Failed to fetch any instances from topology";
     return VerifyWriter(hosts);
@@ -152,32 +164,6 @@ std::vector<HostInfo> TopologyUtil::VerifyWriter(const std::vector<HostInfo>& al
     hosts.push_back(*newest_writer);
 
     return hosts;
-}
-
-HOST_ROLE TopologyUtil::GetConnectionRole(SQLHDBC hdbc) {
-    SQLRETURN rc;
-    SQLHSTMT stmt = SQL_NULL_HANDLE;
-    bool is_reader = false;
-    SQLLEN len = 0;
-    RdsLibResult res;
-    const DBC* dbc = static_cast<DBC*>(hdbc);
-
-    if (!dbc || !dbc->wrapped_dbc) {
-        LOG(ERROR) << "Topology Query passed in null DBC";
-        return HOST_ROLE::UNKNOWN;
-    }
-
-    res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
-
-    if (SQL_SUCCEEDED(res.fn_result)) {
-        this->odbc_helper_->ExecDirect(&stmt, dialect_->GetIsReaderQuery());
-
-        this->odbc_helper_->BindCol(&stmt, IS_READER_COL, SQL_BIT, &is_reader, sizeof(is_reader), &len);
-        this->odbc_helper_->Fetch(&stmt);
-        this->odbc_helper_->BaseFreeStmt(&stmt);
-    }
-
-    return is_reader ? HOST_ROLE::READER : HOST_ROLE::WRITER;
 }
 
 HostInfo TopologyUtil::CreateHost(

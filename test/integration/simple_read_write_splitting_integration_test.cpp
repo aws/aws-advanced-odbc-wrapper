@@ -54,10 +54,10 @@ protected:
         }
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
-        if (test_dialect == "AURORA_MYSQL") {
+        if (test_dialect == "AURORA_MYSQL" || test_dialect == "MULTI_AZ_MYSQL") {
             stmt_set_read_only_true = "set session transaction read only";
             stmt_set_read_only_false = "set session transaction read write";
-        } else if (test_dialect == "AURORA_POSTGRESQL") {
+        } else if (test_dialect == "AURORA_POSTGRESQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
             stmt_set_read_only_true = "set session characteristics as transaction read only";
             stmt_set_read_only_false = "set session characteristics as transaction read write";
         }

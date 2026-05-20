@@ -81,6 +81,14 @@ jobs:
     outputs:
       psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
+      - name: Clean old builds
+        if: always()
+        run: |
+          CURRENT_BUILD_DIR=$(echo "$CODEBUILD_SRC_DIR" | grep -o '/tmp/codebuild-[^/]*')
+          find /tmp -maxdepth 1 -type d -name "codebuild-*" ! -path "$CURRENT_BUILD_DIR" -exec rm -rf {} \; 2>/dev/null || true
+          rm -rf ~/actions-runner/_work/_tool/* 2>/dev/null || true
+          rm -rf ~/Library/Caches/* 2>/dev/null || true
+          rm -rf /tmp/actions-runner-* 2>/dev/null || true
       - name: Get psqlODBC latest release version
         id: psqlodbc-version
         run: |
@@ -174,6 +182,14 @@ jobs:
     runs-on:
       - codebuild-odbc-wrapper-macos-mysql-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Clean old builds
+        if: always()
+        run: |
+          CURRENT_BUILD_DIR=$(echo "$CODEBUILD_SRC_DIR" | grep -o '/tmp/codebuild-[^/]*')
+          find /tmp -maxdepth 1 -type d -name "codebuild-*" ! -path "$CURRENT_BUILD_DIR" -exec rm -rf {} \; 2>/dev/null || true
+          rm -rf ~/actions-runner/_work/_tool/* 2>/dev/null || true
+          rm -rf ~/Library/Caches/* 2>/dev/null || true
+          rm -rf /tmp/actions-runner-* 2>/dev/null || true
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
         uses: actions/cache@v5
@@ -214,7 +230,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rds_engine: [aurora-postgresql, aurora-mysql]
+        include:
+          - rds_engine: aurora-postgresql
+            database_dialect: AURORA_POSTGRESQL
+            multi_az_cluster: false
+          - rds_engine: aurora-mysql
+            database_dialect: AURORA_MYSQL
+            multi_az_cluster: false
+          - rds_engine: multi-az-postgresql
+            database_dialect: MULTI_AZ_POSTGRESQL
+            multi_az_cluster: true
+          - rds_engine: multi-az-mysql
+            database_dialect: MULTI_AZ_MYSQL
+            multi_az_cluster: true
     env:
       CUSTOM_ENDPOINT_ID: ODBC-Win-${{ matrix.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
@@ -254,44 +282,50 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-win-inte
+          role-duration-seconds: 14400
       - name: Setup Python virtual environment
         shell: bash
         run: |
           python -m venv .venv
           source .venv/Scripts/activate
           pip install -r scripts/requirements.txt
-      - name: Create Aurora Resources
+      - name: Create DB Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
           source .venv/Scripts/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.multi_az_cluster }}" == "true" ]; then
+            EXTRA_ARGS="--rds-multi-az-cluster --instance-class db.r5d.xlarge --allocated-storage 400"
+          else
+            EXTRA_ARGS="--num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
           python scripts/db_resources.py create \
-            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --engine ${{ matrix.rds_engine }} \
             --engine-version ${{ env.ENGINE_VERSION }} \
             --database ${{ env.TEST_DATABASE }} \
             --username ${{ secrets.TEST_USERNAME }} \
             --password ${{ secrets.TEST_PASSWORD }} \
             --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
+            $EXTRA_ARGS
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
         run: |
-          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
+          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ] || [ "${{ matrix.rds_engine }}" == "multi-az-postgresql" ]; then
             echo "cache_path=psqlodbc" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-win-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
+            echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ] || [ "${{ matrix.rds_engine }}" == "multi-az-mysql" ]; then
             echo "cache_path=mysql-connector" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9a.dll" >> $GITHUB_OUTPUT
             echo "driver_path_unicode=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9w.dll" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+            echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
         uses: actions/cache@v5
@@ -305,7 +339,7 @@ jobs:
           Write-Host "Base driver path: $((Resolve-Path ${{steps.base_driver_info.outputs.cache_path}}).Path)"
           Get-ChildItem ${{steps.base_driver_info.outputs.cache_path}}
       - name: Install PostgreSQL ODBC Driver
-        if: (matrix.rds_engine == 'aurora-postgresql')
+        if: (matrix.rds_engine == 'aurora-postgresql') || (matrix.rds_engine == 'multi-az-postgresql')
         id: pg_driver_paths
         shell: pwsh
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
@@ -323,12 +357,12 @@ jobs:
           echo "driver_path_ansi=$($ansi.FullName)" >> $env:GITHUB_OUTPUT
           echo "driver_path_unicode=$($unicode.FullName)" >> $env:GITHUB_OUTPUT
       - name: Setup PostgreSQL
-        if: (matrix.rds_engine == 'aurora-postgresql')
+        if: (matrix.rds_engine == 'aurora-postgresql') || (matrix.rds_engine == 'multi-az-postgresql')
         shell: bash
         run: |
           echo "$PGBIN" >> $GITHUB_PATH
       - name: Install MySQL
-        if: (matrix.rds_engine == 'aurora-mysql')
+        if: (matrix.rds_engine == 'aurora-mysql') || (matrix.rds_engine == 'multi-az-mysql')
         shell: pwsh
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
         run: |
@@ -337,7 +371,7 @@ jobs:
         id: resolved_drivers
         shell: pwsh
         run: |
-          if ("${{ matrix.rds_engine }}" -eq "aurora-postgresql") {
+          if ("${{ matrix.rds_engine }}" -eq "aurora-postgresql" -or "${{ matrix.rds_engine }}" -eq "multi-az-postgresql") {
             echo "driver_path_ansi=${{ steps.pg_driver_paths.outputs.driver_path_ansi }}" >> $env:GITHUB_OUTPUT
             echo "driver_path_unicode=${{ steps.pg_driver_paths.outputs.driver_path_unicode }}" >> $env:GITHUB_OUTPUT
           } else {
@@ -383,6 +417,7 @@ jobs:
           echo "CDB_PATH=$cdb" >> $env:GITHUB_ENV
           Write-Host "Found cdb at: $cdb"
       - name: Build and Run Ansi Integration Tests
+        id: ansi_tests
         shell: pwsh
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
@@ -391,7 +426,9 @@ jobs:
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
           echo "Ansi Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
-          & "${{env.CDB_PATH}}" -G -lines -y ".\build_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $ansiNonFailoverRc = $LASTEXITCODE
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $ansiFailoverRc = $LASTEXITCODE
+          if ($ansiNonFailoverRc -ne 0 -or $ansiFailoverRc -ne 0) { exit 1 }
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -404,16 +441,27 @@ jobs:
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Stabilize cluster between test runs
+        shell: bash
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        run: |
+          source .venv/Scripts/activate
+          python scripts/db_resources.py stabilize \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
+        id: unicode_tests
         shell: pwsh
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
         run: |
           cmake -S test/integration -B build_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
           echo "Unicode Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
-          & "${{env.CDB_PATH}}" -G -lines -y ".\build_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $unicodeNonFailoverRc = $LASTEXITCODE
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $unicodeFailoverRc = $LASTEXITCODE
+          if ($unicodeNonFailoverRc -ne 0 -or $unicodeFailoverRc -ne 0) { exit 1 }
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -431,12 +479,17 @@ jobs:
         shell: bash
         run: |
           source .venv/Scripts/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.multi_az_cluster }}" == "true" ]; then
+            EXTRA_ARGS="--rds-multi-az-cluster"
+          else
+            EXTRA_ARGS="--num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
           python scripts/db_resources.py destroy \
-            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
-            --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}" \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
+            $EXTRA_ARGS
       # Make sure IP is always deleted
       - name: Get Github Action IP
         if: always()
@@ -474,7 +527,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [{rds_engine: aurora-postgresql, project: codebuild-odbc-wrapper-macos-pg, fleet: fleet-macos-fleet-3}, {rds_engine: aurora-mysql, project: codebuild-odbc-wrapper-macos-mysql, fleet: fleet-macos-fleet-2}]
+        env: [
+          {
+            rds_engine: aurora-postgresql,
+            project: codebuild-odbc-wrapper-macos-pg,
+            fleet: fleet-macos-fleet-2,
+            database_dialect: AURORA_POSTGRESQL,
+            multi_az_cluster: false
+          },
+          {
+            rds_engine: aurora-mysql,
+            project: codebuild-odbc-wrapper-macos-mysql,
+            fleet: fleet-macos-fleet-1,
+            database_dialect: AURORA_MYSQL,
+            multi_az_cluster: false
+          },
+          {
+            rds_engine: multi-az-postgresql,
+            project: codebuild-odbc-wrapper-macos-pg,
+            fleet: fleet-macos-fleet-2,
+            database_dialect: MULTI_AZ_POSTGRESQL,
+            multi_az_cluster: true
+          },
+          {
+            rds_engine: multi-az-mysql,
+            project: codebuild-odbc-wrapper-macos-mysql,
+            fleet: fleet-macos-fleet-1,
+            database_dialect: MULTI_AZ_MYSQL,
+            multi_az_cluster: true
+          },
+        ]
     env:
       CUSTOM_ENDPOINT_ID: ODBC-MacOS-${{ matrix.env.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
@@ -504,51 +586,63 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-inte
+          role-duration-seconds: 14400
       - name: Setup Python virtual environment
         shell: bash
         run: |
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/requirements.txt
-      - name: Create Aurora Resources
+          pip show botocore | grep Version
+      - name: Create DB Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
           source .venv/bin/activate
           EXTRA_ARGS=""
-          if [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ] || [ "${{ matrix.env.rds_engine }}" == "multi-az-mysql" ]; then
             EXTRA_ARGS="--extra-mysql-user ${{ secrets.TEST_USERNAME }}_mysql --extra-mysql-password ${{ secrets.TEST_PASSWORD }}"
           fi
+          ENGINE_VER="${{ env.ENGINE_VERSION }}"
+          if [[ "${{ matrix.env.rds_engine }}" == multi-az-* ]]; then
+            EXTRA_ARGS="$EXTRA_ARGS --rds-multi-az-cluster --instance-class db.r5d.xlarge --allocated-storage 400"
+            if [ "${{ matrix.env.rds_engine }}" == "multi-az-mysql" ]; then
+              ENGINE_VER="8.4.8"
+            elif [ "${{ matrix.env.rds_engine }}" == "multi-az-postgresql" ]; then
+              ENGINE_VER="16.4"
+            fi
+          else
+            EXTRA_ARGS="$EXTRA_ARGS --num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
+
           python scripts/db_resources.py create \
             --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
             --engine ${{ matrix.env.rds_engine }} \
-            --engine-version ${{ env.ENGINE_VERSION }} \
+            --engine-version $ENGINE_VER \
             --database ${{ env.TEST_DATABASE }} \
             --username ${{ secrets.TEST_USERNAME }} \
             --password ${{ secrets.TEST_PASSWORD }} \
             --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }} \
             $EXTRA_ARGS
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
         run: |
-          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ]; then
-            echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
+          if [ "${{ matrix.env.rds_engine }}" == "aurora-postgresql" ] || [ "${{ matrix.env.rds_engine }}" == "multi-az-postgresql" ]; then
+          echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ]; then
+            echo "database_dialect=${{ matrix.env.database_dialect }}" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.env.rds_engine }}" == "aurora-mysql" ] || [ "${{ matrix.env.rds_engine }}" == "multi-az-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/mysql-connector/lib/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+            echo "database_dialect=${{ matrix.env.database_dialect }}" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
         uses: actions/cache@v5
@@ -564,6 +658,7 @@ jobs:
           odbcinst -j 2>/dev/null || true
           cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Build and Run Ansi Integration Tests
+        id: ansi_tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
@@ -576,7 +671,9 @@ jobs:
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_ansi
           echo "Ansi Test Built"
-          ./build_ansi/integration-test
+          ./build_ansi/integration-test --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || ANSI_NON_FAILOVER_RC=$?
+          ./build_ansi/integration-test --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || ANSI_FAILOVER_RC=$?
+          if [ "${ANSI_NON_FAILOVER_RC:-0}" -ne 0 ] || [ "${ANSI_FAILOVER_RC:-0}" -ne 0 ]; then exit 1; fi
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -591,9 +688,18 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
-      - name: Build and Run Unicode Integration Tests
+      - name: Stabilize cluster between test runs
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        run: |
+          source .venv/bin/activate
+          python scripts/db_resources.py stabilize \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}"
+      - name: Build and Run Unicode Integration Tests
+        id: unicode_tests
+        shell: bash
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -604,7 +710,9 @@ jobs:
             -D TEST_DATABASE="${{ env.TEST_DATABASE }}"
           cmake --build build_unicode
           echo "Unicode Test Built"
-          ./build_unicode/integration-test
+          ./build_unicode/integration-test --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_NON_FAILOVER_RC=$?
+          ./build_unicode/integration-test --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_FAILOVER_RC=$?
+          if [ "${UNICODE_NON_FAILOVER_RC:-0}" -ne 0 ] || [ "${UNICODE_FAILOVER_RC:-0}" -ne 0 ]; then exit 1; fi
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -619,6 +727,23 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Dump RDS events on failure
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Cluster Events ==="
+          aws rds describe-events \
+            --source-identifier "${{ env.AURORA_CLUSTER_ID }}" \
+            --source-type db-cluster \
+            --duration 120 || true
+          echo "=== Instance Events ==="
+          for i in 1 2 3; do
+            echo "--- Instance $i ---"
+            aws rds describe-events \
+              --source-identifier "${{ env.AURORA_CLUSTER_ID }}-instance-$i" \
+              --source-type db-instance \
+              --duration 120 || true
+          done
       - name: Get log location
         if: always()
         id: log_location
@@ -628,12 +753,17 @@ jobs:
         shell: bash
         run: |
           source .venv/bin/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.env.multi_az_cluster }}" == "true" ]; then
+            EXTRA_ARGS="--rds-multi-az-cluster"
+          else
+            EXTRA_ARGS="--num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
           python scripts/db_resources.py destroy \
-            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
-            --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}" \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
+            $EXTRA_ARGS
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
@@ -649,7 +779,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rds_engine: [aurora-postgresql, aurora-mysql]
+        include:
+          - rds_engine: aurora-postgresql
+            database_dialect: AURORA_POSTGRESQL
+            multi_az_cluster: false
+          - rds_engine: aurora-mysql
+            database_dialect: AURORA_MYSQL
+            multi_az_cluster: false
+          - rds_engine: multi-az-postgresql
+            database_dialect: MULTI_AZ_POSTGRESQL
+            multi_az_cluster: true
+          - rds_engine: multi-az-mysql
+            database_dialect: MULTI_AZ_MYSQL
+            multi_az_cluster: true
     env:
       CUSTOM_ENDPOINT_ID: ODBC-Linux-${{ matrix.rds_engine }}-custom-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
     steps:
@@ -682,46 +824,52 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-inte
+          role-duration-seconds: 14400
       - name: Setup Python virtual environment
         shell: bash
         run: |
           python3 -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/requirements.txt
-      - name: Create Aurora Resources
+      - name: Create DB Resources
         id: AuroraClusterSetup
         shell: bash
         run: |
           source .venv/bin/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.multi_az_cluster }}" == "true" ]; then
+            EXTRA_ARGS="--rds-multi-az-cluster --instance-class db.r5d.xlarge --allocated-storage 400"
+          else
+            EXTRA_ARGS="--num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
           python scripts/db_resources.py create \
-            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --engine ${{ matrix.rds_engine }} \
             --engine-version ${{ env.ENGINE_VERSION }} \
             --database ${{ env.TEST_DATABASE }} \
             --username ${{ secrets.TEST_USERNAME }} \
             --password ${{ secrets.TEST_PASSWORD }} \
             --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
+            $EXTRA_ARGS
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
         run: |
-          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ]; then
+          if [ "${{ matrix.rds_engine }}" == "aurora-postgresql" ] || [ "${{ matrix.rds_engine }}" == "multi-az-postgresql" ]; then
             echo "cache_path=psqlodbc/.libs/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-psqlodbc-driver-${{ needs.build-linux-psqlodbc.outputs.psqlodbc-version }}" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='${{ github.workspace }}/psqlodbc/.libs/psqlodbca.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
-          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ]; then
+            echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
+          elif [ "${{ matrix.rds_engine }}" == "aurora-mysql" ] || [ "${{ matrix.rds_engine }}" == "multi-az-mysql" ]; then
             echo "cache_path=mysql-connector/" >> $GITHUB_OUTPUT
             echo "cache_key=${{ runner.os }}-mysql-driver-9.5.0" >> $GITHUB_OUTPUT
             echo "driver_path_ansi='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9a.so'" >> $GITHUB_OUTPUT
             echo "driver_path_unicode='/usr/lib/x86_64-linux-gnu/odbc/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
-            echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
+            echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
         uses: actions/cache@v5
@@ -737,7 +885,7 @@ jobs:
           odbcinst -j 2>/dev/null || true
           cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Install MySQL
-        if: (matrix.rds_engine == 'aurora-mysql')
+        if: (matrix.rds_engine == 'aurora-mysql') || (matrix.rds_engine == 'multi-az-mysql')
         shell: bash
         run: |
           sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
@@ -745,6 +893,7 @@ jobs:
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
+        id: ansi_tests
         shell: bash
         if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
         run: |
@@ -758,7 +907,9 @@ jobs:
           cmake --build build_ansi
           echo "Ansi Test Built"
           ulimit -c unlimited
-          gdb -q -x ./.gdbinit ./build_ansi/integration-test
+          gdb -q -x ./.gdbinit --args ./build_ansi/integration-test --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || ANSI_NON_FAILOVER_RC=$?
+          gdb -q -x ./.gdbinit --args ./build_ansi/integration-test --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || ANSI_FAILOVER_RC=$?
+          if [ "${ANSI_NON_FAILOVER_RC:-0}" -ne 0 ] || [ "${ANSI_FAILOVER_RC:-0}" -ne 0 ]; then exit 1; fi
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -773,9 +924,18 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
-      - name: Build and Run Unicode Integration Tests
+      - name: Stabilize cluster between test runs
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        run: |
+          source .venv/bin/activate
+          python scripts/db_resources.py stabilize \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}"
+      - name: Build and Run Unicode Integration Tests
+        id: unicode_tests
+        shell: bash
+        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -787,7 +947,9 @@ jobs:
           cmake --build build_unicode
           echo "Unicode Test Built"
           ulimit -c unlimited
-          gdb -q -x ./.gdbinit ./build_unicode/integration-test
+          gdb -q -x ./.gdbinit --args ./build_unicode/integration-test --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_NON_FAILOVER_RC=$?
+          gdb -q -x ./.gdbinit --args ./build_unicode/integration-test --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_FAILOVER_RC=$?
+          if [ "${UNICODE_NON_FAILOVER_RC:-0}" -ne 0 ] || [ "${UNICODE_FAILOVER_RC:-0}" -ne 0 ]; then exit 1; fi
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -807,12 +969,17 @@ jobs:
         shell: bash
         run: |
           source .venv/bin/activate
+          EXTRA_ARGS=""
+          if [ "${{ matrix.multi_az_cluster }}" == "true" ]; then
+            EXTRA_ARGS="--rds-multi-az-cluster"
+          else
+            EXTRA_ARGS="--num-instances ${{ env.NUM_INSTANCES }} --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}"
+          fi
           python scripts/db_resources.py destroy \
-            --cluster-id ${{ env.AURORA_CLUSTER_ID }} \
-            --region ${{ secrets.AWS_DEFAULT_REGION }} \
-            --num-instances ${{ env.NUM_INSTANCES }} \
+            --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
+            --region "${{ secrets.AWS_DEFAULT_REGION }}" \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
-            --custom-endpoint-id ${{ env.CUSTOM_ENDPOINT_ID }}
+            $EXTRA_ARGS
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@v6
@@ -1054,7 +1221,7 @@ jobs:
     name: MacOS - Limitless Integration Tests
     needs: [build-macos-psqlodbc]
     runs-on:
-      - codebuild-odbc-wrapper-macos-limitless-${{ github.run_id }}-${{ github.run_attempt }}-fleet-macos-fleet-1
+      - codebuild-odbc-wrapper-macos-limitless-${{ github.run_id }}-${{ github.run_attempt }}-fleet-macos-fleet-3
         buildspec-override:true
     env:
       LIMITLESS_CLUSTER_ID: ODBC-Limitless-MacOS-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}

@@ -2798,7 +2798,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         }
 
         dbc->plugin_service->InitHostListProvider();
-        dbc->plugin_service->RefreshHosts();
     } catch (const std::exception& ex) {
         const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;

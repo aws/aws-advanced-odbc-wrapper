@@ -219,7 +219,9 @@ const std::vector<std::pair<std::string, std::string>> DB_DIALECTS = {
     {"", ""},
     {"Aurora PostgreSQL", VALUE_DB_DIALECT_AURORA_POSTGRESQL},
     {"Aurora PostgreSQL Limitless", VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS},
-    {"Aurora MySQL", VALUE_DB_DIALECT_AURORA_MYSQL}
+    {"Aurora MySQL", VALUE_DB_DIALECT_AURORA_MYSQL},
+    {"Multi-AZ PostgreSQL", VALUE_DB_DIALECT_MULTI_AZ_PG},
+    {"Multi-AZ MySQL", VALUE_DB_DIALECT_MULTI_AZ_MYSQL},
 };
 
 const std::vector<std::pair<std::string, std::string>> MFA_TYPES = {

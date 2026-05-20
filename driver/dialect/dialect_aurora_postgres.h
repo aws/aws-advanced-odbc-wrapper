@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "../util/rds_strings.h"
+#include "../util/odbc_helper.h"
 
 class DialectAuroraPostgres : virtual public Dialect, DialectBlueGreen {
 public:
@@ -29,11 +30,12 @@ public:
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
     std::string GetWriterIdQuery() override { return WRITER_ID_QUERY; };
     std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
+    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
     std::string GetBlueGreenStatusAvailableQuery() override { return BG_TOPOLOGY_EXISTS_QUERY; };
     std::string GetBlueGreenStatusQuery() override { return BG_STATUS_QUERY; };
-    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
     std::string GetSetReadOnlyQuery() override { return SET_READ_ONLY_QUERY; };
     std::string GetSetReadWriteQuery() override { return SET_READ_WRITE_QUERY; };
+    DatabaseDialectType GetUpdateCandidate() override { return MULTI_AZ_PG; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -129,6 +131,46 @@ public:
 
 private:
     const std::string LIMITLESS_ROUTER_ENDPOINT_QUERY = "SELECT router_endpoint, load FROM pg_catalog.aurora_limitless_router_endpoints()";
+};
+
+class DialectMultiAzClusterPostgres : public DialectMultiAzCluster, public DialectAuroraPostgres {
+public:
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_PG; }
+    std::string GetWriterIdColumnName() override { return WRITER_ID_QUERY_COLUMN_NAME; };
+    std::string GetReplicaSourceQuery() override { return REPLICA_SOURCE_QUERY; };
+    std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
+    std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
+    DatabaseDialectType GetUpdateCandidate() override { return UNKNOWN_DIALECT; };
+
+    bool IsDialect(DBC* dbc, std::shared_ptr<OdbcHelper> odbc_helper) override {
+        SQLHSTMT stmt = SQL_NULL_HANDLE;
+        SQLTCHAR query_res[BUFFER_SIZE * 2] = {0};
+        SQLLEN len = 0;
+        odbc_helper->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
+        bool is_dialect = false;
+        if (const RdsLibResult res = odbc_helper->ExecDirect(&stmt, IS_RDS_CLUSTER_QUERY); SQL_SUCCEEDED(res.fn_result)) {
+            odbc_helper->BindCol(&stmt, 1, SQL_C_TCHAR, &query_res, BUFFER_SIZE, &len);
+            odbc_helper->Fetch(&stmt);
+#ifdef UNICODE
+            Convert4To2ByteString(odbc_helper->GetUse4BytesBaseDriver(), query_res, nullptr, BUFFER_SIZE);
+#endif
+            const std::string query_res_str(AS_UTF8_CSTR(query_res));
+            if (!query_res_str.empty()) {
+                is_dialect = true;
+            }
+        }
+        odbc_helper->BaseFreeStmt(&stmt);
+        return is_dialect;
+    }
+
+private:
+    const std::string IS_RDS_CLUSTER_QUERY = "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id()";
+    const std::string TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM rds_tools.show_topology()";
+    const std::string NODE_ID_QUERY = "SELECT id, SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) FROM rds_tools.show_topology() WHERE id OPERATOR(pg_catalog.=) rds_tools.dbi_resource_id()";
+    const std::string REPLICA_SOURCE_QUERY = "SELECT multi_az_db_cluster_source_dbi_resource_id FROM rds_tools.multi_az_db_cluster_source_dbi_resource_id() " \
+        "WHERE multi_az_db_cluster_source_dbi_resource_id OPERATOR(pg_catalog.!=) " \
+        "(SELECT dbi_resource_id FROM rds_tools.dbi_resource_id())";
+    const std::string WRITER_ID_QUERY_COLUMN_NAME = "multi_az_db_cluster_source_dbi_resource_id";
 };
 
 #endif  // DIALECT_AURORA_POSTGRES_H

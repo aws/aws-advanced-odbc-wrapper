@@ -81,6 +81,7 @@ class PluginService {
     static std::shared_ptr<HostSelector> InitHostSelector(const std::map<std::string, std::string>& conn_info);
     static std::string InitClusterId(std::map<std::string, std::string>& conn_info);
     static std::shared_ptr<Dialect> InitDialect(const std::map<std::string, std::string>& conn_info);
+    void UpdateDialect(DBC *dbc);
 
    private:
     std::string cluster_id_;
