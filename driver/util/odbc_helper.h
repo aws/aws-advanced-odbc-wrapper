@@ -31,7 +31,7 @@ struct ConvertedSqltchar {
 
 class OdbcHelper {
 public:
-    OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader);
+    OdbcHelper(const std::shared_ptr<RdsLibLoader>& lib_loader, const ENV* env);
 
     virtual void Disconnect(const DBC *dbc);
     virtual void Disconnect(SQLHDBC *hdbc);
@@ -55,7 +55,6 @@ public:
     bool GetUse4BytesBaseDriver() const;
     bool GetUse4BytesUserApp() const;
     void SetUse4BytesBaseDriver(bool use_4_bytes);
-    void SetUse4BytesUserApp(bool use_4_bytes);
 
     // Converts a user-app SQLTCHAR* input to the encoding expected by the base
     // driver, respecting the current user_4_byte / driver_4_byte flags.
@@ -70,6 +69,7 @@ public:
 
     void ConvertWrapperOutputToTarget(SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
     void ConvertWrapperOutputToTarget(bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
+    static void ConvertWrapperOutputToTarget(bool user_4_byte, bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count);
 
     // Returns true if driver and user app character widths differ and conversion is needed.
     bool NeedsConversion() const;
@@ -90,8 +90,8 @@ public:
 
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
+    const ENV *env_ = nullptr;
     bool use_4_bytes_base_driver_ = false;
-    bool use_4_bytes_user_app_ = false;
 };
 
 #endif //ODBC_HELPER_H

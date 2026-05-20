@@ -16,7 +16,6 @@
 
 #include "odbcapi_rds_helper.h"
 
-#include <cstdio>
 #include <unordered_set>
 
 #include "error.h"
@@ -42,6 +41,30 @@
 #ifdef WIN32
     #include "gui/setup.h"
 #endif
+
+ENV* RDS_GetEnvFromHandle(SQLSMALLINT HandleType, SQLHANDLE InputHandle) {
+    if (!InputHandle) {
+        return nullptr;
+    }
+    switch (HandleType) {
+        case SQL_HANDLE_ENV:
+            return static_cast<ENV*>(InputHandle);
+        case SQL_HANDLE_DBC: {
+            const DBC* dbc = static_cast<const DBC*>(InputHandle);
+            return dbc ? dbc->env : nullptr;
+        }
+        case SQL_HANDLE_STMT: {
+            const STMT* stmt = static_cast<const STMT*>(InputHandle);
+            return (stmt && stmt->dbc) ? stmt->dbc->env : nullptr;
+        }
+        case SQL_HANDLE_DESC: {
+            const DESC* desc = static_cast<const DESC*>(InputHandle);
+            return (desc && desc->dbc) ? desc->dbc->env : nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
 
 #if UNICODE
 std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env) {
@@ -632,7 +655,7 @@ SQLRETURN RDS_SQLColAttribute(
         if (StringLengthPtr && *StringLengthPtr > 0) {
             odbc_helper->ConvertDriverOutputToTarget(attr_buf.data(), static_cast<SQLTCHAR*>(CharacterAttributePtr), attr_buf.size() * sizeof(SQLTCHAR), static_cast<size_t>(BufferLength));
             odbc_helper->AdjustByteLength(StringLengthPtr);
-        } else {
+        } else if (CharacterAttributePtr) {
             std::memcpy(CharacterAttributePtr, attr_buf.data(), static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR));
         }
         return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -673,7 +696,7 @@ SQLRETURN RDS_SQLColAttributes(
             // String data
             odbc_helper->ConvertDriverOutputToTarget(attr_buf.data(), static_cast<SQLTCHAR*>(CharacterAttributePtr), attr_buf.size() * sizeof(SQLTCHAR), static_cast<size_t>(BufferLength));
             odbc_helper->AdjustByteLength(StringLengthPtr);
-        } else {
+        } else if (CharacterAttributePtr) {
             // Numeric data
             std::memcpy(CharacterAttributePtr, attr_buf.data(), static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR));
         }
@@ -794,26 +817,27 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
-    bool use_4_bytes_user_app = false;
+    bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
     std::string conn_str_utf8;
     std::string current_utf8;
     size_t load_len = -1;
     if (ServerName) {
         // Load input DSN followed by Base DSN retrieved from input DSN
 #ifdef UNICODE
-        current_utf8 = ConvertUserAppToUTF8(false, ServerName, NameLength1);
+        current_utf8 = ConvertUserAppToUTF8(use_4_bytes_user_app, ServerName, NameLength1);
 #else
         current_utf8 = reinterpret_cast<const char *>(ServerName);
 #endif
         load_len = NameLength1 == SQL_NTS ? current_utf8.length() : NameLength1;
         OdbcDsnHelper::LoadAll(current_utf8.substr(0, load_len), dbc->conn_attr);
 #ifdef UNICODE
-        if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
+        if (!use_4_bytes_user_app && !dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
             current_utf8 = ConvertUserAppToUTF8(true, ServerName, NameLength1);
             load_len = NameLength1 == SQL_NTS ? current_utf8.length() : NameLength1;
             OdbcDsnHelper::LoadAll(current_utf8.substr(0, load_len), dbc->conn_attr);
             if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
                 use_4_bytes_user_app = true;
+                dbc->env->use_4_bytes_user_app.store(true);
             }
         }
 #endif
@@ -850,9 +874,6 @@ SQLRETURN RDS_SQLConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(RDS_InitializeConnection(dbc, conn_str_utf8))) {
-        if (use_4_bytes_user_app) {
-            dbc->plugin_service->GetOdbcHelper()->SetUse4BytesUserApp(true);
-        }
         ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
@@ -935,6 +956,7 @@ SQLRETURN RDS_SQLDriverConnect(
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     std::string conn_str_utf8;
     std::string conn_out_str_utf8;
+    bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
 
     if (DriverCompletion && WindowHandle) {
 #if _WIN32
@@ -963,7 +985,7 @@ SQLRETURN RDS_SQLDriverConnect(
 #endif
     } else {
 #ifdef UNICODE
-        conn_str_utf8 = ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(InConnectionString));
+        conn_str_utf8 = ConvertUserAppToUTF8(use_4_bytes_user_app, InConnectionString, StringLength1);
 #else
         conn_str_utf8 = reinterpret_cast<const char *>(InConnectionString);
 #endif
@@ -984,8 +1006,6 @@ SQLRETURN RDS_SQLDriverConnect(
     // Parse connection string, load input DSN followed by Base DSN
     ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
-    // codechecker_suppress [misc-const-correctness]
-    bool use_4_bytes_user_app = false;
 #if UNICODE && !defined(_WIN32)
     if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
         dbc->conn_attr.clear();
@@ -993,7 +1013,8 @@ SQLRETURN RDS_SQLDriverConnect(
         ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
         if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
-           use_4_bytes_user_app = true;
+            use_4_bytes_user_app = true;
+            dbc->env->use_4_bytes_user_app.store(true);
         }
     }
 #endif
@@ -1012,9 +1033,6 @@ SQLRETURN RDS_SQLDriverConnect(
     ret = RDS_InitializeConnection(dbc, conn_str_utf8);
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
-        if (use_4_bytes_user_app) {
-            dbc->plugin_service->GetOdbcHelper()->SetUse4BytesUserApp(true);
-        }
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
         ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
@@ -1673,7 +1691,7 @@ SQLRETURN RDS_SQLGetDiagRec(
     DESC* desc = nullptr;
     STMT* stmt = nullptr;
     DBC* dbc = nullptr;
-    ENV* env = nullptr;
+    ENV* env = RDS_GetEnvFromHandle(HandleType, Handle);
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
     const ERR_INFO* err = nullptr;
@@ -1685,10 +1703,11 @@ SQLRETURN RDS_SQLGetDiagRec(
     SQLTCHAR* new_msg_buffer = new_msg_vector.data();
 
     const std::shared_ptr<OdbcHelper> odbc_helper = RDS_GetOdbcHelper(HandleType, Handle);
+    const bool user_4_byte = env && env->use_4_bytes_user_app.load();
 
     size_t app_state_bytes = MAX_SQL_STATE_LEN * sizeof(SQLTCHAR);
     size_t app_msg_bytes = BufferLength * sizeof(SQLTCHAR);
-    if (odbc_helper && odbc_helper->GetUse4BytesUserApp()) {
+    if (user_4_byte) {
         app_state_bytes *= 2;
         app_msg_bytes *= 2;
     }
@@ -1715,8 +1734,12 @@ SQLRETURN RDS_SQLGetDiagRec(
                     ret = RDS_ProcessLibRes(SQL_HANDLE_ENV, env, res);
 
                     if (odbc_helper) {
-                        odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
-                        odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                        if (SQLState) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
+                        }
+                        if (MessageText) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                        }
                     }
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
@@ -1744,9 +1767,14 @@ SQLRETURN RDS_SQLGetDiagRec(
                         HandleType, dbc->wrapped_dbc, RecNumber, new_state_buffer, NativeErrorPtr, new_msg_buffer, BufferLength, TextLengthPtr
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                    if (odbc_helper) {
+                        if (SQLState) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
+                        }
+                        if (MessageText) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                        }
+                    }
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, dbc->wrapped_dbc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1775,8 +1803,14 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                    if (odbc_helper) {
+                        if (SQLState) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
+                        }
+                        if (MessageText) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                        }
+                    }
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, stmt->wrapped_stmt, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1805,8 +1839,14 @@ SQLRETURN RDS_SQLGetDiagRec(
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
 
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
-                    odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                    if (odbc_helper) {
+                        if (SQLState) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_state_buffer, SQLState, sizeof(new_state_buffer), app_state_bytes);
+                        }
+                        if (MessageText) {
+                            odbc_helper->ConvertDriverOutputToTarget(WrapperCall, new_msg_buffer, MessageText, new_msg_vector.size() * sizeof(SQLTCHAR), app_msg_bytes);
+                        }
+                    }
 #else
                     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
                         HandleType, desc->wrapped_desc, RecNumber, SQLState, NativeErrorPtr, MessageText, BufferLength, TextLengthPtr
@@ -1832,9 +1872,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         if (SQLState) {
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate);
-            if (odbc_helper) {
-                odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
-            }
+            OdbcHelper::ConvertWrapperOutputToTarget(user_4_byte, WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
 #else
             snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", err->sqlstate);
 #endif
@@ -1849,9 +1887,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         if (MessageText && (BufferLength > 0) && err->error_msg) {
 #ifdef UNICODE
             const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength), err->error_msg);
-            if (odbc_helper) {
-                odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, MessageText, written, app_msg_bytes);
-            }
+            OdbcHelper::ConvertWrapperOutputToTarget(user_4_byte, WrapperCall, MessageText, written, app_msg_bytes);
 #else
             const SQLLEN written = snprintf(reinterpret_cast<char*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", err->error_msg);
 #endif
@@ -1872,13 +1908,8 @@ SQLRETURN RDS_SQLGetDiagRec(
         if (SQLState) {
 #ifdef UNICODE
             CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, NO_DATA_SQL_STATE);
-            // Expand to 4-byte if user app expects it
-            {
-                const auto odbc_helper = RDS_GetOdbcHelper(dbc, env);
-                if (odbc_helper) {
-                    odbc_helper->ConvertWrapperOutputToTarget(WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
-                }
-            }
+            // Expand to 4-byte if user app expects it.
+            OdbcHelper::ConvertWrapperOutputToTarget(user_4_byte, WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
 #else
             snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", NO_DATA_SQL_STATE);
 #endif
@@ -1950,7 +1981,7 @@ SQLRETURN RDS_SQLGetInfo(
                             info_buf.size() * sizeof(SQLTCHAR),
                             static_cast<size_t>(BufferLength));
                         odbc_helper->AdjustByteLength(StringLengthPtr);
-                    } else {
+                    } else if (InfoValuePtr) {
                         std::memcpy(InfoValuePtr, info_buf.data(), static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR));
                     }
                     return RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -2640,7 +2671,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         if (!dbc->plugin_service) {
             // Create Plugin Service
             PluginService::InitClusterId(dbc->conn_attr);
-            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, dbc->conn_attr,
+            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, env, dbc->conn_attr,
                 conn_str.empty()
                 ? ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr)
                 : conn_str

@@ -48,7 +48,7 @@ class MockHostSelector : public HostSelector {
 
 class MockPluginService : public PluginService {
     public:
-        MockPluginService() : PluginService(nullptr, {}, "") {}
+        MockPluginService() : PluginService(nullptr, nullptr, {}, "") {}
         std::vector<HostInfo> GetHosts() override { return {}; }
         void SetHosts(const std::vector<HostInfo>&) override {}
 };

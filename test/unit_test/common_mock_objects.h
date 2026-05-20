@@ -53,7 +53,7 @@ public:
 
 class MOCK_ODBC_HELPER : public OdbcHelper {
 public:
-    MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>()) {};
+    MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>(), nullptr) {};
     MOCK_METHOD(void, Disconnect, (const DBC *dbc), ());
 };
 

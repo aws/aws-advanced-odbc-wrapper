@@ -38,7 +38,7 @@ protected:
         mock_base_plugin = new MOCK_BASE_PLUGIN();
         dbc = new DBC();
         dbc->plugin_head = mock_base_plugin;
-        odbc_helper_ = std::make_shared<OdbcHelper>(nullptr);
+        odbc_helper_ = std::make_shared<OdbcHelper>(nullptr, nullptr);
     }
     void TearDown() override {
         // mock_base_plugin should be cleaned up by plugin chain

@@ -28,7 +28,7 @@
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
-PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str) :
+PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, const ENV* env, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str) :
     original_conn_str_{ std::move(original_conn_str) },
     original_conn_attr_{ std::move(original_conn_attr) }
 {
@@ -45,7 +45,7 @@ PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, st
     this->cluster_id_ = InitClusterId(original_conn_attr_);
     this->host_selector_ = InitHostSelector(original_conn_attr_);
     this->dialect_ = InitDialect(original_conn_attr_);
-    this->odbc_helper_ = std::make_shared<OdbcHelper>(lib_loader);
+    this->odbc_helper_ = std::make_shared<OdbcHelper>(lib_loader, env);
     this->topology_util_ = std::make_shared<AuroraTopologyUtil>(this->odbc_helper_, this->dialect_);
 }
 

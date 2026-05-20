@@ -32,7 +32,7 @@ class RdsHostListProvider : public HostListProvider {
 public:
     RdsHostListProvider(std::shared_ptr<TopologyUtil> topology_util, PluginService* plugin_service);
     ~RdsHostListProvider();
-    virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host);
+    virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) override;
     virtual std::vector<HostInfo> Refresh() override;
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, uint32_t timeout_ms) override;
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;

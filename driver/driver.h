@@ -55,6 +55,7 @@
 
 #include <sql.h>
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
@@ -101,6 +102,7 @@ struct ENV {
     SQLHENV wrapped_env;
 
     std::shared_ptr<RdsLibLoader> driver_lib_loader;
+    std::atomic<bool> use_4_bytes_user_app = false;
 
     ~ENV();
 };  // ENV

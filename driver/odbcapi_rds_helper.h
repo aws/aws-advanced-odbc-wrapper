@@ -397,6 +397,8 @@ SQLRETURN RDS_SQLTables(
 
 SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str);
 
+ENV* RDS_GetEnvFromHandle(SQLSMALLINT handle_type, SQLHANDLE handle);
+
 #if UNICODE
 // Forward declaration for RDS_GetOdbcHelper
 class OdbcHelper;

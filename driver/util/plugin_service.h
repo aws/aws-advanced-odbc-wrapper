@@ -24,6 +24,7 @@
 #include <set>
 
 struct DBC;
+struct ENV;
 
 struct HostFilter {
     std::set<std::string> allowed_host_ids;
@@ -38,7 +39,7 @@ struct HostFilter {
 class PluginService {
    public:
     PluginService() = default;
-    PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str);
+    PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, const ENV* env, std::map<std::string, std::string> original_conn_attr, std::string original_conn_str);
     ~PluginService();
 
     virtual std::string GetClusterId();

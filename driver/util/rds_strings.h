@@ -132,7 +132,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
     return wstr;
 }
 
-inline std::vector<uint16_t>  ConvertUTF8ToUTF16(std::string input) {
+inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
     icu::StringPiece string_piece(input.c_str(), input.length());
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
