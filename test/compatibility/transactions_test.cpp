@@ -130,7 +130,8 @@ TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
     // Verify the table is still empty.
     EXPECT_EQ(0, GetRowCount());
 
-    SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    rc = SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    EXPECT_TRUE(SQL_SUCCEEDED(rc));
     EXPECT_EQ(1, GetRowCount());
 
     SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -165,7 +166,8 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     // Verify the table is still empty.
     EXPECT_EQ(0, GetRowCount());
 
-    SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    rc = SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    EXPECT_TRUE(SQL_SUCCEEDED(rc));
     EXPECT_EQ(NUM_CONNECTIONS, GetRowCount());
 
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
