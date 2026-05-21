@@ -447,7 +447,7 @@ TEST_P(ODBC_API_TEST, SQLColumnsTest) {
                     if (indicator == SQL_NULL_DATA) {
                         out_file << "null";
                     } else {
-                        data[sizeof(data) - 1] = '\0';
+                        data[MAX_SQL_MESSAGE_LEN - 1] = '\0';
                         out_file << "\"" << STRING_HELPER::SqltcharToAnsi(data) << "\"";
                     }
                 } else {
