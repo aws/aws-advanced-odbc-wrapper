@@ -70,6 +70,7 @@ ENV* RDS_GetEnvFromHandle(SQLSMALLINT HandleType, SQLHANDLE InputHandle) {
 }
 
 #if UNICODE
+// codechecker_suppress [readability-identifier-naming]
 std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env) {
     if (dbc && dbc->plugin_service) {
         return dbc->plugin_service->GetOdbcHelper();
@@ -83,6 +84,7 @@ std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env) {
     return nullptr;
 }
 
+// codechecker_suppress [readability-identifier-naming]
 std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(
     SQLSMALLINT         HandleType,
     SQLHANDLE           InputHandle)
@@ -828,7 +830,9 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
+#ifdef UNICODE
     bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
+#endif
     std::string conn_str_utf8;
     std::string current_utf8;
     size_t load_len = -1;
@@ -967,7 +971,9 @@ SQLRETURN RDS_SQLDriverConnect(
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     std::string conn_str_utf8;
     std::string conn_out_str_utf8;
-    bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
+#ifdef UNICODE
+    const bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
+#endif
 
     if (DriverCompletion && WindowHandle) {
 #if _WIN32
@@ -1024,7 +1030,6 @@ SQLRETURN RDS_SQLDriverConnect(
         ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
         if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
-            use_4_bytes_user_app = true;
             dbc->env->use_4_bytes_user_app.store(true);
         }
     }
@@ -1706,19 +1711,20 @@ SQLRETURN RDS_SQLGetDiagRec(
     DESC* desc = nullptr;
     STMT* stmt = nullptr;
     DBC* dbc = nullptr;
-    ENV* env = RDS_GetEnvFromHandle(HandleType, Handle);
+    ENV* env = nullptr;
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
     const ERR_INFO* err = nullptr;
     bool has_underlying_data = false;
 
 #if UNICODE
+    env = RDS_GetEnvFromHandle(HandleType, Handle);
     SQLTCHAR new_state_buffer[MAX_SQL_STATE_LEN * 2] = {0};
     std::vector<SQLTCHAR> new_msg_vector(static_cast<size_t>(BufferLength) * 2, '\0');
     SQLTCHAR* new_msg_buffer = new_msg_vector.data();
 
     const std::shared_ptr<OdbcHelper> odbc_helper = RDS_GetOdbcHelper(HandleType, Handle);
-    const bool user_4_byte = env && env->use_4_bytes_user_app.load();
+    const bool user_4_byte = env != nullptr && env->use_4_bytes_user_app.load();
 
     size_t app_state_bytes = MAX_SQL_STATE_LEN * sizeof(SQLTCHAR);
     size_t app_msg_bytes = BufferLength * sizeof(SQLTCHAR);

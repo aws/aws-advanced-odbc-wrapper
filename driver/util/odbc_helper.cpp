@@ -366,7 +366,8 @@ std::vector<SQLTCHAR> OdbcHelper::AllocateConversionBuffer(const size_t byte_cou
     const size_t local_buf_size = use_4_bytes_base_driver_
         ? char_count * 2
         : char_count;
-    return std::vector<SQLTCHAR>(local_buf_size, 0);
+    std::vector<SQLTCHAR> buffer(local_buf_size, 0);
+    return buffer;
 }
 
 size_t OdbcHelper::GetTargetByteCount(const bool wrapper_call, const size_t char_count) const {
