@@ -25,14 +25,22 @@
 #include <chrono>
 #include <future>
 #include <string>
+#include <thread>
 
-#include "../common/base_connection_test.h"
 #include "../common/connection_string_builder.h"
 #include "../common/odbc_helper.h"
-#include "../common/string_helper.h"
 #include "../common/test_utils.h"
 
-class ConcurrentTransactionsTest: public BaseConnectionTest {
+static std::string txn_test_server;
+static int txn_test_port;
+static std::string txn_test_dsn;
+static std::string txn_test_db;
+static std::string txn_test_uid;
+static std::string txn_test_pwd;
+static std::string txn_test_base_driver;
+static std::string txn_test_base_dsn;
+
+class ConcurrentTransactionsTest : public testing::TestWithParam<std::string> {
 protected:
     static constexpr int NUM_CONNECTIONS = 3;
 
@@ -40,20 +48,25 @@ protected:
     std::string CREATE_TABLE_QUERY = "CREATE TABLE concurrent_test (id SERIAL PRIMARY KEY, thread_id INT, transaction_id INT, data VARCHAR(255), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)";
     std::string COUNT_QUERY = "SELECT COUNT(*) FROM concurrent_test";
 
-    static void SetUpTestSuite() {
-        BaseConnectionTest::SetUpTestSuite();
-    }
-
-    static void TearDownTestSuite() {
-        BaseConnectionTest::TearDownTestSuite();
-    }
+    std::string conn_str = "";
+    SQLHENV env = SQL_NULL_HENV;
+    SQLHDBC dbc = SQL_NULL_HDBC;
 
     void SetUp() override {
-        BaseConnectionTest::SetUp();
-        conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
-            .withUID(test_uid)
-            .withPWD(test_pwd)
-            .withDatabase(test_db)
+        // Workaround for log creation
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        std::string test_dsn = GetParam();
+        ASSERT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_ENV, nullptr, &env));
+        ASSERT_EQ(SQL_SUCCESS, SQLSetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0));
+        ASSERT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc));
+
+        conn_str = ConnectionStringBuilder(test_dsn.c_str(), txn_test_server, txn_test_port)
+            .withUID(txn_test_uid)
+            .withPWD(txn_test_pwd)
+            .withDatabase(txn_test_db)
+            .withBaseDriver(txn_test_base_driver)
+            .withBaseDSN(txn_test_base_dsn)
             .getString();
 
         // Create test table "concurrent_test".
@@ -88,7 +101,9 @@ protected:
         SQLDisconnect(cleanup_dbc);
         SQLFreeHandle(SQL_HANDLE_DBC, cleanup_dbc);
 
-        BaseConnectionTest::TearDown();
+        // Allow ng-log to flush before ShutdownLogging() is triggered by freeing the env handle.
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        ODBC_HELPER::CleanUpHandles(env, dbc, nullptr);
     }
 
     int GetRowCount() {
@@ -114,30 +129,59 @@ protected:
     }
 };
 
-TEST_F(ConcurrentTransactionsTest, CommitWithDBCHandle) {
-    // Execute a single transaction and commit using the DBC handle.
-    SQLSetConnectAttr(dbc, SQL_ATTR_AUTOCOMMIT, SQL_AUTOCOMMIT_OFF, 0);
-    SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
+TEST_P(ConcurrentTransactionsTest, CommitWithDBCHandle) {
+    // Open two connections on the same env, insert on both with autocommit off,
+    // but only commit one using SQLEndTran(SQL_HANDLE_DBC). Verify that only
+    // the committed connection's row is visible.
+    SQLHDBC dbc1, dbc2;
+    SQLHSTMT stmt1, stmt2;
+    SQLRETURN rc;
+
+    SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc1);
+    SQLSetConnectAttr(dbc1, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0);
+    rc = ODBC_HELPER::DriverConnect(dbc1, conn_str);
     ASSERT_TRUE(SQL_SUCCEEDED(rc));
+    SQLAllocHandle(SQL_HANDLE_STMT, dbc1, &stmt1);
 
-    SQLHSTMT stmt;
-    SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
+    SQLAllocHandle(SQL_HANDLE_DBC, env, &dbc2);
+    SQLSetConnectAttr(dbc2, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0);
+    rc = ODBC_HELPER::DriverConnect(dbc2, conn_str);
+    ASSERT_TRUE(SQL_SUCCEEDED(rc));
+    SQLAllocHandle(SQL_HANDLE_STMT, dbc2, &stmt2);
 
-    std::string insert_query = "INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'test')";
-    rc = ODBC_HELPER::ExecuteQuery(stmt, insert_query);
+    // Insert one row on each connection
+    rc = ODBC_HELPER::ExecuteQuery(stmt1, "INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (1, 1, 'dbc1')");
+    EXPECT_TRUE(SQL_SUCCEEDED(rc));
+    rc = ODBC_HELPER::ExecuteQuery(stmt2, "INSERT INTO concurrent_test (thread_id, transaction_id, data) VALUES (2, 1, 'dbc2')");
     EXPECT_TRUE(SQL_SUCCEEDED(rc));
 
-    // Verify the table is still empty.
+    // Neither row should be visible yet
     EXPECT_EQ(0, GetRowCount());
 
-    rc = SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    // Commit only dbc1
+    rc = SQLEndTran(SQL_HANDLE_DBC, dbc1, SQL_COMMIT);
     EXPECT_TRUE(SQL_SUCCEEDED(rc));
+
+    // Only dbc1's row should be visible
+    int count_after_commit1 = GetRowCount();
+    EXPECT_EQ(1, count_after_commit1);
+
+    // Rollback dbc2
+    rc = SQLEndTran(SQL_HANDLE_DBC, dbc2, SQL_ROLLBACK);
+    EXPECT_TRUE(SQL_SUCCEEDED(rc));
+
+    // Still only 1 row
     EXPECT_EQ(1, GetRowCount());
 
-    SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt1);
+    SQLFreeHandle(SQL_HANDLE_STMT, stmt2);
+    SQLDisconnect(dbc1);
+    SQLDisconnect(dbc2);
+    SQLFreeHandle(SQL_HANDLE_DBC, dbc1);
+    SQLFreeHandle(SQL_HANDLE_DBC, dbc2);
 }
 
-TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
+TEST_P(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     // Execute transactions and commit using the ENV handle.
     SQLHDBC multi_dbc[NUM_CONNECTIONS];
     SQLHSTMT multi_stmt[NUM_CONNECTIONS];
@@ -146,7 +190,7 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
 
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
         SQLAllocHandle(SQL_HANDLE_DBC, env, &multi_dbc[i]);
-        SQLSetConnectAttr(multi_dbc[i], SQL_ATTR_AUTOCOMMIT, (SQLPOINTER) SQL_AUTOCOMMIT_OFF, 0);
+        SQLSetConnectAttr(multi_dbc[i], SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0);
         rc = ODBC_HELPER::DriverConnect(multi_dbc[i], conn_str);
         EXPECT_TRUE(SQL_SUCCEEDED(rc));
         SQLAllocHandle(SQL_HANDLE_STMT, multi_dbc[i], &multi_stmt[i]);
@@ -167,7 +211,10 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
     EXPECT_EQ(0, GetRowCount());
 
     rc = SQLEndTran(SQL_HANDLE_ENV, env, SQL_COMMIT);
+    fprintf(stderr, "[DEBUG] CommitWithEnvHandle in test SQLEndTran(ENV) rc=%d (DSN=%s)\n", rc, GetParam().c_str());
+    fflush(stderr);
     EXPECT_TRUE(SQL_SUCCEEDED(rc));
+
     EXPECT_EQ(NUM_CONNECTIONS, GetRowCount());
 
     for (int i = 0; i < NUM_CONNECTIONS; ++i) {
@@ -176,3 +223,29 @@ TEST_F(ConcurrentTransactionsTest, CommitWithEnvHandle) {
         SQLFreeHandle(SQL_HANDLE_DBC, multi_dbc[i]);
     }
 }
+
+static std::vector<std::string> getTxnDsnValues() {
+    txn_test_server = TEST_UTILS::GetEnvVar("TEST_SERVER", "localhost");
+    std::string port_str = TEST_UTILS::GetEnvVar("TEST_PORT", "5432");
+    txn_test_port = std::strtol(port_str.c_str(), nullptr, 0);
+
+    txn_test_dsn = TEST_UTILS::GetEnvVar("TEST_DSN", "wrapper-dsn");
+    txn_test_db = TEST_UTILS::GetEnvVar("TEST_DATABASE");
+    txn_test_uid = TEST_UTILS::GetEnvVar("TEST_USERNAME");
+    txn_test_pwd = TEST_UTILS::GetEnvVar("TEST_PASSWORD");
+    txn_test_base_driver = TEST_UTILS::GetEnvVar("TEST_BASE_DRIVER");
+    txn_test_base_dsn = TEST_UTILS::GetEnvVar("TEST_BASE_DSN");
+
+    return std::vector<std::string> {
+        txn_test_dsn,
+#ifdef TEST_BASE_OUTPUT
+        txn_test_base_dsn
+#endif
+    };
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ConcurrentTransactions,
+    ConcurrentTransactionsTest,
+    testing::ValuesIn(getTxnDsnValues())
+);

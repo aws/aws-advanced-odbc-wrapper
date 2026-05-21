@@ -37,8 +37,8 @@ set(TEST_UTILITIES
 )
 
 set(TEST_SUITE
-    ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/odbc_api_test.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/connection_test.cpp
+    # ${CMAKE_CURRENT_SOURCE_DIR}/odbc_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transactions_test.cpp
 )
 

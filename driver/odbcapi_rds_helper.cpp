@@ -277,6 +277,8 @@ SQLRETURN RDS_SQLEndTran(
     SQLHANDLE      Handle,
     SQLSMALLINT    CompletionType)
 {
+    fprintf(stderr, "[DEBUG] RDS_SQLEndTran called: HandleType=%d CompletionType=%d\n", HandleType, CompletionType);
+    fflush(stderr);
     SQLRETURN ret = SQL_SUCCESS;
     ENV* env = nullptr;
     DBC* dbc = nullptr;
@@ -292,10 +294,14 @@ SQLRETURN RDS_SQLEndTran(
                 CLEAR_DBC_ERROR(dbc);
 
                 CHECK_WRAPPED_DBC(dbc);
+                fprintf(stderr, "[DEBUG] RDS_SQLEndTran DBC path: calling base driver SQLEndTran\n");
+                fflush(stderr);
                 res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLEndTran, RDS_STR_SQLEndTran,
                     HandleType, dbc->wrapped_dbc, CompletionType
                 );
                 ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                fprintf(stderr, "[DEBUG] RDS_SQLEndTran DBC path: ret=%d\n", ret);
+                fflush(stderr);
                 if (SQL_SUCCEEDED(ret) && dbc) {
                     dbc->transaction_status = TRANSACTION_CLOSED;
                 }
@@ -309,6 +315,9 @@ SQLRETURN RDS_SQLEndTran(
                 const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
                 CLEAR_ENV_ERROR(env);
 
+                fprintf(stderr, "[DEBUG] RDS_SQLEndTran ENV path: dbc_list size=%zu\n", env->dbc_list.size());
+                fflush(stderr);
+                int dbc_idx = 0;
                 for (DBC* dbc : env->dbc_list) {
                     // TODO - May need enhanced error handling due to multiple DBCs
                     //   Should error out on the first?
@@ -320,15 +329,22 @@ SQLRETURN RDS_SQLEndTran(
                         SQL_HANDLE_DBC, dbc->wrapped_dbc, CompletionType
                     );
                     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                    fprintf(stderr, "[DEBUG] RDS_SQLEndTran ENV path: dbc[%d] ret=%d\n", dbc_idx, ret);
+                    fflush(stderr);
                     if (SQL_SUCCEEDED(ret) && dbc) {
                         dbc->transaction_status = TRANSACTION_CLOSED;
                     }
+                    dbc_idx++;
                 }
 
+                fprintf(stderr, "[DEBUG] RDS_SQLEndTran ENV path: calling SQLEndTran on wrapped_env\n");
+                fflush(stderr);
                 res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLEndTran, RDS_STR_SQLEndTran,
                     HandleType, env->wrapped_env, CompletionType
                 );
                 ret = RDS_ProcessLibRes(HandleType, env, res);
+                fprintf(stderr, "[DEBUG] RDS_SQLEndTran ENV path: wrapped_env ret=%d\n", ret);
+                fflush(stderr);
             }
             break;
         default:
@@ -336,6 +352,8 @@ SQLRETURN RDS_SQLEndTran(
             ret = SQL_ERROR;
             break;
     }
+    fprintf(stderr, "[DEBUG] RDS_SQLEndTran returning: ret=%d HandleType=%d\n", ret, HandleType);
+    fflush(stderr);
     return ret;
 }
 

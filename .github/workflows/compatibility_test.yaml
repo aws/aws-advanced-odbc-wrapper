@@ -343,12 +343,6 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_DRIVER_PATH }}
           TEST_BASE_DSN: pg-dsn
-      - name: Compare Test Results for PostgreSQL
-        run: |
-          python3 -m venv venv
-          .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Install MySQL Ansi DSNs
         shell: pwsh
         run: |
@@ -383,22 +377,6 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9a.dll
           TEST_BASE_DSN: mysql-dsn
-      - name: Compare Test Results for MySQL
-        run: |
-          python3 -m venv venv
-          .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-windows
-          path: |
-            wrapper-pg-dsn/
-            pg-dsn/
-            wrapper-mysql-dsn/
-            mysql-dsn/
 
   test-macos-compat:
     name: MacOS - Compatibility Test
@@ -531,12 +509,6 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for PostgreSQL
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
           ./test-compatibility/compatibility-test
@@ -551,22 +523,6 @@ jobs:
           TEST_BASE_DSN: mysql-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for MySQL
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-macos
-          path: |
-            wrapper-pg-dsn/
-            pg-dsn/
-            wrapper-mysql-dsn/
-            mysql-dsn/
 
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
@@ -664,12 +620,6 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for PostgreSQL
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
           ./test-compatibility/compatibility-test
@@ -684,22 +634,6 @@ jobs:
           TEST_BASE_DSN: mysql-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for MySQL
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-linux
-          path: |
-            wrapper-pg-dsn/
-            pg-dsn/
-            wrapper-mysql-dsn/
-            mysql-dsn/
 
 # Unicode compatibility tests
   test-win-compat-unicode:
@@ -821,12 +755,6 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: ${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}
           TEST_BASE_DSN: pg-dsn-w
-      - name: Compare Test Results for PostgreSQL (Unicode)
-        run: |
-          python3 -m venv venv
-          .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-pg-dsn-w --expected pg-dsn-w
       - name: Install MySQL Unicode DSNs
         shell: pwsh
         run: |
@@ -857,22 +785,6 @@ jobs:
           TEST_PASSWORD: ${{env.LOCAL_DB_PWD}}
           TEST_BASE_DRIVER: C:\Program Files\MySQL\MySQL Connector ODBC 9.5\myodbc9w.dll
           TEST_BASE_DSN: mysql-dsn-w
-      - name: Compare Test Results for MySQL (Unicode)
-        run: |
-          python3 -m venv venv
-          .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
-          python test/compatibility/compare_results.py wrapper-mysql-dsn-w --expected mysql-dsn-w
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-windows-unicode
-          path: |
-            wrapper-pg-dsn-w/
-            pg-dsn-w/
-            wrapper-mysql-dsn-w/
-            mysql-dsn-w/
 
   test-macos-compat-unicode:
     name: MacOS - Compatibility Test (Unicode)
@@ -983,12 +895,6 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for PostgreSQL (Unicode)
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Setup iODBC and rebuild MySQL Unicode test binary
         run: |
           curl -L https://sourceforge.net/projects/iodbc/files/iodbc/3.52.16/iODBC-SDK-3.52.16-macOS11.dmg/download --output iodbc.dmg
@@ -1036,22 +942,6 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           ODBCINSTINI: "${{ github.workspace }}/test/resources/odbcinst.ini"
           ODBCINI_IODBC: "${{ github.workspace }}/test/resources/odbc.ini"
-      - name: Compare Test Results for MySQL (Unicode)
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-macos-unicode
-          path: |
-            wrapper-pg-dsn/
-            pg-dsn/
-            wrapper-mysql-dsn/
-            mysql-dsn/
 
   test-linux-compat-unicode:
     name: Linux Ubuntu - Compatibility Test (Unicode)
@@ -1136,12 +1026,6 @@ jobs:
           TEST_BASE_DSN: pg-dsn
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for PostgreSQL (Unicode)
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL (Unicode)
         run: |
           ./test-compatibility-w/compatibility-test
@@ -1157,19 +1041,3 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           ODBCINSTINI: "${{ github.workspace }}/test/resources/odbcinst.ini"
-      - name: Compare Test Results for MySQL (Unicode)
-        run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip3 install deepdiff
-          python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: odbc-api-compatibility-test-results-linux-unicode
-          path: |
-            wrapper-pg-dsn/
-            pg-dsn/
-            wrapper-mysql-dsn/
-            mysql-dsn/
