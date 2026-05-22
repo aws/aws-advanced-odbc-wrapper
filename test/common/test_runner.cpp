@@ -25,6 +25,18 @@ public:
         std::cerr.flush();
     }
 
+    void OnTestPartResult(const testing::TestPartResult& result) override {
+        if (result.passed() || result.skipped()) {
+            return;
+        }
+        const char* file = result.file_name() ? result.file_name() : "unknown";
+        const int line = result.line_number();
+        std::cout << file << ":" << line << ": Failure" << std::endl;
+        std::cout << result.message() << std::endl;
+        std::cout.flush();
+        std::cerr.flush();
+    }
+
     void OnTestEnd(const testing::TestInfo& info) override {
         const char* status = info.result()->Passed() ? "[       OK ]" : "[  FAILED  ]";
         std::cout << status << " "
