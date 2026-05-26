@@ -1,5 +1,10 @@
 ## Okta Authentication Plugin for the AWS Advanced ODBC Wrapper
 
+> [!WARNING]\
+> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. Okta authentication relies on IAM, and MySQL Connector/ODBC has a restricted password length that the IAM authentication token exceeds.
+> Using this plugin with MySQL Connector/ODBC will cause a segmentation fault.
+> A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
+
 The driver supports authentication via an [Okta](https://www.okta.com/) federated identity and then database access via IAM.
 
 ### What is Federated Identity

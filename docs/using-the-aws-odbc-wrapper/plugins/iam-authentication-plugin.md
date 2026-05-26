@@ -1,5 +1,10 @@
 ## IAM Authentication Plugin for the AWS Advanced ODBC Wrapper
 
+> [!WARNING]\
+> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted password length, and the IAM authentication token exceeds this limit.
+> Using this plugin with MySQL Connector/ODBC will cause a segmentation fault.
+> A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
+
 ### What is IAM?
 
 AWS Identity and Access Management (IAM) grants users access control across all Amazon Web Services. IAM supports granular permissions, giving you the ability to grant different permissions to different users. For more information on IAM and its use cases, please refer to the [IAM documentation](https://docs.aws.amazon.com/IAM/latest/UserGuide/introduction.html).
