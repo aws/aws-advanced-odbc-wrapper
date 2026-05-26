@@ -16,13 +16,14 @@ on:
 
 env:
   BUILD_CONFIG: Release
+  CODECHECKER_VERSION: 6.24.4
 
 permissions:
   contents: read
 
 jobs:
-  static-analysis:
-    name: Static Analysis
+  static-analysis-ansi:
+    name: Static Analysis (ANSI)
     runs-on: macos-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
@@ -33,31 +34,144 @@ jobs:
           brew install cmake unixodbc curl openssl zlib cppcheck llvm icu4c
           python3 -m venv ./venv
           source ./venv/bin/activate
-          python3 -m pip install CodeChecker==6.24.4
+          python3 -m pip install CodeChecker==${{ env.CODECHECKER_VERSION }}
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}
       - name: Build AWS SDK for C++
-        if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
+        if: ${{ steps.cache-aws-sdk.outputs.cache-hit != 'true' }}
         run: |
-          ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
-      - name: Build aws-advanced-odbc-wrapper
+          ./scripts/compile_aws_sdk_unix.sh ${{ env.BUILD_CONFIG }} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
+      - name: Configure ANSI build
+        env:
+          CC: /opt/homebrew/opt/llvm/bin/clang
+          CXX: /opt/homebrew/opt/llvm/bin/clang++
         run: |
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
-            -DBUILD_UNICODE=OFF -DBUILD_UNIT_TEST=OFF \
+          cmake -S . -B build_ansi \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} \
+            -DBUILD_ANSI=ON \
+            -DBUILD_UNICODE=OFF \
+            -DBUILD_UNIT_TEST=OFF \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=1
-      - name: Run static analysis
+      - name: Run static analysis (ANSI)
         continue-on-error: true
         run: |
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
           whereis clang-tidy
           source ./venv/bin/activate
-          CodeChecker analyze -i ./.clang-skipfile -o ./reports --analyzer-config clang-tidy:take-config-from-directory=true -d cppcheck ./build/compile_commands.json
-      - name: Print static analysis
+          CodeChecker analyze \
+            -i ./.clang-skipfile \
+            -o ./reports-ansi \
+            --analyzer-config clang-tidy:take-config-from-directory=true \
+            -d cppcheck \
+            ./build_ansi/compile_commands.json
+      - name: Upload ANSI reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: reports-ansi
+          path: reports-ansi/
+          retention-days: 7
+          if-no-files-found: error
+
+  static-analysis-unicode:
+    name: Static Analysis (Unicode)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Install Build Dependencies
+        run: |
+          brew update && brew upgrade && brew cleanup
+          brew install cmake unixodbc curl openssl zlib cppcheck llvm icu4c
+          python3 -m venv ./venv
+          source ./venv/bin/activate
+          python3 -m pip install CodeChecker==${{ env.CODECHECKER_VERSION }}
+      - name: Retrieve AWS SDK for C++ Cache
+        id: cache-aws-sdk
+        uses: actions/cache@v5
+        with:
+          path: aws_sdk/install
+          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}
+      - name: Build AWS SDK for C++
+        if: ${{ steps.cache-aws-sdk.outputs.cache-hit != 'true' }}
+        run: |
+          ./scripts/compile_aws_sdk_unix.sh ${{ env.BUILD_CONFIG }} "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/"
+      - name: Configure Unicode build
+        env:
+          CC: /opt/homebrew/opt/llvm/bin/clang
+          CXX: /opt/homebrew/opt/llvm/bin/clang++
+        run: |
+          cmake -S . -B build_unicode \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} \
+            -DBUILD_ANSI=OFF \
+            -DBUILD_UNICODE=ON \
+            -DBUILD_UNIT_TEST=OFF \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+      - name: Run static analysis (Unicode)
+        continue-on-error: true
+        run: |
+          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+          whereis clang-tidy
+          source ./venv/bin/activate
+          CodeChecker analyze \
+            -i ./.clang-skipfile \
+            -o ./reports-unicode \
+            --analyzer-config clang-tidy:take-config-from-directory=true \
+            -d cppcheck \
+            ./build_unicode/compile_commands.json
+      - name: Upload Unicode reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: reports-unicode
+          path: reports-unicode/
+          retention-days: 7
+          if-no-files-found: error
+
+  merge-and-print:
+    name: Merge and Print Static Analysis
+    needs: [static-analysis-ansi, static-analysis-unicode]
+    runs-on: macos-latest
+    steps:
+      - name: Checkout aws-advanced-odbc-wrapper
+        uses: actions/checkout@v6
+      - name: Install CodeChecker
+        run: |
+          python3 -m venv ./venv
+          source ./venv/bin/activate
+          python3 -m pip install CodeChecker==${{ env.CODECHECKER_VERSION }}
+      - name: Download ANSI reports
+        uses: actions/download-artifact@v7.0.0
+        with:
+          name: reports-ansi
+          path: reports-merged/ansi
+      - name: Download Unicode reports
+        uses: actions/download-artifact@v7.0.0
+        with:
+          name: reports-unicode
+          path: reports-merged/unicode
+      - name: Print merged static analysis
         run: |
           source ./venv/bin/activate
-          CodeChecker parse --print-steps ./reports
+          CodeChecker parse --print-steps \
+            ./reports-merged/ansi \
+            ./reports-merged/unicode
+      - name: Export HTML report
+        if: always()
+        run: |
+          source ./venv/bin/activate
+          CodeChecker parse \
+            --export html \
+            --output ./html-report \
+            ./reports-merged/ansi \
+            ./reports-merged/unicode || true
+      - name: Upload merged HTML report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: static-analysis-html-report
+          path: html-report/
+          retention-days: 14
+          if-no-files-found: warn
