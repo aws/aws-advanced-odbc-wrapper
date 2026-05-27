@@ -1,7 +1,7 @@
 ## IAM Authentication Plugin for the AWS Advanced ODBC Wrapper
 
 > [!WARNING]\
-> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted password length, and the IAM authentication token exceeds this limit.
+> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted connection string length, and the IAM authentication token causes the connection string to exceed this limit.
 > Using this plugin with MySQL Connector/ODBC will cause a segmentation fault.
 > A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
 

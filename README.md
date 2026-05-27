@@ -46,7 +46,7 @@ AWS Authentication requires the proper region to be set to generate a proper cre
 
 #### IAM-based Authentication with MySQL Connector/ODBC
 
-The [IAM Authentication](./docs/using-the-aws-odbc-wrapper/plugins/iam-authentication-plugin.md), [ADFS Authentication](./docs/using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md), and [Okta Authentication](./docs/using-the-aws-odbc-wrapper/plugins/okta-authentication-plugin.md) plugins do not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted password length, and the IAM authentication token exceeds this limit, causing a segmentation fault. A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
+The [IAM Authentication](./docs/using-the-aws-odbc-wrapper/plugins/iam-authentication-plugin.md), [ADFS Authentication](./docs/using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md), and [Okta Authentication](./docs/using-the-aws-odbc-wrapper/plugins/okta-authentication-plugin.md) plugins do not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted connection string length that is exceeded once the IAM authentication token is appended, resulting in a segmentation fault. A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
 
 ## Getting Help & Opening Issues
 

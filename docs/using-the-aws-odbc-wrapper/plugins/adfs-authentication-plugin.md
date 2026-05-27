@@ -1,7 +1,7 @@
 ## ADFS Authentication Plugin for the AWS Advanced ODBC Wrapper
 
 > [!WARNING]\
-> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. ADFS authentication relies on IAM, and MySQL Connector/ODBC has a restricted password length that the IAM authentication token exceeds.
+> This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. ADFS authentication relies on IAM, and MySQL Connector/ODBC has a restricted connection string length that is exceeded once the IAM authentication token is appended.
 > Using this plugin with MySQL Connector/ODBC will cause a segmentation fault.
 > A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
 
