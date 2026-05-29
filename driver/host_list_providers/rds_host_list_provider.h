@@ -38,7 +38,7 @@ public:
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id);
     ~RdsHostListProvider();
-    virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host);
+    virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) override;
     virtual std::vector<HostInfo> Refresh() override;
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) override;
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;

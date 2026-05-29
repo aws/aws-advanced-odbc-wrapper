@@ -73,7 +73,7 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     monitor_dbc_ = new DBC();
     monitor_dbc_->conn_attr = conn_attr;
     const std::shared_ptr<PluginService> monitor_plugin_service =
-        std::make_shared<PluginService>(dbc->env->driver_lib_loader, conn_attr);
+        std::make_shared<PluginService>(dbc->env->driver_lib_loader, dbc->env, conn_attr);
     const std::shared_ptr<BasePlugin> monitoring_plugin_head =
         PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
     monitor_plugin_service->SetPluginChain(monitoring_plugin_head);

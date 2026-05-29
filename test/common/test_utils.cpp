@@ -37,8 +37,8 @@
 
 std::string TEST_UTILS::GetEnvVar(const char* key, const char* default_value) {
     char* value = std::getenv(key);
-    if (value == nullptr || value == "") {
-        if (default_value == "") {
+    if (value == nullptr || value[0] == '\0') {
+        if (default_value[0] != '\0') {
             std::cout << "Unable to get environment variable for: " << key << ", using default: " << default_value << std::endl;
         }
 
@@ -64,7 +64,7 @@ std::string TEST_UTILS::HostToIp(std::string hostname) {
     struct addrinfo hints;
     struct addrinfo* servinfo;
     struct addrinfo* p;
-    char ipstr[INET_ADDRSTRLEN];
+    char ipstr[INET_ADDRSTRLEN] = {0};
 
     ClearMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET; //IPv4

@@ -64,11 +64,10 @@ constexpr auto MAX_SQLSTATE_LENGTH = 6;
 class BaseFailoverIntegrationTest : public BaseConnectionTest {
 protected:
     std::string cluster_prefix = ".cluster-";
-    std::string cluster_id = test_server.substr(0, test_server.find('.'));
-    std::string instance_endpoint =
-        test_server.substr(test_server.find(cluster_prefix) + cluster_prefix.size(), test_server.size());
-    std::string db_conn_str_suffix = "." + instance_endpoint;
-    std::string cluster_ro_url = ".cluster-ro-" + instance_endpoint;
+    std::string cluster_id;
+    std::string instance_endpoint;
+    std::string db_conn_str_suffix;
+    std::string cluster_ro_url;
 
     std::vector<std::string> cluster_instances;
     std::string writer_id;
@@ -162,28 +161,44 @@ protected:
 
     // ODBC Query Helpers
     void AssertQueryFail(const SQLHDBC dbc, std::string query, const std::string& expected_error) const {
-        SQLHSTMT hstmt;
+        SQLHSTMT hstmt = SQL_NULL_HSTMT;
         SQLSMALLINT stmt_length;
         SQLINTEGER native_err;
-        SQLTCHAR msg[MAX_CONN_LENGTH], state[MAX_SQLSTATE_LENGTH];
+        SQLTCHAR msg[MAX_CONN_LENGTH] = {0}, state[MAX_SQLSTATE_LENGTH] = {0};
 
-        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
+        SQLRETURN alloc_rc = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt);
+        if (alloc_rc != SQL_SUCCESS) {
+            ADD_FAILURE() << "AssertQueryFail: SQLAllocHandle failed with rc=" << alloc_rc;
+            return;
+        }
         EXPECT_EQ(SQL_ERROR, ODBC_HELPER::ExecuteQuery(hstmt, query));
-        EXPECT_EQ(SQL_SUCCESS, SQLError(nullptr, nullptr, hstmt, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
+        EXPECT_EQ(SQL_SUCCESS, SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length));
         EXPECT_STREQ(expected_error.c_str(), STRING_HELPER::SqltcharToAnsi(state));
         EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
     }
 
     std::string QueryInstanceId(SQLHDBC dbc) const {
-        SQLTCHAR buf[SQL_MAX_MESSAGE_LENGTH] = { 0 };
+        SQLTCHAR buf[SQL_MAX_MESSAGE_LENGTH] = {0};
         SQLLEN buflen;
-        SQLHSTMT hstmt;
-        EXPECT_EQ(SQL_SUCCESS, SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt));
-        EXPECT_EQ(SQL_SUCCESS, ODBC_HELPER::ExecuteQuery(hstmt, SERVER_ID_QUERY));
-        EXPECT_EQ(SQL_SUCCESS, SQLFetch(hstmt));
-        EXPECT_EQ(SQL_SUCCESS, SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, SQL_MAX_MESSAGE_LENGTH, &buflen));
-        EXPECT_EQ(SQL_SUCCESS, SQLFreeHandle(SQL_HANDLE_STMT, hstmt));
-        return std::string(STRING_HELPER::SqltcharToAnsi(buf));
+        SQLHSTMT hstmt = SQL_NULL_HANDLE;
+        std::string result;
+
+        if (SQLAllocHandle(SQL_HANDLE_STMT, dbc, &hstmt) != SQL_SUCCESS) {
+            ADD_FAILURE() << "QueryInstanceId: SQLAllocHandle failed";
+            return result;
+        }
+
+        if (ODBC_HELPER::ExecuteQuery(hstmt, SERVER_ID_QUERY) == SQL_SUCCESS &&
+            SQLFetch(hstmt) == SQL_SUCCESS &&
+            SQLGetData(hstmt, 1, SQL_C_TCHAR, buf, sizeof(buf), &buflen) == SQL_SUCCESS)
+        {
+            result = STRING_HELPER::SqltcharToAnsi(buf);
+        } else {
+            ADD_FAILURE() << "QueryInstanceId: query failed";
+        }
+
+        SQLFreeHandle(SQL_HANDLE_STMT, hstmt);
+        return result;
     }
 
     int QueryCountTableRows(const SQLHSTMT handle) {
@@ -218,6 +233,9 @@ protected:
         }
 
         const auto result = outcome.GetResult();
+        if (result.GetDBClusters().empty()) {
+            throw std::runtime_error("GetTopologyViaSdk: No clusters returned");
+        }
         const Aws::RDS::Model::DBCluster cluster = result.GetDBClusters()[0];
 
         for (const auto& instance : cluster.GetDBClusterMembers()) {
@@ -240,7 +258,13 @@ protected:
         Aws::RDS::Model::DescribeDBClustersRequest rds_req;
         rds_req.WithDBClusterIdentifier(cluster_id);
         auto outcome = client.DescribeDBClusters(rds_req);
+        if (!outcome.IsSuccess()) {
+            throw std::runtime_error("GetDbCluster: DescribeDBClusters failed");
+        }
         const auto result = outcome.GetResult();
+        if (result.GetDBClusters().empty()) {
+            throw std::runtime_error("GetDbCluster: No clusters found");
+        }
         return result.GetDBClusters().at(0);
     }
 
@@ -257,9 +281,12 @@ protected:
         Aws::RDS::Model::DescribeDBClusterEndpointsRequest request;
         request.SetDBClusterEndpointIdentifier(endpoint_id);
         const auto response = client.DescribeDBClusterEndpoints(request);
+        if (!response.IsSuccess()) {
+            throw std::runtime_error("GetCustomEndpointInfo: DescribeDBClusterEndpoints failed");
+        }
         const auto& endpoints = response.GetResult().GetDBClusterEndpoints();
         if (endpoints.empty()) {
-            throw std::runtime_error("DescribeDBClusterEndpoints returned no endpoints for: " + endpoint_id);
+            throw std::runtime_error("Custom endpoint not found: " + endpoint_id);
         }
         return endpoints[0];
     }
@@ -299,9 +326,12 @@ protected:
     }
 
     static Aws::String GetRandomDbReaderId(std::vector<std::string> readers) {
+        if (readers.empty()) {
+            throw std::runtime_error("GetRandomDbReaderId: readers list is empty");
+        }
         std::random_device rd;
         std::mt19937 generator(rd());
-        std::uniform_int_distribution<> distribution(0, readers.size() - 1); // define the range of random numbers
+        std::uniform_int_distribution<> distribution(0, static_cast<int>(readers.size()) - 1);
         return readers.at(distribution(generator));
     }
 

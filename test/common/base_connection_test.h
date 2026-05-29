@@ -45,8 +45,8 @@ protected:
 
     std::string conn_str = "";
 
-    SQLHENV env = nullptr;
-    SQLHDBC dbc = nullptr;
+    SQLHENV env = SQL_NULL_HENV;
+    SQLHDBC dbc = SQL_NULL_HDBC;
 
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}
