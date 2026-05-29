@@ -44,6 +44,10 @@ To find all the documentation and concrete examples on how to use the AWS Advanc
 
 AWS Authentication requires the proper region to be set to generate a proper credential token. If using the global endpoint to connect, the region may change when server-sided failover occurs. Please ensure region is updated to the correct database instance region when re-establishing connections.
 
+#### IAM-based Authentication with MySQL Connector/ODBC
+
+The [IAM Authentication](./docs/using-the-aws-odbc-wrapper/plugins/iam-authentication-plugin.md), [ADFS Authentication](./docs/using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md), and [Okta Authentication](./docs/using-the-aws-odbc-wrapper/plugins/okta-authentication-plugin.md) plugins do not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted connection string length that is exceeded once the IAM authentication token is appended, resulting in a segmentation fault. A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
+
 ## Getting Help & Opening Issues
 
 If you encounter a bug with the AWS Advanced ODBC Wrapper, we would like to hear about it. Please search the [existing issues](https://github.com/aws/aws-advanced-odbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.
