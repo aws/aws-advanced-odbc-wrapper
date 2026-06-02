@@ -1059,6 +1059,9 @@ SQLRETURN RDS_SQLDriverConnect(
 
     conn_out_str_utf8 = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_out_str_utf8);
 
+    // When DSN-only output is enabled, return just the DSN name to avoid exposing credentials in the output connection string.
+    conn_out_str_utf8 = ConnectionStringHelper::BuildDsnOnlyConnectionString(dbc->conn_attr, conn_out_str_utf8);
+
     // Update OutConnectionString with parsed values
     if (OutConnectionString && StringLength2Ptr) {
         const SQLULEN len = conn_out_str_utf8.length();

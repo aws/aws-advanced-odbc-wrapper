@@ -15,6 +15,7 @@
 #include "connection_string_helper.h"
 
 #include "connection_string_keys.h"
+#include "map_utils.h"
 #include "odbc_dsn_helper.h"
 #include "unicode/ucasemap.h"
 #include "unicode/utypes.h"
@@ -81,6 +82,13 @@ std::string ConnectionStringHelper::RemoveInternalWrapperKeys(const std::string&
         result = std::regex_replace(result, pattern, "");
     }
     return result;
+}
+
+std::string ConnectionStringHelper::BuildDsnOnlyConnectionString(const std::map<std::string, std::string>& conn_map, const std::string& full_conn_str) {
+    if (MapUtils::GetBooleanValue(conn_map, KEY_DSN_ONLY_OUTPUT, false)) {
+        return std::string(KEY_DSN) + "=" + MapUtils::GetStringValue(conn_map, KEY_DSN, "[empty]");
+    }
+    return full_conn_str;
 }
 
 bool ConnectionStringHelper::IsAwsOdbcKey(const std::string &aws_odbc_key)

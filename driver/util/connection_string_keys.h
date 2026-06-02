@@ -35,6 +35,8 @@
 #define KEY_DESC "DESCRIPTION"
 #define KEY_BASE_CONN "BASE_CONN"
 
+#define KEY_DSN_ONLY_OUTPUT "DSN_ONLY_OUTPUT"
+
 #define ODBC "ODBC"
 #define ODBC_DATA_SOURCES "ODBC Data Sources"
 

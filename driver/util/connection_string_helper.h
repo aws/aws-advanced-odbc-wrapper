@@ -36,6 +36,7 @@ static std::unordered_set<std::string> const internal_wrapper_key_set = {
 static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_BASE_DRIVER,
     KEY_BASE_DSN,
+    KEY_DSN_ONLY_OUTPUT,
     // Pass DSN to avoid loading a default DSN
     KEY_DRIVER,
     KEY_AUTH_TYPE,
@@ -114,6 +115,7 @@ namespace ConnectionStringHelper {
     std::string BuildFullConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string MaskSensitiveInformation(const std::string &conn_str);
     std::string RemoveInternalWrapperKeys(const std::string &conn_str);
+    std::string BuildDsnOnlyConnectionString(const std::map<std::string, std::string> &conn_map, const std::string &full_conn_str);
     bool IsAwsOdbcKey(const std::string &aws_odbc_key);
     bool IsSensitiveData(const std::string &sensitive_key);
     std::string GetRealKeyName(const std::string &alias_key);

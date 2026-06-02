@@ -105,6 +105,40 @@ TEST_F(ConnectionStringHelperTest, MaskConnectionString) {
     EXPECT_EQ(expected, masked_str);
 }
 
+TEST_F(ConnectionStringHelperTest, DsnOnlyOutputHidesCredentials) {
+    std::map<std::string, std::string> conn_map;
+    conn_map.insert_or_assign(KEY_DSN, "my-dsn");
+    conn_map.insert_or_assign(KEY_DB_USERNAME, "jane_doe");
+    conn_map.insert_or_assign(KEY_DB_PASSWORD, "secret_password");
+    conn_map.insert_or_assign(KEY_DSN_ONLY_OUTPUT, VALUE_BOOL_TRUE);
+
+    const std::string full = ConnectionStringHelper::BuildFullConnectionString(conn_map);
+    const std::string result = ConnectionStringHelper::BuildDsnOnlyConnectionString(conn_map, full);
+
+    EXPECT_EQ(std::string(KEY_DSN) + "=my-dsn", result);
+    EXPECT_EQ(std::string::npos, result.find("jane_doe"));
+    EXPECT_EQ(std::string::npos, result.find("secret_password"));
+}
+
+TEST_F(ConnectionStringHelperTest, DsnOnlyOutputDisabledReturnsFull) {
+    std::map<std::string, std::string> conn_map;
+    conn_map.insert_or_assign(KEY_DSN, "my-dsn");
+    conn_map.insert_or_assign(KEY_DB_PASSWORD, "secret_password");
+
+    const std::string full = ConnectionStringHelper::BuildFullConnectionString(conn_map);
+    EXPECT_EQ(full, ConnectionStringHelper::BuildDsnOnlyConnectionString(conn_map, full));
+}
+
+TEST_F(ConnectionStringHelperTest, DsnOnlyOutputWithoutDsnReturnsEmpty) {
+    std::map<std::string, std::string> conn_map;
+    conn_map.insert_or_assign(KEY_DB_PASSWORD, "secret_password");
+    conn_map.insert_or_assign(KEY_DSN_ONLY_OUTPUT, VALUE_BOOL_TRUE);
+
+    const std::string full = ConnectionStringHelper::BuildFullConnectionString(conn_map);
+    const std::string expected = "DSN=[empty]";
+    EXPECT_EQ(expected, ConnectionStringHelper::BuildDsnOnlyConnectionString(conn_map, full));
+}
+
 TEST_F(ConnectionStringHelperTest, GetRealKeyName) {
     // UID
     EXPECT_EQ(std::string(KEY_DB_USERNAME), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_USERNAME_1));
