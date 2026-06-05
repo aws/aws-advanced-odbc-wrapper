@@ -26,6 +26,7 @@
 #define SQL_MAX_MESSAGE_LENGTH  512
 #define SQL_ERR_UNABLE_TO_CONNECT "08001"
 #define SQL_ERR_INVALID_PARAMETER "01S00"
+#define SQL_ERR_MYSQL_ACCESS_DENIED "28000"
 
 namespace ODBC_HELPER {
     SQLRETURN DriverConnect(SQLHDBC hdbc, std::string conn_str);

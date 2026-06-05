@@ -25,6 +25,7 @@ Driver          = @TEST_DRIVER_PATH@
 DATABASE        = @TEST_DATABASE@
 SERVER          = @TEST_SERVER@
 BASE_DRIVER     = @BASE_DRIVER_PATH@
+@BASE_DRIVER_EXTRA_DSN_LINES@
 
 [inte-base-dsn]
 Driver          = @BASE_DRIVER_PATH@

@@ -173,6 +173,12 @@ public:
         return *this;
     }
 
+    // MySQL/MariaDB ODBC: SSLVERIFY=0 keeps TLS on but skips cert CN check (needed for IP hosts).
+    ConnectionStringBuilder& withSslVerify(const bool& ssl_verify) {
+        conn_str_ += "SSLVERIFY=" + std::to_string(ssl_verify ? 1 : 0) + ";";
+        return *this;
+    }
+
     ConnectionStringBuilder& withCustomEndpoint(const bool& custom_endpoint_enabled) {
         conn_str_ += "ENABLE_CUSTOM_ENDPOINT=" + std::to_string(custom_endpoint_enabled ? 1 : 0) + ";";
         return *this;

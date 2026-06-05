@@ -36,6 +36,9 @@ env:
   DRIVER_NAME_ANSI: 'AWS Advanced ODBC Wrapper Ansi'
   DRIVER_NAME_UNICODE: 'AWS Advanced ODBC Wrapper Unicode'
 
+  # Alternate Aurora MySQL base driver; unlike MySQL Connector it supports RDS IAM auth.
+  MARIADB_ODBC_VERSION: '3.2.8'
+
 concurrency:
   group: integration-test-${{ github.ref }}
   cancel-in-progress: true
@@ -222,10 +225,34 @@ jobs:
             -L "https://dev.mysql.com/get/Downloads/Connector-ODBC/9.5/mysql-connector-odbc_9.5.0-1ubuntu24.04_amd64.deb" \
             --output mysql-connector_x64.deb
 
+  build-win-mariadb:
+    name: Windows - Get MariaDB Connector ODBC
+    runs-on: windows-latest
+    steps:
+      - name: Retrieve mariadb-connector Cache
+        id: cache-mariadb-connector
+        uses: actions/cache@v5
+        with:
+          path: mariadb-connector
+          key: ${{ runner.os }}-mariadb-driver-${{ env.MARIADB_ODBC_VERSION }}
+      - name: Download mariadb-connector
+        if: ${{steps.cache-mariadb-connector.outputs.cache-hit != 'true'}}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path mariadb-connector | Out-Null
+          $url = "https://dlm.mariadb.com/Connectors/odbc/connector-odbc-${{ env.MARIADB_ODBC_VERSION }}/mariadb-connector-odbc-${{ env.MARIADB_ODBC_VERSION }}-win64.msi"
+          $out = "mariadb-connector/mariadb-connector_x64.msi"
+          # --fail: error on HTTP >=400 instead of saving an HTML error page.
+          curl.exe --fail --location --retry 3 --retry-delay 5 "$url" --output $out
+          if ($LASTEXITCODE -ne 0) { Write-Error "MariaDB ODBC MSI download failed from $url"; exit 1 }
+          $size = (Get-Item $out).Length
+          Write-Host "Downloaded $out ($size bytes)"
+          if ($size -lt 100000) { Write-Error "Downloaded MSI is suspiciously small ($size bytes); likely not a valid MSI."; exit 1 }
+
 # Integration - General
   windows-integration-tests:
     name: Windows - Integration Tests
-    needs: [build-win-psqlodbc, build-win-mysql]
+    needs: [build-win-psqlodbc, build-win-mysql, build-win-mariadb]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -282,7 +309,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-win-inte
-          role-duration-seconds: 14400
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -326,12 +353,21 @@ jobs:
             echo "driver_path_unicode=C:\\Program Files\\MySQL\\MySQL Connector ODBC 9.5\\myodbc9w.dll" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
             echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
+            echo "mariadb_cache_key=${{ runner.os }}-mariadb-driver-${{ env.MARIADB_ODBC_VERSION }}" >> $GITHUB_OUTPUT
+            echo "maodbc_path=C:\\Program Files\\MariaDB\\MariaDB ODBC Driver 64-bit\\maodbc.dll" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
         uses: actions/cache@v5
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
+          fail-on-cache-miss: true
+      - name: Retrieve MariaDB Connector
+        if: (matrix.rds_engine == 'aurora-mysql')
+        uses: actions/cache@v5
+        with:
+          path: mariadb-connector
+          key: ${{steps.base_driver_info.outputs.mariadb_cache_key}}
           fail-on-cache-miss: true
       - name: Log base driver location
         shell: pwsh
@@ -367,6 +403,24 @@ jobs:
         working-directory: ${{steps.base_driver_info.outputs.cache_path}}
         run: |
           Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
+      - name: Install MariaDB Connector ODBC
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: pwsh
+        working-directory: mariadb-connector
+        run: |
+          Start-Process msiexec "/i mariadb-connector_x64.msi /quiet /norestart" -Wait;
+          if (-not (Test-Path "${{steps.base_driver_info.outputs.maodbc_path}}")) {
+            Write-Host "MariaDB ODBC driver not found at expected path."
+            Get-ChildItem "C:\Program Files\MariaDB" -Recurse -ErrorAction SilentlyContinue | Format-Table FullName
+            exit 1
+          }
+      - name: Download RDS CA bundle (MariaDB TLS)
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: pwsh
+        run: |
+          $caPath = "$env:RUNNER_TEMP\rds-global-bundle.pem"
+          curl.exe -L "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" --output $caPath
+          echo "RDS_CA_BUNDLE=$caPath" >> $env:GITHUB_ENV
       - name: Resolve Driver Paths
         id: resolved_drivers
         shell: pwsh
@@ -402,6 +456,31 @@ jobs:
               "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
               "SSLMode=prefer", `
               "BASE_DRIVER=${{steps.resolved_drivers.outputs.driver_path_unicode}}")
+      - name: Install MariaDB DSNs
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: pwsh
+        run: |
+            # SSLCA (RDS CA bundle) gives verified TLS so the IAM token is sent encrypted.
+            Add-OdbcDsn -Name "AWS-ODBC-MARIADB-ANSI" `
+              -DriverName "${{ env.DRIVER_NAME_ANSI }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
+              "SSLMode=prefer", `
+              "SSLCA=$env:RDS_CA_BUNDLE", `
+              "BASE_DRIVER=${{steps.base_driver_info.outputs.maodbc_path}}")
+            Add-OdbcDsn -Name "AWS-ODBC-MARIADB-UNICODE" `
+              -DriverName "${{ env.DRIVER_NAME_UNICODE }}" `
+              -DsnType User `
+              -SetPropertyValue `
+              @("RDS_AUTH_TYPE=database", `
+              "Server=${{ env.AURORA_CLUSTER_ENDPOINT }}", `
+              "Port=${{steps.base_driver_info.outputs.dialect_default_port}}", `
+              "SSLMode=prefer", `
+              "SSLCA=$env:RDS_CA_BUNDLE", `
+              "BASE_DRIVER=${{steps.base_driver_info.outputs.maodbc_path}}")
       - name: Verify DSN Configuration
         shell: pwsh
         run: |
@@ -419,7 +498,7 @@ jobs:
       - name: Build and Run Ansi Integration Tests
         id: ansi_tests
         shell: pwsh
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
@@ -441,6 +520,7 @@ jobs:
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Stabilize cluster between test runs
         shell: bash
         if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
@@ -452,7 +532,7 @@ jobs:
       - name: Build and Run Unicode Integration Tests
         id: unicode_tests
         shell: pwsh
-        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
@@ -464,6 +544,52 @@ jobs:
           if ($unicodeNonFailoverRc -ne 0 -or $unicodeFailoverRc -ne 0) { exit 1 }
         env:
           TEST_DSN: ${{ env.TEST_DSN_UNICODE }}
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
+      # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
+      - name: Build and Run MariaDB Ansi Integration Tests
+        shell: pwsh
+        if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
+          cmake --build build_mariadb_ansi --config ${{env.BUILD_CONFIG}}
+          echo "MariaDB Ansi Test Built"
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_mariadb_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_mariadb_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+        env:
+          TEST_DSN: "AWS-ODBC-MARIADB-ANSI"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Build and Run MariaDB Unicode Integration Tests
+        shell: pwsh
+        if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
+          cmake --build build_mariadb_unicode --config ${{env.BUILD_CONFIG}}
+          echo "MariaDB Unicode Test Built"
+          @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
+          & "${{env.CDB_PATH}}" -G -lines -y ".\build_mariadb_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_mariadb_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
+        env:
+          TEST_DSN: "AWS-ODBC-MARIADB-UNICODE"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
           TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
           TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
@@ -586,7 +712,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-inte
-          role-duration-seconds: 14400
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -643,6 +769,7 @@ jobs:
             echo "driver_path_unicode='${{ github.workspace }}/mysql-connector/lib/libmyodbc9w.so'" >> $GITHUB_OUTPUT
             echo "dialect_default_port=3306" >> $GITHUB_OUTPUT
             echo "database_dialect=${{ matrix.env.database_dialect }}" >> $GITHUB_OUTPUT
+            echo "MARIADB_DRIVER_PATH=/opt/homebrew/Cellar/mariadb-connector-odbc/3.2.8/lib/mariadb/libmaodbc.dylib" >> $GITHUB_ENV
           fi
       - name: Retrieve Base Driver
         uses: actions/cache@v5
@@ -657,10 +784,15 @@ jobs:
           echo "--- ODBC DSN config ---"
           odbcinst -j 2>/dev/null || true
           cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
+      - name: Download RDS CA bundle (MariaDB TLS)
+        if: (matrix.env.rds_engine == 'aurora-mysql')
+        shell: bash
+        run: |
+          curl -L "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" --output "${{ github.workspace }}/rds-global-bundle.pem"
       - name: Build and Run Ansi Integration Tests
         id: ansi_tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -688,6 +820,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Stabilize cluster between test runs
         shell: bash
         if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
@@ -697,9 +830,8 @@ jobs:
             --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
-        id: unicode_tests
         shell: bash
-        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -727,6 +859,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Dump RDS events on failure
         if: always()
         shell: bash
@@ -744,6 +877,65 @@ jobs:
               --source-type db-instance \
               --duration 120 || true
           done
+      # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
+      - name: Build and Run MariaDB Ansi Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && matrix.env.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.dylib" \
+            -D BASE_DRIVER_PATH="$MARIADB_DRIVER_PATH" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -D BASE_DRIVER_SSL_CA="${{ github.workspace }}/rds-global-bundle.pem"
+          cmake --build build_mariadb_ansi
+          echo "MariaDB Ansi Test Built"
+          ./build_mariadb_ansi/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Build and Run MariaDB Unicode Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && matrix.env.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_unicode \
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
+            -D BASE_DRIVER_PATH="$MARIADB_DRIVER_PATH" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -D BASE_DRIVER_SSL_CA="${{ github.workspace }}/rds-global-bundle.pem"
+          cmake --build build_mariadb_unicode
+          echo "MariaDB Unicode Test Built"
+          ./build_mariadb_unicode/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Get log location
         if: always()
         id: log_location
@@ -824,7 +1016,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-inte
-          role-duration-seconds: 14400
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -889,13 +1081,33 @@ jobs:
         shell: bash
         run: |
           sudo apt install ./mysql-connector/mysql-connector_x64.deb -y
+      - name: Install MariaDB Connector ODBC
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: bash
+        run: |
+          # Pinned official .deb (ubuntu-latest == noble, amd64); avoids the unpinned Ubuntu 'odbc-mariadb'.
+          DEB="mariadb-connector-odbc_${MARIADB_ODBC_VERSION}-1+maria~noble_amd64.deb"
+          URL="https://dlm.mariadb.com/Connectors/odbc/connector-odbc-${MARIADB_ODBC_VERSION}/${DEB}"
+          curl --fail --location --retry 3 --retry-delay 5 "$URL" --output "$RUNNER_TEMP/$DEB"
+          sudo apt-get update  # apt-get resolves the deb's runtime deps (unixodbc, etc.)
+          sudo apt-get install -y "$RUNNER_TEMP/$DEB"
+          # Discover the installed path rather than hardcoding it; export for the MariaDB test steps.
+          MARIADB_DRIVER_PATH="$(dpkg -L mariadb-connector-odbc | grep -E 'libmaodbc\.so$' | head -n1)"
+          test -n "$MARIADB_DRIVER_PATH" && test -f "$MARIADB_DRIVER_PATH"
+          echo "MARIADB_DRIVER_PATH=$MARIADB_DRIVER_PATH" >> "$GITHUB_ENV"
+          echo "Resolved MariaDB ODBC driver: $MARIADB_DRIVER_PATH"
+      - name: Download RDS CA bundle (MariaDB TLS)
+        if: (matrix.rds_engine == 'aurora-mysql')
+        shell: bash
+        run: |
+          curl -L "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" --output "${{ github.workspace }}/rds-global-bundle.pem"
       - name: Setup GDB
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
         id: ansi_tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF  \
@@ -924,6 +1136,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Stabilize cluster between test runs
         shell: bash
         if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
@@ -933,9 +1146,8 @@ jobs:
             --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
-        id: unicode_tests
         shell: bash
-        if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
@@ -950,6 +1162,68 @@ jobs:
           gdb -q -x ./.gdbinit --args ./build_unicode/integration-test --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_NON_FAILOVER_RC=$?
           gdb -q -x ./.gdbinit --args ./build_unicode/integration-test --gtest_filter=FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly || UNICODE_FAILOVER_RC=$?
           if [ "${UNICODE_NON_FAILOVER_RC:-0}" -ne 0 ] || [ "${UNICODE_FAILOVER_RC:-0}" -ne 0 ]; then exit 1; fi
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
+      # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
+      - name: Build and Run MariaDB Ansi Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_ansi \
+            -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-a.so" \
+            -D BASE_DRIVER_PATH="$MARIADB_DRIVER_PATH" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -D BASE_DRIVER_SSL_CA="${{ github.workspace }}/rds-global-bundle.pem"
+          cmake --build build_mariadb_ansi
+          echo "MariaDB Ansi Test Built"
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_mariadb_ansi/integration-test
+        env:
+          TEST_DSN: "inte-wrapper-dsn"
+          TEST_DATABASE: ${{ env.TEST_DATABASE }}
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+          TEST_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          TEST_IAM_USER: ${{ secrets.TEST_IAM_USER }}
+          TEST_SECRET_ARN: ${{ env.AURORA_CLUSTER_SECRETS_ARN }}
+          TEST_SERVER: ${{ env.AURORA_CLUSTER_ENDPOINT }}
+          TEST_PORT: "${{ steps.base_driver_info.outputs.dialect_default_port }}"
+          TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
+          ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
+          ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
+          TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
+      - name: Build and Run MariaDB Unicode Integration Tests
+        shell: bash
+        if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
+        run: |
+          cmake -S test/integration -B build_mariadb_unicode \
+            -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF \
+            -D CMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} \
+            -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
+            -D BASE_DRIVER_PATH="$MARIADB_DRIVER_PATH" \
+            -D TEST_SERVER="${{ env.AURORA_CLUSTER_ENDPOINT }}" \
+            -D TEST_DATABASE="${{ env.TEST_DATABASE }}" \
+            -D BASE_DRIVER_SSL_CA="${{ github.workspace }}/rds-global-bundle.pem"
+          cmake --build build_mariadb_unicode
+          echo "MariaDB Unicode Test Built"
+          ulimit -c unlimited
+          gdb -q -x ./.gdbinit ./build_mariadb_unicode/integration-test
         env:
           TEST_DSN: "inte-wrapper-dsn"
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -1033,6 +1307,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-win-limitless
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -1137,7 +1412,7 @@ jobs:
           Write-Host "Found cdb at: $cdb"
       - name: Build and Run Limitless Ansi Integration Tests
         shell: pwsh
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
@@ -1158,7 +1433,7 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
       - name: Build and Run Limitless Unicode Integration Tests
         shell: pwsh
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
@@ -1253,6 +1528,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-macos-limitless
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -1302,7 +1578,7 @@ jobs:
           cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Build and Run Limitless Ansi Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
@@ -1329,7 +1605,7 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Limitless Unicode Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
@@ -1415,6 +1691,7 @@ jobs:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
           role-session-name: odbc-wrapper-linux-limitless
+          role-duration-seconds: 43200
       - name: Setup Python virtual environment
         shell: bash
         run: |
@@ -1467,7 +1744,7 @@ jobs:
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Limitless Ansi Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
@@ -1495,7 +1772,7 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Limitless Unicode Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_unicode \
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON  \
@@ -1713,7 +1990,7 @@ jobs:
           echo "set auto-load safe-path /" > "$HOME/.gdbinit"
       - name: Build and Run Blue/Green Ansi Integration Tests
         shell: pwsh
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_bg_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON
@@ -1863,7 +2140,7 @@ jobs:
           fail-on-cache-miss: true
       - name: Build and Run Blue/Green Ansi Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_bg_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON \
@@ -2012,7 +2289,7 @@ jobs:
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Blue/Green Ansi Integration Tests
         shell: bash
-        if: ${{steps.AuroraClusterSetup.outcome == 'success'}}
+        if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_bg_ansi \
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON \

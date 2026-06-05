@@ -105,7 +105,9 @@ private:
         "08",       // connection error
         "99",       // unexpected error
         "F0",       // configuration file error (backend)
-        "XX"        // internal error (backend)
+        "XX",       // internal error (backend)
+        "HYT00",    // connection/login timeout expired
+        "HY000"     // generic error class used for can't-connect / unknown-host failures
     };
 };
 
