@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-16
+
+### Added
+
+- Support for Aurora MySQL
+- Support for Amazon RDS Multi-AZ DB Clusters [(PR #141)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/141)
+- Read/Write Splitting Plugin and Simple Read/Write Splitting Plugin [(PR #107)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/107)
+- Blue/Green Deployment support [(PR #101)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/101)
+- Aurora Initial Connection Strategy Plugin [(PR #100)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/100)
+- MacOS Releases Signed and Notarized [(PR #96)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/96)
+
+### Fixed
+
+- Proper lifetime of the monitor DBC handle [(PR #133)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/133)
+- Cluster topology monitor incorrectly running plugins [(PR #130)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/130)
+- Improved SQLWCHAR encoding to support iODBC and unixODBC  [(PR #94)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/94)
+
 ## [1.1.0] - 2026-03-09
 
 ### Added
@@ -32,5 +49,6 @@ The Amazon Web Services (AWS) Advanced ODBC Wrapper allows an application to tak
 - Limitless Connection Plugin
 - Failover Connection Plugin
 
+[1.2.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/v1.0.0
