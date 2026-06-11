@@ -74,7 +74,6 @@ private:
     std::shared_ptr<HostSelector> host_selector_;
     FailoverMode failover_mode_ = UNKNOWN_FAILOVER_MODE;
     std::shared_ptr<OdbcHelper> odbc_helper_;
-    std::shared_ptr<TopologyUtil> topology_util_;
     std::weak_ptr<PluginService> plugin_service_;
 };
 

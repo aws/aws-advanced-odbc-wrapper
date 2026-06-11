@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "../util/rds_strings.h"
+#include "../util/odbc_helper.h"
 
 class DialectAuroraMySql : virtual public Dialect, DialectBlueGreen {
 public:
@@ -34,6 +35,7 @@ public:
     std::string GetBlueGreenStatusQuery() override { return BG_STATUS_QUERY; };
     std::string GetSetReadOnlyQuery() override { return SET_READ_ONLY_QUERY; };
     std::string GetSetReadWriteQuery() override { return SET_READ_WRITE_QUERY; };
+    DatabaseDialectType GetUpdateCandidate() override { return MULTI_AZ_MYSQL; };
 
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
@@ -49,8 +51,9 @@ public:
         });
     };
 
-    virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
 
+protected:
     std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
         if (statement.starts_with(SET_READ_ONLY_QUERY)) {
             return true;
@@ -104,6 +107,46 @@ private:
         "F0",       // configuration file error (backend)
         "XX"        // internal error (backend)
     };
+};
+
+class DialectMultiAzClusterMySql : public DialectMultiAzCluster, public DialectAuroraMySql {
+public:
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_MYSQL; };
+    std::string GetWriterIdColumnName() override { return WRITER_ID_QUERY_COLUMN_NAME; };
+    std::string GetReplicaSourceQuery() override { return REPLICA_SOURCE_QUERY; };
+    std::string GetIsReaderQuery() override { return IS_READER_QUERY; };
+    std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
+    std::string GetNodeIdQuery() override { return NODE_ID_QUERY; };
+    DatabaseDialectType GetUpdateCandidate() override { return UNKNOWN_DIALECT; };
+
+    bool IsDialect(DBC* dbc, std::shared_ptr<OdbcHelper> odbc_helper) override {
+        SQLHSTMT stmt = SQL_NULL_HANDLE;
+        SQLTCHAR query_res[BUFFER_SIZE * 2] = {0};
+        SQLLEN len = 0;
+        odbc_helper->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
+        bool is_dialect = false;
+        if (const RdsLibResult res = odbc_helper->ExecDirect(&stmt, REPORT_HOST_EXISTS_QUERY); SQL_SUCCEEDED(res.fn_result)) {
+            odbc_helper->BindCol(&stmt, 2, SQL_C_TCHAR, &query_res, BUFFER_SIZE, &len);
+            odbc_helper->Fetch(&stmt);
+#ifdef UNICODE
+            Convert4To2ByteString(odbc_helper->GetUse4BytesBaseDriver(), query_res, nullptr, BUFFER_SIZE);
+#endif
+            const std::string query_res_str(AS_UTF8_CSTR(query_res));
+            if (!query_res_str.empty()) {
+                is_dialect = true;
+            }
+        }
+        odbc_helper->BaseFreeStmt(&stmt);
+        return is_dialect;
+    }
+
+private:
+    const std::string REPORT_HOST_EXISTS_QUERY = "SHOW VARIABLES LIKE 'report_host'";
+    const std::string TOPOLOGY_QUERY = "SELECT id, endpoint, port FROM mysql.rds_topology";
+    const std::string NODE_ID_QUERY = "SELECT @@server_id";
+    const std::string IS_READER_QUERY = "SELECT @@read_only";
+    const std::string REPLICA_SOURCE_QUERY = "SHOW REPLICA STATUS";
+    const std::string WRITER_ID_QUERY_COLUMN_NAME = "Source_Server_Id";
 };
 
 #endif // DIALECT_AURORA_MYSQL_H

@@ -28,6 +28,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/aurora_topology_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/cluster_topology_monitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/host_list_provider.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/multi_az_topology_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/rds_host_list_provider.h
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/topology_util.h
 
@@ -95,7 +96,6 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/concurrent_stack.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
@@ -136,6 +136,7 @@ set(SRC
     # Host List Providers
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/aurora_topology_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/cluster_topology_monitor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/multi_az_topology_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/rds_host_list_provider.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/host_list_providers/topology_util.cpp
 
@@ -197,7 +198,6 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/util/init_plugin_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.cpp

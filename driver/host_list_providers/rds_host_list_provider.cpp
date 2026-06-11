@@ -37,12 +37,10 @@ RdsHostListProvider::RdsHostListProvider(
         conn_attr_.contains(KEY_PORT) ?
             static_cast<int>(std::strtol(conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
     );
-    this->template_host_info_ = HostInfo(
-        RdsUtils::GetRdsInstanceHostPattern(this->initial_host_info_.GetHost()),
-        this->initial_host_info_.GetPort()
-    );
+    this->template_host_info_ = plugin_service->GetTemplateHostInfo();
     this->conn_attr_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
     this->monitor_ = GetOrCreateMonitor();
+    this->monitor_->UpdateDialect(this->topology_util_, this->plugin_service_->GetDialect());
 }
 
 RdsHostListProvider::~RdsHostListProvider() {
@@ -57,6 +55,15 @@ RdsHostListProvider::~RdsHostListProvider() {
             LOG(INFO) << "Decremented Cluster Topology Monitor count for: " << this->cluster_id_ << ", to: " << pair.first;
         }
     }
+}
+
+void RdsHostListProvider::UpdateDialect() {
+    monitor_->UpdateDialect(this->topology_util_, this->plugin_service_->GetDialect());
+}
+
+void RdsHostListProvider::UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {
+    topology_util_ = topology_util;
+    monitor_->UpdateDialect(topology_util, dialect);
 }
 
 std::vector<HostInfo> RdsHostListProvider::GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) {

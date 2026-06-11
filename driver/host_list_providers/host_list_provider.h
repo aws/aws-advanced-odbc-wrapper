@@ -16,12 +16,16 @@
 #define HOST_LIST_PROVIDER_H_
 
 #include <chrono>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "../host_info.h"
 #include "../util/connection_string_keys.h"
+
+class TopologyUtil;
+class Dialect;
 
 class HostListProvider {
 public:
@@ -32,6 +36,8 @@ public:
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) { return HOST_ROLE::UNKNOWN; };
     virtual HostInfo GetConnectionInfo(SQLHDBC hdbc) { return {}; }
     virtual std::string GetClusterId() { return {}; }
+    virtual void UpdateDialect() {}
+    virtual void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {}
 
 protected:
     std::string cluster_id_;

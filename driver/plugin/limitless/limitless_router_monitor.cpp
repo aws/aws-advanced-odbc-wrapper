@@ -71,6 +71,7 @@ void LimitlessRouterMonitor::Open(
         odbc_helper_->AllocDbc(henv, local_hdbc);
         DBC* local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = dbc->conn_attr;
+        local_dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 
         const SQLRETURN rc = plugin_head_->Connect(
             local_hdbc,
@@ -134,6 +135,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<std:
             odbc_helper_->AllocDbc(henv, conn);
             dbc = static_cast<DBC*>(conn);
             dbc->conn_attr = conn_attr;
+            dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 
             const SQLRETURN rc = plugin_head_->Connect(
                 conn,

@@ -142,6 +142,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
             odbc_helper_->AllocDbc(henv, local_hdbc);
             DBC* local_dbc = static_cast<DBC*>(local_hdbc);
             local_dbc->conn_attr = dbc->conn_attr;
+            local_dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 
             const SQLRETURN res = monitor->plugin_head_->Connect(
                 local_hdbc,

@@ -56,7 +56,6 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/init_plugin_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
 )

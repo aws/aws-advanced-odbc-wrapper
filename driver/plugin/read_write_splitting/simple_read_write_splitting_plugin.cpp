@@ -117,6 +117,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
             conn->conn_attr = connection_attributes_;
             conn->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE); // Skip this plugin.
             conn->conn_attr.insert_or_assign(KEY_SERVER, host);
+            conn->plugin_service = dbc_->plugin_service;
             ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
             if (SQL_SUCCEEDED(ret)) {
                 conn->conn_attr.erase(KEY_SRW_SKIP);
@@ -183,6 +184,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeReaderConnection() {
         conn->conn_attr = connection_attributes_;
         conn->conn_attr.insert_or_assign(KEY_SERVER, this->read_endpoint);
         conn->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE); // Skip this plugin.
+        conn->plugin_service = dbc_->plugin_service;
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(ret)) {
             odbc_helper_->DisconnectAndFree(&local_hdbc);
@@ -229,6 +231,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeWriterConnection() {
         conn->conn_attr = connection_attributes_;
         conn->conn_attr.insert_or_assign(KEY_SERVER, this->write_endpoint);
         conn->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE); // Skip this plugin.
+        conn->plugin_service = dbc_->plugin_service;
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(ret)) {
             odbc_helper_->DisconnectAndFree(&local_hdbc);

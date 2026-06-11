@@ -30,6 +30,7 @@
 
 #include "../host_list_providers/aurora_topology_util.h"
 #include "../host_list_providers/host_list_provider.h"
+#include "../host_list_providers/multi_az_topology_util.h"
 #include "../host_list_providers/rds_host_list_provider.h"
 
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr)
@@ -49,15 +50,34 @@ PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, co
             static_cast<int>(std::strtol(original_conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
     );
     this->current_host_ = this->initial_host_;
-    this->template_host_ = HostInfo(
-        RdsUtils::GetRdsInstanceHostPattern(this->initial_host_.GetHost()),
-        this->initial_host_.GetPort()
-    );
+
+    if (original_conn_attr_.contains(KEY_ENDPOINT_TEMPLATE)) {
+        const std::string pattern = original_conn_attr_.at(KEY_ENDPOINT_TEMPLATE);
+        const size_t colon_pos = pattern.rfind(':');
+        if (colon_pos != std::string::npos && colon_pos > pattern.rfind('.')) {
+            const std::string host_part = pattern.substr(0, colon_pos);
+            const int port_part = static_cast<int>(std::strtol(pattern.substr(colon_pos + 1).c_str(), nullptr, 0));
+            this->template_host_ = HostInfo(host_part, port_part);
+        } else {
+            this->template_host_ = HostInfo(pattern, this->initial_host_.GetPort());
+        }
+    } else {
+        this->template_host_ = HostInfo(
+            RdsUtils::GetRdsInstanceHostPattern(this->initial_host_.GetHost()),
+            this->initial_host_.GetPort()
+        );
+    }
     this->cluster_id_ = InitClusterId(original_conn_attr_);
     this->host_selector_ = InitHostSelector(original_conn_attr_);
     this->dialect_ = InitDialect(original_conn_attr_);
     this->odbc_helper_ = std::make_shared<OdbcHelper>(lib_loader, env);
-    this->topology_util_ = std::make_shared<AuroraTopologyUtil>(this->odbc_helper_, this->dialect_);
+
+    const DatabaseDialectType dialect_type = this->dialect_->GetDialectType();
+    if (dialect_type == DatabaseDialectType::MULTI_AZ_MYSQL || dialect_type == DatabaseDialectType::MULTI_AZ_PG) {
+        this->topology_util_ = std::make_shared<MultiAzTopologyUtil>(this->odbc_helper_, this->dialect_);
+    } else {
+        this->topology_util_ = std::make_shared<AuroraTopologyUtil>(this->odbc_helper_, this->dialect_);
+    }
 }
 
 PluginService::~PluginService()
@@ -144,13 +164,21 @@ std::shared_ptr<HostListProvider> PluginService::GetHostListProvider() {
 }
 
 void PluginService::RefreshHosts() {
+    if (!this->host_list_provider_) {
+        InitHostListProvider();
+    }
     const std::vector<HostInfo> new_hosts = this->host_list_provider_->Refresh();
     this->SetHosts(new_hosts);
 }
 
 void PluginService::ForceRefreshHosts(bool verify_writer, std::chrono::milliseconds timeout_ms) {
+    if (!this->host_list_provider_) {
+        InitHostListProvider();
+    }
     const std::vector<HostInfo> new_hosts = this->host_list_provider_->ForceRefresh(verify_writer, timeout_ms);
-    this->SetHosts(new_hosts);
+    if (!new_hosts.empty()) {
+        this->SetHosts(new_hosts);
+    }
 }
 
 std::vector<HostInfo> PluginService::GetHosts() {
@@ -207,6 +235,8 @@ void PluginService::InitHostListProvider() {
         case DatabaseDialectType::AURORA_POSTGRESQL:
         case DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS:
         case DatabaseDialectType::AURORA_MYSQL:
+        case DatabaseDialectType::MULTI_AZ_MYSQL:
+        case DatabaseDialectType::MULTI_AZ_PG:
         {
             std::map<std::string, std::string> monitoring_map = this->original_conn_attr_;
             std::string monitoring_cluster_id = MapUtils::GetStringValue(monitoring_map, KEY_CLUSTER_ID, "<empty>");
@@ -220,7 +250,7 @@ void PluginService::InitHostListProvider() {
             const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
             monitor_plugin_service->SetPluginChain(plugin_head);
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
-                monitor_plugin_service->GetTopologyUtil(),
+                this->topology_util_,
                 monitor_plugin_service
             );
             break;
@@ -278,12 +308,30 @@ std::shared_ptr<Dialect> PluginService::InitDialect(const std::map<std::string, 
     if (dialect == DatabaseDialectType::UNKNOWN_DIALECT) {
         // TODO - Dialect from host
         // For release, we are only supporting Aurora PostgreSQL and Aurora PostgreSQL Limitless
-        const std::string host = conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "";
+        const std::string host = MapUtils::GetStringValue(conn_info, KEY_SERVER, "");
+        const std::string driver_upper = RDS_STR_UPPER(MapUtils::GetStringValue(conn_info, KEY_DRIVER, ""));
+
+        static const std::vector<std::string> PG_IDENTIFIERS = {"POSTGRES", "PODBC", "PSQL"};
+        static const std::vector<std::string> MYSQL_IDENTIFIERS = {"MYSQL","MYODBC"};
+
+        for (const auto& id : PG_IDENTIFIERS) {
+            if (driver_upper.find(id) != std::string::npos) {
+                dialect = DatabaseDialectType::AURORA_POSTGRESQL;
+                break;
+            }
+        }
+
+        if (dialect == DatabaseDialectType::UNKNOWN_DIALECT) {
+            for (const auto& id : MYSQL_IDENTIFIERS) {
+                if (driver_upper.find(id) != std::string::npos) {
+                    dialect = DatabaseDialectType::AURORA_MYSQL;
+                    break;
+                }
+            }
+        }
 
         if (RdsUtils::IsLimitlessDbShardGroupDns(host)) {
             dialect = DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS;
-        } else {
-            dialect = DatabaseDialectType::AURORA_POSTGRESQL;
         }
     }
 
@@ -294,7 +342,49 @@ std::shared_ptr<Dialect> PluginService::InitDialect(const std::map<std::string, 
             return std::make_shared<DialectAuroraPostgresLimitless>();
         case DatabaseDialectType::AURORA_MYSQL:
             return std::make_shared<DialectAuroraMySql>();
+        case DatabaseDialectType::MULTI_AZ_PG:
+            return std::make_shared<DialectMultiAzClusterPostgres>();
+        case DatabaseDialectType::MULTI_AZ_MYSQL:
+            return std::make_shared<DialectMultiAzClusterMySql>();
         default:
             return std::make_shared<Dialect>();
+    }
+}
+
+void PluginService::UpdateDialect(DBC* dbc) {
+    const DatabaseDialectType update_candidate = this->dialect_->GetUpdateCandidate();
+    std::shared_ptr<Dialect> new_dialect;
+    switch (update_candidate) {
+        case DatabaseDialectType::MULTI_AZ_MYSQL:
+            new_dialect = std::make_shared<DialectMultiAzClusterMySql>();
+            break;
+        case DatabaseDialectType::MULTI_AZ_PG:
+            new_dialect = std::make_shared<DialectMultiAzClusterPostgres>();
+            break;
+        default:
+            break;
+    }
+
+    if (new_dialect != nullptr && new_dialect->IsDialect(dbc, this->odbc_helper_)) {
+        this->dialect_ = new_dialect;
+        this->topology_util_ = std::make_shared<MultiAzTopologyUtil>(this->odbc_helper_, this->dialect_);
+
+        if (this->host_list_provider_) {
+            this->host_list_provider_->UpdateDialect(this->topology_util_, this->dialect_);
+        }
+
+        // Fetch topology directly using the main DBC
+        const std::vector<HostInfo> hosts = this->topology_util_->QueryTopology(dbc, this->initial_host_, this->template_host_);
+        if (!hosts.empty()) {
+            this->SetHosts(hosts);
+        }
+   } else {
+        // Fetch topology directly using the main DBC if not already cached.
+        if (this->GetHosts().empty()) {
+            const std::vector<HostInfo> hosts = this->topology_util_->QueryTopology(dbc, this->initial_host_, this->template_host_);
+            if (!hosts.empty()) {
+                this->SetHosts(hosts);
+            }
+        }
     }
 }

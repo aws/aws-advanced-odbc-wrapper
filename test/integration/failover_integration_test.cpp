@@ -51,6 +51,10 @@ protected:
         }
         rds_client = Aws::RDS::RDSClient(credentials, client_config);
 
+        // Check to see if cluster is available before fetching topology.
+        WaitForDbReady(rds_client, cluster_id);
+        WaitForAllInstancesReady(rds_client, cluster_id);
+
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         if (cluster_instances.empty()) {
             GTEST_SKIP() << "No cluster instances found";
@@ -72,8 +76,9 @@ protected:
             .withDatabaseDialect(test_dialect)
             .getString();
 
-        // Check to see if cluster is available.
-        WaitForDbReady(rds_client, cluster_id);
+        if (test_dialect == "MULTI_AZ_MYSQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
+            conn_str = ConnectionStringBuilder(conn_str).withFailoverTimeout(1200000).getString();
+        }
     }
 
     void TearDown() override {
@@ -89,6 +94,7 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
     std::string strict_reader_conn_str = ConnectionStringBuilder(conn_str)
         .withFailoverMode("STRICT_READER")
         .getString();
+
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, strict_reader_conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
 
@@ -97,8 +103,8 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
     // Check if current connection is a writer
     if (!IsInstanceWriter(rds_client, cluster_id, current_connection_id)) {
         std::cout << "[WriterFailToReader] IsInstanceWriter check failed."
-                  << " initial_writer: " << writer_id
-                  << ", expected_writer: " << current_connection_id << std::endl;
+                << " initial_writer: " << writer_id
+                << ", expected_writer: " << current_connection_id << std::endl;
         LogClusterTopology(rds_client, cluster_id, "WriterFailToReader");
     }
     EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));

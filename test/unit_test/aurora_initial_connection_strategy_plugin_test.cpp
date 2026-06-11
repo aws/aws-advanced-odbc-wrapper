@@ -57,6 +57,7 @@ protected:
         mock_topology_util = std::make_shared<MOCK_TOPOLOGY_UTIL>(mock_odbc_helper, mock_dialect);
         ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
         ON_CALL(*mock_plugin_service, GetHostListProvider).WillByDefault(testing::Return(mock_host_list_provider));
+        ON_CALL(*mock_plugin_service, GetTopologyUtil).WillByDefault(testing::Return(mock_topology_util));
 
         dbc = new DBC();
         dbc->plugin_service = mock_plugin_service;
@@ -91,8 +92,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_NonRdsCluster_
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -120,8 +120,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_DSN) {
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -149,8 +148,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Configu
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -193,8 +191,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -236,8 +233,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Network
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -266,8 +262,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_DSN) {
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -297,8 +292,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Configu
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -338,8 +332,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
         mock_plugin_service,
         mock_host_selector,
         mock_dialect,
-        mock_odbc_helper,
-        mock_topology_util);
+        mock_odbc_helper);
 
     SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);

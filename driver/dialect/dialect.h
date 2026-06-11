@@ -16,32 +16,44 @@
 #define DIALECT_H
 
 #include <map>
+#include <memory>
+#include <string>
 
 #include "../util/connection_string_keys.h"
 #include "../util/rds_strings.h"
+
+struct DBC;
+class OdbcHelper;
 
 typedef enum {
     AURORA_POSTGRESQL,
     AURORA_POSTGRESQL_LIMITLESS,
     AURORA_MYSQL,
+    MULTI_AZ_MYSQL,
+    MULTI_AZ_PG,
     UNKNOWN_DIALECT
 } DatabaseDialectType;
 
 static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL,            DatabaseDialectType::AURORA_POSTGRESQL},
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,  DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS},
-    {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL}
+    {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL},
+    {VALUE_DB_DIALECT_MULTI_AZ_MYSQL,               DatabaseDialectType::MULTI_AZ_MYSQL},
+    {VALUE_DB_DIALECT_MULTI_AZ_PG,                  DatabaseDialectType::MULTI_AZ_PG}
 };
 
 class Dialect {
 public:
-    virtual int GetDefaultPort() { return 0; };
+    virtual int GetDefaultPort() { return 0; }
+    virtual std::string GetWriterIdColumnName() { return ""; };
     virtual std::string GetTopologyQuery() { return ""; };
     virtual std::string GetWriterIdQuery() { return ""; };
+    virtual std::string GetReplicaSourceQuery() { return ""; };
     virtual std::string GetNodeIdQuery() { return ""; };
     virtual std::string GetIsReaderQuery() { return ""; };
     virtual std::string GetSetReadOnlyQuery() { return ""; };
     virtual std::string GetSetReadWriteQuery() { return ""; };
+    virtual DatabaseDialectType GetUpdateCandidate() { return UNKNOWN_DIALECT; };
 
     virtual bool IsSqlStateAccessError(const char* sql_state) { return false; };
     virtual bool IsSqlStateAccessError(const char* sql_state, const std::string& error_message) {
@@ -50,6 +62,7 @@ public:
     virtual bool IsSqlStateNetworkError(const char* sql_state) { return false; };
 
     virtual DatabaseDialectType GetDialectType() { return DatabaseDialectType::UNKNOWN_DIALECT; };
+    virtual bool IsDialect(DBC* dbc, std::shared_ptr<OdbcHelper> odbc_helper) { return true; };
 
     virtual std::optional<bool> DoesStatementSetReadOnly(std::string statement) { return {}; };
 
@@ -61,6 +74,8 @@ public:
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }
+
+    static constexpr int BUFFER_SIZE = 1024;
 };
 
 class DialectLimitless : virtual public Dialect {
@@ -72,6 +87,11 @@ class DialectBlueGreen : virtual public Dialect {
 public:
     virtual std::string GetBlueGreenStatusAvailableQuery() { return ""; };
     virtual std::string GetBlueGreenStatusQuery() { return ""; };
+};
+
+class DialectMultiAzCluster : virtual public Dialect {
+public:
+    virtual std::string GetWriterIdColumnName() { return ""; };
 };
 
 #endif // DIALECT_H

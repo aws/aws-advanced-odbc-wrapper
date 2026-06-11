@@ -38,7 +38,9 @@ public:
     }
 
     void OnTestEnd(const testing::TestInfo& info) override {
-        const char* status = info.result()->Passed() ? "[       OK ]" : "[  FAILED  ]";
+        const char* status = info.result()->Passed()  ? "[       OK ]"
+                           : info.result()->Skipped() ? "[  SKIPPED ]"
+                           :                            "[  FAILED  ]";
         std::cout << status << " "
                   << info.test_suite_name() << "." << info.name()
                   << " (" << info.result()->elapsed_time() << " ms)"

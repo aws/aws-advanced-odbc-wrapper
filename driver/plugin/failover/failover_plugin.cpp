@@ -23,7 +23,6 @@
 #include "../../util/cluster_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
-#include "../../util/init_plugin_helper.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
 #include "../../util/plugin_service.h"
@@ -41,7 +40,6 @@ FailoverPlugin::FailoverPlugin(
     this->cluster_id_ = dbc->plugin_service->GetClusterId();
     this->dialect_ = dbc->plugin_service->GetDialect();
     this->host_selector_ = dbc->plugin_service->GetHostSelector();
-    this->topology_util_ = dbc->plugin_service->GetTopologyUtil();
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 
     std::map<std::string, std::string> &conn_info = dbc->conn_attr;
@@ -217,8 +215,8 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 continue;
             }
 
-            if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
-                const bool is_reader = topology_util_->GetWriterId(dbc).empty();
+            if (const std::shared_ptr<PluginService> service = plugin_service_.lock(); !GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
+                const bool is_reader = service->GetHostListProvider()->GetConnectionRole(dbc) == READER;
                 if (is_reader || (this->failover_mode_ != STRICT_READER)) {
                     LOG(INFO) << "Connected to a new reader for: " << host_string;
                     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
@@ -260,7 +258,8 @@ bool FailoverPlugin::FailoverReader(DBC* dbc)
                 LOG(WARNING) << "Reconnection to original writer failed";
                 continue;
             }
-            if (!topology_util_->GetWriterId(dbc).empty()) {
+            if (const std::shared_ptr<PluginService> service = plugin_service_.lock();
+                service != nullptr && service->GetHostListProvider()->GetConnectionRole(dbc) == WRITER) {
                 is_original_writer_still_writer = true;
                 if (STRICT_READER == this->failover_mode_) {
                     LOG(INFO) << "Strict Reader Mode, not connected to a reader: " << host_string;
@@ -309,7 +308,7 @@ bool FailoverPlugin::FailoverWriter(DBC *dbc)
         return false;
     }
     if (!GetNodeId(dbc, dialect_, odbc_helper_).empty()) {
-        if (!topology_util_->GetWriterId(dbc).empty()) {
+        if (const std::shared_ptr<PluginService> service = plugin_service_.lock(); service->GetHostListProvider()->GetConnectionRole(dbc) == WRITER) {
             LOG(INFO) << "Writer failover connected to a new writer for: " << host_string;
             if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
                 service->SetCurrentHostInfo(host);
@@ -339,6 +338,14 @@ bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string, con
     odbc_helper->Disconnect(dbc);
     LOG(INFO) << "Attempting to connect to host: " << host_string;
     dbc->conn_attr.insert_or_assign(KEY_SERVER, host_string);
+
+    // Update port from the template host if available
+    if (const std::shared_ptr<PluginService> service = dbc->plugin_service) {
+        const int port = service->GetTemplateHostInfo().GetPort();
+        if (port != HostInfo::NO_PORT) {
+            dbc->conn_attr.insert_or_assign(KEY_PORT, std::to_string(port));
+        }
+    }
 
     return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }

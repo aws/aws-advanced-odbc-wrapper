@@ -17,7 +17,6 @@
 #include "../../dialect/dialect.h"
 #include "../../dialect/dialect_aurora_postgres.h"
 #include "../../util/connection_string_helper.h"
-#include "../../util/init_plugin_helper.h"
 #include "../../util/plugin_service.h"
 
 LimitlessPlugin::LimitlessPlugin(DBC *dbc) : LimitlessPlugin(dbc, nullptr) {}
@@ -38,7 +37,13 @@ LimitlessPlugin::LimitlessPlugin(
 {
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
     this->plugin_name = "LIMITLESS";
-    this->dialect_ = dialect ? dialect : InitDialect(conn_info);
+    if (dialect) {
+        this->dialect_ = dialect;
+    } else if (dbc->plugin_service) {
+        this->dialect_ = dbc->plugin_service->GetDialect();
+    } else {
+        this->dialect_ = nullptr;
+    }
     this->limitless_router_service_ = limitless_router_service;
     this->odbc_helper_ = odbc_helper;
     this->limitless_query_helper_ = std::make_shared<LimitlessQueryHelper>(this->odbc_helper_);

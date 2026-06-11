@@ -45,10 +45,10 @@ protected:
     }
 
     void SetUp() override {
-        BaseConnectionTest::SetUp();
-        if (test_dialect == "AURORA_MYSQL") {
+        if (test_dialect == "AURORA_MYSQL" || test_dialect == "MULTI_AZ_MYSQL") {
             GTEST_SKIP() << "MySQL ODBC Connector does not support IAM with session tokens due to limitations on connection key-value pairs.";
         }
+        BaseConnectionTest::SetUp();
     }
 
     void TearDown() override {

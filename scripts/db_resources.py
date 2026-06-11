@@ -137,7 +137,27 @@ def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=Fa
         print("  Could not resolve SG — cluster may already be deleted")
         return
     cidr = f"{ip}/32"
+    # Check if the rule has a description — if so, it's a permanent rule and should not be removed.
     try:
+        response = ec2_client.describe_security_group_rules(
+            Filters=[{"Name": "group-id", "Values": [sg]}]
+        )
+        for rule in response.get("SecurityGroupRules", []):
+            if rule.get("CidrIpv4") == cidr:
+                description = rule.get("Description", "")
+                if description:
+                    return
+    except Exception as e:
+        print(f"  Warning: could not check rule descriptions: {e}")
+        ec2_client.revoke_security_group_ingress(
+            GroupId=sg,
+            IpProtocol="tcp",
+            CidrIp=cidr,
+            FromPort=0,
+            ToPort=65535,
+        )
+    except ClientError:
+        pass
         ec2_client.revoke_security_group_ingress(
             GroupId=sg,
             IpProtocol="tcp",
@@ -249,6 +269,74 @@ def create_limitless_cluster(rds_client, args):
         raise RuntimeError("Cluster did not become available after retries")
 
 
+def create_multi_az_db_cluster(rds_client, args):
+    rds_engine = args.engine.replace("multi-az-", "").replace("postgresql", "postgres")
+
+    # Resolve engine version for Multi-AZ DB Clusters
+    if args.engine_version != "latest":
+        version = args.engine_version
+    else:
+        response = rds_client.describe_db_engine_versions(Engine=rds_engine)
+        versions = sorted([
+            v["EngineVersion"] for v in response["DBEngineVersions"]
+            if v.get("SupportsClusters", False)
+        ])
+        if not versions:
+            versions = sorted([v["EngineVersion"] for v in response["DBEngineVersions"]])
+        version = versions[-1] if versions else args.engine_version
+    print(f"  Resolved Multi-AZ engine version: {version}")
+
+    username = args.username
+    if args.extra_mysql_user is not None:
+        username = args.extra_mysql_user
+
+    print(f"Creating Multi-AZ DB Cluster ({rds_engine} {version})...")
+    create_kwargs = dict(
+        DBClusterIdentifier=args.cluster_id,
+        MasterUsername=username,
+        MasterUserPassword=args.password,
+        Engine=rds_engine,
+        EngineVersion=version,
+        DBClusterInstanceClass=args.instance_class,
+        StorageType="io2",
+        AllocatedStorage=args.allocated_storage,
+        Iops=3000,
+        PubliclyAccessible=True,
+        StorageEncrypted=True,
+        BackupRetentionPeriod=1,
+        Tags=[{"Key": "env", "Value": "test-runner"}],
+    )
+    create_kwargs["DatabaseName"] = args.database
+    if rds_engine == "postgres":
+        create_kwargs["EnableIAMDatabaseAuthentication"] = True
+
+    print(f"  Parameters: instance_class={args.instance_class}, storage=io2, iops=3000, allocated={args.allocated_storage}, region={args.region}")
+
+    # Retry with the next-latest version if the resolved version isn't valid
+    # for Multi-AZ DB Clusters in this region.
+    response = rds_client.describe_db_engine_versions(Engine=rds_engine)
+    all_versions = sorted([v["EngineVersion"] for v in response["DBEngineVersions"]])
+    try:
+        rds_client.create_db_cluster(**create_kwargs)
+    except ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        error_message = e.response["Error"]["Message"]
+        if "InvalidParameterCombination" in error_code and "version" in error_message.lower() and len(all_versions) > 1:
+            # Remove the failed version and try the next latest
+            if version in all_versions:
+                all_versions.remove(version)
+            version = all_versions[-1]
+            create_kwargs["EngineVersion"] = version
+            print(f"  Version not valid for Multi-AZ DB Cluster, retrying with {version}...")
+            rds_client.create_db_cluster(**create_kwargs)
+        else:
+            raise
+
+    print("Waiting for Multi-AZ DB Cluster to become available...")
+    waiter = rds_client.get_waiter("db_cluster_available")
+    waiter.wait(DBClusterIdentifier=args.cluster_id)
+
+
 def create_custom_endpoint(rds_client, cluster_id, endpoint_id, num_instances):
     half = num_instances // 2
     members = [f"{cluster_id}-{i}".lower() for i in range(1, half + 1)]
@@ -355,6 +443,26 @@ def create_secrets(sm_client, username, password, engine, cluster_endpoint):
     return response["ARN"]
 
 
+def setup_pg_rds_tools_extension(endpoint, port, database, username, password):
+    """Create the rds_tools extension on a Multi-AZ PostgreSQL cluster."""
+    connstr = f"host={endpoint} port={port} dbname={database} user={username} password={password}"
+    print(f"Creating rds_tools extension on PostgreSQL: {endpoint}:{port}/{database}")
+    try:
+        with AwsWrapperConnection.connect(
+            psycopg.Connection.connect,
+            connstr,
+            wrapper_dialect="aurora-pg",
+            plugins="",
+            autocommit=True
+        ) as conn:
+            cur = conn.cursor()
+            cur.execute("CREATE EXTENSION IF NOT EXISTS rds_tools")
+            print("  rds_tools extension created successfully.")
+            cur.close()
+    except Exception as e:
+        print(f"Warning: rds_tools extension setup failed: {e}")
+
+
 def setup_pg_iam_user(endpoint, port, database, username, password, iam_user):
     connstr = f"host={endpoint} port={port} dbname={database} user={username} password={password}"
     print(f"Connecting to PostgreSQL via AWS Advanced Python Wrapper: {endpoint}:{port}/{database}")
@@ -398,15 +506,20 @@ def setup_mysql_iam_user(endpoint, database, username, password, iam_user,
             autocommit=True
         ) as conn:
             cur = conn.cursor()
-            print(f"  CREATE USER {iam_user}")
-            cur.execute(f"CREATE USER '{iam_user}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'")
-            cur.execute(f"GRANT ALL ON {database}.* TO '{iam_user}'@'%'")
-            cur.execute("FLUSH PRIVILEGES")
+
+            try:
+                print(f"  CREATE USER {iam_user}")
+                cur.execute(f"CREATE USER '{iam_user}' IDENTIFIED WITH AWSAuthenticationPlugin AS 'RDS'")
+                cur.execute(f"GRANT ALL ON {database}.* TO '{iam_user}'@'%'")
+                cur.execute("FLUSH PRIVILEGES")
+            except Exception as e:
+                print(f"  Warning: IAM user creation failed (expected for Multi-AZ): {e}")
 
             if extra_user and extra_password:
                 print(f"  CREATE USER {username}")
                 cur.execute(f"CREATE USER '{username}' IDENTIFIED WITH caching_sha2_password BY '{extra_password}'")
                 cur.execute(f"GRANT ALL ON {database}.* TO '{username}'@'%'")
+                cur.execute(f"GRANT SELECT ON mysql.rds_topology TO '{username}'@'%'")
                 cur.execute("FLUSH PRIVILEGES")
 
             cur.close()
@@ -603,30 +716,70 @@ def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
 
 
 def delete_aurora_cluster_by_id(rds_client, cluster_id):
-    """Delete an Aurora cluster by discovering its instances first."""
+    """Delete an Aurora or Multi-AZ DB cluster by discovering its instances first."""
     print(f"Deleting Aurora cluster {cluster_id}...")
-    try:
-        response = rds_client.describe_db_clusters(DBClusterIdentifier=cluster_id)
-        instances = [m["DBInstanceIdentifier"] for m in response["DBClusters"][0].get("DBClusterMembers", [])]
-        for inst in instances:
-            print(f"  Deleting instance: {inst}")
-            try:
-                rds_client.delete_db_instance(
-                    DBInstanceIdentifier=inst,
-                    SkipFinalSnapshot=True,
-                )
-            except ClientError as e:
-                print(f"  Warning: delete instance {inst} failed: {e}")
-    except ClientError as e:
-        print(f"  Warning: describe cluster {cluster_id} failed: {e}")
+
+    # Wait for cluster to be in a deletable state
+    max_wait_attempts = 30
+    for attempt in range(max_wait_attempts):
+        try:
+            response = rds_client.describe_db_clusters(DBClusterIdentifier=cluster_id)
+            cluster = response["DBClusters"][0]
+            status = cluster.get("Status", "")
+            if status == "available":
+                break
+            print(f"  Cluster status: {status}, waiting...")
+            time.sleep(10)
+        except ClientError as e:
+            if "DBClusterNotFoundFault" in str(e):
+                print(f"  Cluster {cluster_id} already deleted.")
+                return
+            print(f"  Warning: describe cluster {cluster_id} failed: {e}")
+            time.sleep(10)
 
     try:
-        rds_client.delete_db_cluster(
-            DBClusterIdentifier=cluster_id,
-            SkipFinalSnapshot=True,
-        )
+        response = rds_client.describe_db_clusters(DBClusterIdentifier=cluster_id)
+        cluster = response["DBClusters"][0]
+        engine = cluster.get("Engine", "")
+        instances = [m["DBInstanceIdentifier"] for m in cluster.get("DBClusterMembers", [])]
+
+        # Multi-AZ DB Clusters (engine "mysql" or "postgres") do not support
+        # deleting instances individually — the cluster deletion handles them.
+        is_multi_az_db_cluster = engine in ("mysql", "postgres")
+        if not is_multi_az_db_cluster:
+            for inst in instances:
+                print(f"  Deleting instance: {inst}")
+                try:
+                    rds_client.delete_db_instance(
+                        DBInstanceIdentifier=inst,
+                        SkipFinalSnapshot=True,
+                    )
+                except ClientError as e:
+                    print(f"  Warning: delete instance {inst} failed: {e}")
     except ClientError as e:
-        print(f"  Warning: delete cluster {cluster_id} failed: {e}")
+        if "DBClusterNotFoundFault" in str(e):
+            print(f"  Cluster {cluster_id} already deleted.")
+            return
+        print(f"  Warning: describe cluster {cluster_id} failed: {e}")
+
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            rds_client.delete_db_cluster(
+                DBClusterIdentifier=cluster_id,
+                SkipFinalSnapshot=True,
+            )
+            print(f"  Cluster {cluster_id} deletion initiated.")
+            return
+        except ClientError as e:
+            if "DBClusterNotFoundFault" in str(e):
+                print(f"  Cluster {cluster_id} already deleted.")
+                return
+            if "InvalidDBClusterStateFault" in str(e) and attempt < max_retries - 1:
+                print(f"  Cluster not in deletable state, retrying ({max_retries - attempt - 1} left)...")
+                time.sleep(30)
+            else:
+                print(f"  Warning: delete cluster {cluster_id} failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -725,6 +878,7 @@ def cmd_create(args):
     is_limitless = args.limitless
     is_blue_green = args.blue_green
     is_rds_instance = args.rds_single_az or args.rds_multi_az
+    is_multi_az_cluster = args.rds_multi_az_cluster
 
     # 0. Parameter group (required for blue/green, optional otherwise)
     if is_blue_green and args.parameter_group:
@@ -732,7 +886,9 @@ def cmd_create(args):
         set_github_env("PARAMETER_GROUP", pg_name)
 
     # 1. Create cluster or instance
-    if is_rds_instance:
+    if is_multi_az_cluster:
+        create_multi_az_db_cluster(rds_client, args)
+    elif is_rds_instance:
         create_rds_instance(rds_client, args, multi_az=args.rds_multi_az)
     elif is_limitless:
         create_limitless_cluster(rds_client, args)
@@ -759,8 +915,12 @@ def cmd_create(args):
     secrets_arn = create_secrets(sm_client, args.username, args.password, args.engine, endpoint)
     set_github_env("AURORA_CLUSTER_SECRETS_ARN", secrets_arn, mask=True)
 
-    # 6. Setup IAM DB user
+    # 6. Create rds_tools extension for Multi-AZ PostgreSQL clusters
     port = "5432" if "postgresql" in args.engine else "3306"
+    if is_multi_az_cluster and "postgresql" in args.engine:
+        setup_pg_rds_tools_extension(endpoint, port, args.database, args.username, args.password)
+
+    # 7. Setup IAM DB user
     if "postgresql" in args.engine:
         setup_pg_iam_user(endpoint, port, args.database, args.username, args.password, args.iam_user)
     elif "mysql" in args.engine:
@@ -799,6 +959,91 @@ def cmd_create(args):
 # CLI: destroy
 # ---------------------------------------------------------------------------
 
+def cmd_stabilize(args):
+    """Wait for cluster and all instances to be in 'available' state with DNS propagated."""
+    import socket
+
+    clients = get_boto3_clients(args.region)
+    rds_client = clients["rds"]
+
+    print(f"Waiting for cluster {args.cluster_id} to stabilize...")
+
+    max_attempts = args.max_attempts
+    interval = args.interval
+    for attempt in range(max_attempts):
+        try:
+            resp = rds_client.describe_db_clusters(DBClusterIdentifier=args.cluster_id)
+            cluster = resp["DBClusters"][0]
+            if cluster["Status"] != "available":
+                print(f"  Cluster status: {cluster['Status']}, waiting...")
+                time.sleep(interval)
+                continue
+
+            all_available = True
+            for member in cluster["DBClusterMembers"]:
+                inst_id = member["DBInstanceIdentifier"]
+                inst_resp = rds_client.describe_db_instances(DBInstanceIdentifier=inst_id)
+                inst_status = inst_resp["DBInstances"][0]["DBInstanceStatus"]
+                if inst_status != "available":
+                    print(f"  Instance {inst_id}: {inst_status}, waiting...")
+                    all_available = False
+                    break
+
+            if not all_available:
+                time.sleep(interval)
+                continue
+
+            # Verify DNS: cluster-ro should resolve differently from cluster writer endpoint
+            writer_ep = cluster.get("Endpoint")
+            reader_ep = cluster.get("ReaderEndpoint")
+            if writer_ep and reader_ep:
+                try:
+                    writer_ip = socket.gethostbyname(writer_ep)
+                    reader_ip = socket.gethostbyname(reader_ep)
+                    if writer_ip == reader_ip:
+                        print(f"  DNS not yet propagated: writer={writer_ep}({writer_ip}), reader={reader_ep}({reader_ip})")
+                        time.sleep(interval)
+                        continue
+                    print(f"  DNS verified: writer={writer_ip}, reader={reader_ip}")
+                except socket.gaierror as e:
+                    print(f"  DNS resolution failed: {e}")
+                    time.sleep(interval)
+                    continue
+
+            print("Cluster and all instances are available. DNS propagated.")
+
+            # Verify TCP reachability to all instance endpoints
+            port = cluster.get("Port", 5432)
+            all_reachable = True
+            for member in cluster["DBClusterMembers"]:
+                inst_id = member["DBInstanceIdentifier"]
+                inst_resp = rds_client.describe_db_instances(DBInstanceIdentifier=inst_id)
+                endpoint = inst_resp["DBInstances"][0]["Endpoint"]["Address"]
+                reachable = False
+                for tcp_attempt in range(12):
+                    try:
+                        sock = socket.create_connection((endpoint, port), timeout=5)
+                        sock.close()
+                        print(f"  {inst_id}: TCP OK")
+                        reachable = True
+                        break
+                    except (socket.timeout, ConnectionRefusedError, OSError):
+                        time.sleep(10)
+                if not reachable:
+                    print(f"  {inst_id}: not reachable after 2 min, continuing anyway")
+                    all_reachable = False
+
+            if all_reachable:
+                print("All instances reachable via TCP.")
+            return
+        except Exception as e:
+            print(f"  Warning: {e}")
+
+        time.sleep(interval)
+
+    print(f"WARNING: Cluster did not stabilize within {max_attempts * interval}s")
+
+
 def cmd_destroy(args):
     """Tear down all Aurora/RDS resources. Best-effort — never raises."""
     clients = get_boto3_clients(args.region)
@@ -830,6 +1075,8 @@ def cmd_destroy(args):
                 delete_rds_instance(rds_client, args.cluster_id)
             elif args.limitless:
                 delete_limitless_cluster(rds_client, args.cluster_id, args.shard_id)
+            elif args.rds_multi_az_cluster:
+                delete_aurora_cluster_by_id(rds_client, args.cluster_id)
             else:
                 delete_aurora_cluster(rds_client, args.cluster_id, args.num_instances)
         except Exception as e:
@@ -886,6 +1133,7 @@ def build_parser():
     c.add_argument("--parameter-group", default=None, help="Name for the custom parameter group (created/reused)")
     c.add_argument("--rds-single-az", action="store_true", help="Create a standalone RDS single-AZ instance instead of Aurora")
     c.add_argument("--rds-multi-az", action="store_true", help="Create a standalone RDS multi-AZ instance instead of Aurora")
+    c.add_argument("--rds-multi-az-cluster", action="store_true", help="Create a Multi-AZ DB Cluster instead of Aurora")
     c.add_argument("--instance-class", default="db.m5.large", help="DB instance class for RDS instances (default: db.m5.large)")
     c.add_argument("--allocated-storage", type=int, default=20, help="Allocated storage in GB for RDS instances (default: 20)")
 
@@ -904,6 +1152,14 @@ def build_parser():
     d.add_argument("--parameter-group", default=None, help="Parameter group name to delete")
     d.add_argument("--rds-single-az", action="store_true", help="Destroy a standalone RDS single-AZ instance")
     d.add_argument("--rds-multi-az", action="store_true", help="Destroy a standalone RDS multi-AZ instance")
+    d.add_argument("--rds-multi-az-cluster", action="store_true", help="Destroy a Multi-AZ DB Cluster")
+
+    # -- stabilize --
+    s = sub.add_parser("stabilize", help="Wait for cluster and all instances to reach available state")
+    s.add_argument("--cluster-id", required=True)
+    s.add_argument("--region", required=True)
+    s.add_argument("--max-attempts", type=int, default=30)
+    s.add_argument("--interval", type=int, default=10)
 
     return parser
 
@@ -928,6 +1184,8 @@ def main():
         if args.rds_single_az and args.rds_multi_az:
             parser.error("--rds-single-az and --rds-multi-az are mutually exclusive")
         cmd_destroy(args)
+    elif args.command == "stabilize":
+        cmd_stabilize(args)
 
 
 if __name__ == "__main__":

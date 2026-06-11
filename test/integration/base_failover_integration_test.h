@@ -26,6 +26,7 @@
 #include <aws/rds/model/DBClusterMember.h>
 #include <aws/rds/model/DescribeDBClusterEndpointsRequest.h>
 #include <aws/rds/model/DescribeDBClustersRequest.h>
+#include <aws/rds/model/DescribeDBInstancesRequest.h>
 #include <aws/rds/model/FailoverDBClusterRequest.h>
 
 #include <gtest/gtest.h>
@@ -121,6 +122,14 @@ protected:
             SERVER_ID_QUERY = "SELECT pg_catalog.aurora_db_instance_identifier();";
         } else if (test_dialect == "AURORA_MYSQL") {
             SERVER_ID_QUERY = "SELECT @@aurora_server_id";
+        } else if (test_dialect == "MULTI_AZ_POSTGRESQL") {
+            SERVER_ID_QUERY = "SELECT SUBSTRING(endpoint FROM 0 FOR POSITION('.' IN endpoint)) "
+                "FROM rds_tools.show_topology() WHERE id OPERATOR(pg_catalog.=) "
+                "rds_tools.dbi_resource_id()";
+        } else if (test_dialect == "MULTI_AZ_MYSQL") {
+            SERVER_ID_QUERY = "SELECT SUBSTRING_INDEX(endpoint, '.', 1) "
+                "FROM mysql.rds_topology "
+                "WHERE id = @@server_id";
         } else {
             GTEST_SKIP() << "Failover requires database dialect to know which query to call.";
         }
@@ -257,24 +266,95 @@ protected:
     static Aws::RDS::Model::DBCluster GetDbCluster(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {
         Aws::RDS::Model::DescribeDBClustersRequest rds_req;
         rds_req.WithDBClusterIdentifier(cluster_id);
-        auto outcome = client.DescribeDBClusters(rds_req);
-        if (!outcome.IsSuccess()) {
-            throw std::runtime_error("GetDbCluster: DescribeDBClusters failed");
+
+        constexpr int max_retries = 2;
+        for (int attempt = 0; attempt <= max_retries; attempt++) {
+            auto outcome = client.DescribeDBClusters(rds_req);
+            if (outcome.IsSuccess()) {
+                const auto result = outcome.GetResult();
+                if (result.GetDBClusters().empty()) {
+                    throw std::runtime_error("GetDbCluster: No clusters found");
+                }
+                return result.GetDBClusters().at(0);
+            }
+            if (attempt < max_retries) {
+                std::this_thread::sleep_for(std::chrono::seconds(3));
+            }
         }
-        const auto result = outcome.GetResult();
-        if (result.GetDBClusters().empty()) {
-            throw std::runtime_error("GetDbCluster: No clusters found");
-        }
-        return result.GetDBClusters().at(0);
+        throw std::runtime_error("GetDbCluster: DescribeDBClusters failed after retries");
     }
 
     static void WaitForDbReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {
         Aws::String status = GetDbCluster(client, cluster_id).GetStatus();
 
         while (status != "available") {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(3));
             status = GetDbCluster(client, cluster_id).GetStatus();
         }
+    }
+
+    static void WaitForAllInstancesReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
+                                         std::chrono::seconds timeout = std::chrono::minutes(10)) {
+        auto start = std::chrono::steady_clock::now();
+        while (std::chrono::steady_clock::now() - start < timeout) {
+            auto cluster = GetDbCluster(client, cluster_id);
+            auto members = cluster.GetDBClusterMembers();
+            bool all_available = true;
+
+            for (const auto& member : members) {
+                Aws::RDS::Model::DescribeDBInstancesRequest req;
+                req.SetDBInstanceIdentifier(member.GetDBInstanceIdentifier());
+                auto outcome = client.DescribeDBInstances(req);
+                if (!outcome.IsSuccess() || outcome.GetResult().GetDBInstances().empty()) {
+                    all_available = false;
+                    break;
+                }
+                if (outcome.GetResult().GetDBInstances()[0].GetDBInstanceStatus() != "available") {
+                    all_available = false;
+                    break;
+                }
+            }
+
+            if (all_available) {
+                // SDK reports all instances available. Verify TCP connectivity to the
+                // cluster writer endpoint. Multi-AZ instances may not accept connections
+                // immediately after reporting "available" status.
+                const std::string endpoint = cluster.GetEndpoint();
+                const int port = cluster.GetPort();
+                if (!TEST_UTILS::CanTcpConnect(endpoint, port, 10)) {
+                    std::cout << "[WaitForAllInstancesReady] Instances available but writer endpoint "
+                              << endpoint << ":" << port << " not yet accepting connections." << std::endl;
+                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    continue;
+                }
+
+                // Also verify TCP connectivity to each individual instance endpoint.
+                // Tests connect to instance endpoints directly, and these may lag behind
+                // the cluster endpoint after failover.
+                bool all_instances_connectable = true;
+                for (const auto& member : members) {
+                    Aws::RDS::Model::DescribeDBInstancesRequest inst_req;
+                    inst_req.SetDBInstanceIdentifier(member.GetDBInstanceIdentifier());
+                    auto inst_outcome = client.DescribeDBInstances(inst_req);
+                    if (inst_outcome.IsSuccess() && !inst_outcome.GetResult().GetDBInstances().empty()) {
+                        const std::string instance_endpoint(inst_outcome.GetResult().GetDBInstances()[0].GetEndpoint().GetAddress());
+                        const int instance_port = inst_outcome.GetResult().GetDBInstances()[0].GetEndpoint().GetPort();
+                        if (!instance_endpoint.empty() && !TEST_UTILS::CanTcpConnect(instance_endpoint, instance_port, 10)) {
+                            std::cout << "[WaitForAllInstancesReady] Instance endpoint "
+                                      << instance_endpoint << ":" << instance_port
+                                      << " not yet accepting connections." << std::endl;
+                            all_instances_connectable = false;
+                            break;
+                        }
+                    }
+                }
+                if (all_instances_connectable) {
+                    return;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+        throw std::runtime_error("WaitForAllInstancesReady: Instances not available.");
     }
 
     static Aws::RDS::Model::DBClusterEndpoint GetCustomEndpointInfo(const Aws::RDS::RDSClient& client, const std::string& endpoint_id) {
@@ -319,7 +399,7 @@ protected:
         WaitForDbReady(client, cluster_id);
         Aws::RDS::Model::FailoverDBClusterRequest rds_req;
         rds_req.WithDBClusterIdentifier(cluster_id);
-        if (!target_instance_id.empty()) {
+        if (!target_instance_id.empty() && test_dialect != "MULTI_AZ_MYSQL" && test_dialect != "MULTI_AZ_POSTGRESQL") {
             rds_req.WithTargetDBInstanceIdentifier(target_instance_id);
         }
         auto outcome = client.FailoverDBCluster(rds_req);
@@ -373,7 +453,7 @@ protected:
         FailoverCluster(client, cluster_id, target_writer_id);
 
         std::chrono::nanoseconds timeout = std::chrono::minutes(3);
-        int remaining_attempts = 3;
+        int remaining_attempts = 5;
         while (!HasWriterChanged(client, cluster_id, initial_writer_id, timeout)) {
             // if writer is not changed, try triggering failover again
             remaining_attempts--;

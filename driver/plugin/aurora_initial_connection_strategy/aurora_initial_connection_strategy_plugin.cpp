@@ -31,8 +31,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC
     dbc->plugin_service,
     dbc->plugin_service->GetHostSelector(),
     dbc->plugin_service->GetDialect(),
-    dbc->plugin_service->GetOdbcHelper(),
-    dbc->plugin_service->GetTopologyUtil()) {}
+    dbc->plugin_service->GetOdbcHelper()) {}
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     DBC* dbc,
@@ -40,8 +39,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     std::shared_ptr<PluginService> plugin_service,
     std::shared_ptr<HostSelector> host_selector,
     std::shared_ptr<Dialect> dialect,
-    std::shared_ptr<OdbcHelper> odbc_helper,
-    std::shared_ptr<TopologyUtil> topology_util) : BasePlugin(dbc, next_plugin) {
+    std::shared_ptr<OdbcHelper> odbc_helper) : BasePlugin(dbc, next_plugin) {
 
     this->plugin_name = "INITIAL_CONNECTION";
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
@@ -50,7 +48,6 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     this->dialect_ = dialect;
     this->host_selector_ = host_selector;
     this->odbc_helper_ = odbc_helper;
-    this->topology_util_ = topology_util;
 
     this->retry_delay_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS);
     this->retry_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, DEFAULT_INITIAL_CONNECTION_RETRY_TIMEOUT_MS);
@@ -126,7 +123,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
         while (std::chrono::steady_clock::now() < end_time) {
             SQLRETURN rc = SQL_ERROR;
 
-            HostInfo writer_candidate = topology_util_->GetWriter(service->GetHosts());
+            HostInfo writer_candidate = service->GetTopologyUtil()->GetWriter(service->GetHosts());
             if (writer_candidate.GetHost().empty()) {
                 LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
                 rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);

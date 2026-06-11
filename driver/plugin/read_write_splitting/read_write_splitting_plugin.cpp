@@ -48,6 +48,18 @@ SQLRETURN ReadWriteSplittingPlugin::RefreshAndStoreTopology() {
 
         this->hosts_ = service->GetHosts();
         if (this->hosts_.empty()) {
+            service->ForceRefreshHosts(false, DEFAULT_TOPOLOGY_REFRESH_TIMEOUT_MS);
+            this->hosts_ = service->GetHosts();
+        }
+        if (this->hosts_.empty() && !odbc_helper_->IsClosed(dbc_)) {
+            const std::vector<HostInfo> hosts = service->GetTopologyUtil()->QueryTopology(
+                dbc_, service->GetInitialHostInfo(), service->GetTemplateHostInfo());
+            if (!hosts.empty()) {
+                service->SetHosts(hosts);
+                this->hosts_ = hosts;
+            }
+        }
+        if (this->hosts_.empty()) {
             SetStmtError("Host list is empty.", ERR_RW_SWITCH_FAILED);
             return SQL_ERROR;
         }
@@ -67,9 +79,14 @@ SQLRETURN ReadWriteSplittingPlugin::InitializeWriterConnection() {
     std::vector<HostInfo> hosts;
     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
         hosts = service->GetHosts();
+        if (hosts.empty()) {
+            service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
+            hosts = service->GetHosts();
+        }
     }
     const HostInfo host_info = this->host_selector_->GetHost(hosts, true, properties);
     conn->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
+    conn->plugin_service = dbc_->plugin_service;
     const SQLRETURN ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(ret)) {
         odbc_helper_->DisconnectAndFree(&local_hdbc);
@@ -104,6 +121,10 @@ SQLRETURN ReadWriteSplittingPlugin::OpenNewReaderConnection() {
     std::vector<HostInfo> host_candidates;
     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
         host_candidates = service->GetHosts();
+        if (host_candidates.empty()) {
+            service->ForceRefreshHosts(false, std::chrono::milliseconds(0));
+            host_candidates = service->GetHosts();
+        }
     }
     const size_t conn_attempts = host_candidates.size() * 2;
     const std::unordered_map<std::string, std::string> properties;
@@ -118,6 +139,7 @@ SQLRETURN ReadWriteSplittingPlugin::OpenNewReaderConnection() {
         conn = static_cast<DBC*>(local_hdbc);
         conn->conn_attr = connection_attributes_;
         conn->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
+        conn->plugin_service = dbc_->plugin_service;
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(ret)) {
             LOG(INFO) << "Failed to connect to reader host: '" << host_info.GetHost() << "'";

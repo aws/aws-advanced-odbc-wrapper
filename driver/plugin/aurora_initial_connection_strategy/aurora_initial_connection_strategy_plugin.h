@@ -31,8 +31,7 @@ public:
         std::shared_ptr<PluginService> plugin_service,
         std::shared_ptr<HostSelector> host_selector,
         std::shared_ptr<Dialect> dialect,
-        std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<TopologyUtil> topology_util);
+        std::shared_ptr<OdbcHelper> odbc_helper);
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
