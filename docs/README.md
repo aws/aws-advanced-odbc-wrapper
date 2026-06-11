@@ -2,6 +2,7 @@
 
 - [Getting Started](./getting-started.md)
 - [Using the AWS Advanced ODBC Wrapper](./using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md)
+    - [Support for Amazon RDS Multi-AZ DB Cluster](./using-the-aws-odbc-wrapper/SupportForRDSMultiAzDBCluster.md)
     - [Plugins](./using-the-aws-odbc-wrapper/plugins/)
         - [ADFS Authentication Plugin](./using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md)
         - [Aurora Initial Connection Strategy Plugin](./using-the-aws-odbc-wrapper/plugins/aurora-initial-connection-strategy-plugin.md)
