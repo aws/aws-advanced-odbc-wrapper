@@ -4,6 +4,12 @@
 > This plugin does not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted connection string length, and the IAM authentication token causes the connection string to exceed this limit.
 > Using this plugin with MySQL Connector/ODBC will cause a segmentation fault.
 > A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
+>
+> **Alternatives for Aurora MySQL IAM authentication:**
+> - Use **MariaDB Connector/ODBC** as the underlying driver. It is wire-compatible with MySQL/Aurora MySQL and carries the IAM token without hitting the connection string length limit. This combination is validated in our integration tests. Because RDS IAM authentication requires the token to be sent over TLS, point `SSLCA` at the [RDS CA bundle](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) (e.g. `SSLCA=/path/to/global-bundle.pem`) — this enables a verified TLS connection so the token is transmitted securely. (Note: setting `FORCETLS=1` without `SSLCA` fails with a certificate-verification error, and is unnecessary when `SSLCA` is set.)
+> - Or use the [AWS Secrets Manager plugin](./secrets-manager-plugin.md) instead of IAM if you prefer to keep MySQL Connector/ODBC.
+>
+> See [Underlying Driver Compatibility](../using-the-aws-odbc-wrapper.md#underlying-driver-compatibility) for the full tested-driver matrix.
 
 ### What is IAM?
 

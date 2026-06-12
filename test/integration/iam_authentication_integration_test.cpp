@@ -35,6 +35,12 @@ class IamAuthenticationIntegrationTest : public BaseConnectionTest {
 protected:
     std::string auth_type = "IAM";
     std::string test_iam_user = TEST_UTILS::GetEnvVar("TEST_IAM_USER", "");
+    // Set TEST_SKIP_IAM=1 for drivers that can't do IAM (e.g. MySQL Connector/ODBC).
+    std::string test_skip_iam = TEST_UTILS::GetEnvVar("TEST_SKIP_IAM", "");
+    // psqlODBC needs the token's '%' double-encoded to survive its connection-string parse, but
+    // MySQL/MariaDB ODBC consume the password verbatim, so double-encoding corrupts the token and
+    // the server rejects it (28000). Only apply extra URL encoding for non-MySQL dialects.
+    bool extra_url_encode = (test_dialect != "AURORA_MYSQL");
 
     static void SetUpTestSuite() {
         BaseConnectionTest::SetUpTestSuite();
@@ -45,8 +51,9 @@ protected:
     }
 
     void SetUp() override {
-        if (test_dialect == "AURORA_MYSQL" || test_dialect == "MULTI_AZ_MYSQL") {
-            GTEST_SKIP() << "MySQL ODBC Connector does not support IAM with session tokens due to limitations on connection key-value pairs.";
+        if (test_skip_iam == "1" || test_skip_iam == "true") {
+            GTEST_SKIP() << "Skipping IAM tests: the configured underlying driver does not support "
+                            "IAM authentication (TEST_SKIP_IAM is set).";
         }
         BaseConnectionTest::SetUp();
     }
@@ -64,7 +71,7 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(true)
+        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("SimpleIamConnection")
         .getString();
@@ -81,17 +88,21 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
 TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
     std::string ip_address = TEST_UTILS::HostToIp(test_server);
     ASSERT_FALSE(ip_address.empty()) << "Failed to resolve IP address for host: " << test_server;
-    conn_str = ConnectionStringBuilder(test_dsn, ip_address, test_port)
-        .withUID(test_iam_user)
+    ConnectionStringBuilder builder(test_dsn, ip_address, test_port);
+    builder.withUID(test_iam_user)
         .withDatabase(test_db)
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(true)
+        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withIamHost(test_server)
-        .withClusterId("ConnectToIpAddress")
-        .getString();
+        .withClusterId("ConnectToIpAddress");
+    // Connecting by IP can't match the cert CN, so skip CN verification on MySQL/MariaDB (TLS stays on).
+    if (test_dialect == "AURORA_MYSQL") {
+        builder.withSslVerify(false);
+    }
+    conn_str = builder.getString();
 
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
@@ -110,7 +121,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(true)
+        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("WrongPassword")
         .getString();
@@ -130,7 +141,7 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(true)
+        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("WrongUser")
         .getString();
@@ -143,10 +154,16 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
     SQLTCHAR msg[SQL_MAX_MESSAGE_LENGTH] = {0}, state[6] = {0};
     rc = SQLError(nullptr, dbc, nullptr, state, &native_err, msg, SQL_MAX_MESSAGE_LENGTH - 1, &stmt_length);
     EXPECT_EQ(SQL_SUCCESS, rc);
-    EXPECT_STREQ(SQL_ERR_UNABLE_TO_CONNECT, STRING_HELPER::SqltcharToAnsi(state));
+    // psqlODBC reports access failures as 08001; MySQL/MariaDB ODBC reports 28000.
+    const std::string actual_state = STRING_HELPER::SqltcharToAnsi(state);
+    if (test_dialect == "AURORA_MYSQL") {
+        EXPECT_EQ(SQL_ERR_MYSQL_ACCESS_DENIED, actual_state);
+    } else {
+        EXPECT_EQ(SQL_ERR_UNABLE_TO_CONNECT, actual_state);
+    }
 }
-
 // Tests that the IAM connection will fail when provided an empty user.
+// Rejected by the wrapper's pre-validation (08001) before the base driver, regardless of dialect.
 TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
     conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
         .withUID("")
@@ -154,7 +171,7 @@ TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(true)
+        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("EmptyUser")
         .getString();

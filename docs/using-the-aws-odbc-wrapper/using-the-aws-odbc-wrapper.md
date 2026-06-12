@@ -1,6 +1,39 @@
 # Using the AWS Advanced ODBC Wrapper
 
-The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. Currently, the [PostgreSQL ODBC Wrapper, psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) is supported.
+The AWS Advanced ODBC Wrapper leverages community ODBC Drivers and enables support of AWS and Aurora functionalities. It has been tested with the [PostgreSQL ODBC Driver (psqlodbc)](https://github.com/postgresql-interfaces/psqlodbc) for Aurora PostgreSQL, and with both [MySQL Connector/ODBC](https://dev.mysql.com/downloads/connector/odbc/) and [MariaDB Connector/ODBC](https://mariadb.com/downloads/connectors/connectors-data-access/odbc-connector/) for Aurora MySQL. See [Underlying Driver Compatibility](#underlying-driver-compatibility) for details and known limitations.
+
+## Underlying Driver Compatibility
+
+The wrapper delegates all database I/O to an underlying ODBC driver. The following drivers have been tested:
+
+### Aurora PostgreSQL
+
+[psqlodbc](https://github.com/postgresql-interfaces/psqlodbc) is the tested driver for Aurora PostgreSQL. It is validated across the unit, compatibility, and integration test suites and supports all features, including IAM authentication.
+
+### Aurora MySQL
+
+Both [MariaDB Connector/ODBC](https://mariadb.com/downloads/connectors/connectors-data-access/odbc-connector/) and [MySQL Connector/ODBC](https://dev.mysql.com/downloads/connector/odbc/) have been tested against Aurora MySQL. The table below summarizes feature support for each:
+
+| Feature | MariaDB Connector/ODBC | MySQL Connector/ODBC |
+|------------------------------------|:----------------------:|:--------------------:|
+| Failover | ✅ | ✅ |
+| IAM Authentication | ✅ | ❌ |
+| Secrets Manager Authentication | ✅ | ✅ |
+| Aurora Initial Connection Strategy | ✅ | ✅ |
+| Blue/Green Deployments | ✅ | ✅ |
+| Custom Endpoint | ✅ | ✅ |
+| Read/Write Splitting | ✅ | ✅ |
+
+MariaDB Connector/ODBC is recommended when IAM authentication is required for Aurora MySQL. MySQL Connector/ODBC works for all other scenarios but **does not support IAM authentication** - see the limitation below.
+
+> [!IMPORTANT]\
+> **IAM authentication with Aurora MySQL:** MySQL Connector/ODBC has a restricted connection string length. The IAM authentication token causes the connection string to exceed this limit, resulting in a segmentation fault. A fix has been requested upstream ([mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14)).
+>
+> If you need IAM authentication with Aurora MySQL, use one of these alternatives:
+> - **MariaDB Connector/ODBC** (recommended) - it is wire-compatible with MySQL/Aurora MySQL, carries the IAM token without hitting the length limit, and is validated for IAM in our integration tests. Because IAM authentication requires the token to be sent over TLS, point `SSLCA` at the [RDS CA bundle](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem) (e.g. `SSLCA=/path/to/global-bundle.pem`); this enables a verified TLS connection so the token is transmitted securely. Setting `FORCETLS=1` without `SSLCA` fails with a certificate-verification error and is unnecessary when `SSLCA` is set.
+> - **AWS Secrets Manager authentication** - use the [Secrets Manager plugin](./plugins/secrets-manager-plugin.md) instead of IAM if you prefer to keep MySQL Connector/ODBC.
+
+When choosing a driver, also confirm your `SSLMode`/TLS settings: IAM authentication requires SSL to be enabled regardless of the underlying driver.
 
 ## Using the AWS Advanced ODBC Wrapper with plain RDS databases
 

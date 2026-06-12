@@ -48,6 +48,8 @@ AWS Authentication requires the proper region to be set to generate a proper cre
 
 The [IAM Authentication](./docs/using-the-aws-odbc-wrapper/plugins/iam-authentication-plugin.md), [ADFS Authentication](./docs/using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md), and [Okta Authentication](./docs/using-the-aws-odbc-wrapper/plugins/okta-authentication-plugin.md) plugins do not support MySQL Connector/ODBC due to a limitation in the connector. MySQL Connector/ODBC has a restricted connection string length that is exceeded once the IAM authentication token is appended, resulting in a segmentation fault. A bug fix has been requested upstream: [mysql-connector-odbc#14](https://github.com/mysql/mysql-connector-odbc/pull/14).
 
+For IAM-based authentication against Aurora MySQL, use [MariaDB Connector/ODBC](https://mariadb.com/downloads/connectors/connectors-data-access/odbc-connector/) as the underlying driver instead, or use the [AWS Secrets Manager plugin](./docs/using-the-aws-odbc-wrapper/plugins/secrets-manager-plugin.md). See [Underlying Driver Compatibility](./docs/using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md#underlying-driver-compatibility) for the full tested-driver matrix.
+
 ## Getting Help & Opening Issues
 
 If you encounter a bug with the AWS Advanced ODBC Wrapper, we would like to hear about it. Please search the [existing issues](https://github.com/aws/aws-advanced-odbc-wrapper/issues) to see if others are also experiencing the issue before reporting the problem in a new issue. GitHub issues are intended for bug reports and feature requests.

@@ -180,6 +180,13 @@ SET(THREADING "0")
 # -D MYSQL_SERVER
 # -D MYSQL_DATABASE
 
+# SSLCA (RDS CA bundle) gives verified TLS so RDS IAM tokens are sent encrypted. Only added when provided.
+# -D BASE_DRIVER_SSL_CA=/path/to/rds-global-bundle.pem
+SET(BASE_DRIVER_EXTRA_DSN_LINES "")
+IF(BASE_DRIVER_SSL_CA)
+    SET(BASE_DRIVER_EXTRA_DSN_LINES "SSLCA = ${BASE_DRIVER_SSL_CA}")
+ENDIF()
+
 CONFIGURE_FILE(
     ${ODBC_PATH}/odbcinst.ini.in
     ${ODBC_PATH}/odbcinst.ini
