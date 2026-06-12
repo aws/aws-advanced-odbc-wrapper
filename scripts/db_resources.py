@@ -248,8 +248,8 @@ def create_limitless_cluster(rds_client, args):
     rds_client.create_db_shard_group(
         DBClusterIdentifier=args.cluster_id,
         DBShardGroupIdentifier=args.shard_id,
-        MinACU=28.0,
-        MaxACU=601.0,
+        MinACU=16.0,
+        MaxACU=64.0,
         PubliclyAccessible=True,
         Tags=[{"Key": "env", "Value": "test-runner"}],
     )
