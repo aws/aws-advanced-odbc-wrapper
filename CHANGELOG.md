@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [Blue/Green Deployment Support](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/plugins/blue-green-plugin.md) [(PR #101)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/101)
 - [Aurora Initial Connection Strategy Plugin](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/plugins/aurora-initial-connection-strategy-plugin.md) [(PR #100)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/100)
 - MacOS Releases Signed and Notarized [(PR #96)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/96)
+- [Flag to Return DSN-Name Only](https://github.com/aws/aws-advanced-odbc-wrapper/pull/142) in SQLDriverConnect [(PR #142)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/142)
 
 ### Fixed
 
