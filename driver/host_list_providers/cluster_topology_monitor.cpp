@@ -305,8 +305,8 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
         local_dbc->plugin_service = this->plugin_service_;
-        local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
-        local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+        local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
+        local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
 
         rc = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rc)) {
@@ -499,8 +499,8 @@ ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
     this->odbc_helper_ = odbc_helper;
     odbc_helper_->AllocDbc(monitor->henv_, hdbc_);
     DBC *init_dbc = static_cast<DBC*>(hdbc_);
-    init_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
-    init_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+    init_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
+    init_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
     node_thread_ = std::make_shared<std::thread>(&NodeMonitoringThread::Run, this);
     LOG(INFO) << "Started node monitoring for: " << this->host_info_->GetHost();
 }
@@ -575,8 +575,8 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     local_dbc->conn_attr = conn_info_;
     local_dbc->plugin_service = main_monitor_->plugin_service_;
     local_dbc->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE);
-    local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
-    local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(DEFAULT_TIMEOUT_SECONDS), 0));
+    local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
+    local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
     const SQLRETURN rc = main_monitor_->plugin_head_->Connect(hdbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(rc)) {
         odbc_helper_->DisconnectAndFree(&hdbc_);

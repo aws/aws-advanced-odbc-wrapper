@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <iostream>
+#include <string>
 #include "gtest/gtest.h"
 
 class FlushingListener : public testing::EmptyTestEventListener {
@@ -57,7 +58,13 @@ int main(int argc, char** argv) {
     delete listeners.Release(listeners.default_result_printer());
     listeners.Append(new FlushingListener());
 
+    // Each CI step runs this binary more than once with different --gtest_filter
+    // batches, so include the filter in the summary to make it unambiguous which
+    // batch a given "All tests passed" / "Not all tests passed" line refers to.
+    const std::string filter = GTEST_FLAG_GET(filter);
+    const std::string batch = filter.empty() ? "" : " [--gtest_filter=" + filter + "]";
+
     int failures = RUN_ALL_TESTS();
-    std::cout << (failures ? "Not all tests passed." : "All tests passed") << std::endl;
+    std::cout << (failures ? "Not all tests passed." : "All tests passed") << batch << std::endl;
     return failures;
 }
