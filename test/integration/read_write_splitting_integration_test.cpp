@@ -32,6 +32,7 @@ protected:
     std::string stmt_set_read_only_true;
     std::string stmt_set_read_only_false;
     std::string reader_conn_str;
+    std::string test_cluster_id;
 
     static void SetUpTestSuite() {
         BaseFailoverIntegrationTest::SetUpTestSuite();
@@ -62,9 +63,15 @@ protected:
             stmt_set_read_only_false = "set session characteristics as transaction read write";
         }
 
+        const ::testing::TestInfo* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_cluster_id = test_info ? test_info->name() : cluster_id;
+
         // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
         WaitForAllInstancesReady(rds_client, cluster_id);
+        // Wait for a settled writer before deriving writer_endpoint below.
+        // A prior failover test may have just promoted a new writer, leaving the SDK reporting a stale writer.
+        WaitForWriterStable(rds_client, cluster_id);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         writer_id = GetWriterId(cluster_instances);
@@ -79,7 +86,7 @@ protected:
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
-            .withClusterId(cluster_id)
+            .withClusterId(test_cluster_id)
             .getString();
 
         reader_conn_str = ConnectionStringBuilder(test_dsn, GetEndpoint(reader_id), test_port)
@@ -88,7 +95,7 @@ protected:
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
-            .withClusterId(cluster_id)
+            .withClusterId(test_cluster_id)
             .getString();
     }
 
@@ -162,7 +169,7 @@ TEST_F(ReadWriteSplittingIntegrationTest, ReaderClusterConnectSetReadOnly) {
             .withDatabase(test_db)
             .withEnableRwSplitting(true)
             .withDatabaseDialect(test_dialect)
-            .withClusterId(cluster_id)
+            .withClusterId(test_cluster_id)
             .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, reader_cluster_conn_str);
     EXPECT_EQ(SQL_SUCCESS, rc);

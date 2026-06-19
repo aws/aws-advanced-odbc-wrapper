@@ -54,6 +54,9 @@ protected:
         // Check to see if cluster is available before fetching topology.
         WaitForDbReady(rds_client, cluster_id);
         WaitForAllInstancesReady(rds_client, cluster_id);
+        // Wait for a settled writer before deriving writer_endpoint below.
+        // A prior test may have just failed over, leaving the SDK reporting a stale writer.
+        WaitForWriterStable(rds_client, cluster_id);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         if (cluster_instances.empty()) {
