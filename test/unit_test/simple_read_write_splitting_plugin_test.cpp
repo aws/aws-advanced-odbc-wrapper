@@ -47,7 +47,7 @@ protected:
 
     ENV env;
     DBC* dbc = nullptr;
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_next_plugin;
+    std::shared_ptr<NiceMock<MOCK_BASE_PLUGIN>> mock_next_plugin;
 
     SQLHDBC fake_writer_hdbc = reinterpret_cast<SQLHDBC>(0x3000);
     SQLHDBC fake_reader_hdbc = reinterpret_cast<SQLHDBC>(0x4000);
@@ -67,7 +67,7 @@ protected:
         dbc->transaction_status = TRANSACTION_CLOSED;
         dbc->plugin_service = mock_plugin_service;
 
-        mock_next_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
+        mock_next_plugin = std::make_shared<NiceMock<MOCK_BASE_PLUGIN>>();
         dbc->plugin_head = mock_next_plugin.get();
 
         dbc->conn_attr[KEY_SRW_WRITE_ENDPOINT] = WRITE_ENDPOINT;
