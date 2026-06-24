@@ -305,7 +305,7 @@ protected:
     // Wait for the cluster to report one writer, stable across consecutive polls.
     // After a failover DescribeDBClusters briefly reports a stale writer, which makes the next test connect to the wrong node.
     static void WaitForWriterStable(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                                    std::chrono::seconds timeout = std::chrono::minutes(3)) {
+                                    std::chrono::seconds timeout = std::chrono::minutes(5)) {
         const auto start = std::chrono::steady_clock::now();
         std::string last_writer;
         int stable_polls = 0;
@@ -339,7 +339,7 @@ protected:
     }
 
     static void WaitForAllInstancesReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                                         std::chrono::seconds timeout = std::chrono::minutes(3)) {
+                                         std::chrono::seconds timeout = std::chrono::minutes(5)) {
         // Cache the last confirmed-ready time per cluster and skip the re-probe while fresh (writer still reachable).
         // SetUp() probes every test; re-running the full SDK+TCP probe wastes minutes/test and multiplies the timeout when an instance is down.
         static std::mutex ready_cache_mutex;
