@@ -287,7 +287,7 @@ protected:
     }
 
     static void WaitForDbReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                               std::chrono::seconds timeout = std::chrono::minutes(3)) {
+                               std::chrono::seconds timeout = std::chrono::minutes(5)) {
         const auto start = std::chrono::steady_clock::now();
         Aws::String status = GetDbCluster(client, cluster_id).GetStatus();
 
