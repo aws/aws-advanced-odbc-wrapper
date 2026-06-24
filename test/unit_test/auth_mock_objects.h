@@ -33,7 +33,7 @@
 
 class MOCK_SAML_UTIL : public SamlUtil {
 public:
-    MOCK_SAML_UTIL() : SamlUtil() { AwsSdkHelper::Init(); };
+    MOCK_SAML_UTIL() : SamlUtil() { AwsSdkHelper::EnsureInitialized(); };
 
     MOCK_METHOD(Aws::Auth::AWSCredentials, GetAwsCredentials, (const std::string &assertion), ());
     MOCK_METHOD(std::string, GetSamlAssertion, (), ());
@@ -41,7 +41,7 @@ public:
 
 class MOCK_AUTH_PROVIDER : public AuthProvider {
 public:
-    MOCK_AUTH_PROVIDER() : AuthProvider() { AwsSdkHelper::Init(); };
+    MOCK_AUTH_PROVIDER() : AuthProvider() { AwsSdkHelper::EnsureInitialized(); };
 
     MOCK_METHOD((std::pair<std::string, bool>), GetToken, (const std::string &server, const std::string &region,
         const std::string &port, const std::string &username, bool use_cache, bool extra_url_encode,

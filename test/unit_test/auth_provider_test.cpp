@@ -25,10 +25,7 @@ protected:
     std::shared_ptr<MOCK_RDS_CLIENT> mock_rds_client;
     // Runs once per suite
     static void SetUpTestSuite() {
-        AwsSdkHelper::Init();
-    }
-    static void TearDownTestSuite() {
-        AwsSdkHelper::Shutdown();
+        AwsSdkHelper::EnsureInitialized();
     }
 
     void SetUp() override {

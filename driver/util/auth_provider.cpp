@@ -27,7 +27,7 @@
 #include "plugin_service.h"
 
 AuthProvider::AuthProvider(const std::string &region) {
-    AwsSdkHelper::Init();
+    AwsSdkHelper::EnsureInitialized();
     SetUpRdsClient(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
 }
 
@@ -35,13 +35,13 @@ AuthProvider::AuthProvider(
     const std::string &region,
     const Aws::Auth::AWSCredentials& credentials)
 {
-    AwsSdkHelper::Init();
+    AwsSdkHelper::EnsureInitialized();
     SetUpRdsClient(credentials, region);
 }
 
 AuthProvider::AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client)
 {
-    AwsSdkHelper::Init();
+    AwsSdkHelper::EnsureInitialized();
     this->rds_client = rds_client;
 }
 
@@ -50,7 +50,6 @@ AuthProvider::~AuthProvider()
     if (rds_client) {
         rds_client = nullptr;
     }
-    AwsSdkHelper::Shutdown();
 }
 
 std::pair<std::string, bool> AuthProvider::GetToken(

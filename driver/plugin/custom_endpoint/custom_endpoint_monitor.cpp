@@ -44,7 +44,7 @@ CustomEndpointMonitor::CustomEndpointMonitor(
       max_refresh_rate_ms_{ max_refresh_rate_ms },
       exponential_backoff_rate_{ exponential_backoff_rate }
 {
-    AwsSdkHelper::Init();
+    AwsSdkHelper::EnsureInitialized();
     is_running_.store(true);
     this->monitoring_thread_ = std::make_shared<std::thread>(&CustomEndpointMonitor::Run, this);
 }
@@ -55,9 +55,6 @@ CustomEndpointMonitor::~CustomEndpointMonitor() {
         monitoring_thread_->join();
     }
     monitoring_thread_ = nullptr;
-    if (sdk_initialized_) {
-        AwsSdkHelper::Shutdown();
-    }
 }
 
 void CustomEndpointMonitor::Run() {
