@@ -222,12 +222,16 @@ jobs:
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -425,12 +429,16 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -593,12 +601,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -723,12 +735,16 @@ jobs:
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -913,12 +929,16 @@ jobs:
         run: |
           brew update && brew upgrade && brew cleanup
           brew install cmake unixodbc postgresql curl openssl zlib icu4c
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1092,12 +1112,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev libicu-dev
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |

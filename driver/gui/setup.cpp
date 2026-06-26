@@ -92,6 +92,7 @@ const std::map<std::string, std::pair<int, ControlType>> MAIN_KEYS = {
 const std::map<std::string, std::pair<int, ControlType>> AUTH_KEYS = {
     {KEY_AUTH_TYPE,{IDC_AUTH_MODE, COMBO}},
     {KEY_REGION, {IDC_REGION, EDIT_TEXT}},
+    {KEY_AWS_PROFILE, {IDC_AWS_PROFILE, EDIT_TEXT}},
     {KEY_TOKEN_EXPIRATION, {IDC_EXPIRE, EDIT_TEXT}}
 };
 
@@ -1177,6 +1178,11 @@ void HandleAuthModeSelection(HWND hwnd) {
                     break;
                 default:
                     break;
+            }
+
+            // IAM, Secrets Manager, and empty/db for Custom Endpoint
+            if (id == IDC_AWS_PROFILE) {
+                show_ctrl = (selection == EMPTY || selection == IAM || selection == SECRETS_MANAGER);
             }
 
             switch (keys.second.second) {

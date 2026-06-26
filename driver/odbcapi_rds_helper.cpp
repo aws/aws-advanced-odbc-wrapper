@@ -636,7 +636,7 @@ SQLRETURN RDS_SQLBrowseConnect(
     LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect";
     CLEAR_DBC_ERROR(dbc);
     dbc->err = new ERR_INFO("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-    NOT_IMPLEMENTED;
+    RDS_NOT_IMPLEMENTED;
 }
 
 SQLRETURN RDS_SQLColAttribute(
@@ -913,7 +913,7 @@ SQLRETURN RDS_SQLDataSources(
     LOG(ERROR) << "Unsupported SQL API - SQLDataSources";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-    NOT_IMPLEMENTED;
+    RDS_NOT_IMPLEMENTED;
 }
 
 SQLRETURN RDS_SQLDescribeCol(
@@ -1100,7 +1100,7 @@ SQLRETURN RDS_SQLDrivers(
     LOG(ERROR) << "Unsupported SQL API - SQLDrivers";
     CLEAR_ENV_ERROR(env);
     env->err = new ERR_INFO("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-    NOT_IMPLEMENTED;
+    RDS_NOT_IMPLEMENTED;
 }
 
 SQLRETURN RDS_SQLError(
@@ -2037,7 +2037,7 @@ SQLRETURN RDS_SQLGetInfo(
                 LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
                 CLEAR_DBC_ERROR(dbc);
                 dbc->err = new ERR_INFO("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-                NOT_IMPLEMENTED;
+                RDS_NOT_IMPLEMENTED;
         }
     }
     ret = SQL_SUCCESS;

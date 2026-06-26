@@ -52,14 +52,18 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
     if (auth_provider) {
         this->auth_provider = auth_provider;
     } else {
+        const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
         std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
 
+        if (region.empty() && !profile.empty()) {
+            region = AuthProvider::GetRegionForProfile(profile);
+        }
         if (region.empty()) {
             region = dbc->conn_attr.contains(KEY_SERVER) ?
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
                 : Aws::Region::US_EAST_1;
         }
-        this->auth_provider = std::make_shared<AuthProvider>(region);
+        this->auth_provider = std::make_shared<AuthProvider>(region, profile);
     }
 }
 
@@ -83,7 +87,11 @@ SQLRETURN IamAuthPlugin::Connect(
 
     const std::string server = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
     const std::string iam_host = MapUtils::GetStringValue(dbc->conn_attr, KEY_IAM_HOST, server);
+    const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
+    if (region.empty() && !profile.empty()) {
+        region = AuthProvider::GetRegionForProfile(profile);
+    }
     if (region.empty()) {
         region = dbc->conn_attr.contains(KEY_SERVER) ?
             RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
@@ -96,6 +104,20 @@ SQLRETURN IamAuthPlugin::Connect(
     const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
 
     if (!ValidateRequiredParams(dbc, iam_host, region, port, username)) {
+        return SQL_ERROR;
+    }
+
+    if (!auth_provider->HasResolvedCredentials()) {
+        const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
+        std::string msg = "Unable to resolve AWS credentials for the '" + std::string(KEY_AWS_PROFILE) + "' profile";
+        if (!profile.empty()) {
+            msg += " '" + profile + "'";
+        }
+        msg += ". If it is an AWS IAM Identity Center (SSO) profile, run 'aws sso login";
+        msg += profile.empty() ? "'." : (" --profile " + profile + "'.");
+        LOG(ERROR) << msg;
+        CLEAR_DBC_ERROR(dbc);
+        dbc->err = new ERR_INFO(msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 

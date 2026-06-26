@@ -278,12 +278,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=ODBC-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -699,12 +703,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1008,12 +1016,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1292,12 +1304,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1527,12 +1543,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1693,12 +1713,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -1859,12 +1883,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=ODBC-BG-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -2095,12 +2123,16 @@ jobs:
           echo "AURORA_CLUSTER_ID=ODBC-BG-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@v6
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |
@@ -2238,12 +2270,16 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install cmake libcurl4-openssl-dev libssl-dev odbcinst unixodbc-dev uuid-dev zlib1g-dev gdb
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared
+          key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{steps.cache-aws-sdk.outputs.cache-hit != 'true'}}
         run: |

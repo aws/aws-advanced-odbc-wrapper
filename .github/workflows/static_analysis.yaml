@@ -35,12 +35,16 @@ jobs:
           python3 -m venv ./venv
           source ./venv/bin/activate
           python3 -m pip install CodeChecker==${{ env.CODECHECKER_VERSION }}
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{ steps.cache-aws-sdk.outputs.cache-hit != 'true' }}
         run: |
@@ -89,12 +93,16 @@ jobs:
           python3 -m venv ./venv
           source ./venv/bin/activate
           python3 -m pip install CodeChecker==${{ env.CODECHECKER_VERSION }}
+      - name: Resolve AWS SDK version
+        id: aws-sdk-version
+        shell: bash
+        run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
         uses: actions/cache@v5
         with:
           path: aws_sdk/install
-          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}
+          key: ${{ runner.os }}-aws-sdk-cpp-${{ env.BUILD_CONFIG }}-${{ steps.aws-sdk-version.outputs.tag }}
       - name: Build AWS SDK for C++
         if: ${{ steps.cache-aws-sdk.outputs.cache-hit != 'true' }}
         run: |

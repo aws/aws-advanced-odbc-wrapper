@@ -18,6 +18,9 @@
 #include <aws/rds/model/DBClusterEndpoint.h>
 #include <aws/rds/model/DescribeDBClusterEndpointsRequest.h>
 
+#include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/core/client/ClientConfiguration.h>
+
 #include "custom_endpoint_monitor.h"
 
 #include "../../util/aws_sdk_helper.h"
@@ -32,6 +35,7 @@ CustomEndpointMonitor::CustomEndpointMonitor(
     const std::weak_ptr<PluginService>& plugin_service,
     const std::string& endpoint,
     std::string region,
+    std::string profile,
     std::chrono::milliseconds refresh_rate_ms,
     std::chrono::milliseconds max_refresh_rate_ms,
     int exponential_backoff_rate)
@@ -39,6 +43,7 @@ CustomEndpointMonitor::CustomEndpointMonitor(
       endpoint_{ endpoint },
       endpoint_identifier_{ RdsUtils::GetRdsClusterId(endpoint) },
       region_{ std::move(region) },
+      profile_{ std::move(profile) },
       refresh_rate_ms_{ refresh_rate_ms },
       min_refresh_rate_ms_{ refresh_rate_ms },
       max_refresh_rate_ms_{ max_refresh_rate_ms },
@@ -63,8 +68,18 @@ void CustomEndpointMonitor::Run() {
         if (!region_.empty()) {
             client_config.region = region_;
         }
+        Aws::Auth::AWSCredentials credentials;
+        if (profile_.empty()) {
+            credentials = Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials();
+        } else {
+            // Resolve credentials for profile from static access keys, AWS IAM Identity Center (SSO),
+            // assume-role (source_profile/role_arn), and credential_process.
+            Aws::Client::ClientConfiguration::CredentialProviderConfiguration credential_config;
+            credential_config.profile = profile_;
+            credentials = Aws::Auth::DefaultAWSCredentialsProviderChain(credential_config).GetAWSCredentials();
+        }
         const Aws::RDS::RDSClient rds_client(
-            Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(),
+            credentials,
             client_config
         );
 

@@ -1,0 +1,5 @@
+[profile dev]
+region = us-west-2
+
+[profile no_region]
+output = json

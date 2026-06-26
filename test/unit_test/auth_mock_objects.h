@@ -48,6 +48,9 @@ public:
         std::chrono::milliseconds time_to_expire_ms), ());
 
     MOCK_METHOD(void, UpdateAwsCredential, (const Aws::Auth::AWSCredentials &credentials, const std::string &region), ());
+
+    bool mock_has_resolved_credentials = true;
+    bool HasResolvedCredentials() const override { return mock_has_resolved_credentials; }
 };
 
 class MOCK_RDS_CLIENT : public Aws::RDS::RDSClient {
@@ -55,7 +58,7 @@ public:
     MOCK_RDS_CLIENT() : Aws::RDS::RDSClient() {};
 
     MOCK_METHOD(Aws::String, GenerateConnectAuthToken,
-        (const char* dbHostName, const char* dbRegion, unsigned port, const char* dbUserName), (const));
+        (const char* dbHostName, const char* dbRegion, unsigned port, const char* dbUserName), (const, override));
 };
 
 class MOCK_SECRETS_MANAGER_CLIENT : public Aws::SecretsManager::SecretsManagerClient {

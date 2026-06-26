@@ -27,6 +27,7 @@ public:
         const std::weak_ptr<PluginService>& plugin_service,
         const std::string& endpoint,
         std::string region,
+        std::string profile,
         std::chrono::milliseconds refresh_rate_ms,
         std::chrono::milliseconds max_refresh_rate_ms,
         int exponential_backoff_rate);
@@ -52,6 +53,7 @@ private:
     std::string endpoint_;
     std::string endpoint_identifier_;
     std::string region_;
+    std::string profile_;
 
     std::chrono::milliseconds refresh_rate_ms_;
     std::chrono::milliseconds min_refresh_rate_ms_;

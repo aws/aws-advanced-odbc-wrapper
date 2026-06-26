@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <aws/core/Aws.h>
+
 #include "custom_endpoint_plugin.h"
 
+#include "../../util/auth_provider.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
@@ -45,6 +48,10 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
     this->host_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
     this->region_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_CUSTOM_ENDPOINT_REGION, RdsUtils::GetRdsRegion(this->host_));
+    this->profile_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
+    if (this->region_.empty() && !this->profile_.empty()) {
+        this->region_ = AuthProvider::GetRegionForProfile(this->profile_);
+    }
     if (this->region_.empty()) {
         throw std::runtime_error("Unable to determine connection region. If you are using a non-standard RDS URL, please set the 'CUSTOM_ENDPOINT_REGION' property");
     }
@@ -148,6 +155,7 @@ std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor
             this->plugin_service_,
             this->host_,
             this->region_,
+            this->profile_,
             this->refresh_rate_ms_,
             this->max_refresh_rate_ms_,
             this->exponential_backoff_rate_

@@ -15,8 +15,13 @@
 #include <aws/secretsmanager/SecretsManagerClient.h>
 #include <aws/secretsmanager/model/GetSecretValueRequest.h>
 
+#include <aws/core/auth/AWSCredentials.h>
+#include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/core/client/ClientConfiguration.h>
+
 #include "secrets_manager_plugin.h"
 
+#include "../../util/auth_provider.h"
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/map_utils.h"
@@ -32,6 +37,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
     const std::string secret_id = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ID, "");
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_REGION, "");
     const std::string endpoint = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ENDPOINT, "");
+    const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
 
     expiration_ms = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_TOKEN_EXPIRATION, DEFAULT_EXPIRATION_MS);
 
@@ -47,6 +53,10 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
     if (std::smatch matches; std::regex_search(secret_id, matches, SECRETS_ARN_REGION_PATTERN) && !matches.empty()) {
         region = matches[1];
+    }
+
+    if (region.empty() && !profile.empty()) {
+        region = AuthProvider::GetRegionForProfile(profile);
     }
 
     if (region.empty()) {
@@ -74,7 +84,15 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
             client_config.endpointOverride = endpoint;
         }
         client_config.region = region;
-        secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(client_config);
+        if (profile.empty()) {
+            secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(client_config);
+        } else {
+            Aws::Client::ClientConfiguration::CredentialProviderConfiguration credential_config;
+            credential_config.profile = profile;
+            const Aws::Auth::AWSCredentials credentials =
+                Aws::Auth::DefaultAWSCredentialsProviderChain(credential_config).GetAWSCredentials();
+            secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(credentials, client_config);
+        }
     }
 
     secret_request = Aws::SecretsManager::Model::GetSecretValueRequest{};
