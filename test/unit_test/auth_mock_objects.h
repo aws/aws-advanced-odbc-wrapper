@@ -20,12 +20,15 @@
 #include <aws/core/http/HttpClient.h>
 #include <aws/rds/RDSClient.h>
 #include <aws/secretsmanager/SecretsManagerClient.h>
+#include <aws/sso/SSOClient.h>
+#include <aws/sso-oidc/SSOOIDCClient.h>
 #include <aws/sts/STSClient.h>
 
 #include "gmock/gmock.h"
 
 #include "../../driver/plugin/base_plugin.h"
 #include "../../driver/plugin/federated/saml_util.h"
+#include "../../driver/plugin/federated/sso_browser_login_util.h"
 #include "../../driver/util/auth_provider.h"
 #include "../../driver/util/aws_sdk_helper.h"
 
@@ -125,6 +128,31 @@ class MOCK_STS_CLIENT : public Aws::STS::STSClient {
 public:
     MOCK_METHOD(Aws::STS::Model::AssumeRoleWithSAMLOutcome, AssumeRoleWithSAML, (const Aws::STS::Model::AssumeRoleWithSAMLRequest&), (const));
     MOCK_METHOD(bool, SupportsChunkedTransferEncoding, (), (const));
+};
+
+class MOCK_SSO_OIDC_CLIENT : public Aws::SSOOIDC::SSOOIDCClient {
+public:
+    MOCK_SSO_OIDC_CLIENT() : Aws::SSOOIDC::SSOOIDCClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
+
+    MOCK_METHOD(Aws::SSOOIDC::Model::RegisterClientOutcome, RegisterClient,
+        (const Aws::SSOOIDC::Model::RegisterClientRequest&), (const));
+    MOCK_METHOD(Aws::SSOOIDC::Model::CreateTokenOutcome, CreateToken,
+        (const Aws::SSOOIDC::Model::CreateTokenRequest&), (const));
+};
+
+class MOCK_SSO_CLIENT : public Aws::SSO::SSOClient {
+public:
+    MOCK_SSO_CLIENT() : Aws::SSO::SSOClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
+
+    MOCK_METHOD(Aws::SSO::Model::GetRoleCredentialsOutcome, GetRoleCredentials,
+        (const Aws::SSO::Model::GetRoleCredentialsRequest&), (const));
+};
+
+class MOCK_SSO_LOGIN_UTIL : public SsoBrowserLoginUtil {
+public:
+    MOCK_SSO_LOGIN_UTIL() : SsoBrowserLoginUtil() { AwsSdkHelper::EnsureInitialized(); };
+
+    MOCK_METHOD(Aws::Auth::AWSCredentials, GetAwsCredentials, (bool allow_interactive, std::string& out_error), (override));
 };
 
 #endif // AUTH_MOCK_OBJECTS_H_

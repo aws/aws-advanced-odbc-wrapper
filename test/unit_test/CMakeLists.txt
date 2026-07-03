@@ -36,6 +36,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/aws_sdk_test_environment.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/aws_sso_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_stack_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
@@ -56,6 +57,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/simple_read_write_splitting_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sliding_cache_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sql_query_analyzer_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sso_browser_login_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/html_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/limitless_router_service_test.cpp
@@ -94,7 +96,7 @@ endif()
 set(AWS_SDK_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../aws_sdk/install")
 list(APPEND CMAKE_PREFIX_PATH ${AWS_SDK_DIR})
 
-find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts)
+find_package(AWSSDK REQUIRED COMPONENTS core rds secretsmanager sts sso sso-oidc)
 list(APPEND EXTERNAL_LIBRARIES ${AWSSDK_LINK_LIBRARIES})
 
 # -- ODBC --
@@ -186,5 +188,5 @@ else()
 endif()
 message("Copying Libraries to: ${OUTPUT_DIR}")
 
-LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
 AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})

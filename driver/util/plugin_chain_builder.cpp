@@ -19,6 +19,7 @@
 #include "../plugin/base_plugin.h"
 #include "../plugin/default_plugin.h"
 #include "../plugin/federated/adfs_auth_plugin.h"
+#include "../plugin/federated/aws_sso_auth_plugin.h"
 #include "../plugin/federated/okta_auth_plugin.h"
 #include "../plugin/iam/iam_auth_plugin.h"
 #include "../plugin/secrets_manager/secrets_manager_plugin.h"
@@ -46,6 +47,10 @@ std::shared_ptr<BasePlugin> PluginChainBuilder::MonitoringBuild(DBC* dbc, std::s
                     break;
                 case AuthType::OKTA:
                     next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
+                    plugin_head = next_plugin;
+                    break;
+                case AuthType::AWS_SSO:
+                    next_plugin = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
                     plugin_head = next_plugin;
                     break;
                 case AuthType::DATABASE:

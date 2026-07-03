@@ -112,7 +112,7 @@ class WEBServer
         int listen_port_;
         int connections_counter_;
         std::atomic<bool> listening_;
-        bool cancel_ = false;
+        std::atomic<bool> cancel_ = false;
 };
 
 #endif // WEBSERVER_H_

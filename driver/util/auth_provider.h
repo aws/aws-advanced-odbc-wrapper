@@ -41,6 +41,7 @@ typedef enum {
     SECRETS_MANAGER,
     ADFS,
     OKTA,
+    AWS_SSO,
     INVALID,
 } AuthType;
 
@@ -50,6 +51,7 @@ static std::map<std::string, AuthType> const auth_table = {
     {VALUE_AUTH_SECRETS,    AuthType::SECRETS_MANAGER},
     {VALUE_AUTH_ADFS,       AuthType::ADFS},
     {VALUE_AUTH_OKTA,       AuthType::OKTA},
+    {VALUE_AUTH_SSO,        AuthType::AWS_SSO},
 };
 
 struct TokenInfo {

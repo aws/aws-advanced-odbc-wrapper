@@ -123,6 +123,7 @@ struct DBC {
 
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<std::string, std::string> conn_attr;  // Key, Value
+    bool allow_interactive_auth = false;
     BasePlugin* plugin_head = nullptr;
     std::shared_ptr<PluginService> plugin_service;
     ERR_INFO* err = nullptr;

@@ -69,10 +69,12 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.h
     ## Federated
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/aws_sso_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/sso_browser_login_util.h
     ## IAM
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.h
     ## Secrets Manager
@@ -174,10 +176,12 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/failover/failover_plugin.cpp
     ## Federated Auth
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/aws_sso_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/sso_browser_login_util.cpp
     ## IAM
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/iam/iam_auth_plugin.cpp
     ## Secrets Manager
@@ -332,7 +336,7 @@ if(USE_ASAN)
 endif()
 
 # Link External Library ------------------------------------------------------------------------------------------
-LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
 if(MSVC)
     set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
 else()
@@ -366,7 +370,7 @@ endif()
 
 # Copy External Dependencies -------------------------------------------------------------------------------------
 if(MSVC)
-    LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+    LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
     AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})
 else()
     set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
