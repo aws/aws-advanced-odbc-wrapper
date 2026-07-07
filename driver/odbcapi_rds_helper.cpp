@@ -566,7 +566,7 @@ SQLRETURN RDS_GetConnectAttr(
         } else if (value_pair.second == sizeof(SQLUINTEGER) || value_pair.second == 0) {
             *(static_cast<SQLUINTEGER*>(ValuePtr)) = static_cast<SQLUINTEGER>(reinterpret_cast<uintptr_t>(value_pair.first));
         } else {
-            snprintf(static_cast<char*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", value_pair.first);
+            snprintf(static_cast<char*>(ValuePtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", static_cast<const char*>(value_pair.first));
             if (value_pair.second >= BufferLength) {
                 ret = SQL_SUCCESS_WITH_INFO;
             }

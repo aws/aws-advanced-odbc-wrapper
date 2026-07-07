@@ -496,6 +496,7 @@ jobs:
           echo "CDB_PATH=$cdb" >> $env:GITHUB_ENV
           Write-Host "Found cdb at: $cdb"
       - name: Build and Run Ansi Integration Tests
+        timeout-minutes: 45
         id: ansi_tests
         shell: pwsh
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
@@ -503,6 +504,7 @@ jobs:
           cmake -S test/integration -B build_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_ansi --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "Ansi integration test build failed"; exit 1 }
           echo "Ansi Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_ansi\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $ansiNonFailoverRc = $LASTEXITCODE
@@ -530,6 +532,7 @@ jobs:
             --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
+        timeout-minutes: 45
         id: unicode_tests
         shell: pwsh
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
@@ -537,6 +540,7 @@ jobs:
           cmake -S test/integration -B build_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_unicode --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "Unicode integration test build failed"; exit 1 }
           echo "Unicode Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_unicode\${{env.BUILD_CONFIG}}\integration-test.exe --gtest_filter=-FailoverIntegrationTest.*:ReadWriteSplittingIntegrationTest.WriterFailoverReadOnly:ReadWriteSplittingIntegrationTest.FailoverToNewReaderReadOnly; $unicodeNonFailoverRc = $LASTEXITCODE
@@ -557,12 +561,14 @@ jobs:
           TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
       - name: Build and Run MariaDB Ansi Integration Tests
+        timeout-minutes: 45
         shell: pwsh
         if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_mariadb_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_mariadb_ansi --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "MariaDB Ansi integration test build failed"; exit 1 }
           echo "MariaDB Ansi Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_mariadb_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_mariadb_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -579,12 +585,14 @@ jobs:
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run MariaDB Unicode Integration Tests
+        timeout-minutes: 45
         shell: pwsh
         if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_mariadb_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=ON -D BUILD_LIMITLESS=OFF
           cmake --build build_mariadb_unicode --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "MariaDB Unicode integration test build failed"; exit 1 }
           echo "MariaDB Unicode Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_mariadb_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_mariadb_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -790,6 +798,7 @@ jobs:
         run: |
           curl -L "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem" --output "${{ github.workspace }}/rds-global-bundle.pem"
       - name: Build and Run Ansi Integration Tests
+        timeout-minutes: 45
         id: ansi_tests
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
@@ -820,7 +829,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
-          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
+          TEST_SKIP_IAM: "${{ (matrix.env.rds_engine == 'aurora-mysql' || matrix.env.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Stabilize cluster between test runs
         shell: bash
         if: ${{ steps.AuroraClusterSetup.outcome == 'success' && (success() || failure()) }}
@@ -830,6 +839,7 @@ jobs:
             --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -859,7 +869,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
-          TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
+          TEST_SKIP_IAM: "${{ (matrix.env.rds_engine == 'aurora-mysql' || matrix.env.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       - name: Dump RDS events on failure
         if: always()
         shell: bash
@@ -879,6 +889,7 @@ jobs:
           done
       # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
       - name: Build and Run MariaDB Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && matrix.env.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -908,6 +919,7 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run MariaDB Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && matrix.env.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1105,6 +1117,7 @@ jobs:
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Ansi Integration Tests
+        timeout-minutes: 45
         id: ansi_tests
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
@@ -1146,6 +1159,7 @@ jobs:
             --cluster-id "${{ env.AURORA_CLUSTER_ID }}" \
             --region "${{ secrets.AWS_DEFAULT_REGION }}"
       - name: Build and Run Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1179,6 +1193,7 @@ jobs:
           TEST_SKIP_IAM: "${{ (matrix.rds_engine == 'aurora-mysql' || matrix.rds_engine == 'multi-az-mysql') && '1' || '' }}"
       # ---- MariaDB Connector/ODBC on the SAME Aurora MySQL cluster (IAM runs here) ----
       - name: Build and Run MariaDB Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1209,6 +1224,7 @@ jobs:
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
           TEST_CUSTOM_ENDPOINT_ID: ${{ env.CUSTOM_ENDPOINT_ID }}
       - name: Build and Run MariaDB Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && matrix.rds_engine == 'aurora-mysql' && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1411,12 +1427,14 @@ jobs:
           echo "CDB_PATH=$cdb" >> $env:GITHUB_ENV
           Write-Host "Found cdb at: $cdb"
       - name: Build and Run Limitless Ansi Integration Tests
+        timeout-minutes: 45
         shell: pwsh
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_ansi --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "Limitless Ansi integration test build failed"; exit 1 }
           echo "Limitless Ansi Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_limitless_ansi\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_limitless_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -1432,12 +1450,14 @@ jobs:
           TEST_PORT: ${{steps.base_driver_info.outputs.dialect_default_port}}
           TEST_DIALECT: "${{ steps.base_driver_info.outputs.database_dialect }}"
       - name: Build and Run Limitless Unicode Integration Tests
+        timeout-minutes: 45
         shell: pwsh
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_limitless_unicode -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=ON -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=ON
           cmake --build build_limitless_unicode --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "Limitless Unicode integration test build failed"; exit 1 }
           echo "Limitless Unicode Test Built"
           @(".symfix+", 'sxe -c ".echo --- CRASH STACK ---;~* kvn;.echo --- END CRASH STACK ---;g" av', "g") | Set-Content -Path cdb_cmd.txt
           & "${{env.CDB_PATH}}" -G -lines -y ".\build_limitless_unicode\${{env.BUILD_CONFIG}}" -cf cdb_cmd.txt .\build_limitless_unicode\${{env.BUILD_CONFIG}}\integration-test.exe
@@ -1577,6 +1597,7 @@ jobs:
           odbcinst -j 2>/dev/null || true
           cat $ODBCINST 2>/dev/null || cat /etc/odbcinst.ini 2>/dev/null || true
       - name: Build and Run Limitless Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1604,6 +1625,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Limitless Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1743,6 +1765,7 @@ jobs:
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Limitless Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1771,6 +1794,7 @@ jobs:
           ODBCINI: "${{ github.workspace }}/test/resources/odbc.ini"
           ODBCINST: "${{ github.workspace }}/test/resources/odbcinst.ini"
       - name: Build and Run Limitless Unicode Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -1989,14 +2013,17 @@ jobs:
           choco install mingw
           echo "set auto-load safe-path /" > "$HOME/.gdbinit"
       - name: Build and Run Blue/Green Ansi Integration Tests
+        timeout-minutes: 45
         shell: pwsh
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
           cmake -S test/integration -B build_bg_ansi -D CMAKE_BUILD_TYPE="${{env.BUILD_CONFIG}}" `
             -D BUILD_UNICODE=OFF -D BUILD_FAILOVER=OFF -D BUILD_LIMITLESS=OFF -D BUILD_BLUE_GREEN=ON
           cmake --build build_bg_ansi --config ${{env.BUILD_CONFIG}}
+          if ($LASTEXITCODE -ne 0) { Write-Error "Blue/Green Ansi integration test build failed"; exit 1 }
           echo "Blue/Green Ansi Test Built"
           gdb -q -x ./.gdbinit .\build_bg_ansi\${{env.BUILD_CONFIG}}\integration-test.exe
+          if ($LASTEXITCODE -ne 0) { Write-Error "Blue/Green Ansi integration test run failed"; exit 1 }
         env:
           TEST_DSN: ${{ env.TEST_DSN_ANSI }}
           TEST_DATABASE: ${{ env.TEST_DATABASE }}
@@ -2139,6 +2166,7 @@ jobs:
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
       - name: Build and Run Blue/Green Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |
@@ -2288,6 +2316,7 @@ jobs:
         run: |
           echo "set auto-load safe-path $PWD" > ~/.gdbinit
       - name: Build and Run Blue/Green Ansi Integration Tests
+        timeout-minutes: 45
         shell: bash
         if: ${{ !cancelled() && steps.AuroraClusterSetup.outcome == 'success' }}
         run: |

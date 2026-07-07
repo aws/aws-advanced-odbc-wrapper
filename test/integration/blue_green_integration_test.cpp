@@ -196,7 +196,7 @@ protected:
     std::chrono::steady_clock::time_point empty_time_point{};
     std::chrono::steady_clock::time_point global_start_time;
 
-    ConnectionStringBuilder conn_str_builder;
+    ConnectionStringBuilder conn_str_builder{""};
     std::string test_iam_user = TEST_UTILS::GetEnvVar("TEST_IAM_USER", "");
     std::string test_base_driver = TEST_UTILS::GetEnvVar("TEST_BASE_DRIVER", "");
 

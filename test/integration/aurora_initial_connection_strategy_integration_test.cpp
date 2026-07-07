@@ -53,6 +53,9 @@ protected:
 
         // Wait for cluster to be available after prior failovers
         WaitForDbReady(rds_client, cluster_id);
+        // Wait for a settled writer before deriving topology below.
+        // A prior failover test may have just promoted a new writer, leaving the SDK reporting a stale writer.
+        WaitForWriterStable(rds_client, cluster_id);
 
         cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
         if (cluster_instances.empty()) {

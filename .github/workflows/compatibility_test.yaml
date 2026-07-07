@@ -301,10 +301,24 @@ jobs:
         run: |
           Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
       - name: Setup Local MySQL
+        shell: pwsh
         run: |
-          choco install mysql --version 9.2.0
+          # Retry the install with backoff: community.chocolatey.org intermittently
+          # returns 504s, which would otherwise fail the whole compatibility run.
+          $maxAttempts = 3
+          $installed = $false
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Installing MySQL via Chocolatey (attempt $attempt/$maxAttempts)..."
+            choco install mysql --version 9.2.0 --no-progress
+            if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+            Write-Warning "choco install mysql failed (exit $LASTEXITCODE). Retrying in 30s..."
+            Start-Sleep -Seconds 30
+          }
+          if (-not $installed) { Write-Error "Failed to install MySQL via Chocolatey after $maxAttempts attempts."; exit 1 }
           $mysqlExe = Get-ChildItem -Path "C:\tools\mysql" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $mysqlExe) { Write-Error "mysql.exe not found under C:\tools\mysql after install."; exit 1 }
           & $mysqlExe.FullName --protocol=TCP -u root -P 3306 --execute="source ${{ github.workspace }}/scripts/init_local_mysql_query.sql"
+          if ($LASTEXITCODE -ne 0) { Write-Error "Failed to initialize local MySQL database."; exit 1 }
       - name: Build Compatibility Tests
         run: |
           cmake -S test/compatibility -B build_test -DTEST_BASE_OUTPUT=ON
@@ -783,10 +797,24 @@ jobs:
         run: |
           Start-Process msiexec "/i mysql-connector_x64.msi /quiet /norestart" -Wait;
       - name: Setup Local MySQL
+        shell: pwsh
         run: |
-          choco install mysql --version 9.2.0
+          # Retry the install with backoff: community.chocolatey.org intermittently
+          # returns 504s, which would otherwise fail the whole compatibility run.
+          $maxAttempts = 3
+          $installed = $false
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Installing MySQL via Chocolatey (attempt $attempt/$maxAttempts)..."
+            choco install mysql --version 9.2.0 --no-progress
+            if ($LASTEXITCODE -eq 0) { $installed = $true; break }
+            Write-Warning "choco install mysql failed (exit $LASTEXITCODE). Retrying in 30s..."
+            Start-Sleep -Seconds 30
+          }
+          if (-not $installed) { Write-Error "Failed to install MySQL via Chocolatey after $maxAttempts attempts."; exit 1 }
           $mysqlExe = Get-ChildItem -Path "C:\tools\mysql" -Recurse -Filter "mysql.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $mysqlExe) { Write-Error "mysql.exe not found under C:\tools\mysql after install."; exit 1 }
           & $mysqlExe.FullName --protocol=TCP -u root -P 3306 --execute="source ${{ github.workspace }}/scripts/init_local_mysql_query.sql"
+          if ($LASTEXITCODE -ne 0) { Write-Error "Failed to initialize local MySQL database."; exit 1 }
       - name: Build Compatibility Tests (Unicode)
         run: |
           cmake -S test/compatibility -B build_test_w -DUNICODE=ON -DTEST_BASE_OUTPUT=ON

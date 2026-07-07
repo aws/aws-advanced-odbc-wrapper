@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <iostream>
+#include <map>
+#include <mutex>
 
 #include <aws/rds/model/TargetHealth.h>
 #include <aws/rds/model/TargetState.h>
@@ -284,18 +286,80 @@ protected:
         throw std::runtime_error("GetDbCluster: DescribeDBClusters failed after retries");
     }
 
-    static void WaitForDbReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id) {
+    static void WaitForDbReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
+                               std::chrono::seconds timeout = std::chrono::minutes(5)) {
+        const auto start = std::chrono::steady_clock::now();
         Aws::String status = GetDbCluster(client, cluster_id).GetStatus();
 
         while (status != "available") {
+            if (std::chrono::steady_clock::now() - start > timeout) {
+                throw std::runtime_error("WaitForDbReady: cluster '" + std::string(cluster_id.c_str())
+                                         + "' did not become available within timeout. Last status: "
+                                         + std::string(status.c_str()) + ".");
+            }
             std::this_thread::sleep_for(std::chrono::seconds(3));
             status = GetDbCluster(client, cluster_id).GetStatus();
         }
     }
 
+    // Wait for the cluster to report one writer, stable across consecutive polls.
+    // After a failover DescribeDBClusters briefly reports a stale writer, which makes the next test connect to the wrong node.
+    static void WaitForWriterStable(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
+                                    std::chrono::seconds timeout = std::chrono::minutes(5)) {
+        const auto start = std::chrono::steady_clock::now();
+        std::string last_writer;
+        int stable_polls = 0;
+        constexpr int required_stable_polls = 3;
+        while (std::chrono::steady_clock::now() - start < timeout) {
+            const auto cluster = GetDbCluster(client, cluster_id);
+            std::string writer;
+            int writer_count = 0;
+            for (const auto& member : cluster.GetDBClusterMembers()) {
+                if (member.GetIsClusterWriter()) {
+                    writer = std::string(member.GetDBInstanceIdentifier());
+                    ++writer_count;
+                }
+            }
+            if (cluster.GetStatus() == "available" && writer_count == 1) {
+                if (writer == last_writer) {
+                    if (++stable_polls >= required_stable_polls) {
+                        return;
+                    }
+                } else {
+                    last_writer = writer;
+                    stable_polls = 1;
+                }
+            } else {
+                stable_polls = 0;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+        }
+        std::cout << "[WaitForWriterStable] cluster '" << cluster_id
+                  << "' writer did not stabilize within timeout; proceeding with last known topology." << std::endl;
+    }
+
     static void WaitForAllInstancesReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                                         std::chrono::seconds timeout = std::chrono::minutes(10)) {
+                                         std::chrono::seconds timeout = std::chrono::minutes(5)) {
+        // Cache the last confirmed-ready time per cluster and skip the re-probe while fresh (writer still reachable).
+        // SetUp() probes every test; re-running the full SDK+TCP probe wastes minutes/test and multiplies the timeout when an instance is down.
+        static std::mutex ready_cache_mutex;
+        static std::map<std::string, std::chrono::steady_clock::time_point> ready_cache;
+        constexpr auto ready_cache_ttl = std::chrono::seconds(60);
+        {
+            const std::lock_guard<std::mutex> lock(ready_cache_mutex);
+            const auto cached = ready_cache.find(cluster_id);
+            if (cached != ready_cache.end() && std::chrono::steady_clock::now() - cached->second < ready_cache_ttl) {
+                const auto cluster = GetDbCluster(client, cluster_id);
+                if (TEST_UTILS::CanTcpConnect(cluster.GetEndpoint(), cluster.GetPort(), 10)) {
+                    return;
+                }
+                // Writer endpoint no longer reachable; fall through to a full re-probe.
+                ready_cache.erase(cached);
+            }
+        }
+
         auto start = std::chrono::steady_clock::now();
+        std::string last_blocker = "SDK reported an instance as not 'available'";
         while (std::chrono::steady_clock::now() - start < timeout) {
             auto cluster = GetDbCluster(client, cluster_id);
             auto members = cluster.GetDBClusterMembers();
@@ -316,21 +380,20 @@ protected:
             }
 
             if (all_available) {
-                // SDK reports all instances available. Verify TCP connectivity to the
-                // cluster writer endpoint. Multi-AZ instances may not accept connections
-                // immediately after reporting "available" status.
+                // Verify TCP connectivity to the writer endpoint.
+                // Multi-AZ instances may not accept connections right after reporting "available".
                 const std::string endpoint = cluster.GetEndpoint();
                 const int port = cluster.GetPort();
                 if (!TEST_UTILS::CanTcpConnect(endpoint, port, 10)) {
+                    last_blocker = "writer endpoint " + endpoint + ":" + std::to_string(port) + " not accepting connections";
                     std::cout << "[WaitForAllInstancesReady] Instances available but writer endpoint "
                               << endpoint << ":" << port << " not yet accepting connections." << std::endl;
                     std::this_thread::sleep_for(std::chrono::seconds(5));
                     continue;
                 }
 
-                // Also verify TCP connectivity to each individual instance endpoint.
-                // Tests connect to instance endpoints directly, and these may lag behind
-                // the cluster endpoint after failover.
+                // Verify each instance endpoint too: tests connect to them directly.
+                // Instance endpoints can lag the cluster endpoint after failover.
                 bool all_instances_connectable = true;
                 for (const auto& member : members) {
                     Aws::RDS::Model::DescribeDBInstancesRequest inst_req;
@@ -340,6 +403,8 @@ protected:
                         const std::string instance_endpoint(inst_outcome.GetResult().GetDBInstances()[0].GetEndpoint().GetAddress());
                         const int instance_port = inst_outcome.GetResult().GetDBInstances()[0].GetEndpoint().GetPort();
                         if (!instance_endpoint.empty() && !TEST_UTILS::CanTcpConnect(instance_endpoint, instance_port, 10)) {
+                            last_blocker = "instance endpoint " + instance_endpoint + ":" + std::to_string(instance_port)
+                                           + " (" + member.GetDBInstanceIdentifier() + ") not accepting connections";
                             std::cout << "[WaitForAllInstancesReady] Instance endpoint "
                                       << instance_endpoint << ":" << instance_port
                                       << " not yet accepting connections." << std::endl;
@@ -349,12 +414,15 @@ protected:
                     }
                 }
                 if (all_instances_connectable) {
+                    const std::lock_guard<std::mutex> lock(ready_cache_mutex);
+                    ready_cache[cluster_id] = std::chrono::steady_clock::now();
                     return;
                 }
             }
             std::this_thread::sleep_for(std::chrono::seconds(5));
         }
-        throw std::runtime_error("WaitForAllInstancesReady: Instances not available.");
+        throw std::runtime_error("WaitForAllInstancesReady: cluster '" + std::string(cluster_id.c_str())
+                                 + "' not ready within timeout. Last blocker: " + last_blocker + ".");
     }
 
     static Aws::RDS::Model::DBClusterEndpoint GetCustomEndpointInfo(const Aws::RDS::RDSClient& client, const std::string& endpoint_id) {
@@ -452,9 +520,9 @@ protected:
 
         FailoverCluster(client, cluster_id, target_writer_id);
 
-        std::chrono::nanoseconds timeout = std::chrono::minutes(3);
-        int remaining_attempts = 5;
-        while (!HasWriterChanged(client, cluster_id, initial_writer_id, timeout)) {
+        std::chrono::nanoseconds writer_change_timeout = std::chrono::minutes(1);
+        int remaining_attempts = 3;
+        while (!HasWriterChanged(client, cluster_id, initial_writer_id, writer_change_timeout)) {
             // if writer is not changed, try triggering failover again
             remaining_attempts--;
             if (remaining_attempts == 0) {
@@ -473,7 +541,7 @@ protected:
         auto start = std::chrono::high_resolution_clock::now();
         while (initial_writer_ip == current_writer_ip) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
-            if (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count() > timeout.count()) {
+            if (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - start).count() > writer_change_timeout.count()) {
                 GTEST_SKIP() << "Cluster writer did not resolve to the target instance after server failover.";
             }
 

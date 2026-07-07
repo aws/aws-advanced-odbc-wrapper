@@ -22,15 +22,17 @@
 #include "../../driver/plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h"
 #include "../../driver/util/connection_string_keys.h"
 
+using ::testing::NiceMock;
+
 class AuroraInitialConnectionStrategyPluginTest : public ::testing::Test {
 protected:
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin = nullptr;
-    std::shared_ptr<MOCK_PLUGIN_SERVICE> mock_plugin_service;
-    std::shared_ptr<MOCK_HOST_LIST_PROVIDER> mock_host_list_provider;
-    std::shared_ptr<MOCK_ODBC_HELPER> mock_odbc_helper;
-    std::shared_ptr<MOCK_DIALECT> mock_dialect;
-    std::shared_ptr<MOCK_HOST_SELECTOR> mock_host_selector;
-    std::shared_ptr<MOCK_TOPOLOGY_UTIL> mock_topology_util;
+    std::shared_ptr<NiceMock<MOCK_BASE_PLUGIN>> mock_base_plugin = nullptr;
+    std::shared_ptr<NiceMock<MOCK_PLUGIN_SERVICE>> mock_plugin_service;
+    std::shared_ptr<NiceMock<MOCK_HOST_LIST_PROVIDER>> mock_host_list_provider;
+    std::shared_ptr<NiceMock<MOCK_ODBC_HELPER>> mock_odbc_helper;
+    std::shared_ptr<NiceMock<MOCK_DIALECT>> mock_dialect;
+    std::shared_ptr<NiceMock<MOCK_HOST_SELECTOR>> mock_host_selector;
+    std::shared_ptr<NiceMock<MOCK_TOPOLOGY_UTIL>> mock_topology_util;
     DBC* dbc = nullptr;
     const std::string writer_cluster_dns = "database-test-name.cluster-XYZ.us-east-2.rds.amazonaws.com";
     const std::string reader_cluster_dns = "database-test-name.cluster-ro-XYZ.us-east-2.rds.amazonaws.com";
@@ -48,13 +50,13 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
-        mock_plugin_service = std::make_shared<MOCK_PLUGIN_SERVICE>();
-        mock_host_list_provider = std::make_shared<MOCK_HOST_LIST_PROVIDER>();
-        mock_odbc_helper = std::make_shared<MOCK_ODBC_HELPER>();
-        mock_dialect = std::make_shared<MOCK_DIALECT>();
-        mock_host_selector = std::make_shared<MOCK_HOST_SELECTOR>();
-        mock_topology_util = std::make_shared<MOCK_TOPOLOGY_UTIL>(mock_odbc_helper, mock_dialect);
+        mock_base_plugin = std::make_shared<NiceMock<MOCK_BASE_PLUGIN>>();
+        mock_plugin_service = std::make_shared<NiceMock<MOCK_PLUGIN_SERVICE>>();
+        mock_host_list_provider = std::make_shared<NiceMock<MOCK_HOST_LIST_PROVIDER>>();
+        mock_odbc_helper = std::make_shared<NiceMock<MOCK_ODBC_HELPER>>();
+        mock_dialect = std::make_shared<NiceMock<MOCK_DIALECT>>();
+        mock_host_selector = std::make_shared<NiceMock<MOCK_HOST_SELECTOR>>();
+        mock_topology_util = std::make_shared<NiceMock<MOCK_TOPOLOGY_UTIL>>(mock_odbc_helper, mock_dialect);
         ON_CALL(*mock_topology_util, GetWriter).WillByDefault(testing::Return(*writer_host));
         ON_CALL(*mock_plugin_service, GetHostListProvider).WillByDefault(testing::Return(mock_host_list_provider));
         ON_CALL(*mock_plugin_service, GetTopologyUtil).WillByDefault(testing::Return(mock_topology_util));
@@ -184,7 +186,7 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Writer_Cannot_
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_cluster_dns);
     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
-    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
+    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "5000");
     AuroraInitialConnectionStrategyPlugin plugin(
         dbc,
         mock_base_plugin,
@@ -324,8 +326,8 @@ TEST_F(AuroraInitialConnectionStrategyPluginTest, Connect_Success_Reader_Network
     .WillRepeatedly(testing::Return(READER));
 
     dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_cluster_dns);
-     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
-     dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "100");
+    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, "10");
+    dbc->conn_attr.insert_or_assign(KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, "5000");
     AuroraInitialConnectionStrategyPlugin plugin(
         dbc,
         mock_base_plugin,

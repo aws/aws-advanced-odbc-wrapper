@@ -143,12 +143,12 @@ def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=Fa
             Filters=[{"Name": "group-id", "Values": [sg]}]
         )
         for rule in response.get("SecurityGroupRules", []):
-            if rule.get("CidrIpv4") == cidr:
-                description = rule.get("Description", "")
-                if description:
-                    return
+            if rule.get("CidrIpv4") == cidr and rule.get("Description"):
+                print(f"  Keeping permanent rule {cidr} on SG {sg}")
+                return
     except Exception as e:
         print(f"  Warning: could not check rule descriptions: {e}")
+    try:
         ec2_client.revoke_security_group_ingress(
             GroupId=sg,
             IpProtocol="tcp",
@@ -156,18 +156,9 @@ def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=Fa
             FromPort=0,
             ToPort=65535,
         )
-    except ClientError:
-        pass
-        ec2_client.revoke_security_group_ingress(
-            GroupId=sg,
-            IpProtocol="tcp",
-            CidrIp=cidr,
-            FromPort=0,
-            ToPort=65535,
-        )
-    except ClientError:
-        pass
-    print(f"  Removed {cidr} from SG {sg}")
+        print(f"  Removed {cidr} from SG {sg}")
+    except ClientError as e:
+        print(f"  Warning: revoke-security-group-ingress failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +341,7 @@ def create_custom_endpoint(rds_client, cluster_id, endpoint_id, num_instances):
         DBClusterIdentifier=cluster_id,
         EndpointType="ANY",
         StaticMembers=members,
+        Tags=[{"Key": "env", "Value": "test-runner"}],
     )
 
     time.sleep(30)
@@ -439,6 +431,7 @@ def create_secrets(sm_client, username, password, engine, cluster_endpoint):
         Name=secret_name,
         Description="Secrets created by GH actions for DB auth",
         SecretString=secret_value,
+        Tags=[{"Key": "env", "Value": "test-runner"}],
     )
     return response["ARN"]
 
@@ -560,6 +553,7 @@ def create_parameter_group(rds_client, name, engine, engine_version):
         DBClusterParameterGroupName=name,
         DBParameterGroupFamily=param_family,
         Description="Custom parameter group for Blue/Green Deployment testing",
+        Tags=[{"Key": "env", "Value": "test-runner"}],
     )
 
     if "mysql" in engine:

@@ -32,6 +32,7 @@ protected:
     std::string stmt_set_read_only_true;
     std::string stmt_set_read_only_false;
     std::string reader_conn_str;
+    std::string test_cluster_id;
 
     static void SetUpTestSuite() {
         BaseFailoverIntegrationTest::SetUpTestSuite();
@@ -62,8 +63,14 @@ protected:
             stmt_set_read_only_false = "set session characteristics as transaction read write";
         }
 
+        const ::testing::TestInfo* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_cluster_id = test_info ? test_info->name() : cluster_id;
+
         // Check to see if cluster is available.
         WaitForDbReady(rds_client, cluster_id);
+        // Wait for a settled writer before connecting below.
+        // A prior failover test may have just promoted a new writer, leaving the SDK reporting a stale writer.
+        WaitForWriterStable(rds_client, cluster_id);
 
         conn_str = ConnectionStringBuilder(test_dsn, test_server, test_port)
             .withUID(test_uid)
@@ -71,6 +78,7 @@ protected:
             .withDatabase(test_db)
             .withEnableSrwSplitting(true, test_server, cluster_ro_url, true)
             .withDatabaseDialect(test_dialect)
+            .withClusterId(test_cluster_id)
             .getString();
     }
 
@@ -117,6 +125,7 @@ TEST_F(SimpleReadWriteSplittingIntegrationTest, IncorrectURLs) {
             .withDatabase(test_db)
             .withEnableSrwSplitting(true, test_server, test_server, false)
             .withDatabaseDialect(test_dialect)
+            .withClusterId(test_cluster_id)
             .getString();
     SQLRETURN rc = ODBC_HELPER::DriverConnect(dbc, incorrect_urls_str);
     EXPECT_EQ(SQL_SUCCESS, rc);
