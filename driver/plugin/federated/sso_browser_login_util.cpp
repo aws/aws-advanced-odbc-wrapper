@@ -27,6 +27,7 @@
 #include <aws/core/utils/HashingUtils.h>
 #include <aws/core/utils/StringUtils.h>
 #include <aws/core/utils/json/JsonSerializer.h>
+#include <aws/sso/SSOErrors.h>
 #include <aws/sso/model/GetRoleCredentialsRequest.h>
 #include <aws/sso/model/GetRoleCredentialsResult.h>
 #include <aws/sso/model/RoleCredentials.h>
@@ -177,18 +178,18 @@ void SsoBrowserLoginUtil::ParseSsoConfig(const std::map<std::string, std::string
 
 std::string SsoBrowserLoginUtil::GenerateCodeVerifier()
 {
-    const int alphabet_size = static_cast<int>(sizeof(CODE_VERIFIER_CHARS)) - 2; // exclude trailing '\0'
+    constexpr int ALPHABET_SIZE = static_cast<int>(sizeof(CODE_VERIFIER_CHARS)) - 2; // exclude trailing '\0'
     std::string verifier;
     verifier.reserve(CODE_VERIFIER_LENGTH);
     for (int i = 0; i < CODE_VERIFIER_LENGTH; ++i) {
-        verifier.push_back(CODE_VERIFIER_CHARS[WebServerUtils::GenerateRandomInteger(0, alphabet_size)]);
+        verifier.push_back(CODE_VERIFIER_CHARS[WebServerUtils::GenerateRandomInteger(0, ALPHABET_SIZE)]);
     }
     return verifier;
 }
 
 std::string SsoBrowserLoginUtil::GenerateCodeChallenge(const std::string& code_verifier)
 {
-    const Aws::Utils::ByteBuffer sha256 = Aws::Utils::HashingUtils::CalculateSHA256(Aws::String(code_verifier.c_str()));
+    const Aws::Utils::ByteBuffer sha256 = Aws::Utils::HashingUtils::CalculateSHA256(Aws::String(code_verifier));
     return ToBase64Url(Aws::Utils::HashingUtils::Base64Encode(sha256));
 }
 
@@ -206,13 +207,13 @@ std::string SsoBrowserLoginUtil::BuildOidcHostUrl(const std::string& region)
     }
 
     // Validate to avoid SDK boundary issues with a malformed region.
-    static const std::regex region_pattern("^[a-z]{2,3}(-[a-z]+)+-[0-9]+$");
-    if (!std::regex_match(normalized, region_pattern)) {
+    static const std::regex REGION_PATTERN("^[a-z]{2,3}(-[a-z]+)+-[0-9]+$");
+    if (!std::regex_match(normalized, REGION_PATTERN)) {
         LOG(ERROR) << "Invalid AWS region for SSO-OIDC endpoint: '" << region << "'";
         return "";
     }
 
-    const std::string suffix = normalized.rfind("cn-", 0) == 0 ? "amazonaws.com.cn" : "amazonaws.com";
+    const std::string suffix = normalized.starts_with("cn-") ? "amazonaws.com.cn" : "amazonaws.com";
     return "oidc." + normalized + "." + suffix;
 }
 
@@ -227,7 +228,16 @@ Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetAwsCredentials(bool allow_inte
     const std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
     if (have_cache && !cached_token.access_token.empty() && now + EXPIRY_SKEW < cached_token.expires_at) {
         LOG(INFO) << "Using cached AWS IAM Identity Center access token";
-        return GetRoleCredentials(cached_token.access_token, out_error);
+        bool token_rejected = false;
+        const Aws::Auth::AWSCredentials credentials =
+            GetRoleCredentials(cached_token.access_token, out_error, &token_rejected);
+        if (!credentials.IsEmpty() || !token_rejected) {
+            return credentials;
+        }
+        LOG(WARNING) << "Cached AWS IAM Identity Center token was rejected; re-authenticating";
+        DeleteCache();
+        cached_token.access_token.clear();
+        out_error.clear();
     }
 
     if (have_cache && !cached_token.refresh_token.empty() && IsRegistrationValid(registration)) {
@@ -397,8 +407,12 @@ bool SsoBrowserLoginUtil::RefreshAccessToken(
     return true;
 }
 
-Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetRoleCredentials(const std::string& access_token, std::string& out_error)
+Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetRoleCredentials(
+    const std::string& access_token, std::string& out_error, bool* out_token_rejected)
 {
+    if (out_token_rejected) {
+        *out_token_rejected = false;
+    }
     if (access_token.empty()) {
         out_error = "AWS IAM Identity Center login did not yield an access token";
         return {};
@@ -414,6 +428,14 @@ Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetRoleCredentials(const std::str
         out_error = "AWS IAM Identity Center GetRoleCredentials failed: "
                     + FormatAwsError(outcome.GetError());
         LOG(ERROR) << out_error;
+        // Rejected access token due to user signout or server invalidated
+        if (out_token_rejected) {
+            const Aws::SSO::SSOErrors err = outcome.GetError().GetErrorType();
+            *out_token_rejected = err == Aws::SSO::SSOErrors::UNAUTHORIZED
+                || err == Aws::SSO::SSOErrors::ACCESS_DENIED
+                || err == Aws::SSO::SSOErrors::UNRECOGNIZED_CLIENT
+                || err == Aws::SSO::SSOErrors::INVALID_CLIENT_TOKEN_ID;
+        }
         return {};
     }
 
@@ -524,6 +546,7 @@ bool SsoBrowserLoginUtil::ReadCache(SsoToken& out_token, ClientRegistration& out
 void SsoBrowserLoginUtil::WriteCache(const SsoToken& token, const ClientRegistration& registration)
 {
     Aws::Utils::Json::JsonValue json;
+    json.WithString(CACHE_CREATED_BY_KEY.c_str(), CACHE_CREATED_BY_VALUE.c_str());
     json.WithString("startUrl", start_url_.c_str());
     json.WithString("region", sso_region_.c_str());
     if (!session_name_.empty()) {
@@ -580,5 +603,31 @@ void SsoBrowserLoginUtil::WriteCache(const SsoToken& token, const ClientRegistra
         LOG(WARNING) << "Unable to finalize AWS IAM Identity Center token cache: " << rename_ec.message();
         std::error_code rm_ec;
         std::filesystem::remove(tmp_path, rm_ec);
+    }
+}
+
+void SsoBrowserLoginUtil::DeleteCache()
+{
+    const std::string path = CacheFilePath();
+
+    // The cache directory (~/.aws/sso/cache) and file-naming scheme are shared with the AWS CLI/SDK
+    // Only remove a file this plugin created, identified by marker written in WriteCache
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) {
+        return;
+    }
+    const Aws::Utils::Json::JsonValue json(in);
+    in.close();
+    const bool created_by_wrapper = json.WasParseSuccessful()
+        && json.View().GetString(CACHE_CREATED_BY_KEY.c_str()) == CACHE_CREATED_BY_VALUE.c_str();
+    if (!created_by_wrapper) {
+        LOG(INFO) << "Leaving AWS IAM Identity Center token cache in place; not created by this driver: " << path;
+        return;
+    }
+
+    std::error_code rm_ec;
+    std::filesystem::remove(path, rm_ec);
+    if (rm_ec) {
+        LOG(WARNING) << "Unable to remove AWS IAM Identity Center token cache: " << rm_ec.message();
     }
 }

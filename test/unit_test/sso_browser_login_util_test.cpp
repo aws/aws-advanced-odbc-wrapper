@@ -18,9 +18,14 @@
 #include <cctype>
 #include <cstdlib>
 
+#include <fstream>
+
 #include <aws/core/client/AWSError.h>
 #include <aws/core/platform/FileSystem.h>
+#include <aws/core/utils/DateTime.h>
 #include <aws/core/utils/HashingUtils.h>
+#include <aws/core/utils/json/JsonSerializer.h>
+#include <aws/sso/SSOErrors.h>
 #include <aws/sso/model/GetRoleCredentialsResult.h>
 #include <aws/sso/model/RoleCredentials.h>
 #include <aws/sso-oidc/SSOOIDCErrors.h>
@@ -65,6 +70,12 @@ namespace {
         Aws::SSO::Model::GetRoleCredentialsResult role_result;
         role_result.SetRoleCredentials(role_creds);
         return Aws::SSO::Model::GetRoleCredentialsOutcome(role_result);
+    }
+
+    Aws::SSO::Model::GetRoleCredentialsOutcome SsoRoleError(Aws::SSO::SSOErrors type) {
+        return Aws::SSO::Model::GetRoleCredentialsOutcome(
+            Aws::SSO::SSOError(
+                Aws::Client::AWSError<Aws::SSO::SSOErrors>(type, "err", "error", false)));
     }
 
     std::map<std::string, std::string> BaseConfig() {
@@ -121,6 +132,36 @@ protected:
 #else
         unsetenv("AWS_ODBC_SSO_CACHE_DIR");
 #endif
+    }
+
+    std::string CachePathFor(const std::string& cache_key) const {
+        const Aws::String sha1_hex = Aws::Utils::HashingUtils::HexEncode(
+            Aws::Utils::HashingUtils::CalculateSHA1(Aws::String(cache_key.c_str())));
+        return cache_dir_ + "/" + std::string(sha1_hex.c_str()) + ".json";
+    }
+
+    void SeedCache(const std::string& cache_key, const std::string& access_token,
+                   const std::string& refresh_token = "", bool valid_registration = false,
+                   bool created_by_wrapper = true) {
+        const Aws::Utils::DateTime future(
+            std::chrono::system_clock::now() + std::chrono::hours(1));
+        Aws::Utils::Json::JsonValue json;
+        if (created_by_wrapper) {
+            json.WithString("createdBy", "aws-advanced-odbc-wrapper");
+        }
+        json.WithString("accessToken", access_token.c_str());
+        json.WithString("expiresAt", future.ToGmtString(Aws::Utils::DateFormat::ISO_8601));
+        if (!refresh_token.empty()) {
+            json.WithString("refreshToken", refresh_token.c_str());
+        }
+        if (valid_registration) {
+            json.WithString("clientId", "cached-client-id");
+            json.WithString("clientSecret", "cached-client-secret");
+            json.WithString("registrationExpiresAt", future.ToGmtString(Aws::Utils::DateFormat::ISO_8601));
+        }
+        const Aws::String serialized = json.View().WriteCompact();
+        std::ofstream out(CachePathFor(cache_key), std::ios::binary | std::ios::trunc);
+        out.write(serialized.c_str(), static_cast<std::streamsize>(serialized.size()));
     }
 
     std::string cache_dir_;
@@ -244,6 +285,170 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_PollLoop_NonRetryableError_Fai
 
     EXPECT_TRUE(creds.IsEmpty());
     EXPECT_FALSE(err.empty());
+}
+
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_FallsBackToRefresh) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "signed-out-refreshable";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token",
+              "good-refresh-token", true);
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    // First call rejects the stale token; second (post-refresh) succeeds.
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(2))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::UNAUTHORIZED)))
+        .WillOnce(testing::Return(SsoRoleSuccess()));
+    // Refresh-token exchange succeeds; no browser (RegisterClient) needed.
+    EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*oidc, CreateToken(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(OidcTokenSuccess()));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(true, err);
+
+    EXPECT_TRUE(err.empty()) << err;
+    EXPECT_EQ("AKIA-TEST", creds.GetAWSAccessKeyId());
+}
+
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_NoRefresh_FallsBackToInteractive) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "signed-out-no-refresh";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token");
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(2))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::UNAUTHORIZED)))
+        .WillOnce(testing::Return(SsoRoleSuccess()));
+    EXPECT_CALL(*oidc, RegisterClient(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(OidcRegisterSuccess()));
+    EXPECT_CALL(*oidc, CreateToken(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(OidcTokenSuccess()));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(true, err);
+
+    EXPECT_TRUE(err.empty()) << err;
+    EXPECT_EQ("AKIA-TEST", creds.GetAWSAccessKeyId());
+}
+
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_NoPrompt_FailsFast) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "signed-out-noprompt";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token");
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::UNAUTHORIZED)));
+    EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*oidc, CreateToken(testing::_)).Times(testing::Exactly(0));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(false, err);
+
+    EXPECT_TRUE(creds.IsEmpty());
+    EXPECT_FALSE(err.empty());
+}
+
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenTransientError_NoReauth) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "transient-error";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "cached-access-token",
+              "good-refresh-token", true);
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::SERVICE_UNAVAILABLE)));
+    EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*oidc, CreateToken(testing::_)).Times(testing::Exactly(0));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(true, err);
+
+    EXPECT_TRUE(creds.IsEmpty());
+    EXPECT_FALSE(err.empty());
+    EXPECT_TRUE(std::ifstream(CachePathFor(attrs.at(KEY_SSO_SESSION_NAME))).good());
+}
+
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_DeletesWrapperCache) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "signed-out-wrapper-cache";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token",
+              "", false, /*created_by_wrapper=*/true);
+    const std::string cache_path = CachePathFor(attrs.at(KEY_SSO_SESSION_NAME));
+    ASSERT_TRUE(std::ifstream(cache_path).good());
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::UNAUTHORIZED)));
+    EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*oidc, CreateToken(testing::_)).Times(testing::Exactly(0));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(false, err);
+
+    EXPECT_TRUE(creds.IsEmpty());
+    // The driver-created cache was removed by DeleteCache.
+    EXPECT_FALSE(std::ifstream(cache_path).good());
+}
+
+// A rejected token in a cache file NOT created by this driver (e.g. the AWS CLI,
+// which shares ~/.aws/sso/cache and the same file-naming scheme) must be left
+// untouched. NOPROMPT isolates DeleteCache; the file must survive byte-for-byte.
+TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_PreservesForeignCache) {
+    std::map<std::string, std::string> attrs = BaseConfig();
+    attrs[KEY_SSO_SESSION_NAME] = "signed-out-cli-cache";
+    SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "cli-access-token",
+              "", false, /*created_by_wrapper=*/false);
+    const std::string cache_path = CachePathFor(attrs.at(KEY_SSO_SESSION_NAME));
+
+    const auto read_file = [](const std::string& path) {
+        std::ifstream in(path, std::ios::binary);
+        std::string contents;
+        contents.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>{});
+        return contents;
+    };
+    const std::string original_contents = read_file(cache_path);
+
+    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
+    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+
+    EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SsoRoleError(Aws::SSO::SSOErrors::UNAUTHORIZED)));
+    EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*oidc, CreateToken(testing::_)).Times(testing::Exactly(0));
+
+    TestableSsoLoginUtil util(attrs, oidc, sso);
+    std::string err;
+    const Aws::Auth::AWSCredentials creds = util.GetAwsCredentials(false, err);
+
+    EXPECT_TRUE(creds.IsEmpty());
+    // The foreign cache must be intact — DeleteCache must not touch it.
+    ASSERT_TRUE(std::ifstream(cache_path).good());
+    EXPECT_EQ(original_contents, read_file(cache_path));
 }
 
 TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_NoPromptNoCache_FailsFast) {

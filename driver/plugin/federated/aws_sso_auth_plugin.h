@@ -17,7 +17,7 @@
 
 #include "../../util/auth_provider.h"
 
-#include "../base_plugin.h"
+#include "../base_token_auth_plugin.h"
 #include "../../driver.h"
 #include "../../dialect/dialect.h"
 #include "../../util/odbc_helper.h"
@@ -25,7 +25,7 @@
 
 #include <memory>
 
-class AwsSsoAuthPlugin : public BasePlugin {
+class AwsSsoAuthPlugin : public BaseTokenAuthPlugin {
 public:
     explicit AwsSsoAuthPlugin(DBC* dbc);
     AwsSsoAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
@@ -36,21 +36,13 @@ public:
                      std::shared_ptr<OdbcHelper> odbc_helper = nullptr);
     ~AwsSsoAuthPlugin() override;
 
-    SQLRETURN Connect(
-        SQLHDBC        ConnectionHandle,
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
+protected:
+    std::string ResolveRegion(DBC* dbc) override;
+    bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
+    bool RefreshCredentials(DBC* dbc, const std::string& region) override;
 
 private:
-    static std::string ResolveRegion(DBC* dbc);
-
     std::shared_ptr<SsoBrowserLoginUtil> login_util_;
-    std::shared_ptr<AuthProvider> auth_provider_;
-    std::shared_ptr<Dialect> dialect_;
-    std::shared_ptr<OdbcHelper> odbc_helper_;
 };
 
 #endif // AWS_SSO_AUTH_PLUGIN_H_

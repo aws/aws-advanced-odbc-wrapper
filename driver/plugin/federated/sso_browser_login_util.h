@@ -67,7 +67,8 @@ private:
     bool InteractiveLogin(SsoToken& out_token, std::string& out_error);
 
     bool RegisterOidcClient(ClientRegistration& out_registration, std::string& out_error);
-    Aws::Auth::AWSCredentials GetRoleCredentials(const std::string& access_token, std::string& out_error);
+    Aws::Auth::AWSCredentials GetRoleCredentials(const std::string& access_token, std::string& out_error,
+                                                 bool* out_token_rejected = nullptr);
 
     static bool IsRegistrationValid(const ClientRegistration& registration);
 
@@ -75,6 +76,7 @@ private:
     std::string CacheFilePath() const;
     bool ReadCache(SsoToken& out_token, ClientRegistration& out_registration);
     void WriteCache(const SsoToken& token, const ClientRegistration& registration);
+    void DeleteCache();
 
     std::shared_ptr<Aws::SSOOIDC::SSOOIDCClient> oidc_client_;
     std::shared_ptr<Aws::SSO::SSOClient> sso_client_;
@@ -93,6 +95,8 @@ private:
     static inline const std::string DEFAULT_LISTEN_PORT = "8080";
     static inline const std::string WEBSERVER_HOST = "http://127.0.0.1";
     static inline const std::string SSO_SCOPE = "sso:account:access";
+    static inline const std::string CACHE_CREATED_BY_KEY = "createdBy";
+    static inline const std::string CACHE_CREATED_BY_VALUE = "aws-advanced-odbc-wrapper";
     static inline const std::chrono::seconds EXPIRY_SKEW = std::chrono::seconds(30);
     static constexpr int CODE_VERIFIER_LENGTH = 60;
     static constexpr int DEFAULT_IDP_RESPONSE_TIMEOUT_SECS = 120;

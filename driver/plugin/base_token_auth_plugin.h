@@ -1,0 +1,57 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef BASE_TOKEN_AUTH_PLUGIN_H_
+#define BASE_TOKEN_AUTH_PLUGIN_H_
+
+#include "../util/auth_provider.h"
+
+#include "base_plugin.h"
+#include "../driver.h"
+#include "../dialect/dialect.h"
+#include "../util/odbc_helper.h"
+
+#include <memory>
+
+class BaseTokenAuthPlugin : public BasePlugin {
+public:
+    BaseTokenAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,
+                        const std::shared_ptr<AuthProvider>& auth_provider,
+                        std::shared_ptr<Dialect> dialect = nullptr,
+                        std::shared_ptr<OdbcHelper> odbc_helper = nullptr);
+    ~BaseTokenAuthPlugin() override;
+
+    SQLRETURN Connect(
+        SQLHDBC        ConnectionHandle,
+        SQLHWND        WindowHandle,
+        SQLTCHAR *     OutConnectionString,
+        SQLSMALLINT    BufferLength,
+        SQLSMALLINT *  StringLengthPtr,
+        SQLUSMALLINT   DriverCompletion) override;
+
+protected:
+    virtual std::string ResolveRegion(DBC* dbc);
+    virtual bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error);
+    virtual bool RefreshCredentials(DBC* dbc, const std::string& region);
+
+    std::shared_ptr<AuthProvider> auth_provider;
+    std::shared_ptr<Dialect> dialect_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
+
+private:
+    bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
+                                const std::string& port, const std::string& username) const;
+};
+
+#endif // BASE_TOKEN_AUTH_PLUGIN_H_

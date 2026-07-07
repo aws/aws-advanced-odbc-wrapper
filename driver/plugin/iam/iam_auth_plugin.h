@@ -17,14 +17,14 @@
 
 #include "../../util/auth_provider.h"
 
-#include "../base_plugin.h"
+#include "../base_token_auth_plugin.h"
 #include "../../driver.h"
 #include "../../dialect/dialect.h"
 #include "../../util/odbc_helper.h"
 
 #include <memory>
 
-class IamAuthPlugin : public BasePlugin {
+class IamAuthPlugin : public BaseTokenAuthPlugin {
 public:
     IamAuthPlugin(DBC* dbc);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
@@ -33,23 +33,10 @@ public:
                   const std::shared_ptr<AuthProvider>& auth_provider,
                   std::shared_ptr<Dialect> dialect,
                   std::shared_ptr<OdbcHelper> odbc_helper);
-    ~IamAuthPlugin() override;
 
-    SQLRETURN Connect(
-        SQLHDBC        ConnectionHandle,
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
-
-private:
-    std::shared_ptr<AuthProvider> auth_provider;
-    std::shared_ptr<Dialect> dialect_;
-    std::shared_ptr<OdbcHelper> odbc_helper_;
-
-    static bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
-                                const std::string& port, const std::string& username);
+protected:
+    std::string ResolveRegion(DBC* dbc) override;
+    bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
 };
 
 #endif // IAM_AUTH_PLUGIN_H_
