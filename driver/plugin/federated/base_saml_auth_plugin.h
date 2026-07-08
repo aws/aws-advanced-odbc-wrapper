@@ -35,6 +35,7 @@ public:
     ~BaseSamlAuthPlugin() override;
 
 protected:
+    bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
     bool RefreshCredentials(DBC* dbc, const std::string& region) override;
 
     std::shared_ptr<SamlUtil> saml_util;

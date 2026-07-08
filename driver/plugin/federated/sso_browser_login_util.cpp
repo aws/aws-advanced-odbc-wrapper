@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if (defined(_WIN32) || defined(_WIN64))
-    #include <windows.h>
-    #include <shellapi.h>
-    #undef GetObject
-#endif
-
 #include "sso_browser_login_util.h"
 
 #include <aws/core/auth/AWSCredentialsProvider.h>
@@ -43,7 +37,6 @@
 #include <system_error>
 #include <thread>
 
-#include "http/WEBServer.h"
 #include "http/WEBServer_utils.h"
 
 #include "../../util/aws_sdk_helper.h"
@@ -448,38 +441,8 @@ Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetRoleCredentials(
 
 std::string SsoBrowserLoginUtil::FetchAuthorizationCode(const std::string& authorize_url, const std::string& state)
 {
-    std::string state_copy = state;
-    std::string port_copy = listen_port_;
-    std::string timeout_copy = std::to_string(idp_response_timeout_secs_);
-    WEBServer srv(state_copy, port_copy, timeout_copy);
-
-    try {
-        srv.LaunchServer();
-#if (defined(_WIN32) || defined(_WIN64))
-        const HINSTANCE result = ShellExecute(NULL, RDS_TSTR(std::string("open")).c_str(),
-            RDS_TSTR(authorize_url).c_str(), NULL, NULL, SW_SHOWNORMAL);
-        if (reinterpret_cast<intptr_t>(result) <= 32) {
-            srv.Cancel();
-        }
-#else
-#if (defined(LINUX) || defined(__linux__))
-        const int result = system(("xdg-open \"" + authorize_url + "\"").c_str()); // NOLINT(bugprone-command-processor)
-#else
-        const int result = system(("open \"" + authorize_url + "\"").c_str()); // NOLINT(bugprone-command-processor)
-#endif
-        if (result != 0) {
-            srv.Cancel();
-        }
-#endif
-    } catch (const std::exception& e) {
-        srv.Cancel();
-        srv.Join();
-        LOG(ERROR) << "Could not open browser for AWS IAM Identity Center login: " << e.what();
-        return "";
-    }
-
-    srv.Join();
-    return srv.GetCode();
+    return RunBrowserFlow(authorize_url, state, listen_port_,
+        std::to_string(idp_response_timeout_secs_)).auth_code;
 }
 
 std::string SsoBrowserLoginUtil::CacheFilePath() const

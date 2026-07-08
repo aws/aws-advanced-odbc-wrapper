@@ -27,7 +27,9 @@
 #include <string>
 #include <unordered_map>
 
-class SsoBrowserLoginUtil {
+#include "browser_auth_flow.h"
+
+class SsoBrowserLoginUtil : protected BrowserAuthFlow {
 public:
     SsoBrowserLoginUtil() = default;
     explicit SsoBrowserLoginUtil(std::map<std::string, std::string> connection_attributes);

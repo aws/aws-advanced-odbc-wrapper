@@ -87,13 +87,15 @@ const std::map<std::string, std::pair<int, ControlType>> MAIN_KEYS = {
     {KEY_BASE_DSN, {IDC_BASE_DSN, EDIT_TEXT}},
     {KEY_BASE_CONN, {IDC_BASE_CONN, EDIT_TEXT}},
     {KEY_BASE_DRIVER, {IDC_BASE_DRIVER, EDIT_TEXT}},
-    {KEY_DATABASE_DIALECT, {IDC_DB_DIALECT, COMBO}}
+    {KEY_DATABASE_DIALECT, {IDC_DB_DIALECT, COMBO}},
+    // AWS Profile applies across auth modes (and Custom Endpoint), so it lives on
+    // the general Connection Parameters panel, not the Authentication tab.
+    {KEY_AWS_PROFILE, {IDC_AWS_PROFILE, EDIT_TEXT}}
 };
 
 const std::map<std::string, std::pair<int, ControlType>> AUTH_KEYS = {
     {KEY_AUTH_TYPE,{IDC_AUTH_MODE, COMBO}},
     {KEY_REGION, {IDC_REGION, EDIT_TEXT}},
-    {KEY_AWS_PROFILE, {IDC_AWS_PROFILE, EDIT_TEXT}},
     {KEY_TOKEN_EXPIRATION, {IDC_EXPIRE, EDIT_TEXT}}
 };
 
@@ -136,6 +138,58 @@ const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
     {KEY_MFA_TYPE, {IDC_MFA_TYPE, COMBO}},
     {KEY_MFA_PORT, {IDC_MFA_PORT, EDIT_TEXT}},
     {KEY_MFA_TIMEOUT, {IDC_MFA_TIMEOUT, EDIT_TEXT}}
+};
+
+// Okta browser-SAML mode keys (browser mode is selected by a non-empty LOGIN_URL).
+// These share screen coordinates with the Secrets Manager / SSO fields, so they are
+// shown only while OKTA is the selected auth mode.
+const std::map<std::string, std::pair<int, ControlType>> OKTA_BROWSER_KEYS = {
+    {KEY_LOGIN_URL, {IDC_LOGIN_URL, EDIT_TEXT}},
+    {KEY_STS_ENDPOINT, {IDC_STS_ENDPOINT, EDIT_TEXT}},
+    {KEY_LISTEN_PORT, {IDC_LISTEN_PORT, EDIT_TEXT}},
+    {KEY_IDP_RESPONSE_TIMEOUT, {IDC_IDP_RESPONSE_TIMEOUT, EDIT_TEXT}},
+};
+
+// Label control for each auth-tab input, so show/hide moves the pair together.
+// Several key sets share screen coordinates (Secrets Manager / SSO / Okta browser
+// occupy the same left-column rows), so non-selected modes must be hidden, not
+// merely disabled.
+const std::map<int, int> AUTH_CONTROL_LABELS = {
+    {IDC_REGION, IDC_REGION_LABEL},
+    {IDC_EXPIRE, IDC_EXPIRE_LABEL},
+    {IDC_IAM_HOST, IDC_IAM_HOST_LABEL},
+    {IDC_IAM_PORT, IDC_IAM_PORT_LABEL},
+    {IDC_URL_ENCODE, IDC_URL_ENCODE_LABEL},
+    {IDC_SECRET, IDC_SECRET_ID_LABEL},
+    {IDC_SECRET_REGION, IDC_SECRET_REGION_LABEL},
+    {IDC_SECRET_END, IDC_SECRET_END_LABEL},
+    {IDC_SECRET_USERNAME_PROPERTY, IDC_SECRET_USERNAME_LABEL},
+    {IDC_SECRET_PASSWORD_PROPERTY, IDC_SECRET_PASSWORD_LABEL},
+    {IDC_IDP_UID, IDC_IDP_UID_LABEL},
+    {IDC_IDP_PWD, IDC_IDP_PWD_LABEL},
+    {IDC_IDP_END, IDC_IDP_END_LABEL},
+    {IDC_APP_ID, IDC_APP_ID_LABEL},
+    {IDC_ROLE_ARN, IDC_ROLE_ARN_LABEL},
+    {IDC_IDP_ARN, IDC_IDP_ARN_LABEL},
+    {IDC_IDP_PORT, IDC_IDP_PORT_LABEL},
+    {IDC_RELAY_PARTY_ID, IDC_RELAY_PARTY_ID_LABEL},
+    {IDC_CONNECT_TIMEOUT, IDC_CONNECT_TIMEOUT_LABEL},
+    {IDC_SOCKET_TIMEOUT, IDC_SOCKET_TIMEOUT_LABEL},
+    {IDC_MFA_TYPE, IDC_MFA_TYPE_LABEL},
+    {IDC_MFA_PORT, IDC_MFA_PORT_LABEL},
+    {IDC_MFA_TIMEOUT, IDC_MFA_TIMEOUT_LABEL},
+    {IDC_SSO_START_URL, IDC_SSO_START_URL_LABEL},
+    {IDC_SSO_ACCOUNT_ID, IDC_SSO_ACCOUNT_ID_LABEL},
+    {IDC_SSO_ROLE_NAME, IDC_SSO_ROLE_NAME_LABEL},
+    {IDC_SSO_SESSION_NAME, IDC_SSO_SESSION_NAME_LABEL},
+    {IDC_SSO_REGION, IDC_SSO_REGION_LABEL},
+    {IDC_SSO_LISTEN_PORT, IDC_SSO_LISTEN_PORT_LABEL},
+    {IDC_SSO_IDP_RESPONSE_TIMEOUT, IDC_SSO_IDP_RESPONSE_TIMEOUT_LABEL},
+    {IDC_SSO_ALLOW_INTERACTIVE, IDC_SSO_ALLOW_INTERACTIVE_LABEL},
+    {IDC_LOGIN_URL, IDC_LOGIN_URL_LABEL},
+    {IDC_STS_ENDPOINT, IDC_STS_ENDPOINT_LABEL},
+    {IDC_LISTEN_PORT, IDC_LISTEN_PORT_LABEL},
+    {IDC_IDP_RESPONSE_TIMEOUT, IDC_IDP_RESPONSE_TIMEOUT_LABEL},
 };
 
 const std::map<std::string, std::pair<int, ControlType>> FAILOVER_KEYS = {
@@ -502,6 +556,7 @@ std::string GetDsn(bool test_conn)
     all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
     all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
     all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
+    all_auth_keys.insert(OKTA_BROWSER_KEYS.begin(), OKTA_BROWSER_KEYS.end());
 
     std::string value;
     for (const auto& keys : MAIN_KEYS) {
@@ -667,6 +722,7 @@ bool SaveDsn()
         all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
         all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
         all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
+        all_auth_keys.insert(OKTA_BROWSER_KEYS.begin(), OKTA_BROWSER_KEYS.end());
 
         try {
             for (const auto& keys : MAIN_KEYS) {
@@ -1145,6 +1201,39 @@ BOOL FailoverDlgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return false;
 }
 
+namespace {
+    // Whether a key's control is relevant for the given auth mode. Every control on
+    // the tab is shown/hidden purely from this predicate (SSO-style): the selected
+    // mode's fields appear, everything else disappears.
+    bool KeyVisibleForMode(int selection, const std::string& key, int id)
+    {
+        if (id == IDC_AUTH_MODE) {
+            return true;
+        }
+        switch (selection) {
+            case EMPTY:
+                return false;
+            case IAM:
+                return IAM_KEYS.contains(key) || AUTH_KEYS.contains(key);
+            case SECRETS_MANAGER:
+                return SECRETS_KEYS.contains(key) || AUTH_KEYS.contains(key);
+            case ADFS:
+                // Federated fields minus the Okta-only ones (App ID, MFA family).
+                return (IAM_KEYS.contains(key) || FED_AUTH_KEYS.contains(key) || AUTH_KEYS.contains(key))
+                    && id != IDC_APP_ID && id != IDC_MFA_TYPE && id != IDC_MFA_PORT && id != IDC_MFA_TIMEOUT;
+            case OKTA:
+                return IAM_KEYS.contains(key) || FED_AUTH_KEYS.contains(key)
+                    || AUTH_KEYS.contains(key) || OKTA_BROWSER_KEYS.contains(key);
+            case AWS_SSO_MODE:
+                return SSO_KEYS.contains(key)
+                    || key == KEY_REGION || key == KEY_TOKEN_EXPIRATION
+                    || key == KEY_IAM_HOST || key == KEY_IAM_PORT || key == KEY_EXTRA_URL_ENCODE;
+            default:
+                return true;
+        }
+    }
+}  // namespace
+
 void HandleAuthModeSelection(HWND hwnd) {
     HWND auth_mode_box = GetDlgItem(hwnd, IDC_AUTH_MODE);
     int selection = ComboBox_GetCurSel(auth_mode_box);
@@ -1155,62 +1244,13 @@ void HandleAuthModeSelection(HWND hwnd) {
     all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
     all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
     all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
+    all_auth_keys.insert(OKTA_BROWSER_KEYS.begin(), OKTA_BROWSER_KEYS.end());
 
     for (const auto& keys : all_auth_keys) {
-        int id = keys.second.first;
-        HWND ctrl = GetDlgItem(hwnd, id);
-        bool show_ctrl = true;
+        const int id = keys.second.first;
+        const bool visible = KeyVisibleForMode(selection, keys.first, id);
 
         if (id != IDC_AUTH_MODE) {
-            switch (selection) {
-                case EMPTY:
-                    show_ctrl = false;
-                    break;
-                case IAM:
-                    if (!IAM_KEYS.contains(keys.first) && !AUTH_KEYS.contains(keys.first)) {
-                        show_ctrl = false;
-                    }
-                    break;
-                case SECRETS_MANAGER:
-                    if (!SECRETS_KEYS.contains(keys.first)) {
-                        show_ctrl = false;
-                    }
-                    break;
-                case ADFS:
-                    if (!IAM_KEYS.contains(keys.first) &&
-                        !FED_AUTH_KEYS.contains(keys.first) &&
-                        !AUTH_KEYS.contains(keys.first) ||
-                        id == IDC_APP_ID ||
-                        id == IDC_MFA_TYPE ||
-                        id == IDC_MFA_PORT ||
-                        id == IDC_MFA_TIMEOUT) {
-                        show_ctrl = false;
-                    }
-                    break;
-                case OKTA:
-                    if (!IAM_KEYS.contains(keys.first) && !FED_AUTH_KEYS.contains(keys.first) && !AUTH_KEYS.contains(keys.first)) {
-                        show_ctrl = false;
-                    }
-                    break;
-                case AWS_SSO_MODE:
-                    if (!SSO_KEYS.contains(keys.first) &&
-                        keys.first != KEY_REGION &&
-                        keys.first != KEY_TOKEN_EXPIRATION &&
-                        keys.first != KEY_IAM_HOST &&
-                        keys.first != KEY_IAM_PORT &&
-                        keys.first != KEY_EXTRA_URL_ENCODE) {
-                        show_ctrl = false;
-                    }
-                    break;
-                default:
-                    break;
-            }
-
-            // IAM, Secrets Manager, and empty/db for Custom Endpoint
-            if (id == IDC_AWS_PROFILE) {
-                show_ctrl = (selection == EMPTY || selection == IAM || selection == SECRETS_MANAGER);
-            }
-
             switch (keys.second.second) {
                 case EDIT_TEXT:
                     SetInitialEditTextValue(hwnd, keys.second.first, keys.first, "");
@@ -1223,35 +1263,12 @@ void HandleAuthModeSelection(HWND hwnd) {
             }
         }
 
-        EnableWindow(ctrl, show_ctrl);
-    }
-
-    // Overlappng fields depending on selection for AWS Browser SSO & Secrets Manager
-    const bool sso_selected = (selection == AWS_SSO_MODE);
-    const int sso_control_and_label_ids[] = {
-        IDC_SSO_START_URL, IDC_SSO_ACCOUNT_ID, IDC_SSO_ROLE_NAME,
-        IDC_SSO_SESSION_NAME, IDC_SSO_REGION,
-        IDC_SSO_LISTEN_PORT, IDC_SSO_IDP_RESPONSE_TIMEOUT, IDC_SSO_ALLOW_INTERACTIVE,
-        IDC_SSO_START_URL_LABEL, IDC_SSO_ACCOUNT_ID_LABEL, IDC_SSO_ROLE_NAME_LABEL,
-        IDC_SSO_SESSION_NAME_LABEL, IDC_SSO_REGION_LABEL,
-        IDC_SSO_LISTEN_PORT_LABEL, IDC_SSO_IDP_RESPONSE_TIMEOUT_LABEL, IDC_SSO_ALLOW_INTERACTIVE_LABEL
-    };
-    for (const int id : sso_control_and_label_ids) {
-        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_SHOW : SW_HIDE);
-    }
-    const int secret_label_ids[] = {
-        IDC_SECRET_ID_LABEL, IDC_SECRET_REGION_LABEL, IDC_SECRET_END_LABEL,
-        IDC_SECRET_USERNAME_LABEL, IDC_SECRET_PASSWORD_LABEL
-    };
-    for (const int id : secret_label_ids) {
-        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_HIDE : SW_SHOW);
-    }
-    const int secret_field_ids[] = {
-        IDC_SECRET, IDC_SECRET_REGION, IDC_SECRET_END,
-        IDC_SECRET_USERNAME_PROPERTY, IDC_SECRET_PASSWORD_PROPERTY
-    };
-    for (const int id : secret_field_ids) {
-        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_HIDE : SW_SHOW);
+        HWND ctrl = GetDlgItem(hwnd, id);
+        EnableWindow(ctrl, visible);
+        ShowWindow(ctrl, visible ? SW_SHOW : SW_HIDE);
+        if (const auto label = AUTH_CONTROL_LABELS.find(id); label != AUTH_CONTROL_LABELS.end()) {
+            ShowWindow(GetDlgItem(hwnd, label->second), visible ? SW_SHOW : SW_HIDE);
+        }
     }
 }
 
@@ -1411,6 +1428,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
         all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
         all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
+        all_auth_keys.insert(OKTA_BROWSER_KEYS.begin(), OKTA_BROWSER_KEYS.end());
         for (const auto& keys : all_auth_keys) {
             HWND control = GetDlgItem(aws_auth_tab, keys.second.first);
             EnableWindow(control, SW_HIDE);

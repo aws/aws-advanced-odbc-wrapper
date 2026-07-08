@@ -57,6 +57,11 @@ std::string WEBServer::GetCode() const
     return code_;
 }
 
+std::string WEBServer::GetSamlResponse() const
+{
+    return parser_.RetrieveSamlResponse();
+}
+
 int WEBServer::GetListenPort() const
 {
     return listen_port_;

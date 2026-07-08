@@ -60,6 +60,10 @@ AuthProvider::AuthProvider(
     const Aws::Auth::AWSCredentials& credentials)
 {
     AwsSdkHelper::EnsureInitialized();
+    if (credentials.IsEmpty()) {
+        credentials_resolved_ = false;
+        LOG(INFO) << "AuthProvider created without resolved AWS credentials. Must be resolved before token generation";
+    }
     SetUpRdsClient(credentials, region);
 }
 
@@ -136,6 +140,7 @@ void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credenti
     if (rds_client) {
         rds_client = nullptr;
     }
+    credentials_resolved_ = !credentials.IsEmpty();
     SetUpRdsClient(credentials, region);
 }
 

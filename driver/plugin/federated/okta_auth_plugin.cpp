@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if (defined(_WIN32) || defined(_WIN64))
-    #include <windows.h>
-    #include <shellapi.h>
+#include "okta_auth_plugin.h"
+
+// windows.h arrives transitively (driver.h) and its GetObject macro breaks the
+// Aws::Utils::Json::JsonView::GetObject call below.
+#ifdef GetObject
     #undef GetObject
 #endif
 
-#include "okta_auth_plugin.h"
-
 #include "html_util.h"
-#include "http/WEBServer.h"
 #include "http/WEBServer_utils.h"
 #include "saml_util.h"
 
@@ -30,6 +29,11 @@
 #include "../../util/map_utils.h"
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
+
+#include <aws/core/utils/StringUtils.h>
+
+#include <chrono>
+#include <thread>
 
 OktaAuthPlugin::OktaAuthPlugin(DBC *dbc) : OktaAuthPlugin(dbc, nullptr) {}
 
@@ -48,7 +52,6 @@ namespace {
 
     std::shared_ptr<AuthProvider> CreateOktaAuthProvider(
         DBC* dbc,
-        const std::shared_ptr<SamlUtil>& resolved_saml,
         const std::shared_ptr<AuthProvider>& auth_provider)
     {
         if (auth_provider) {
@@ -60,8 +63,7 @@ namespace {
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
                 : Aws::Region::US_EAST_1;
         }
-        const std::string assertion = resolved_saml->GetSamlAssertion();
-        return std::make_shared<AuthProvider>(region, resolved_saml->GetAwsCredentials(assertion));
+        return std::make_shared<AuthProvider>(region, Aws::Auth::AWSCredentials());
     }
 }  // namespace
 
@@ -73,7 +75,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
                                std::shared_ptr<Dialect> dialect, std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseSamlAuthPlugin(dbc, next_plugin,
         CreateOktaSamlUtil(dbc, saml_util),
-        CreateOktaAuthProvider(dbc, CreateOktaSamlUtil(dbc, saml_util), auth_provider),
+        CreateOktaAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
     this->plugin_name = "OKTA";
@@ -88,23 +90,46 @@ OktaSamlUtil::OktaSamlUtil(
     const std::shared_ptr<Aws::STS::STSClient> &sts_client)
     : SamlUtil(connection_attributes, http_client, sts_client)
 {
+    // Browser mode selects the Okta app via LOGIN_URL, so APP_ID is not required there.
+    // The headless flow builds its sign-in / session-token URLs from APP_ID and still needs it.
     const std::string app_id = MapUtils::GetStringValue(connection_attributes, KEY_APP_ID, "");
-    if (app_id.empty()) {
-        throw std::runtime_error("Missing required parameters for Okta Authentication");
+    if (!browser_mode) {
+        if (app_id.empty()) {
+            throw std::runtime_error(std::string("Missing required parameter for Okta Authentication: ") + KEY_APP_ID);
+        }
+        sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
+        session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
+    } else {
+        sso_url = MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "");
+        if (sso_url.empty()) {
+            throw std::runtime_error(std::string("Missing required parameter for Okta browser authentication: ") + KEY_LOGIN_URL);
+        }
     }
-    sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
-    session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
 
-    const std::string mfa_type_str = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "");
-    if (mfa_type_table.contains(mfa_type_str)) {
-        mfa_type = mfa_type_table.at(mfa_type_str);
+    if (browser_mode) {
+        // The MFA_* keys drive the headless /api/v1/authn challenge (VerifyTOTPChallenge / VerifyPushChallenge).
+        // Browser mode never touches that path
+        if (!MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "").empty()) {
+            LOG(WARNING) << "MFA_TYPE is ignored in browser SAML mode; MFA is governed by the Okta sign-in policy";
+        }
+        listen_port = MapUtils::GetStringValue(connection_attributes, KEY_LISTEN_PORT, DEFAULT_PORT);
+        response_timeout = MapUtils::GetStringValue(connection_attributes, KEY_IDP_RESPONSE_TIMEOUT, DEFAULT_MFA_TIMEOUT);
+    } else {
+        const std::string mfa_type_str = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "");
+        if (mfa_type_table.contains(mfa_type_str)) {
+            mfa_type = mfa_type_table.at(mfa_type_str);
+        }
+        mfa_port = MapUtils::GetStringValue(connection_attributes, KEY_MFA_PORT, DEFAULT_PORT);
+        mfa_timeout = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TIMEOUT, DEFAULT_MFA_TIMEOUT);
     }
-    mfa_port = MapUtils::GetStringValue(connection_attributes, KEY_MFA_PORT, DEFAULT_PORT);
-    mfa_timeout = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TIMEOUT, DEFAULT_MFA_TIMEOUT);
 }
 
 std::string OktaSamlUtil::GetSamlAssertion()
 {
+    if (browser_mode) {
+        return GetSamlAssertionViaBrowser();
+    }
+
     LOG(INFO) << "OKTA Sign In URL w/o Session Token: " << sign_in_url;
     const std::string session_token = GetSessionToken();
     if (session_token.empty()) {
@@ -137,6 +162,20 @@ std::string OktaSamlUtil::GetSamlAssertion()
     }
     LOG(ERROR) << "No SAML response found in response";
     return "";
+}
+
+std::string OktaSamlUtil::GetSamlAssertionViaBrowser()
+{
+    // Browser flow: open the Okta SSO URL (resolved from LOGIN_URL in the constructor)
+    // and listen for the SAML POST back to localhost.
+    const BrowserFlowResult result = RunBrowserFlow(
+        sso_url, WebServerUtils::GenerateState(), listen_port, response_timeout);
+    if (result.saml_response.empty()) {
+        LOG(ERROR) << "No SAMLResponse received from browser flow";
+        return "";
+    }
+
+    return Aws::Utils::StringUtils::URLDecode(result.saml_response.c_str());
 }
 
 std::string OktaSamlUtil::GetSessionToken()
@@ -218,38 +257,9 @@ std::string OktaSamlUtil::VerifyTOTPChallenge(
     const std::string &verify_url,
     const std::string &state_token)
 {
-    std::string state = WebServerUtils::GenerateState();
-    WEBServer srv(state, mfa_port, mfa_timeout);
-
-    srv.LaunchServer();
-
-    const std::string mfa_form_url =  WEBSERVER_HOST + ":" + mfa_port;
-    try {
-#if (defined(_WIN32) || defined(_WIN64))
-        const HINSTANCE result = ShellExecute(NULL, RDS_TSTR(std::string("open")).c_str(), RDS_TSTR(mfa_form_url).c_str(), NULL, NULL, SW_SHOWNORMAL);
-        if (reinterpret_cast<intptr_t>(result) <= 32) {
-            srv.Cancel();
-        }
-#else
-#if (defined(LINUX) || defined(__linux__))
-        const int result = system(("xdg-open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
-#else
-        const int result = system(("open " + mfa_form_url).c_str()); // NOLINT(bugprone-command-processor)
-#endif
-        if (result != 0) {
-            srv.Cancel();
-        }
-#endif
-    } catch (const std::exception & e) {
-        srv.Cancel();
-        srv.Join();
-        LOG(ERROR) << "Could not open browser to obtain MFA token: " << e.what();
-        return "";
-    }
-
-    srv.Join();
-
-    const std::string pass_code = srv.GetCode();
+    const std::string mfa_form_url = WEBSERVER_HOST + ":" + mfa_port;
+    const std::string pass_code = RunBrowserFlow(
+        mfa_form_url, WebServerUtils::GenerateState(), mfa_port, mfa_timeout).auth_code;
     if (pass_code.empty()) {
         LOG(ERROR) << "MFA Authorization code was not obtained";
         return "";

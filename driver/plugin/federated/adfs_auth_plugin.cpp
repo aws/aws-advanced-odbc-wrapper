@@ -42,7 +42,6 @@ namespace {
 
     std::shared_ptr<AuthProvider> CreateAdfsAuthProvider(
         DBC* dbc,
-        const std::shared_ptr<SamlUtil>& resolved_saml,
         const std::shared_ptr<AuthProvider>& auth_provider)
     {
         if (auth_provider) {
@@ -54,8 +53,7 @@ namespace {
                 RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
                 : Aws::Region::US_EAST_1;
         }
-        const std::string assertion = resolved_saml->GetSamlAssertion();
-        return std::make_shared<AuthProvider>(region, resolved_saml->GetAwsCredentials(assertion));
+        return std::make_shared<AuthProvider>(region, Aws::Auth::AWSCredentials());
     }
 }  // namespace
 
@@ -67,7 +65,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
                                std::shared_ptr<Dialect> dialect, std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseSamlAuthPlugin(dbc, next_plugin,
         CreateAdfsSamlUtil(dbc, saml_util),
-        CreateAdfsAuthProvider(dbc, CreateAdfsSamlUtil(dbc, saml_util), auth_provider),
+        CreateAdfsAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
     this->plugin_name = "ADFS";

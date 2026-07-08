@@ -17,6 +17,7 @@
 
 #include "../../util/auth_provider.h"
 
+#include "browser_auth_flow.h"
 #include "saml_util.h"
 #include "base_saml_auth_plugin.h"
 #include "../../driver.h"
@@ -33,7 +34,7 @@ static std::map<std::string, MfaType> const mfa_type_table = {
     {VALUE_MFA_PUSH, MfaType::PUSH}
 };
 
-class OktaSamlUtil : public SamlUtil {
+class OktaSamlUtil : public SamlUtil, protected BrowserAuthFlow {
 public:
     OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
     OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
@@ -41,6 +42,7 @@ public:
 
 private:
     std::string GetSessionToken();
+    std::string GetSamlAssertionViaBrowser();
 
     std::string VerifyTOTPChallenge(const std::string &verify_url, const std::string &state_token);
 
@@ -55,6 +57,11 @@ private:
     MfaType mfa_type;
     std::string mfa_port;
     std::string mfa_timeout;
+    // Browser-SAML listener settings, independent of the headless MFA popup keys.
+    std::string listen_port;
+    std::string response_timeout;
+    // Resolved once in the constructor (browser mode only): the Okta SSO URL to open.
+    std::string sso_url;
 
     static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("<input name=\"SAMLResponse\".+value=\"(.+)\"/\\>");
 };
