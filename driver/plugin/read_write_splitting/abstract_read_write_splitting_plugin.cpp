@@ -443,7 +443,7 @@ void AbstractReadWriteSplittingPlugin::SetStmtError(const std::string &msg, SQL_
                 SQL_HANDLE_STMT, stmt->wrapped_stmt);
         }
         stmt->wrapped_stmt = nullptr;
-        CLEAR_STMT_ERROR(stmt);
-        stmt->err = new ERR_INFO(msg.c_str(), state);
+        ClearError(stmt);
+        stmt->err = std::make_unique<ERR_INFO>(msg.c_str(), state);
     }
 }

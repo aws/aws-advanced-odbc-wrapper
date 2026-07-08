@@ -96,7 +96,7 @@ TEST_F(SecretsManagerPluginTest, MissingSecretId) {
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
 
-    EXPECT_NE(nullptr, dbc->err);
+    EXPECT_TRUE(dbc->err);
     EXPECT_STREQ("Missing required parameter 'SECRET_ID'.", dbc->err->error_msg);
 
     delete plugin;
@@ -110,7 +110,7 @@ TEST_F(SecretsManagerPluginTest, MissingRegion) {
 
     SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
 
-    EXPECT_NE(nullptr, dbc->err);
+    EXPECT_TRUE(dbc->err);
     EXPECT_STREQ("Could not determine secret region.", dbc->err->error_msg);
 
     delete plugin;

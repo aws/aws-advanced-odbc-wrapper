@@ -97,15 +97,15 @@ SQLRETURN FailoverPlugin::Execute(
         for (STMT* stmt : dbc->stmt_list) {
             const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
             stmt->wrapped_stmt = nullptr;
-            CLEAR_STMT_ERROR(stmt);
-            stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+            ClearError(stmt);
+            stmt->err = std::make_unique<ERR_INFO>("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
         }
         // and descriptors
         for (DESC* desc : dbc->desc_list) {
             const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
             desc->wrapped_desc = nullptr;
-            CLEAR_DESC_ERROR(desc);
-            desc->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
+            ClearError(desc);
+            desc->err = std::make_unique<ERR_INFO>("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
         }
     }
 
@@ -119,28 +119,24 @@ SQLRETURN FailoverPlugin::Execute(
 
     if (failover_result) {
         LOG(INFO) << "Successfully triggered failover";
-        ERR_INFO* err_info;
-        if (TRANSACTION_OPEN == original_transaction_status) {
-            err_info = new ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE);
-        } else {
-            err_info = new ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
-        }
+        const ERR_INFO err_info = TRANSACTION_OPEN == original_transaction_status
+            ? ERR_INFO("Transaction resolution unknown. Please re-configure session state if required and try restarting the transaction.", ERR_FAILOVER_UNKNOWN_TRANSACTION_STATE)
+            : ERR_INFO("The active connection has changed due to a connection failure. Please re-configure session state if required.", ERR_FAILOVER_SUCCESS);
         {
             const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc->lock);
             // Set failover error messages for all related statements
             for (STMT* stmt : dbc->stmt_list) {
                 const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
-                CLEAR_STMT_ERROR(stmt);
-                stmt->err = new ERR_INFO(*err_info);
+                ClearError(stmt);
+                stmt->err = std::make_unique<ERR_INFO>(err_info);
             }
             // and descriptors
             for (DESC* desc : dbc->desc_list) {
                 const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
-                CLEAR_DESC_ERROR(desc);
-                desc->err = new ERR_INFO(*err_info);
+                ClearError(desc);
+                desc->err = std::make_unique<ERR_INFO>(err_info);
             }
         }
-        delete err_info;
     }
 
     return ret;
