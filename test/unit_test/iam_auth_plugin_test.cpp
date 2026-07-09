@@ -40,10 +40,7 @@ protected:
 
     // Runs once per suite
     static void SetUpTestSuite() {
-        AwsSdkHelper::Init();
-    }
-    static void TearDownTestSuite() {
-        AwsSdkHelper::Shutdown();
+        AwsSdkHelper::EnsureInitialized();
     }
 
     // Runs per test

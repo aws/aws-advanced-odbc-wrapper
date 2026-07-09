@@ -18,13 +18,18 @@
 #include <aws/core/Aws.h>
 
 #include <atomic>
-#include <mutex>
 
 class AwsSdkHelper {
 public:
     AwsSdkHelper() = default;
-    static void Init();
-    static void Shutdown();
+
+    // Initializes the AWS SDK once per process, lazily on first use; the SDK
+    // cannot be re-initialized, so subsequent calls are no-ops.
+    static void EnsureInitialized();
+
+    // Shuts the SDK down at most once, on a normal thread. The driver never
+    // auto-calls this; in production the OS reclaims SDK globals at process exit.
+    static void PerformShutdown();
 
     // Prevent copy constructors
     AwsSdkHelper(const AwsSdkHelper&) = delete;
@@ -34,8 +39,7 @@ public:
 
 private:
     static Aws::SDKOptions sdk_options;
-    static std::atomic<int> sdk_reference_count;
-    static std::mutex sdk_mutex;
+    static std::atomic<bool> sdk_initialized;
 };
 
 #endif // AWS_SDK_HELPER_H

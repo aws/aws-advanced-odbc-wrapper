@@ -69,11 +69,7 @@ protected:
     DBC* dbc;
 
     static void SetUpTestSuite() {
-        AwsSdkHelper::Init();
-    }
-
-    static void TearDownTestSuite() {
-        AwsSdkHelper::Shutdown();
+        AwsSdkHelper::EnsureInitialized();
     }
 
     void SetUp() override {

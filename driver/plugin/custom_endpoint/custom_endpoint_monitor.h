@@ -37,7 +37,7 @@ public:
 
 protected:
     // For unit testing & mocks. Does not initialize the AWS SDK or start the monitoring thread.
-    CustomEndpointMonitor() : is_running_(false), sdk_initialized_(false) {}
+    CustomEndpointMonitor() : is_running_(false) {}
 
 private:
     void IncreaseDelay();
@@ -47,7 +47,6 @@ private:
 
     std::shared_ptr<std::thread> monitoring_thread_;
     std::atomic<bool> is_running_;
-    bool sdk_initialized_ = true;
 
     std::weak_ptr<PluginService> plugin_service_;
     std::string endpoint_;
