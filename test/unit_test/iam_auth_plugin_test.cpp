@@ -70,6 +70,22 @@ TEST_F(IamAuthPluginTest, Connect_MissingParam) {
     EXPECT_EQ(dbc->err->native_err, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
 }
 
+TEST_F(IamAuthPluginTest, Connect_SSO_CredentialFail) {
+    mock_auth_provider->mock_has_resolved_credentials = false;
+    dbc->conn_attr.insert_or_assign(KEY_AWS_PROFILE, "sso-test");
+
+    EXPECT_CALL(*mock_auth_provider, GetToken(testing::_, testing::_, testing::_, testing::_,
+        testing::_, testing::_, testing::_)).Times(testing::Exactly(0));
+    EXPECT_CALL(*mock_base_plugin, Connect(testing::_, testing::_, testing::_, testing::_,
+        testing::_, testing::_)).Times(testing::Exactly(0));
+
+    IamAuthPlugin plugin(dbc, mock_base_plugin, mock_auth_provider);
+    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    EXPECT_EQ(SQL_ERROR, ret);
+    EXPECT_EQ(dbc->err->native_err, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    EXPECT_NE(std::string(dbc->err->error_msg).find("aws sso login"), std::string::npos);
+}
+
 TEST_F(IamAuthPluginTest, Connect_Success) {
     std::pair<std::string, bool> token_info("cached_token", true);
     EXPECT_CALL(

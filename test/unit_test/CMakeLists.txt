@@ -158,6 +158,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${EXTERNAL_LIBRARIES}
 )
 
+# Path to the committed AWS config fixture read by tests in auth_provider_test.cpp.
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    AWS_PROFILE_TEST_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
+)
+
 gtest_discover_tests(${PROJECT_NAME})
 
 # Copy ICU for Windows Builds ------------------------------------------------------------------------------------

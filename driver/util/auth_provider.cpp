@@ -14,7 +14,11 @@
 
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentials.h>
+#include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/core/client/ClientConfiguration.h>
+#include <aws/core/config/AWSConfigFileProfileConfigLoader.h>
+#include <aws/core/config/AWSProfileConfig.h>
 #include <aws/rds/RDSClient.h>
 
 #include "auth_provider.h"
@@ -29,6 +33,26 @@
 AuthProvider::AuthProvider(const std::string &region) {
     AwsSdkHelper::EnsureInitialized();
     SetUpRdsClient(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
+}
+
+AuthProvider::AuthProvider(const std::string &region, const std::string &profile) {
+    AwsSdkHelper::EnsureInitialized();
+    if (profile.empty()) {
+        SetUpRdsClient(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
+        return;
+    }
+    // Resolve credentials for profile from static access keys, AWS IAM Identity Center (SSO),
+    // assume-role (source_profile/role_arn), and credential_process.
+    Aws::Client::ClientConfiguration::CredentialProviderConfiguration credential_config;
+    credential_config.profile = profile;
+    const Aws::Auth::AWSCredentials credentials = Aws::Auth::DefaultAWSCredentialsProviderChain(credential_config).GetAWSCredentials();
+    if (credentials.IsEmpty()) {
+        credentials_resolved_ = false;
+        LOG(ERROR) << "Unable to resolve AWS credentials for profile '" << profile
+                   << "'. If it is an AWS IAM Identity Center (SSO) profile, run 'aws sso login --profile "
+                   << profile << "'.";
+    }
+    SetUpRdsClient(credentials, region);
 }
 
 AuthProvider::AuthProvider(
@@ -50,6 +74,25 @@ AuthProvider::~AuthProvider()
     if (rds_client) {
         rds_client = nullptr;
     }
+}
+
+std::string AuthProvider::GetRegionForProfile(const std::string &profile) {
+    if (profile.empty()) {
+        return "";
+    }
+
+    Aws::Config::AWSConfigFileProfileConfigLoader loader(Aws::Auth::GetConfigProfileFilename(), true);
+    if (!loader.Load()) {
+        LOG(WARNING) << "Unable to load AWS config file while resolving region for profile '" << profile << "'";
+        return "";
+    }
+
+    const auto &profiles = loader.GetProfiles();
+    const auto it = profiles.find(profile);
+    if (it == profiles.end()) {
+        return "";
+    }
+    return it->second.GetRegion();
 }
 
 std::pair<std::string, bool> AuthProvider::GetToken(

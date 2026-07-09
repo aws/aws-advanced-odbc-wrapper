@@ -222,7 +222,7 @@ SQLRETURN RDS_GetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQL
 SQLRETURN RDS_SQLSetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength);
 
 /* Simple Macros */
-#define NOT_IMPLEMENTED return SQL_ERROR
+#define RDS_NOT_IMPLEMENTED return SQL_ERROR
 
 #define NULL_CHECK_HANDLE(h) \
     if (h == NULL) return SQL_INVALID_HANDLE

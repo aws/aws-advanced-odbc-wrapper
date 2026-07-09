@@ -63,6 +63,7 @@ class AuthProvider {
 public:
     AuthProvider() = default;
     AuthProvider(const std::string &region);
+    AuthProvider(const std::string &region, const std::string &profile);
     AuthProvider(const std::string &region, const Aws::Auth::AWSCredentials& credentials);
     AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client);
     ~AuthProvider();
@@ -79,6 +80,8 @@ public:
     static std::string ExtraUrlEncodeString(const std::string &url_str);
 
     static std::string GetPort(DBC* dbc);
+    static std::string GetRegionForProfile(const std::string &profile);
+    virtual bool HasResolvedCredentials() const { return credentials_resolved_; }
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
@@ -96,6 +99,7 @@ private:
     static inline std::unordered_map<std::string, TokenInfo> token_cache;
     static inline std::recursive_mutex token_cache_mutex;
     std::shared_ptr<Aws::RDS::RDSClient> rds_client;
+    bool credentials_resolved_ = true;
 };
 
 #endif // AUTH_PROVIDER_H_

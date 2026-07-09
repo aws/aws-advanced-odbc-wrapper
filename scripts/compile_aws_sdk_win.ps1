@@ -16,7 +16,7 @@ $CONFIGURATION = $args[0]   # Debug/Release
 
 $CURRENT_DIR = (Get-Location).Path
 
-$AWS_SDK_CPP_TAG = "1.11.594"
+$AWS_SDK_CPP_TAG = "1.11.835"
 
 $SRC_DIR = "${PSScriptRoot}\..\aws_sdk\aws_sdk_cpp"
 $BUILD_DIR = "${SRC_DIR}\..\build"

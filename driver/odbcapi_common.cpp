@@ -506,7 +506,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle ENV";
             CLEAR_ENV_ERROR(env);
             env->err = new ERR_INFO("SQLCancelHandle ENV - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-            NOT_IMPLEMENTED;
+            RDS_NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DBC:
         {
@@ -516,7 +516,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DBC";
             CLEAR_DBC_ERROR(dbc);
             dbc->err = new ERR_INFO("SQLCancelHandle DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-            NOT_IMPLEMENTED;
+            RDS_NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DESC:
         {
@@ -526,7 +526,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DESC";
             CLEAR_DESC_ERROR(desc);
             desc->err = new ERR_INFO("SQLCancelHandle DESC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
-            NOT_IMPLEMENTED;
+            RDS_NOT_IMPLEMENTED;
         }
         default:
             // TODO - Set Error
@@ -593,7 +593,7 @@ SQLRETURN SQL_API SQLCompleteAsync(
         default:
             return SQL_INVALID_HANDLE;
     }
-    NOT_IMPLEMENTED;
+    RDS_NOT_IMPLEMENTED;
 }
 
 SQLRETURN SQL_API SQLCopyDesc(

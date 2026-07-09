@@ -16,7 +16,7 @@ CONFIGURATION=$1    # Debug/Release
 
 export ROOT_REPO_PATH=$(cd "$(dirname "$0")/.."; pwd -P)
 
-export AWS_SDK_CPP_TAG="1.11.481"
+export AWS_SDK_CPP_TAG="1.11.835"
 
 export AWS_SDK_PATH="${ROOT_REPO_PATH}/aws_sdk"
 export SRC_DIR="${AWS_SDK_PATH}/aws_sdk_cpp"

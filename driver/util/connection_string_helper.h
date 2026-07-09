@@ -42,6 +42,7 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_AUTH_TYPE,
     KEY_EXTRA_URL_ENCODE,
     KEY_REGION,
+    KEY_AWS_PROFILE,
     KEY_TOKEN_EXPIRATION,
     KEY_SECRET_ID,
     KEY_SECRET_REGION,

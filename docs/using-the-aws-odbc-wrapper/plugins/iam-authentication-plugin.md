@@ -35,6 +35,7 @@ To enable AWS IAM authentication, the following steps should be completed first 
 | User Name           | `UID`                 | Database user name for IAM authentication.                                                                                                                                    | nil           | `iam_user`                          |
 | IAM Host            | `IAM_HOST`            | The endpoint used to generate the authentication token. This is only required if you are connecting using custom endpoints such as an IP address.                             | nil           | `database.us-east-1-rds.amazon.com` |
 | Region              | `REGION`              | The region of the database for IAM authentication.                                                                                                                            | `us-east-1`   | `us-east-1`                         |
+| AWS Profile         | `AWS_PROFILE`         | Name of an AWS profile in `~/.aws/credentials` or `~/.aws/config` to source AWS credentials from. Supports any profile type resolvable by the AWS SDK default provider chain (static access keys, AWS IAM Identity Center (SSO), assume-role via `source_profile`/`role_arn`, and `credential_process`). When unset, the default AWS credential provider chain (including the `AWS_PROFILE` environment variable) is used. If `REGION` is not set, the profile's configured region is used when available. | nil           | `dev`                               |
 | Database            | `DATABASE`            | Default database that a user will work on.                                                                                                                                    | nil           | `my_database`                       |
 | Token Expiration    | `TOKEN_EXPIRATION`    | Token expiration in seconds, supported max value is 900.                                                                                                                      | 900           | 900                                 |
 | Extra URL Encode    | `EXTRA_URL_ENCODE`    | Some ODBC drivers (e.g., pgsqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                 |
@@ -44,6 +45,9 @@ To enable AWS IAM authentication, the following steps should be completed first 
 
 > [!NOTE]\
 > If you encounter a PAM authentication error while IAM is correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`.
+
+> [!NOTE]\
+> `AWS_PROFILE` resolves credentials through the AWS SDK's default provider chain for the named profile, supporting profiles backed by static access keys (`~/.aws/credentials`), AWS IAM Identity Center (SSO), assume-role (`source_profile`/`role_arn`), and `credential_process` (`~/.aws/config`). When `AWS_PROFILE` is not set, the default AWS credential provider chain is used, which still honors the `AWS_PROFILE` environment variable.
 
 ### Sample Code
 

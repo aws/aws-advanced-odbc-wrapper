@@ -66,6 +66,7 @@ private:
     std::string cluster_id_;
     std::string region_;
     std::string host_;
+    std::string profile_;
 
     std::shared_ptr<CustomEndpointMonitor> endpoint_monitor_;
     bool wait_for_info_;
