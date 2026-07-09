@@ -46,6 +46,9 @@ The access token, refresh token, and client registration are cached in a driver-
 > [!WARNING]\
 > When using AWS SSO authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
+> [!WARNING]\
+> When using psqlODBC as the underlying driver, `EXTRA_URL_ENCODE=1` is required. psqlODBC URL-decodes the password before sending it to the database, which corrupts the `%` escapes in the IAM authentication token and results in a `PAM authentication failed` error.
+
 > [!IMPORTANT]\
 > By default the browser login only opens on an interactive connection — a `SQLDriverConnect` call with a `DriverCompletion` other than `SQL_DRIVER_NOPROMPT`. Under `SQL_DRIVER_NOPROMPT` (the mode used by connection pools and many headless callers) or `SQLConnect` (DSN only, which has no `DriverCompletion`), the driver does **not** open a browser: it uses a cached or refreshed token if one is available, and otherwise fails with a clear message asking you to reconnect interactively.
 >
