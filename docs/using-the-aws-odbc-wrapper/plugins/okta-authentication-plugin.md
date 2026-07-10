@@ -46,7 +46,7 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | HTTP Socket Timeout   | `HTTP_SOCKET_TIMEOUT`  | The socket timeout value in milliseconds for the HttpClient reading.                                                                                                                                                | `3000`        | `3000`                                                 |
 | HTTP Connect Timeout  | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient.                                                                                                                                                       | `5000`        | `5000`                                                 |
 | App ID                | `APP_ID`               | The application ID for AWS configured on.                                                                                                                                                                           | nil           | `my-app-id`                                            |
-| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Some ODBC drivers (e.g., pgsqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                                    |
+| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Some ODBC drivers (e.g., psqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                                    |
 | MFA Type              | `MFA_TYPE`             | The MFA type the user specifies. The available options are: `TOTP`, `PUSH`. **Note**: the `TOTP` type requires a web browser to be used.                                                                            | nil           | `TOTP`                                                 |
 | MFA Port              | `MFA_PORT`             | The port used to connect to `127.0.0.1` to provide the one time code when using TOTP as the MFA Type.                                                                                                               | `8080`        | `8000`                                                 |
 | MFA Timeout           | `MFA_TIMEOUT`          | The time in seconds to complete the MFA challenge before the connection fails.                                                                                                                                      | `60`          | `30`                                                   |
@@ -54,8 +54,8 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 > [!WARNING]\
 > When using Okta authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
-> [!NOTE]\
-> If you encounter a PAM authentication error while the permissions are correctly configured and `EXTRA_URL_ENCODE` is disabled, try enabling it by setting `EXTRA_URL_ENCODE=1`.
+> [!WARNING]\
+> When using psqlODBC as the underlying driver, `EXTRA_URL_ENCODE=1` is required. psqlODBC URL-decodes the password before sending it to the database, which corrupts the `%` escapes in the IAM authentication token and results in a `PAM authentication failed` error.
 
 ### Sample Code
 

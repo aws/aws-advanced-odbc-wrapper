@@ -20,12 +20,12 @@
 #include "../../util/odbc_helper.h"
 
 #include "saml_util.h"
-#include "../base_plugin.h"
+#include "../base_token_auth_plugin.h"
 #include "../../driver.h"
 
 #include <memory>
 
-class BaseSamlAuthPlugin : public BasePlugin {
+class BaseSamlAuthPlugin : public BaseTokenAuthPlugin {
 public:
     BaseSamlAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,
                        const std::shared_ptr<SamlUtil>& saml_util,
@@ -34,19 +34,10 @@ public:
                        std::shared_ptr<OdbcHelper> odbc_helper = nullptr);
     ~BaseSamlAuthPlugin() override;
 
-    SQLRETURN Connect(
-        SQLHDBC        ConnectionHandle,
-        SQLHWND        WindowHandle,
-        SQLTCHAR *     OutConnectionString,
-        SQLSMALLINT    BufferLength,
-        SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion) override;
-
 protected:
-    std::shared_ptr<AuthProvider> auth_provider;
+    bool RefreshCredentials(DBC* dbc, const std::string& region) override;
+
     std::shared_ptr<SamlUtil> saml_util;
-    std::shared_ptr<Dialect> dialect_;
-    std::shared_ptr<OdbcHelper> odbc_helper_;
 };
 
 #endif // BASE_SAML_AUTH_PLUGIN_H_

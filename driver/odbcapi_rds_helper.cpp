@@ -26,6 +26,7 @@
 #include "plugin/default_plugin.h"
 #include "plugin/failover/failover_plugin.h"
 #include "plugin/federated/adfs_auth_plugin.h"
+#include "plugin/federated/aws_sso_auth_plugin.h"
 #include "plugin/federated/okta_auth_plugin.h"
 #include "plugin/iam/iam_auth_plugin.h"
 #include "plugin/limitless/limitless_plugin.h"
@@ -36,6 +37,7 @@
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/logger_wrapper.h"
+#include "util/map_utils.h"
 #include "util/odbc_dsn_helper.h"
 #include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
@@ -887,6 +889,8 @@ SQLRETURN RDS_SQLConnect(
         conn_str_utf8 += "PWD=" + current_utf8 + ";";
     }
 
+    dbc->allow_interactive_auth = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_SSO_ALLOW_INTERACTIVE, false);
+
     // Connect if initialization successful
     if (SQL_SUCCEEDED(RDS_InitializeConnection(dbc, conn_str_utf8))) {
         ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
@@ -1045,6 +1049,8 @@ SQLRETURN RDS_SQLDriverConnect(
     if (conn_out_str_utf8.empty()) {
         conn_out_str_utf8 = ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr);
     }
+
+    dbc->allow_interactive_auth = (DriverCompletion != SQL_DRIVER_NOPROMPT) || MapUtils::GetBooleanValue(dbc->conn_attr, KEY_SSO_ALLOW_INTERACTIVE, false);
 
     ret = RDS_InitializeConnection(dbc, conn_str_utf8);
     // Connect if initialization successful
@@ -2727,6 +2733,10 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                             break;
                         case AuthType::OKTA:
                             next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
+                            plugin_head = next_plugin;
+                            break;
+                        case AuthType::AWS_SSO:
+                            next_plugin = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
                             plugin_head = next_plugin;
                             break;
                         case AuthType::DATABASE:

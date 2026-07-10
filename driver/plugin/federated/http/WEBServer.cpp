@@ -140,7 +140,8 @@ void WEBServer::ListenerThread()
 
     listening_.store(true);
 
-    while ((std::chrono::system_clock::now() - start < std::chrono::seconds(timeout_)) && !parser_.IsFinished()) {
+    while ((std::chrono::system_clock::now() - start < std::chrono::seconds(timeout_))
+        && !parser_.IsFinished() && !cancel_.load()) {
         Listen();
     }
 

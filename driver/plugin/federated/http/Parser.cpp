@@ -165,6 +165,13 @@ bool Parser::IsFinished() const
 
 std::string Parser::RetrieveAuthCode(std::string& state)
 {
+    // Reject a CSRF `state` mismatch (PKCE/SSO flow).
+    // Skipped when no state is present, so the Okta MFA flow is unaffected.
+    if (body_.contains("state") && body_["state"] != state)
+    {
+        return "";
+    }
+
     if (body_.contains("code"))
     {
         return body_["code"];

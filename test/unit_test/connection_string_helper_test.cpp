@@ -139,6 +139,27 @@ TEST_F(ConnectionStringHelperTest, DsnOnlyOutputWithoutDsnReturnsEmpty) {
     EXPECT_EQ(expected, ConnectionStringHelper::BuildDsnOnlyConnectionString(conn_map, full));
 }
 
+TEST_F(ConnectionStringHelperTest, IsAwsOdbcKey) {
+    EXPECT_TRUE(ConnectionStringHelper::IsAwsOdbcKey(KEY_SSO_ALLOW_INTERACTIVE));
+    EXPECT_TRUE(ConnectionStringHelper::IsAwsOdbcKey(KEY_SSO_START_URL));
+    EXPECT_TRUE(ConnectionStringHelper::IsAwsOdbcKey(KEY_AUTH_TYPE));
+    EXPECT_FALSE(ConnectionStringHelper::IsAwsOdbcKey(KEY_DB_USERNAME));
+    EXPECT_FALSE(ConnectionStringHelper::IsAwsOdbcKey(KEY_SERVER));
+}
+
+TEST_F(ConnectionStringHelperTest, MinimumConnectionStringDropsSsoAllowInteractive) {
+    std::map<std::string, std::string> conn_map;
+    conn_map.insert_or_assign(KEY_DB_USERNAME, "jane_doe");
+    conn_map.insert_or_assign(KEY_SSO_ALLOW_INTERACTIVE, VALUE_BOOL_TRUE);
+
+    std::map<std::string, std::string> result_map;
+    const std::string conn_str = ConnectionStringHelper::BuildMinimumConnectionString(conn_map);
+    ConnectionStringHelper::ParseConnectionString(conn_str, result_map);
+
+    EXPECT_TRUE(result_map.contains(KEY_DB_USERNAME));
+    EXPECT_FALSE(result_map.contains(KEY_SSO_ALLOW_INTERACTIVE));
+}
+
 TEST_F(ConnectionStringHelperTest, GetRealKeyName) {
     // UID
     EXPECT_EQ(std::string(KEY_DB_USERNAME), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_USERNAME_1));

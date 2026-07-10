@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef IAM_AUTH_PLUGIN_H_
-#define IAM_AUTH_PLUGIN_H_
+#ifndef AWS_SSO_AUTH_PLUGIN_H_
+#define AWS_SSO_AUTH_PLUGIN_H_
 
 #include "../../util/auth_provider.h"
 
@@ -21,22 +21,28 @@
 #include "../../driver.h"
 #include "../../dialect/dialect.h"
 #include "../../util/odbc_helper.h"
+#include "sso_browser_login_util.h"
 
 #include <memory>
 
-class IamAuthPlugin : public BaseTokenAuthPlugin {
+class AwsSsoAuthPlugin : public BaseTokenAuthPlugin {
 public:
-    IamAuthPlugin(DBC* dbc);
-    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
-    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider);
-    IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,
-                  const std::shared_ptr<AuthProvider>& auth_provider,
-                  std::shared_ptr<Dialect> dialect,
-                  std::shared_ptr<OdbcHelper> odbc_helper);
+    explicit AwsSsoAuthPlugin(DBC* dbc);
+    AwsSsoAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
+    AwsSsoAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,
+                     const std::shared_ptr<SsoBrowserLoginUtil>& login_util,
+                     const std::shared_ptr<AuthProvider>& auth_provider,
+                     std::shared_ptr<Dialect> dialect = nullptr,
+                     std::shared_ptr<OdbcHelper> odbc_helper = nullptr);
+    ~AwsSsoAuthPlugin() override;
 
 protected:
     std::string ResolveRegion(DBC* dbc) override;
     bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
+    bool RefreshCredentials(DBC* dbc, const std::string& region) override;
+
+private:
+    std::shared_ptr<SsoBrowserLoginUtil> login_util_;
 };
 
-#endif // IAM_AUTH_PLUGIN_H_
+#endif // AWS_SSO_AUTH_PLUGIN_H_

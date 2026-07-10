@@ -28,13 +28,13 @@ inline std::string GetResponse =
 
 const std::string ValidResponse =
     "HTTP/1.1 200 OK\r\n"
-    "Content-Length: 300\r\n"
+    "Content-Length: 107\r\n"
     "Connection: close\r\n"
     "Content-Type: text/html; charset=utf-8\r\n\r\n"
-    "<!DOCTYPE html><html><body><p style='font: italic bold 30px Arial,sans-serif;"
-    "background-color: #edde9c;color: #bc2e1e;background-color: #fff;color:#202c2d;"
-    "text-shadow:0 1px #808d93,-1px 0 #cdd2d5,-3px 4px #cdd2d5;'>"
-    "Thank you for using the AWS Advanced ODBC Wrapper! You can now close this window.</p></body></html>";
+    "<!DOCTYPE html><html><body>"
+    "<h1>Authorization successful</h1>"
+    "<p>You may close this window.</p>"
+    "</body></html>";
 
 const std::string InvalidResponse =
     "HTTP/1.1 400 Bad Request\r\n"

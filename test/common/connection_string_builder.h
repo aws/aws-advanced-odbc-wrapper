@@ -143,6 +143,36 @@ public:
         return *this;
     }
 
+    ConnectionStringBuilder& withSsoStartUrl(const std::string& start_url) {
+        conn_str_ += "SSO_START_URL=" + start_url + ";";
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSsoAccountId(const std::string& account_id) {
+        conn_str_ += "SSO_ACCOUNT_ID=" + account_id + ";";
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSsoRoleName(const std::string& role_name) {
+        conn_str_ += "SSO_ROLE_NAME=" + role_name + ";";
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSsoRegion(const std::string& sso_region) {
+        conn_str_ += "SSO_REGION=" + sso_region + ";";
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSsoSessionName(const std::string& session_name) {
+        conn_str_ += "SSO_SESSION_NAME=" + session_name + ";";
+        return *this;
+    }
+
+    ConnectionStringBuilder& withSsoAllowInteractive(const bool& allow_interactive) {
+        conn_str_ += "SSO_ALLOW_INTERACTIVE=" + std::to_string(allow_interactive ? 1 : 0) + ";";
+        return *this;
+    }
+
     ConnectionStringBuilder& withSecretId(const std::string& secret_id) {
         conn_str_ += "SECRET_ID=" + secret_id + ";";
         return *this;

@@ -5,6 +5,7 @@
     - [Support for Amazon RDS Multi-AZ DB Cluster](./using-the-aws-odbc-wrapper/SupportForRDSMultiAzDBCluster.md)
     - [Plugins](./using-the-aws-odbc-wrapper/plugins/)
         - [ADFS Authentication Plugin](./using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md)
+        - [AWS IAM Identity Center (SSO) Authentication Plugin](./using-the-aws-odbc-wrapper/plugins/aws-sso-authentication-plugin.md)
         - [Aurora Initial Connection Strategy Plugin](./using-the-aws-odbc-wrapper/plugins/aurora-initial-connection-strategy-plugin.md)
         - [Blue Green Plugin](./using-the-aws-odbc-wrapper/plugins/blue-green-plugin.md)
         - [Custom Endpoint Plugin](./using-the-aws-odbc-wrapper/plugins/custom-endpoint-plugin.md)

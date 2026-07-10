@@ -32,7 +32,7 @@ cmake -S ${SRC_DIR} \
     -B $BUILD_DIR \
     -D CMAKE_BUILD_TYPE="${CONFIGURATION}" \
     -D CMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
-    -D BUILD_ONLY="rds;secretsmanager;sts" \
+    -D BUILD_ONLY="rds;secretsmanager;sts;sso;sso-oidc" \
     -D ENABLE_TESTING="OFF" \
     -D CPP_STANDARD="20" \
     -D BUILD_SHARED_LIBS="ON" \

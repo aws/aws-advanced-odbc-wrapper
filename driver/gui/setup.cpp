@@ -57,7 +57,8 @@ enum AuthModeSelection {
     IAM,
     SECRETS_MANAGER,
     ADFS,
-    OKTA
+    OKTA,
+    AWS_SSO_MODE
 };
 
 enum RwSplitModeSelection {
@@ -108,6 +109,17 @@ const std::map<std::string, std::pair<int, ControlType>> SECRETS_KEYS = {
     {KEY_SECRET_ENDPOINT, {IDC_SECRET_END, EDIT_TEXT}},
     {KEY_SECRET_USERNAME_PROPERTY, {IDC_SECRET_USERNAME_PROPERTY, EDIT_TEXT}},
     {KEY_SECRET_PASSWORD_PROPERTY, {IDC_SECRET_PASSWORD_PROPERTY, EDIT_TEXT}},
+};
+
+const std::map<std::string, std::pair<int, ControlType>> SSO_KEYS = {
+    {KEY_SSO_START_URL, {IDC_SSO_START_URL, EDIT_TEXT}},
+    {KEY_SSO_ACCOUNT_ID, {IDC_SSO_ACCOUNT_ID, EDIT_TEXT}},
+    {KEY_SSO_ROLE_NAME, {IDC_SSO_ROLE_NAME, EDIT_TEXT}},
+    {KEY_SSO_SESSION_NAME, {IDC_SSO_SESSION_NAME, EDIT_TEXT}},
+    {KEY_SSO_REGION, {IDC_SSO_REGION, EDIT_TEXT}},
+    {KEY_SSO_LISTEN_PORT, {IDC_SSO_LISTEN_PORT, EDIT_TEXT}},
+    {KEY_SSO_IDP_RESPONSE_TIMEOUT, {IDC_SSO_IDP_RESPONSE_TIMEOUT, EDIT_TEXT}},
+    {KEY_SSO_ALLOW_INTERACTIVE, {IDC_SSO_ALLOW_INTERACTIVE, CHECK}},
 };
 
 const std::map<std::string, std::pair<int, ControlType>> FED_AUTH_KEYS = {
@@ -193,7 +205,8 @@ const std::vector<std::pair<std::string, std::string>> AWS_AUTH_MODES = {
     {"IAM", VALUE_AUTH_IAM},
     {"Secrets Manager", VALUE_AUTH_SECRETS},
     {"ADFS", VALUE_AUTH_ADFS},
-    {"OKTA", VALUE_AUTH_OKTA}
+    {"OKTA", VALUE_AUTH_OKTA},
+    {"AWS SSO", VALUE_AUTH_SSO}
 };
 
 const std::vector<std::pair<std::string, std::string>> FAILOVER_MODES = {
@@ -488,6 +501,7 @@ std::string GetDsn(bool test_conn)
     all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
     all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
     all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+    all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
 
     std::string value;
     for (const auto& keys : MAIN_KEYS) {
@@ -586,7 +600,7 @@ void TestConnection(HWND hwnd)
         0,
         MAX_KEY_SIZE,
         nullptr,
-        SQL_DRIVER_NOPROMPT
+        SQL_DRIVER_COMPLETE
     );
 
     if (SQL_SUCCEEDED(ret)) {
@@ -652,6 +666,7 @@ bool SaveDsn()
         all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
         all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
         all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+        all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
 
         try {
             for (const auto& keys : MAIN_KEYS) {
@@ -1139,6 +1154,7 @@ void HandleAuthModeSelection(HWND hwnd) {
     all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
     all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
     all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+    all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
 
     for (const auto& keys : all_auth_keys) {
         int id = keys.second.first;
@@ -1176,6 +1192,16 @@ void HandleAuthModeSelection(HWND hwnd) {
                         show_ctrl = false;
                     }
                     break;
+                case AWS_SSO_MODE:
+                    if (!SSO_KEYS.contains(keys.first) &&
+                        keys.first != KEY_REGION &&
+                        keys.first != KEY_TOKEN_EXPIRATION &&
+                        keys.first != KEY_IAM_HOST &&
+                        keys.first != KEY_IAM_PORT &&
+                        keys.first != KEY_EXTRA_URL_ENCODE) {
+                        show_ctrl = false;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -1198,6 +1224,34 @@ void HandleAuthModeSelection(HWND hwnd) {
         }
 
         EnableWindow(ctrl, show_ctrl);
+    }
+
+    // Overlappng fields depending on selection for AWS Browser SSO & Secrets Manager
+    const bool sso_selected = (selection == AWS_SSO_MODE);
+    const int sso_control_and_label_ids[] = {
+        IDC_SSO_START_URL, IDC_SSO_ACCOUNT_ID, IDC_SSO_ROLE_NAME,
+        IDC_SSO_SESSION_NAME, IDC_SSO_REGION,
+        IDC_SSO_LISTEN_PORT, IDC_SSO_IDP_RESPONSE_TIMEOUT, IDC_SSO_ALLOW_INTERACTIVE,
+        IDC_SSO_START_URL_LABEL, IDC_SSO_ACCOUNT_ID_LABEL, IDC_SSO_ROLE_NAME_LABEL,
+        IDC_SSO_SESSION_NAME_LABEL, IDC_SSO_REGION_LABEL,
+        IDC_SSO_LISTEN_PORT_LABEL, IDC_SSO_IDP_RESPONSE_TIMEOUT_LABEL, IDC_SSO_ALLOW_INTERACTIVE_LABEL
+    };
+    for (const int id : sso_control_and_label_ids) {
+        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_SHOW : SW_HIDE);
+    }
+    const int secret_label_ids[] = {
+        IDC_SECRET_ID_LABEL, IDC_SECRET_REGION_LABEL, IDC_SECRET_END_LABEL,
+        IDC_SECRET_USERNAME_LABEL, IDC_SECRET_PASSWORD_LABEL
+    };
+    for (const int id : secret_label_ids) {
+        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_HIDE : SW_SHOW);
+    }
+    const int secret_field_ids[] = {
+        IDC_SECRET, IDC_SECRET_REGION, IDC_SECRET_END,
+        IDC_SECRET_USERNAME_PROPERTY, IDC_SECRET_PASSWORD_PROPERTY
+    };
+    for (const int id : secret_field_ids) {
+        ShowWindow(GetDlgItem(hwnd, id), sso_selected ? SW_HIDE : SW_SHOW);
     }
 }
 
@@ -1356,6 +1410,7 @@ BOOL FormMainInit(HWND hwnd, HWND hwndFocus, LPARAM lParam)
         all_auth_keys.insert(IAM_KEYS.begin(), IAM_KEYS.end());
         all_auth_keys.insert(SECRETS_KEYS.begin(), SECRETS_KEYS.end());
         all_auth_keys.insert(FED_AUTH_KEYS.begin(), FED_AUTH_KEYS.end());
+        all_auth_keys.insert(SSO_KEYS.begin(), SSO_KEYS.end());
         for (const auto& keys : all_auth_keys) {
             HWND control = GetDlgItem(aws_auth_tab, keys.second.first);
             EnableWindow(control, SW_HIDE);
