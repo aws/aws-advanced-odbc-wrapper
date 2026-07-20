@@ -122,7 +122,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetCredentials()
     const std::string assertion = GetSamlAssertion();
     Aws::Auth::AWSCredentials creds = GetAwsCredentials(assertion);
     if (!creds.IsEmpty()) {
-        cred_cache_[idp_role_arn] = {creds, now};
+        cred_cache_[idp_role_arn] = {.creds = creds, .fetched_at = now};
     }
     return creds;
 }
@@ -151,7 +151,7 @@ void SamlUtil::ParseIdpConfig(const std::map<std::string, std::string> &connecti
     // Browser mode only requires the login URL, role ARN, and provider ARN.
     browser_mode = !MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "").empty();
 
-    std::string err_keys("");
+    std::string err_keys;
     if (idp_role_arn.empty() || idp_saml_arn.empty()) {
         err_keys += idp_role_arn.empty() ? std::string("\n\t") + KEY_IDP_ROLE_ARN : "";
         err_keys += idp_saml_arn.empty() ? std::string("\n\t") + KEY_IDP_SAML_ARN : "";

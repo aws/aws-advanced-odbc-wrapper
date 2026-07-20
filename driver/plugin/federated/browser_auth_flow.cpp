@@ -20,6 +20,7 @@
 
 #include "browser_auth_flow.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <thread>
@@ -31,23 +32,24 @@
 
 bool BrowserAuthFlow::IsSafeBrowserUrl(const std::string& url)
 {
-    if (url.rfind("https://", 0) != 0 && url.rfind("http://127.0.0.1:", 0) != 0) {
+    if (!url.starts_with("https://") && !url.starts_with("http://127.0.0.1:")) {
         return false;
     }
-    for (const char c : url) {
-        if (c == '\'' || static_cast<unsigned char>(c) < 0x20) {
-            return false;
-        }
-    }
-    return true;
+    // Reject single quotes (the POSIX launch paths shell-quote the URL) and ASCII control characters.
+    constexpr unsigned char MIN_PRINTABLE_ASCII = 0x20;
+    return std::ranges::all_of(url, [](const char c) {
+        return c != '\'' && static_cast<unsigned char>(c) >= MIN_PRINTABLE_ASCII;
+    });
 }
 
 bool BrowserAuthFlow::LaunchBrowser(const std::string& url)
 {
 #if (defined(_WIN32) || defined(_WIN64))
-    const HINSTANCE result = ShellExecute(NULL, RDS_TSTR(std::string("open")).c_str(),
-        RDS_TSTR(url).c_str(), NULL, NULL, SW_SHOWNORMAL);
-    return reinterpret_cast<intptr_t>(result) > 32;
+    // ShellExecute returns a value greater than 32 on success (per the Win32 API contract).
+    constexpr intptr_t SHELL_EXECUTE_SUCCESS_THRESHOLD = 32;
+    HINSTANCE result = ShellExecute(nullptr, RDS_TSTR(std::string("open")).c_str(),
+        RDS_TSTR(url).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    return reinterpret_cast<intptr_t>(result) > SHELL_EXECUTE_SUCCESS_THRESHOLD;
 #elif (defined(LINUX) || defined(__linux__))
     return system(("xdg-open '" + url + "'").c_str()) == 0; // NOLINT(bugprone-command-processor)
 #else

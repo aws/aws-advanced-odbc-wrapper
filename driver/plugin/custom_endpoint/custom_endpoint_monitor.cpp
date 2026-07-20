@@ -13,13 +13,11 @@
 // limitations under the License.
 
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
+#include <aws/core/client/ClientConfiguration.h>
 #include <aws/rds/RDSClient.h>
 #include <aws/rds/RDSErrors.h>
 #include <aws/rds/model/DBClusterEndpoint.h>
 #include <aws/rds/model/DescribeDBClusterEndpointsRequest.h>
-
-#include <aws/core/auth/AWSCredentialsProviderChain.h>
-#include <aws/core/client/ClientConfiguration.h>
 
 #include "custom_endpoint_monitor.h"
 
