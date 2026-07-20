@@ -16,14 +16,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -32,7 +32,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
       - name: Install WiX
         shell: cmd
         run: |
@@ -44,7 +44,7 @@ jobs:
           ./installer/build_installer.ps1 ${{env.BUILD_CONFIG}}
       - name: Upload Windows installer as artifact
         if: success()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: ${{ github.workspace }}/installer/*.msi
@@ -55,7 +55,7 @@ jobs:
     runs-on: macos-15
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
@@ -66,7 +66,7 @@ jobs:
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk-cpp
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -84,7 +84,7 @@ jobs:
           cpack
       - name: Upload Mac installer as artifact
         if: success()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: macos-installer
           path: ${{ github.workspace }}/build/aws-advanced-odbc-wrapper-*.pkg

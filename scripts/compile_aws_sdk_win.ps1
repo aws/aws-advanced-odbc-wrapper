@@ -17,6 +17,9 @@ $CONFIGURATION = $args[0]   # Debug/Release
 $CURRENT_DIR = (Get-Location).Path
 
 $AWS_SDK_CPP_TAG = "1.11.835"
+# Commit the tag pointed to when it was vetted; git tags are mutable, so verify
+# the clone landed on this exact commit before building.
+$AWS_SDK_CPP_COMMIT = "94e71dee7a4dcb21c31df2b9c8f3d49b337e0a83"
 
 $SRC_DIR = "${PSScriptRoot}\..\aws_sdk\aws_sdk_cpp"
 $BUILD_DIR = "${SRC_DIR}\..\build"
@@ -26,6 +29,15 @@ Write-Host $args
 
 New-Item -Path $SRC_DIR -ItemType Directory -Force | Out-Null
 git clone --recurse-submodules -b "$AWS_SDK_CPP_TAG" "https://github.com/aws/aws-sdk-cpp.git" $SRC_DIR
+
+$ACTUAL_COMMIT = (git -C $SRC_DIR rev-parse HEAD)
+if ($ACTUAL_COMMIT -ne $AWS_SDK_CPP_COMMIT) {
+    Write-Error ("aws-sdk-cpp tag $AWS_SDK_CPP_TAG resolved to unexpected commit.`n" +
+        "  expected: $AWS_SDK_CPP_COMMIT`n" +
+        "  actual:   $ACTUAL_COMMIT`n" +
+        "The upstream tag may have been moved. Verify before updating AWS_SDK_CPP_COMMIT.")
+    exit 1
+}
 
 New-Item -Path $BUILD_DIR -ItemType Directory -Force | Out-Null
 Set-Location $BUILD_DIR

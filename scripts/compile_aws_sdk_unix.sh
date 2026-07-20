@@ -17,6 +17,9 @@ CONFIGURATION=$1    # Debug/Release
 export ROOT_REPO_PATH=$(cd "$(dirname "$0")/.."; pwd -P)
 
 export AWS_SDK_CPP_TAG="1.11.835"
+# Commit the tag pointed to when it was vetted; git tags are mutable, so verify
+# the clone landed on this exact commit before building.
+export AWS_SDK_CPP_COMMIT="94e71dee7a4dcb21c31df2b9c8f3d49b337e0a83"
 
 export AWS_SDK_PATH="${ROOT_REPO_PATH}/aws_sdk"
 export SRC_DIR="${AWS_SDK_PATH}/aws_sdk_cpp"
@@ -27,6 +30,15 @@ mkdir -p ${SRC_DIR} ${BUILD_DIR} ${INSTALL_DIR}
 pushd $BUILD_DIR
 
 git clone --recurse-submodules -b "$AWS_SDK_CPP_TAG" "https://github.com/aws/aws-sdk-cpp.git" ${SRC_DIR}
+
+ACTUAL_COMMIT=$(git -C ${SRC_DIR} rev-parse HEAD)
+if [ "$ACTUAL_COMMIT" != "$AWS_SDK_CPP_COMMIT" ]; then
+    echo "ERROR: aws-sdk-cpp tag $AWS_SDK_CPP_TAG resolved to unexpected commit." >&2
+    echo "  expected: $AWS_SDK_CPP_COMMIT" >&2
+    echo "  actual:   $ACTUAL_COMMIT" >&2
+    echo "The upstream tag may have been moved. Verify before updating AWS_SDK_CPP_COMMIT." >&2
+    exit 1
+fi
 
 cmake -S ${SRC_DIR} \
     -B $BUILD_DIR \
