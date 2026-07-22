@@ -111,7 +111,11 @@ protected:
 class SsoBrowserLoginUtilTest : public testing::Test {
 protected:
     static void SetUpTestSuite() {
-        AwsSdkHelper::EnsureInitialized();
+        AwsSdkHelper::Init();
+    }
+
+    static void TearDownTestSuite() {
+        AwsSdkHelper::Shutdown();
     }
 
     // Redirect the SSO token cache to an isolated so tests don't read real ~/.aws/sso/cache

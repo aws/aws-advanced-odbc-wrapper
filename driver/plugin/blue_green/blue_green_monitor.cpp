@@ -373,7 +373,14 @@ void BlueGreenMonitor::CollectStatus() {
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     const DBC* dbc = static_cast<const DBC*>(this->hdbc_);
+    if (!dbc->wrapped_dbc) {
+        return;
+    }
     RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
+    if (!SQL_SUCCEEDED(res.fn_result) || stmt == SQL_NULL_HANDLE) {
+        // No statement to query on.
+        return;
+    }
     if (SQL_SUCCEEDED(res.fn_result)) {
         res = this->odbc_helper_->ExecDirect(&stmt, this->dialect_blue_green_->GetBlueGreenStatusAvailableQuery());
         if (!SQL_SUCCEEDED(res.fn_result)) {

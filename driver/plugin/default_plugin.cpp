@@ -47,9 +47,21 @@ SQLRETURN DefaultPlugin::Connect(
     // Create Wrapped DBC if not already allocated
     RdsLibResult res;
     if (!dbc->wrapped_dbc) {
+        if (!env->wrapped_env) {
+            LOG(ERROR) << "Unable to allocate underlying DBC, underlying ENV nulled";
+            ClearError(dbc);
+            dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying DBC, underlying ENV nulled", ERR_UNDERLYING_HANDLE_NULL);
+            return SQL_ERROR;
+        }
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
             SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
         );
+        if (!SQL_SUCCEEDED(res.fn_result) || !dbc->wrapped_dbc) {
+            LOG(ERROR) << "Unable to allocate underlying DBC";
+            ClearError(dbc);
+            dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying DBC", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_DBC_FAILED);
+            return SQL_ERROR;
+        }
     }
 
     // Apply pre-connect attributes to the wrapped DBC before SQLDriverConnect.
@@ -166,6 +178,12 @@ SQLRETURN DefaultPlugin::Execute(
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
                 SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
             );
+            if (!SQL_SUCCEEDED(res.fn_result) || !stmt->wrapped_stmt) {
+                LOG(ERROR) << "Unable to allocate underlying STMT";
+                ClearError(stmt);
+                stmt->err = std::make_unique<ERR_INFO>("Unable to allocate underlying STMT", ERR_UNDERLYING_HANDLE_NULL);
+                return SQL_ERROR;
+            }
         } else {
             LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
             stmt->err = std::make_unique<ERR_INFO>("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);

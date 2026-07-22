@@ -341,7 +341,12 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         }
     }
 
-    std::vector<HostInfo> hosts = FetchTopologyUpdateCache(static_cast<SQLHDBC>(*(main_hdbc_)));
+    // Copy under hdbc_mutex_ ForceRefresh can reset main_hdbc_ concurrently.
+    std::vector<HostInfo> hosts;
+    {
+        const std::lock_guard hdbc_lock(hdbc_mutex_);
+        hosts = FetchTopologyUpdateCache(static_cast<SQLHDBC>(main_hdbc_ ? *main_hdbc_ : SQL_NULL_HDBC));
+    }
     if (thread_writer_verified) {
         // Writer verified at initial connection & failovers but want to ignore new topology requests after failover
         // The first writer will be able to set from epoch to a proper end time
@@ -442,17 +447,34 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
 }
 
 bool ClusterTopologyMonitor::GetPossibleWriterConn() {
-    const std::lock_guard<std::mutex> node_lock(node_threads_writer_hdbc_mutex_);
-    const std::lock_guard<std::mutex> hostinfo_lock(node_threads_writer_host_info_mutex_);
-    std::shared_ptr<Dialect> local_dialect;
     {
-        const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
-        local_dialect = dialect_;
-    }
-    auto* local_hdbc = node_threads_writer_hdbc_ ?
-        static_cast<SQLHDBC>(*node_threads_writer_hdbc_) : SQL_NULL_HDBC;
-    const HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, READER);
-    if (SQL_NULL_HDBC != local_hdbc && !GetNodeId(local_hdbc, local_dialect, odbc_helper_).empty() && local_hostinfo.IsHostUp()) {
+        const std::lock_guard<std::mutex> node_lock(node_threads_writer_hdbc_mutex_);
+        const std::lock_guard<std::mutex> hostinfo_lock(node_threads_writer_host_info_mutex_);
+        std::shared_ptr<Dialect> local_dialect;
+        {
+            const std::lock_guard<std::mutex> lock(topology_dialect_mutex_);
+            local_dialect = dialect_;
+        }
+        auto* local_hdbc = node_threads_writer_hdbc_ ?
+            static_cast<SQLHDBC>(*node_threads_writer_hdbc_) : SQL_NULL_HDBC;
+        const HostInfo local_hostinfo = node_threads_writer_host_info_ ? *node_threads_writer_host_info_ : HostInfo("", 0, DOWN, READER);
+        if (SQL_NULL_HDBC == local_hdbc || GetNodeId(local_hdbc, local_dialect, odbc_helper_).empty() || !local_hostinfo.IsHostUp()) {
+            std::vector<HostInfo> local_topology;
+            {
+                const std::lock_guard<std::mutex> topology_lock(node_threads_latest_topology_mutex_);
+                local_topology = node_threads_latest_topology_ ? *node_threads_latest_topology_ : std::vector<HostInfo>();
+            }
+            const auto end = node_monitoring_threads_.end();
+            for (const HostInfo& hi : local_topology) {
+                const std::string host_id = hi.GetHost();
+                if (node_monitoring_threads_.find(host_id) == end) {
+                    node_monitoring_threads_[host_id] =
+                        std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_, odbc_helper_);
+                }
+            }
+            return true;
+        }
+
         LOG(INFO) << "The writer host detected by the node monitors was picked up by the topology monitor: " << local_hostinfo;
         const std::lock_guard<std::mutex> hdbc_lock(hdbc_mutex_);
         CleanUpDbc(main_hdbc_);
@@ -468,23 +490,11 @@ bool ClusterTopologyMonitor::GetPossibleWriterConn() {
         ignore_topology_request_end_ms_.compare_exchange_strong(expected, new_time);
 
         node_threads_stop_.store(true);
-        node_monitoring_threads_.clear();
-        return false;
     }
-    std::vector<HostInfo> local_topology;
-    {
-        const std::lock_guard<std::mutex> topology_lock(node_threads_latest_topology_mutex_);
-        local_topology = node_threads_latest_topology_ ? *node_threads_latest_topology_ : std::vector<HostInfo>();
-    }
-    const auto end = node_monitoring_threads_.end();
-    for (const HostInfo& hi : local_topology) {
-        const std::string host_id = hi.GetHost();
-        if (node_monitoring_threads_.find(host_id) == end) {
-            node_monitoring_threads_[host_id] =
-                std::make_shared<NodeMonitoringThread>(this, std::make_shared<HostInfo>(hi), main_writer_host_info_, odbc_helper_);
-        }
-    }
-    return true;
+    // Join node threads only after releasing the writer-handle mutexes;
+    // they may be blocked acquiring those locks (join under lock deadlocks).
+    node_monitoring_threads_.clear();
+    return false;
 }
 
 ClusterTopologyMonitor::NodeMonitoringThread::NodeMonitoringThread(
@@ -608,9 +618,12 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleWriterConn() {
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
-    if (main_monitor_->node_threads_writer_hdbc_) {
-        // Writer already set, no need for reader to update topology
-        return;
+    {
+        const std::lock_guard<std::mutex> writer_hdbc_lock(main_monitor_->node_threads_writer_hdbc_mutex_);
+        if (main_monitor_->node_threads_writer_hdbc_) {
+            // Writer already set, no need for reader to update topology
+            return;
+        }
     }
 
     // Check if this thread is updating topology
@@ -618,20 +631,34 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReaderConn() {
     if (reader_update_topology_) {
         ReaderThreadFetchTopology();
     } else {
+        bool claimed = false;
         {
             const std::lock_guard<std::mutex> reader_hdbc_lock(main_monitor_->node_threads_reader_hdbc_mutex_);
             if (!main_monitor_->node_threads_reader_hdbc_) {
                 main_monitor_->node_threads_reader_hdbc_ = std::make_shared<SQLHDBC>(hdbc_);
                 hdbc_ = SQL_NULL_HDBC;
+                claimed = true;
             }
         }
-        reader_update_topology_ = true;
-        ReaderThreadFetchTopology();
+        // Only the claim winner may query ODBC connections are not thread-safe.
+        if (claimed) {
+            reader_update_topology_ = true;
+            ReaderThreadFetchTopology();
+        }
     }
 }
 
 void ClusterTopologyMonitor::NodeMonitoringThread::ReaderThreadFetchTopology() {
-    auto* local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
+    SQLHDBC local_hdbc = SQL_NULL_HDBC;
+    {
+        const std::lock_guard<std::mutex> reader_hdbc_lock(main_monitor_->node_threads_reader_hdbc_mutex_);
+        if (main_monitor_->node_threads_reader_hdbc_) {
+            local_hdbc = static_cast<SQLHDBC>(*main_monitor_->node_threads_reader_hdbc_);
+        }
+    }
+    if (local_hdbc == SQL_NULL_HDBC) {
+        return;
+    }
     std::shared_ptr<Dialect> local_dialect;
     std::shared_ptr<TopologyUtil> local_topology_util;
     {
