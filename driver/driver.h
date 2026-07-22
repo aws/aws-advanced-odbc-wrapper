@@ -99,7 +99,7 @@ struct ENV {
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
 
-    SQLHENV wrapped_env;
+    SQLHENV wrapped_env = SQL_NULL_HENV;
 
     std::shared_ptr<RdsLibLoader> driver_lib_loader;
     std::atomic<bool> use_4_bytes_user_app = false;
@@ -164,7 +164,7 @@ struct STMT {
     // TODO - Do we need lock?
     std::recursive_mutex lock;
     DBC* dbc;
-    SQLHSTMT wrapped_stmt;
+    SQLHSTMT wrapped_stmt = SQL_NULL_HSTMT;
 
     DESC* app_row_desc = SQL_NULL_HANDLE;
     DESC* app_param_desc = SQL_NULL_HANDLE;
@@ -191,7 +191,7 @@ struct DESC {
     std::recursive_mutex lock;
     // TODO - What to put here
     DBC* dbc;
-    SQLHDESC wrapped_desc;
+    SQLHDESC wrapped_desc = SQL_NULL_HDESC;
     ERR_INFO* err = nullptr;
     char sql_error_called = 0;
 

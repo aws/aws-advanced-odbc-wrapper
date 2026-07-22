@@ -31,12 +31,12 @@
 #include "plugin_service.h"
 
 AuthProvider::AuthProvider(const std::string &region) {
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     SetUpRdsClient(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
 }
 
 AuthProvider::AuthProvider(const std::string &region, const std::string &profile) {
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     if (profile.empty()) {
         SetUpRdsClient(Aws::Auth::DefaultAWSCredentialsProviderChain().GetAWSCredentials(), region);
         return;
@@ -59,7 +59,7 @@ AuthProvider::AuthProvider(
     const std::string &region,
     const Aws::Auth::AWSCredentials& credentials)
 {
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     if (credentials.IsEmpty()) {
         credentials_resolved_ = false;
         LOG(INFO) << "AuthProvider created without resolved AWS credentials. Must be resolved before token generation";
@@ -69,7 +69,7 @@ AuthProvider::AuthProvider(
 
 AuthProvider::AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client)
 {
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     this->rds_client = rds_client;
 }
 
@@ -78,6 +78,7 @@ AuthProvider::~AuthProvider()
     if (rds_client) {
         rds_client = nullptr;
     }
+    AwsSdkHelper::Shutdown();
 }
 
 std::string AuthProvider::GetRegionForProfile(const std::string &profile) {

@@ -206,6 +206,10 @@ SQLRETURN RDS_AllocStmt(
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
     );
     RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
+    if (!SQL_SUCCEEDED(res.fn_result)) {
+        // Keep NULL so later calls fail with SQL_INVALID_HANDLE.
+        stmt->wrapped_stmt = SQL_NULL_HSTMT;
+    }
     *StatementHandlePointer = stmt;
 
     stmt->app_row_desc = new DESC();
@@ -240,6 +244,10 @@ SQLRETURN RDS_AllocDesc(
         SQL_HANDLE_DESC, dbc->wrapped_dbc, &desc->wrapped_desc
     );
     RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
+    if (!SQL_SUCCEEDED(res.fn_result)) {
+        // Keep NULL so later calls fail with SQL_INVALID_HANDLE.
+        desc->wrapped_desc = SQL_NULL_HDESC;
+    }
     *DescriptorHandlePointer = desc;
 
     dbc->desc_list.emplace_back(desc);
@@ -427,12 +435,10 @@ SQLRETURN RDS_FreeEnv(
     NULL_CHECK_HANDLE(EnvironmentHandle);
     ENV* env = static_cast<ENV*>(EnvironmentHandle);
 
-    // Clean tracked connections
-    const std::list<DBC*> dbc_list = env->dbc_list;
-    for (DBC* dbc : dbc_list) {
-        RDS_FreeConnect(dbc);
+    // Clear from live to avoid double free from plugins
+    while (!env->dbc_list.empty()) {
+        RDS_FreeConnect(env->dbc_list.front());
     }
-    env->dbc_list.clear();
 
     if (env->driver_lib_loader) {
         // Clean underlying Env
@@ -1155,6 +1161,8 @@ SQLRETURN RDS_SQLExecDirect(
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
 
+    // Lock DBC to prevent connection swap race condition
+    const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc->lock);
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
 
@@ -2089,12 +2097,14 @@ SQLRETURN RDS_SQLGetStmtAttr(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr)
 {
+    NULL_CHECK_ENV_ACCESS_STMT(StatementHandle);
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     const DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     CLEAR_STMT_ERROR(stmt);
+    CHECK_WRAPPED_STMT(stmt);
 
     RdsLibResult res;
     switch (Attribute) {
@@ -2126,7 +2136,6 @@ SQLRETURN RDS_SQLGetStmtAttr(
             break;
     }
 
-    CHECK_WRAPPED_STMT(stmt);
     res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
         stmt->wrapped_stmt, Attribute, ValuePtr, BufferLength, StringLengthPtr
     );
@@ -2626,8 +2635,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
     ENV* env = dbc->env;
 
     // Remove input Driver
-    // We don't want the underlying connection
-    //  to look back to the wrapper
+    // We don't want the underlying connection to look back to the wrapper
     // Also allows the Base DSN parse driver into map
     dbc->conn_attr.erase(KEY_DRIVER);
 
@@ -2688,6 +2696,12 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 SQL_HANDLE_ENV, nullptr, &env->wrapped_env
             );
             ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+            if (!SQL_SUCCEEDED(ret) || !env->wrapped_env) {
+                LOG(ERROR) << "Unable to allocate underlying ENV";
+                CLEAR_DBC_ERROR(dbc);
+                dbc->err = new ERR_INFO("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+                return SQL_ERROR;
+            }
             // Apply Tracked Environment Attributes
             for (auto const& [key, val] : env->attr_map) {
                 res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,

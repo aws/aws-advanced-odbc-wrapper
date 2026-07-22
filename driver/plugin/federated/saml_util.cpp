@@ -32,7 +32,7 @@ SamlUtil::SamlUtil(
     const std::shared_ptr<Aws::STS::STSClient>& sts_client)
 {
     ParseIdpConfig(connection_attributes);
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     if (http_client) {
         this->http_client = http_client;
     } else {
@@ -80,6 +80,7 @@ SamlUtil::~SamlUtil()
     if (sts_client) {
         sts_client = nullptr;
     }
+    AwsSdkHelper::Shutdown();
 }
 
 Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &assertion)

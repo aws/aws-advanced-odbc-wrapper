@@ -36,6 +36,7 @@ public:
     virtual void Disconnect(DBC *dbc);
     virtual void Disconnect(SQLHDBC *hdbc);
     virtual void DisconnectAndFree(SQLHDBC *hdbc);
+    static void InvalidateImplicitDescriptors(STMT *stmt);
 
     virtual bool IsClosed(SQLHDBC hdbc);
 

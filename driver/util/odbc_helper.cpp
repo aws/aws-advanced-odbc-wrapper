@@ -29,15 +29,18 @@ OdbcHelper::OdbcHelper(const std::shared_ptr<RdsLibLoader> &lib_loader, const EN
 void OdbcHelper::Disconnect(DBC* dbc) {
     if (dbc) {
         const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
-        // Cleanup tracked underlying statements
+        // Cleanup tracked underlying statements; NULL handles crash some base drivers.
         const std::list<STMT*> stmt_list = dbc->stmt_list;
         for (STMT* stmt : stmt_list) {
             const std::lock_guard<std::recursive_mutex> stmt_lock(stmt->lock);
             try {
-                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-                    SQL_HANDLE_STMT, stmt->wrapped_stmt
-                );
-                stmt->wrapped_stmt = SQL_NULL_HSTMT;
+                if (stmt->wrapped_stmt) {
+                    NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                        SQL_HANDLE_STMT, stmt->wrapped_stmt
+                    );
+                    stmt->wrapped_stmt = SQL_NULL_HSTMT;
+                }
+                InvalidateImplicitDescriptors(stmt);
             } catch (const std::exception& ex) {
                 LOG(ERROR) << "Exception while cleaning up statements for disconnects: " << ex.what();
             }
@@ -47,10 +50,12 @@ void OdbcHelper::Disconnect(DBC* dbc) {
         for (DESC* desc : desc_list) {
             const std::lock_guard<std::recursive_mutex> desc_lock(desc->lock);
             try {
-                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-                    SQL_HANDLE_DESC, desc->wrapped_desc
-                );
-                desc->wrapped_desc = SQL_NULL_HDESC;
+                if (desc->wrapped_desc) {
+                    NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                        SQL_HANDLE_DESC, desc->wrapped_desc
+                    );
+                    desc->wrapped_desc = SQL_NULL_HDESC;
+                }
             } catch (const std::exception& ex) {
                 LOG(ERROR) << "Exception while cleaning up descriptors for disconnects: " << ex.what();
             }
@@ -64,6 +69,16 @@ void OdbcHelper::Disconnect(DBC* dbc) {
             } catch (const std::exception& ex) {
                 LOG(ERROR) << "Exception while disconnecting: " << ex.what();
             }
+        }
+    }
+}
+
+void OdbcHelper::InvalidateImplicitDescriptors(STMT* stmt) {
+    for (DESC* desc : {stmt->app_row_desc, stmt->app_param_desc, stmt->imp_row_desc, stmt->imp_param_desc}) {
+        if (desc) {
+            const std::lock_guard<std::recursive_mutex> desc_lock(desc->lock);
+            // Owned by the underlying statement detach, don't free.
+            desc->wrapped_desc = SQL_NULL_HDESC;
         }
     }
 }
@@ -116,6 +131,10 @@ RdsLibResult OdbcHelper::SetEnvAttr(
     SQLPOINTER pointer,
     const int length)
 {
+    if (!henv || !henv->wrapped_env) {
+        // A NULL wrapped_env would crash the base driver.
+        return RdsLibResult { .fn_load_success = false, .fn_result = SQL_ERROR };
+    }
     return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
         henv->wrapped_env, attribute, pointer, length
     );

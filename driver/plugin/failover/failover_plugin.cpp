@@ -97,6 +97,7 @@ SQLRETURN FailoverPlugin::Execute(
         for (STMT* stmt : dbc->stmt_list) {
             const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
             stmt->wrapped_stmt = nullptr;
+            OdbcHelper::InvalidateImplicitDescriptors(stmt);
             CLEAR_STMT_ERROR(stmt);
             stmt->err = new ERR_INFO("Failed to switch to a new connection.", ERR_FAILOVER_FAILED);
         }

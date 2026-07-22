@@ -113,7 +113,18 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
     std::shared_ptr<LimitlessRouterMonitor> monitor;
     std::vector<HostInfo> limitless_routers;
     {
-        monitor = limitless_router_monitors_.at(router_monitor_key_).second;
+        // Copy the shared_ptr out under the map's mutex unlocked lookups race rehashes.
+        const std::lock_guard<std::mutex> monitors_guard(limitless_router_monitors_mutex_);
+        const auto itr = limitless_router_monitors_.find(router_monitor_key_);
+        if (itr == limitless_router_monitors_.end() || !itr->second.second) {
+            LOG(ERROR) << "No limitless router monitor registered for: " << router_monitor_key_;
+            CLEAR_DBC_ERROR(dbc);
+            dbc->err = new ERR_INFO("No limitless router monitor registered.", ERR_GENERAL_ERROR);
+            return SQL_ERROR;
+        }
+        monitor = itr->second.second;
+    }
+    {
         const std::lock_guard<std::mutex> limitless_routers_guard(monitor->limitless_routers_mutex_);
         limitless_routers = *monitor->limitless_routers_;
     }

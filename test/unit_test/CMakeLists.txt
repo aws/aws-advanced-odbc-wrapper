@@ -35,7 +35,6 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/attribute_validator_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/aurora_initial_connection_strategy_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/aws_sdk_test_environment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/aws_sso_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/browser_auth_flow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_map_test.cpp
@@ -46,6 +45,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/map_utils_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/null_wrapped_handle_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/okta_saml_util_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
