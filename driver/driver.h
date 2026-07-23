@@ -240,9 +240,11 @@ bool HasEnvAccess(SQLHANDLE handle) {
     const HandleT* typed = static_cast<const HandleT*>(handle);
     if constexpr (std::is_same_v<HandleT, ENV>) {
         return typed != nullptr;
-    } else if constexpr (std::is_same_v<HandleT, DBC>) {
+    }
+    if constexpr (std::is_same_v<HandleT, DBC>) {
         return typed != nullptr && typed->env != nullptr;
-    } else {
+    }
+    if constexpr (std::is_same_v<HandleT, STMT> || std::is_same_v<HandleT, DESC>) {
         return typed != nullptr && typed->dbc != nullptr && typed->dbc->env != nullptr;
     }
 }
