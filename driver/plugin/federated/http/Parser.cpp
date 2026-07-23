@@ -179,3 +179,13 @@ std::string Parser::RetrieveAuthCode(std::string& state)
 
     return "";
 }
+
+std::string Parser::RetrieveSamlResponse() const
+{
+    if (body_.contains("SAMLResponse"))
+    {
+        return body_.at("SAMLResponse");
+    }
+
+    return "";
+}

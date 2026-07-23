@@ -12,12 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if (defined(_WIN32) || defined(_WIN64))
-    #include <windows.h>
-    #include <shellapi.h>
-    #undef GetObject
-#endif
-
 #include "sso_browser_login_util.h"
 
 #include <aws/core/auth/AWSCredentialsProvider.h>
@@ -43,7 +37,6 @@
 #include <system_error>
 #include <thread>
 
-#include "http/WEBServer.h"
 #include "http/WEBServer_utils.h"
 
 #include "../../util/aws_sdk_helper.h"
@@ -76,11 +69,11 @@ namespace {
     }
 
     // SSO-OIDC errors often have an empty message, so include exception name, HTTP status, and request id to surface the real cause.
-    template <typename ERROR_TYPE>
-    std::string FormatAwsError(const Aws::Client::AWSError<ERROR_TYPE>& error) {
+    template <typename ErrorType>
+    std::string FormatAwsError(const Aws::Client::AWSError<ErrorType>& error) {
         std::string detail;
-        const std::string name(error.GetExceptionName().c_str());
-        const std::string message(error.GetMessage().c_str());
+        const std::string& name = error.GetExceptionName();
+        const std::string& message = error.GetMessage();
         if (!name.empty()) {
             detail += name;
         }
@@ -90,7 +83,7 @@ namespace {
         if (detail.empty()) {
             detail = "HTTP " + std::to_string(static_cast<int>(error.GetResponseCode()));
         }
-        const std::string request_id(error.GetRequestId().c_str());
+        const std::string& request_id = error.GetRequestId();
         if (!request_id.empty()) {
             detail += " (requestId=" + request_id + ")";
         }
@@ -274,9 +267,9 @@ bool SsoBrowserLoginUtil::RegisterOidcClient(ClientRegistration& out_registratio
     Aws::SSOOIDC::Model::RegisterClientRequest req;
     req.SetClientName("aws-advanced-odbc-wrapper");
     req.SetClientType("public");
-    req.SetScopes(Aws::Vector<Aws::String>{SSO_SCOPE.c_str()});
+    req.SetScopes(Aws::Vector<Aws::String>{SSO_SCOPE});
     req.SetGrantTypes(Aws::Vector<Aws::String>{"authorization_code", "refresh_token"});
-    req.SetRedirectUris(Aws::Vector<Aws::String>{(WEBSERVER_HOST + ":" + listen_port_).c_str()});
+    req.SetRedirectUris(Aws::Vector<Aws::String>{WEBSERVER_HOST + ":" + listen_port_});
     if (!start_url_.empty()) {
         req.SetIssuerUrl(start_url_.c_str());
     }
@@ -289,8 +282,8 @@ bool SsoBrowserLoginUtil::RegisterOidcClient(ClientRegistration& out_registratio
     }
 
     const Aws::SSOOIDC::Model::RegisterClientResult& result = outcome.GetResult();
-    out_registration.client_id = result.GetClientId().c_str();
-    out_registration.client_secret = result.GetClientSecret().c_str();
+    out_registration.client_id = result.GetClientId();
+    out_registration.client_secret = result.GetClientSecret();
     out_registration.expires_at =
         std::chrono::system_clock::from_time_t(static_cast<time_t>(result.GetClientSecretExpiresAt()));
     return true;
@@ -316,10 +309,10 @@ bool SsoBrowserLoginUtil::InteractiveLogin(SsoToken& out_token, std::string& out
 
     const std::string authorize_url =
         "https://" + oidc_host + "/authorize?response_type=code"
-        + "&client_id=" + Aws::Utils::StringUtils::URLEncode(registration.client_id.c_str()).c_str()
-        + "&redirect_uri=" + Aws::Utils::StringUtils::URLEncode(redirect_uri.c_str()).c_str()
-        + "&scopes=" + Aws::Utils::StringUtils::URLEncode(SSO_SCOPE.c_str()).c_str()
-        + "&state=" + Aws::Utils::StringUtils::URLEncode(state.c_str()).c_str()
+        + "&client_id=" + Aws::Utils::StringUtils::URLEncode(registration.client_id.c_str())
+        + "&redirect_uri=" + Aws::Utils::StringUtils::URLEncode(redirect_uri.c_str())
+        + "&scopes=" + Aws::Utils::StringUtils::URLEncode(SSO_SCOPE.c_str())
+        + "&state=" + Aws::Utils::StringUtils::URLEncode(state.c_str())
         + "&code_challenge=" + code_challenge
         + "&code_challenge_method=S256";
 
@@ -347,8 +340,8 @@ bool SsoBrowserLoginUtil::InteractiveLogin(SsoToken& out_token, std::string& out
         const Aws::SSOOIDC::Model::CreateTokenOutcome outcome = oidc_client_->CreateToken(req);
         if (outcome.IsSuccess()) {
             const Aws::SSOOIDC::Model::CreateTokenResult& result = outcome.GetResult();
-            out_token.access_token = result.GetAccessToken().c_str();
-            out_token.refresh_token = result.GetRefreshToken().c_str();
+            out_token.access_token = result.GetAccessToken();
+            out_token.refresh_token = result.GetRefreshToken();
             out_token.expires_at =
                 std::chrono::system_clock::now() + std::chrono::seconds(result.GetExpiresIn());
             WriteCache(out_token, registration);
@@ -399,10 +392,10 @@ bool SsoBrowserLoginUtil::RefreshAccessToken(
     }
 
     const Aws::SSOOIDC::Model::CreateTokenResult& result = outcome.GetResult();
-    out_token.access_token = result.GetAccessToken().c_str();
+    out_token.access_token = result.GetAccessToken();
     // Keep old if refresh did not update
     out_token.refresh_token = result.GetRefreshToken().empty()
-        ? refresh_token : std::string(result.GetRefreshToken().c_str());
+        ? refresh_token : result.GetRefreshToken();
     out_token.expires_at = std::chrono::system_clock::now() + std::chrono::seconds(result.GetExpiresIn());
     return true;
 }
@@ -440,46 +433,16 @@ Aws::Auth::AWSCredentials SsoBrowserLoginUtil::GetRoleCredentials(
     }
 
     const Aws::SSO::Model::RoleCredentials& role_credentials = outcome.GetResult().GetRoleCredentials();
-    return Aws::Auth::AWSCredentials(
+    return {
         role_credentials.GetAccessKeyId(),
         role_credentials.GetSecretAccessKey(),
-        role_credentials.GetSessionToken());
+        role_credentials.GetSessionToken()};
 }
 
 std::string SsoBrowserLoginUtil::FetchAuthorizationCode(const std::string& authorize_url, const std::string& state)
 {
-    std::string state_copy = state;
-    std::string port_copy = listen_port_;
-    std::string timeout_copy = std::to_string(idp_response_timeout_secs_);
-    WEBServer srv(state_copy, port_copy, timeout_copy);
-
-    try {
-        srv.LaunchServer();
-#if (defined(_WIN32) || defined(_WIN64))
-        const HINSTANCE result = ShellExecute(NULL, RDS_TSTR(std::string("open")).c_str(),
-            RDS_TSTR(authorize_url).c_str(), NULL, NULL, SW_SHOWNORMAL);
-        if (reinterpret_cast<intptr_t>(result) <= 32) {
-            srv.Cancel();
-        }
-#else
-#if (defined(LINUX) || defined(__linux__))
-        const int result = system(("xdg-open \"" + authorize_url + "\"").c_str()); // NOLINT(bugprone-command-processor)
-#else
-        const int result = system(("open \"" + authorize_url + "\"").c_str()); // NOLINT(bugprone-command-processor)
-#endif
-        if (result != 0) {
-            srv.Cancel();
-        }
-#endif
-    } catch (const std::exception& e) {
-        srv.Cancel();
-        srv.Join();
-        LOG(ERROR) << "Could not open browser for AWS IAM Identity Center login: " << e.what();
-        return "";
-    }
-
-    srv.Join();
-    return srv.GetCode();
+    return RunBrowserFlow(authorize_url, state, listen_port_,
+        std::to_string(idp_response_timeout_secs_)).auth_code;
 }
 
 std::string SsoBrowserLoginUtil::CacheFilePath() const
@@ -487,7 +450,7 @@ std::string SsoBrowserLoginUtil::CacheFilePath() const
     // Key on the session name when present, else the start URL, matching the SDK's ~/.aws/sso/cache layout (SHA1 hex of the key)
     const std::string key = session_name_.empty() ? start_url_ : session_name_;
     const Aws::String sha1_hex =
-        Aws::Utils::HashingUtils::HexEncode(Aws::Utils::HashingUtils::CalculateSHA1(Aws::String(key.c_str())));
+        Aws::Utils::HashingUtils::HexEncode(Aws::Utils::HashingUtils::CalculateSHA1(key));
 
     // Allow tests (and advanced users) to redirect the cache directory so the real ~/.aws/sso/cache is never touched during a test run
     Aws::String cache_dir;
@@ -501,8 +464,7 @@ std::string SsoBrowserLoginUtil::CacheFilePath() const
     }
     Aws::FileSystem::CreateDirectoryIfNotExists(cache_dir.c_str(), true);
 
-    const Aws::String file = Aws::FileSystem::Join(cache_dir, sha1_hex + ".json");
-    return {file.c_str()};
+    return Aws::FileSystem::Join(cache_dir, sha1_hex + ".json");
 }
 
 bool SsoBrowserLoginUtil::ReadCache(SsoToken& out_token, ClientRegistration& out_registration)
@@ -521,20 +483,20 @@ bool SsoBrowserLoginUtil::ReadCache(SsoToken& out_token, ClientRegistration& out
 
     const Aws::Utils::Json::JsonView view = json.View();
     if (view.KeyExists("accessToken")) {
-        out_token.access_token = view.GetString("accessToken").c_str();
+        out_token.access_token = view.GetString("accessToken");
     }
     if (view.KeyExists("refreshToken")) {
-        out_token.refresh_token = view.GetString("refreshToken").c_str();
+        out_token.refresh_token = view.GetString("refreshToken");
     }
     if (view.KeyExists("expiresAt")) {
         const Aws::Utils::DateTime expires(view.GetString("expiresAt"), Aws::Utils::DateFormat::ISO_8601);
         out_token.expires_at = expires.UnderlyingTimestamp();
     }
     if (view.KeyExists("clientId")) {
-        out_registration.client_id = view.GetString("clientId").c_str();
+        out_registration.client_id = view.GetString("clientId");
     }
     if (view.KeyExists("clientSecret")) {
-        out_registration.client_secret = view.GetString("clientSecret").c_str();
+        out_registration.client_secret = view.GetString("clientSecret");
     }
     if (view.KeyExists("registrationExpiresAt")) {
         const Aws::Utils::DateTime reg_expires(view.GetString("registrationExpiresAt"), Aws::Utils::DateFormat::ISO_8601);
@@ -546,21 +508,21 @@ bool SsoBrowserLoginUtil::ReadCache(SsoToken& out_token, ClientRegistration& out
 void SsoBrowserLoginUtil::WriteCache(const SsoToken& token, const ClientRegistration& registration)
 {
     Aws::Utils::Json::JsonValue json;
-    json.WithString(CACHE_CREATED_BY_KEY.c_str(), CACHE_CREATED_BY_VALUE.c_str());
-    json.WithString("startUrl", start_url_.c_str());
-    json.WithString("region", sso_region_.c_str());
+    json.WithString(CACHE_CREATED_BY_KEY, CACHE_CREATED_BY_VALUE);
+    json.WithString("startUrl", start_url_);
+    json.WithString("region", sso_region_);
     if (!session_name_.empty()) {
-        json.WithString("sessionName", session_name_.c_str());
+        json.WithString("sessionName", session_name_);
     }
-    json.WithString("accessToken", token.access_token.c_str());
+    json.WithString("accessToken", token.access_token);
     if (!token.refresh_token.empty()) {
-        json.WithString("refreshToken", token.refresh_token.c_str());
+        json.WithString("refreshToken", token.refresh_token);
     }
     json.WithString("expiresAt",
         Aws::Utils::DateTime(token.expires_at).ToGmtString(Aws::Utils::DateFormat::ISO_8601));
     if (!registration.client_id.empty()) {
-        json.WithString("clientId", registration.client_id.c_str());
-        json.WithString("clientSecret", registration.client_secret.c_str());
+        json.WithString("clientId", registration.client_id);
+        json.WithString("clientSecret", registration.client_secret);
         json.WithString("registrationExpiresAt",
             Aws::Utils::DateTime(registration.expires_at).ToGmtString(Aws::Utils::DateFormat::ISO_8601));
     }
@@ -619,7 +581,7 @@ void SsoBrowserLoginUtil::DeleteCache()
     const Aws::Utils::Json::JsonValue json(in);
     in.close();
     const bool created_by_wrapper = json.WasParseSuccessful()
-        && json.View().GetString(CACHE_CREATED_BY_KEY.c_str()) == CACHE_CREATED_BY_VALUE.c_str();
+        && json.View().GetString(CACHE_CREATED_BY_KEY) == CACHE_CREATED_BY_VALUE;
     if (!created_by_wrapper) {
         LOG(INFO) << "Leaving AWS IAM Identity Center token cache in place; not created by this driver: " << path;
         return;

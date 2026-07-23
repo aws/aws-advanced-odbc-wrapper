@@ -64,6 +64,13 @@ class Parser {
         * Return received authorization code or empty string.
         */
         std::string RetrieveAuthCode(std::string& state);
+
+        /*
+        * Retrieve SAML response from POST body.
+        *
+        * Return received SAMLResponse or empty string.
+        */
+        std::string RetrieveSamlResponse() const;
         
     private:
         /*

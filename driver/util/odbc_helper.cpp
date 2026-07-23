@@ -230,8 +230,8 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc) {
 std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc, std::string& out_message) {
     SQLSMALLINT stmt_length;
     SQLINTEGER native_error;
-    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
-    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN * 2] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN * 2] = { 0 };
     // Use RDS_SQLGetDiagRec directly instead of RDS_SQLError to avoid consuming the
     // sql_error_called flag. RDS_SQLError sets this flag, which prevents subsequent
     // external SQLError calls from retrieving the diagnostic record.
@@ -249,8 +249,8 @@ std::string OdbcHelper::GetSqlStateAndLogMessage(DBC* dbc, std::string& out_mess
 }
 
 std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
-    SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = { 0 };
-    SQLTCHAR message[MAX_MSG_LEN] = { 0 };
+    SQLTCHAR sql_state[MAX_SQL_STATE_LEN * 2] = { 0 };
+    SQLTCHAR message[MAX_MSG_LEN * 2] = { 0 };
     SQLINTEGER native_error = 0;
     SQLSMALLINT text_length = 0;
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,

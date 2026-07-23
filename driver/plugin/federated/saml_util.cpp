@@ -62,6 +62,12 @@ SamlUtil::SamlUtil(
         }
         Aws::STS::STSClientConfiguration sts_client_config;
         sts_client_config.region = region;
+        // STS_ENDPOINT overrides the resolved endpoint for non-commercial partitions (e.g. GovCloud: https://sts.us-gov-west-1.amazonaws.com)
+        // where the SDK does not reliably resolve the regional STS endpoint from region alone.
+        const std::string sts_endpoint = MapUtils::GetStringValue(connection_attributes, KEY_STS_ENDPOINT, "");
+        if (!sts_endpoint.empty()) {
+            sts_client_config.endpointOverride = sts_endpoint;
+        }
         this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
     }
 }
@@ -87,10 +93,12 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
         sts_client->AssumeRoleWithSAML(sts_req);
 
     if (!outcome.IsSuccess()) {
-        LOG(ERROR) << "STS failed to assume role with assertion: " << outcome.GetError().GetMessage();
+        LOG(ERROR) << "STS failed to assume role: " << outcome.GetError().GetMessage();
+        LOG(ERROR) << "STS error type: " << static_cast<int>(outcome.GetError().GetErrorType());
         return {};
     }
 
+    LOG(INFO) << "STS AssumeRoleWithSAML succeeded";
     const Aws::STS::Model::AssumeRoleWithSAMLResult &result = outcome.GetResult();
     const Aws::STS::Model::Credentials &temp_credentials = result.GetCredentials();
     const Aws::Auth::AWSCredentials credentials = Aws::Auth::AWSCredentials(
@@ -98,23 +106,66 @@ Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &asserti
     return credentials;
 }
 
+Aws::Auth::AWSCredentials SamlUtil::GetCredentials()
+{
+    const std::lock_guard<std::mutex> lock(cred_cache_mutex_);
+
+    const auto now = std::chrono::system_clock::now();
+    const auto it = cred_cache_.find(idp_role_arn);
+    if (it != cred_cache_.end() && (now - it->second.fetched_at) < CRED_CACHE_TTL
+        && !it->second.creds.IsExpiredOrEmpty()) {
+        LOG(INFO) << "Reusing cached SAML credentials for role " << idp_role_arn;
+        return it->second.creds;
+    }
+
+    // Cache miss: run the interactive assertion exchange exactly once, then cache.
+    const std::string assertion = GetSamlAssertion();
+    Aws::Auth::AWSCredentials creds = GetAwsCredentials(assertion);
+    if (!creds.IsEmpty()) {
+        cred_cache_[idp_role_arn] = {.creds = creds, .fetched_at = now};
+    }
+    return creds;
+}
+
+void SamlUtil::InvalidateCachedCredentials()
+{
+    const std::lock_guard<std::mutex> lock(cred_cache_mutex_);
+    cred_cache_.erase(idp_role_arn);
+}
+
+void SamlUtil::ClearCredentialsCache()
+{
+    const std::lock_guard<std::mutex> lock(cred_cache_mutex_);
+    cred_cache_.clear();
+}
+
 void SamlUtil::ParseIdpConfig(const std::map<std::string, std::string> &connection_attributes)
 {
     idp_endpoint = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ENDPOINT, "");
     idp_port = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PORT, "443");
-    idp_username = MapUtils::GetStringValue(connection_attributes, KEY_IDP_USERNAME, "443");
+    idp_username = MapUtils::GetStringValue(connection_attributes, KEY_IDP_USERNAME, "");
     idp_password = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PASSWORD, "");
     idp_role_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ROLE_ARN, "");
     idp_saml_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_SAML_ARN, "");
 
+    // Browser mode only requires the login URL, role ARN, and provider ARN.
+    browser_mode = !MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "").empty();
 
-    if (idp_endpoint.empty() || idp_username.empty() || idp_password.empty() || idp_role_arn.empty() || idp_saml_arn.empty()) {
+    std::string err_keys;
+    if (idp_role_arn.empty() || idp_saml_arn.empty()) {
+        err_keys += idp_role_arn.empty() ? std::string("\n\t") + KEY_IDP_ROLE_ARN : "";
+        err_keys += idp_saml_arn.empty() ? std::string("\n\t") + KEY_IDP_SAML_ARN : "";
+    }
+
+    if (!browser_mode && (idp_endpoint.empty() || idp_username.empty() || idp_password.empty())) {
+        err_keys += idp_endpoint.empty() ? std::string("\n\t") + KEY_IDP_ENDPOINT : "";
+        err_keys += idp_username.empty() ? std::string("\n\t") + KEY_IDP_USERNAME : "";
+        err_keys += idp_password.empty() ? std::string("\n\t") + KEY_IDP_PASSWORD : "";
+    }
+
+    if (!err_keys.empty()) {
         std::string err_msg = "Missing required parameter for federated authentication:";
-        err_msg += idp_endpoint.empty() ? std::string("\n\t") + KEY_IDP_ENDPOINT : "";
-        err_msg += idp_username.empty() ? std::string("\n\t") + KEY_IDP_USERNAME : "";
-        err_msg += idp_password.empty() ? std::string("\n\t") + KEY_IDP_PASSWORD : "";
-        err_msg += idp_role_arn.empty() ? std::string("\n\t") + KEY_IDP_ROLE_ARN : "";
-        err_msg += idp_saml_arn.empty() ? std::string("\n\t") + KEY_IDP_SAML_ARN : "";
+        err_msg += err_keys;
         throw std::runtime_error(err_msg);
     }
 }

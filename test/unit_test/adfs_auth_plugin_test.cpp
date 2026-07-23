@@ -29,7 +29,9 @@ namespace {
     const std::string port = "1234";
     const std::string username = "abc";
     const std::string saml_assertion = "saml-string";
-    const Aws::Auth::AWSCredentials credentials;
+    // Non-empty: RefreshCredentials/EnsureCredentials treat empty credentials as a
+    // failed SAML exchange and abort instead of generating a token.
+    const Aws::Auth::AWSCredentials credentials("test_access_key", "test_secret_key");
 }
 
 class AdfsAuthPluginTest : public testing::Test {
@@ -48,6 +50,8 @@ protected:
 
     // Runs per test
     void SetUp() override {
+        // The SAML credential cache is process-wide; clear it so tests are isolated.
+        SamlUtil::ClearCredentialsCache();
         mock_auth_provider = std::make_shared<MOCK_AUTH_PROVIDER>();
         mock_saml_util = std::make_shared<MOCK_SAML_UTIL>();
         mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();

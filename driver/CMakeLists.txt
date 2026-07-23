@@ -72,6 +72,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/aws_sso_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/browser_auth_flow.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.h
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.h
@@ -180,6 +181,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/adfs_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/aws_sso_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/base_saml_auth_plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/browser_auth_flow.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/html_util.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/okta_auth_plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin/federated/saml_util.cpp

@@ -134,6 +134,33 @@
 #define IDC_SSO_SESSION_NAME_LABEL      1115
 #define IDC_SSO_REGION                  1116
 #define IDC_SSO_REGION_LABEL            1117
+#define IDC_LOGIN_URL                   1118
+#define IDC_LOGIN_URL_LABEL             1119
+#define IDC_STS_ENDPOINT                1120
+#define IDC_STS_ENDPOINT_LABEL          1121
+#define IDC_LISTEN_PORT                 1122
+#define IDC_LISTEN_PORT_LABEL           1123
+#define IDC_IDP_RESPONSE_TIMEOUT        1124
+#define IDC_IDP_RESPONSE_TIMEOUT_LABEL  1125
+#define IDC_REGION_LABEL                1126
+#define IDC_EXPIRE_LABEL                1127
+#define IDC_IAM_HOST_LABEL              1128
+#define IDC_IAM_PORT_LABEL              1129
+#define IDC_URL_ENCODE_LABEL            1130
+#define IDC_IDP_UID_LABEL               1131
+#define IDC_IDP_PWD_LABEL               1132
+#define IDC_IDP_END_LABEL               1133
+#define IDC_APP_ID_LABEL                1134
+#define IDC_ROLE_ARN_LABEL              1135
+#define IDC_IDP_ARN_LABEL               1136
+#define IDC_IDP_PORT_LABEL              1137
+#define IDC_RELAY_PARTY_ID_LABEL        1138
+#define IDC_CONNECT_TIMEOUT_LABEL       1139
+#define IDC_SOCKET_TIMEOUT_LABEL        1140
+#define IDC_MFA_TYPE_LABEL              1141
+#define IDC_MFA_PORT_LABEL              1142
+#define IDC_MFA_TIMEOUT_LABEL           1143
+#define IDC_AWS_PROFILE_LABEL           1144
 
 // Next default values for new objects
 //
@@ -141,7 +168,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        129
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1118
+#define _APS_NEXT_CONTROL_VALUE         1145
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
