@@ -75,7 +75,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc
           key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
@@ -121,13 +121,13 @@ jobs:
           echo "psqlODBC version: $VERSION"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: postgresql-interfaces/psqlodbc
           ref: ${{ steps.psqlodbc-version.outputs.version }}
@@ -156,13 +156,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
           key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: postgresql-interfaces/psqlodbc
           ref: ${{ steps.psqlodbc-version.outputs.version }}
@@ -195,7 +195,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: mysql-connector
           key: ${{ runner.os }}-mysql-driver-9.5.0
@@ -227,7 +227,7 @@ jobs:
           rm -rf /tmp/actions-runner-* 2>/dev/null || true
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver-9.5.0
@@ -245,7 +245,7 @@ jobs:
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: mysql-connector/
           key: ${{ runner.os }}-mysql-driver-9.5.0
@@ -265,7 +265,7 @@ jobs:
     steps:
       - name: Retrieve mariadb-connector Cache
         id: cache-mariadb-connector
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: mariadb-connector
           key: ${{ runner.os }}-mariadb-driver-${{ env.MARIADB_ODBC_VERSION }}
@@ -314,14 +314,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -330,7 +330,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       - name: Install WiX
         shell: cmd
         run: |
@@ -345,7 +345,7 @@ jobs:
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -398,14 +398,14 @@ jobs:
             echo "maodbc_path=C:\\Program Files\\MariaDB\\MariaDB ODBC Driver 64-bit\\maodbc.dll" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
           fail-on-cache-miss: true
       - name: Retrieve MariaDB Connector
         if: (matrix.rds_engine == 'aurora-mysql')
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: mariadb-connector
           key: ${{steps.base_driver_info.outputs.mariadb_cache_key}}
@@ -694,7 +694,7 @@ jobs:
           echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'windows-${{matrix.rds_engine}}-integration-test-logs'
           path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
@@ -746,14 +746,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -767,7 +767,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -832,7 +832,7 @@ jobs:
             echo "MARIADB_DRIVER_PATH=/opt/homebrew/Cellar/mariadb-connector-odbc/3.2.8/lib/mariadb/libmaodbc.dylib" >> $GITHUB_ENV
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -1025,7 +1025,7 @@ jobs:
             $EXTRA_ARGS
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'mac-${{matrix.env.rds_engine}}-integration-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
@@ -1058,7 +1058,7 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install Build Dependencies
         run: |
           sudo apt update
@@ -1069,7 +1069,7 @@ jobs:
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -1082,7 +1082,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1135,7 +1135,7 @@ jobs:
             echo "database_dialect=${{ matrix.database_dialect }}" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -1335,7 +1335,7 @@ jobs:
             $EXTRA_ARGS
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'linux-${{matrix.rds_engine}}-integration-test-logs'
           path: /tmp/aws-odbc-wrapper/
@@ -1354,14 +1354,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -1370,7 +1370,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       - name: Install WiX
         shell: cmd
         run: |
@@ -1385,7 +1385,7 @@ jobs:
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1424,7 +1424,7 @@ jobs:
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
           echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -1574,7 +1574,7 @@ jobs:
           echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'windows-limitless-test-logs'
           path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
@@ -1594,14 +1594,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -1615,7 +1615,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1656,7 +1656,7 @@ jobs:
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
           echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -1742,7 +1742,7 @@ jobs:
             --shard-id ${{ env.LIMITLESS_SHARD_ID }}
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'mac-limitless-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
@@ -1760,7 +1760,7 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=${{ env.LIMITLESS_CLUSTER_ID }}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install Build Dependencies
         run: |
           sudo apt update
@@ -1771,7 +1771,7 @@ jobs:
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -1784,7 +1784,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -1825,7 +1825,7 @@ jobs:
           echo "dialect_default_port=5432" >> $GITHUB_OUTPUT
           echo "database_dialect=AURORA_POSTGRESQL" >> $GITHUB_OUTPUT
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -1912,7 +1912,7 @@ jobs:
             --shard-id ${{ env.LIMITLESS_SHARD_ID }}
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'linux-limitless-test-logs'
           path: /tmp/aws-odbc-wrapper/
@@ -1934,14 +1934,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-BG-Win-${{matrix.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_win.ps1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -1950,7 +1950,7 @@ jobs:
         run: |
           ./scripts/compile_aws_sdk_win.ps1 ${{env.BUILD_CONFIG}}
       - name: Setup Dotnet for WiX
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       - name: Install WiX
         shell: cmd
         run: |
@@ -1965,7 +1965,7 @@ jobs:
         working-directory: installer
         run: Start-Process msiexec "/lp! .\test.log /i aws-advanced-odbc-wrapper.msi /quiet /norestart" -Wait;
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -2012,7 +2012,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -2152,7 +2152,7 @@ jobs:
           echo "TEMP=$env:TEMP" >> $env:GITHUB_OUTPUT
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'windows-${{matrix.rds_engine}}-test-logs'
           path: ${{ steps.log_location.outputs.TEMP }}/aws-odbc-wrapper/
@@ -2175,14 +2175,14 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-BG-MacOS-${{matrix.env.rds_engine}}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -2196,7 +2196,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -2245,7 +2245,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -2298,7 +2298,7 @@ jobs:
             --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'mac-${{matrix.env.rds_engine}}-bg-test-logs'
           path: ${{steps.log_location.outputs.TEMP}}/aws-odbc-wrapper/
@@ -2318,7 +2318,7 @@ jobs:
         run: |
           echo "AURORA_CLUSTER_ID=ODBC-BG-Linux-${{ matrix.rds_engine }}-${{github.run_id}}${{github.run_number}}${{github.run_attempt}}" >> $GITHUB_ENV
       - name: Checkout aws-advanced-odbc-wrapper
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Install Build Dependencies
         run: |
           sudo apt update
@@ -2329,7 +2329,7 @@ jobs:
         run: echo "tag=$(grep AWS_SDK_CPP_TAG scripts/compile_aws_sdk_unix.sh | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" >> "$GITHUB_OUTPUT"
       - name: Retrieve AWS SDK for C++ Cache
         id: cache-aws-sdk
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: aws_sdk/install
           key: ${{ runner.os }}-aws-sdk-cpp-${{env.BUILD_CONFIG}}-shared-${{ steps.aws-sdk-version.outputs.tag }}
@@ -2342,7 +2342,7 @@ jobs:
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
           cmake --build build
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ secrets.AWS_DEPLOY_ROLE }}
@@ -2391,7 +2391,7 @@ jobs:
             echo "database_dialect=AURORA_MYSQL" >> $GITHUB_OUTPUT
           fi
       - name: Retrieve Base Driver
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{steps.base_driver_info.outputs.cache_path}}
           key: ${{steps.base_driver_info.outputs.cache_key}}
@@ -2449,7 +2449,7 @@ jobs:
             --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
       - name: Archive log results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: 'linux-${{matrix.rds_engine}}-test-logs'
           path: /tmp/aws-odbc-wrapper/
