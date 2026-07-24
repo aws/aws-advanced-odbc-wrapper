@@ -21,23 +21,13 @@
 #include "util/rds_lib_loader.h"
 
 ENV::~ENV() {
-    delete err;
-    err = nullptr;
     logger_wrapper = nullptr;
 }
 
 DBC::~DBC() {
     plugin_service = nullptr;
-    delete err;
-    err = nullptr;
 }
 
-STMT::~STMT() {
-    delete err;
-    err = nullptr;
-}
+STMT::~STMT() = default;
 
-DESC::~DESC() {
-    delete err;
-    err = nullptr;
-}
+DESC::~DESC() = default;

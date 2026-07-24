@@ -46,8 +46,8 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
     if (username_key.empty() || password_key.empty()) {
         LOG(ERROR) << "SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        ClearError(dbc);
+        dbc->err = std::make_unique<ERR_INFO>("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
@@ -61,15 +61,15 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
     if (region.empty()) {
         LOG(ERROR) << "Could not determine secret region";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        ClearError(dbc);
+        dbc->err = std::make_unique<ERR_INFO>("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
     if (secret_id.empty()) {
         LOG(ERROR) << "Missing required parameter 'SECRET_ID'";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        ClearError(dbc);
+        dbc->err = std::make_unique<ERR_INFO>("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
@@ -151,8 +151,8 @@ SQLRETURN SecretsManagerPlugin::Connect(
         if (secret.username.empty() || secret.password.empty()) {
             const std::string fail_msg = "Secrets Manager did not return any database credentials, please verify the values set via SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY and ensure they match the values in the Secret value.";
             LOG(ERROR) << fail_msg;
-            CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+            ClearError(dbc);
+            dbc->err = std::make_unique<ERR_INFO>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
         {
@@ -165,9 +165,9 @@ SQLRETURN SecretsManagerPlugin::Connect(
         return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
-    CLEAR_DBC_ERROR(dbc);
+    ClearError(dbc);
     const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
-    dbc->err = new ERR_INFO(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    dbc->err = std::make_unique<ERR_INFO>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 

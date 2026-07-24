@@ -61,7 +61,10 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <vector>
+
+#include "error.h"
 
 /* Forward Declarations */
 struct ENV;
@@ -69,7 +72,6 @@ struct DBC;
 struct STMT;
 struct DESC;
 
-struct ERR_INFO;
 struct RdsLibResult;
 
 class BasePlugin;
@@ -95,7 +97,7 @@ struct ENV {
     std::list<DBC*> dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map;  // Key, <Value, Length>
-    ERR_INFO* err = nullptr;
+    std::unique_ptr<ERR_INFO> err;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
 
@@ -126,7 +128,7 @@ struct DBC {
     bool allow_interactive_auth = false;
     BasePlugin* plugin_head = nullptr;
     std::shared_ptr<PluginService> plugin_service;
-    ERR_INFO* err = nullptr;
+    std::unique_ptr<ERR_INFO> err;
     char sql_error_called = 0;
 
     ~DBC();
@@ -180,7 +182,7 @@ struct STMT {
     std::vector<BoundParamBuffer> bound_param_buffers;  // Intercepted WCHAR param bindings
     bool put_data_char_conversion = false;
 
-    ERR_INFO* err = nullptr;
+    std::unique_ptr<ERR_INFO> err;
     char sql_error_called = 0;
 
     ~STMT();
@@ -192,7 +194,7 @@ struct DESC {
     // TODO - What to put here
     DBC* dbc;
     SQLHDESC wrapped_desc;
-    ERR_INFO* err = nullptr;
+    std::unique_ptr<ERR_INFO> err;
     char sql_error_called = 0;
 
     ~DESC();
@@ -225,69 +227,54 @@ SQLRETURN RDS_SQLSetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, 
 /* Simple Macros */
 #define RDS_NOT_IMPLEMENTED return SQL_ERROR
 
-#define NULL_CHECK_HANDLE(h) \
-    if (h == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV(h) \
-    if (h == NULL || ((ENV*)h) == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DBC(h) \
-    if (h == NULL || ((DBC*)h)->env == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_STMT(h) \
-    if (h == NULL || ((STMT*)h)->dbc == NULL || ((DBC*)((STMT*)h)->dbc)->env == NULL) return SQL_INVALID_HANDLE
-#define NULL_CHECK_ENV_ACCESS_DESC(h) \
-    if (h == NULL || ((DESC*)h)->dbc == NULL || ((DBC*)((DESC*)h)->dbc)->env == NULL) return SQL_INVALID_HANDLE
-
 #define NULL_CHECK_CALL_LIB_FUNC(lib_loader, fn_type, fn_name, ...)                       \
     lib_loader ? lib_loader->CallFunction<fn_type>(fn_name, __VA_ARGS__) : RdsLibResult { \
         .fn_load_success = false, .fn_result = SQL_ERROR                                  \
     }
 
-#define CHECK_WRAPPED_ENV(h) \
-    if (h == NULL || ((ENV*)h)->wrapped_env == NULL) return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_DBC(h) \
-    if (h == NULL || ((DBC*)h)->wrapped_dbc == NULL) return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_STMT(h) \
-    if (h == NULL || ((STMT*)h)->wrapped_stmt == NULL) return SQL_INVALID_HANDLE
-#define CHECK_WRAPPED_DESC(h) \
-    if (h == NULL || ((DESC*)h)->wrapped_desc == NULL) return SQL_INVALID_HANDLE
+/* Handle Helpers */
 
-#define CLEAR_ENV_ERROR(env)                   \
-    do {                                       \
-        if (env) {                             \
-            ((ENV*)env)->sql_error_called = 0; \
-            delete ((ENV*)env)->err;           \
-            ((ENV*)env)->err = nullptr;        \
-        }                                      \
-    } while (0)
-#define CLEAR_DBC_ERROR(dbc)                   \
-    do {                                       \
-        if (dbc) {                             \
-            ((DBC*)dbc)->sql_error_called = 0; \
-            delete ((DBC*)dbc)->err;           \
-            ((DBC*)dbc)->err = nullptr;        \
-        }                                      \
-    } while (0)
-#define CLEAR_STMT_ERROR(stmt)                   \
-    do {                                         \
-        if (stmt) {                              \
-            ((STMT*)stmt)->sql_error_called = 0; \
-            delete ((STMT*)stmt)->err;           \
-            ((STMT*)stmt)->err = nullptr;        \
-        }                                        \
-    } while (0)
-#define CLEAR_DESC_ERROR(desc)                   \
-    do {                                         \
-        if (desc) {                              \
-            ((DESC*)desc)->sql_error_called = 0; \
-            delete ((DESC*)desc)->err;           \
-            ((DESC*)desc)->err = nullptr;        \
-        }                                        \
-    } while (0)
+// Callers must return SQL_INVALID_HANDLE when this fails.
+template <typename HandleT>
+bool HasEnvAccess(SQLHANDLE handle) {
+    const HandleT* typed = static_cast<const HandleT*>(handle);
+    if constexpr (std::is_same_v<HandleT, ENV>) {
+        return typed != nullptr;
+    }
+    if constexpr (std::is_same_v<HandleT, DBC>) {
+        return typed != nullptr && typed->env != nullptr;
+    }
+    if constexpr (std::is_same_v<HandleT, STMT> || std::is_same_v<HandleT, DESC>) {
+        return typed != nullptr && typed->dbc != nullptr && typed->dbc->env != nullptr;
+    }
+}
 
-#define NEXT_ERROR(err) err ? 0 : (err = 1)
+// Callers must return SQL_INVALID_HANDLE when this fails.
+inline bool HasWrappedHandle(const ENV* env) { return env != nullptr && env->wrapped_env != nullptr; }
+inline bool HasWrappedHandle(const DBC* dbc) { return dbc != nullptr && dbc->wrapped_dbc != nullptr; }
+inline bool HasWrappedHandle(const STMT* stmt) { return stmt != nullptr && stmt->wrapped_stmt != nullptr; }
+inline bool HasWrappedHandle(const DESC* desc) { return desc != nullptr && desc->wrapped_desc != nullptr; }
 
-#define NEXT_ENV_ERROR(env) env ? NEXT_ERROR(((ENV*)env)->sql_error_called) : 0
-#define NEXT_DBC_ERROR(dbc) dbc ? NEXT_ERROR(((DBC*)dbc)->sql_error_called) : 0
-#define NEXT_STMT_ERROR(stmt) stmt ? NEXT_ERROR(((STMT*)stmt)->sql_error_called) : 0
-#define NEXT_DESC_ERROR(desc) desc ? NEXT_ERROR(((DESC*)desc)->sql_error_called) : 0
+// Releases the handle's error record and re-arms the SQLError one-shot flag.
+template <typename HandleT>
+void ClearError(HandleT* handle) {
+    if (handle != nullptr) {
+        handle->sql_error_called = 0;
+        handle->err.reset();
+    }
+}
+
+// Diagnostic record number for a direct SQLError call:
+// 1 for the first call on the handle, 0 (no more data) afterwards.
+// UnixODBC will enter an infinite loop if errors repeat indefinitely.
+template <typename HandleT>
+SQLSMALLINT NextErrorRecord(SQLHANDLE handle) {
+    HandleT* typed = static_cast<HandleT*>(handle);
+    if (typed == nullptr || typed->sql_error_called != 0) {
+        return 0;
+    }
+    typed->sql_error_called = 1;
+    return 1;
+}
 
 #endif  // DRIVER_H

@@ -168,7 +168,7 @@ SQLRETURN DefaultPlugin::Execute(
             );
         } else {
             LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
-            stmt->err = new ERR_INFO("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
+            stmt->err = std::make_unique<ERR_INFO>("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
         // Set statement settings

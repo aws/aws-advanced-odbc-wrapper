@@ -127,8 +127,8 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         const RdsLibResult res = odbc_helper_->BaseAllocEnv(env);
         if (!SQL_SUCCEEDED(res.fn_result)) {
             LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
-            CLEAR_DBC_ERROR(dbc);
-            dbc->err = new ERR_INFO("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+            ClearError(dbc);
+            dbc->err = std::make_unique<ERR_INFO>("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
         odbc_helper_->SetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
@@ -170,8 +170,8 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 
     if (limitless_routers.empty()) {
         LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers";
-        CLEAR_DBC_ERROR(dbc);
-        dbc->err = new ERR_INFO("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        ClearError(dbc);
+        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -219,8 +219,8 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
     }
 
     LOG(ERROR) << "The limitless connection plugin was unable to establish a connection";
-    CLEAR_DBC_ERROR(dbc);
-    dbc->err = new ERR_INFO("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    ClearError(dbc);
+    dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 
