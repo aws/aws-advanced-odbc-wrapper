@@ -96,7 +96,7 @@ private:
     const std::string IS_READER_QUERY = "SELECT pg_catalog.pg_is_in_recovery()";
 
     const std::string BG_TOPOLOGY_EXISTS_QUERY =
-        "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::regproc";
+        "SELECT 'pg_catalog.get_blue_green_fast_switchover_metadata'::pg_catalog.regproc";
 
     // "id", "endpoint", "port", "role", "status", "version", "update_stamp"
     const std::string BG_STATUS_QUERY =
