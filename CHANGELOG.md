@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-30
+
+### Added
+
+- [AWS IAM Identity Center (SSO) Authentication Plugin](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/plugins/aws-sso-authentication-plugin.md) [(PR #151)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/151)
+- [Browser-Based SAML (Passwordless) Mode for the Okta Authentication Plugin](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/plugins/okta-authentication-plugin.md#additional-okta-setup-for-browser-mode-passwordless) [(PR #154)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/154)
+- Support for selecting a named AWS profile with the [AWS_PROFILE connection option](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/plugins/iam-authentication-plugin.md) [(PR #150)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/150)
+
+### Fixed
+
+- Segmentation faults from invalid ODBC handles and monitor thread races [(PR #157)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/157)
+- Schema-qualified internal SQL queries so Blue/Green detection [(PR #158)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/158)
+
 ## [1.2.0] - 2026-06-16
 
 ### Added
@@ -50,6 +63,7 @@ The Amazon Web Services (AWS) Advanced ODBC Wrapper allows an application to tak
 - Limitless Connection Plugin
 - Failover Connection Plugin
 
+[1.3.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/aws/aws-advanced-odbc-wrapper/releases/tag/v1.0.0
