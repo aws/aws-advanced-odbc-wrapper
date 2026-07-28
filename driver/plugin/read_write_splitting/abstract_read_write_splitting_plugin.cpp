@@ -64,6 +64,11 @@ void AbstractReadWriteSplittingPlugin::ReleaseResources() {
             DisconnectAndFreeDBC(reader_conn);
         } else {
             reader_conn->wrapped_dbc = nullptr;
+            // Leave env->dbc_list before delete, or RDS_FreeEnv double-frees.
+            {
+                const std::lock_guard<std::recursive_mutex> lock_guard_env(dbc_->env->lock);
+                dbc_->env->dbc_list.remove(reader_conn);
+            }
             delete reader_conn;
         }
     }
@@ -75,6 +80,10 @@ void AbstractReadWriteSplittingPlugin::ReleaseResources() {
             DisconnectAndFreeDBC(writer_connection_);
         } else {
             writer_connection_->wrapped_dbc = nullptr;
+            {
+                const std::lock_guard<std::recursive_mutex> lock_guard_env(dbc_->env->lock);
+                dbc_->env->dbc_list.remove(writer_connection_);
+            }
             delete writer_connection_;
         }
     }
@@ -279,19 +288,30 @@ void AbstractReadWriteSplittingPlugin::SwitchCurrentConnectionTo(DBC* new_conn, 
         return;
     }
 
+    // Hold DBC lock across the whole swap so a concurrent Execute never sees the old handle
+    const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc_->lock);
+
     if (current_connection_ != nullptr) {
-        {
-            // Null out dbc_'s underlying statements, they can be reallocated in the default plugin using the new connection.
-            const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc_->lock);
-            for (STMT* stmt : dbc_->stmt_list) {
-                {
-                    const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
-                    if (stmt->wrapped_stmt) {
-                        NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
-                            SQL_HANDLE_STMT, stmt->wrapped_stmt);
-                        stmt->wrapped_stmt = nullptr;
-                    }
+        // Null out underlying statements, they can be reallocated in the default plugin using the new connection.
+        for (STMT* stmt : dbc_->stmt_list) {
+            {
+                const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
+                if (stmt->wrapped_stmt) {
+                    NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                        SQL_HANDLE_STMT, stmt->wrapped_stmt);
+                    stmt->wrapped_stmt = nullptr;
                 }
+                OdbcHelper::InvalidateImplicitDescriptors(stmt);
+            }
+        }
+        // And explicit descriptors, which would dangle after the old connection
+        // is freed (mirrors FailoverPlugin).
+        for (DESC* desc : dbc_->desc_list) {
+            const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
+            if (desc->wrapped_desc) {
+                NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    SQL_HANDLE_DESC, desc->wrapped_desc);
+                desc->wrapped_desc = nullptr;
             }
         }
 

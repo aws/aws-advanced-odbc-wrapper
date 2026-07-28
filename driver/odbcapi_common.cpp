@@ -73,6 +73,11 @@ void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
     const DBC* dbc = stmt->dbc;
     const ENV* env = dbc->env;
 
+    // Invalidated (e.g. by a failed failover); nothing to rebind against.
+    if (!stmt->wrapped_stmt) {
+        return;
+    }
+
     std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
     if (bindings.empty()) {
         return;
@@ -641,7 +646,11 @@ SQLRETURN SQL_API SQLCopyDesc(
         return SQL_INVALID_HANDLE;
     }
 
-    DESC* dst_desc = TargetDescHandle ? static_cast<DESC*>(TargetDescHandle) : new DESC();
+    // The target must be an already-allocated application descriptor.
+    DESC* dst_desc = static_cast<DESC*>(TargetDescHandle);
+    if (!HasWrappedHandle(dst_desc)) {
+        return SQL_INVALID_HANDLE;
+    }
     DBC* src_dbc = src_desc->dbc;
     const ENV* src_env = src_dbc->env;
 
@@ -755,6 +764,8 @@ SQLRETURN SQL_API SQLExecute(
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
 
+    // Lock DBC to prevent connection swap race condition
+    const std::lock_guard<std::recursive_mutex> lock_guard_dbc(dbc->lock);
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     ClearError(stmt);
 
@@ -965,12 +976,14 @@ SQLRETURN SQL_API SQLGetData(
 
             const size_t src_len = UShortStrlen(reinterpret_cast<const uint16_t*>(buffer.data()));
             const size_t dst_len = static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR);
-            if (use_4_app) {
-                ConvertUTF16ToUTF32(buffer.data(), dst, src_len, dst_len);
-            } else {
-                const size_t copy_len = src_len < dst_len ? src_len : dst_len - 1;
-                std::memcpy(dst, buffer.data(), copy_len * sizeof(SQLTCHAR));
-                dst[copy_len] = 0;
+            if (dst && dst_len > 0) {
+                if (use_4_app) {
+                    ConvertUTF16ToUTF32(buffer.data(), dst, src_len, dst_len);
+                } else {
+                    const size_t copy_len = src_len < dst_len ? src_len : dst_len - 1;
+                    std::memcpy(dst, buffer.data(), copy_len * sizeof(SQLTCHAR));
+                    dst[copy_len] = 0;
+                }
             }
         }
     } else {
@@ -1246,7 +1259,11 @@ SQLRETURN SQL_API SQLPutData(
 
         const SQLTCHAR* app_data = static_cast<const SQLTCHAR*>(DataPtr);
 
-        const size_t src_len = GetLenOfSqltcharArray(const_cast<SQLTCHAR*>(app_data), StrLen_or_Ind, use_4_app);
+        // StrLen_or_Ind is a byte count, GetLenOfSqltcharArray expects characters.
+        const SQLLEN char_len = StrLen_or_Ind > 0
+            ? StrLen_or_Ind / static_cast<SQLLEN>(use_4_app ? sizeof(SQLTCHAR) * 2 : sizeof(SQLTCHAR))
+            : StrLen_or_Ind;
+        const size_t src_len = GetLenOfSqltcharArray(const_cast<SQLTCHAR*>(app_data), char_len, use_4_app);
         const size_t local_buf_size = use_4_base ? (src_len + 1) * 2 : src_len + 1;
         std::vector<SQLTCHAR> local_buf(local_buf_size, 0);
 

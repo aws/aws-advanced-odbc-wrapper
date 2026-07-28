@@ -100,7 +100,7 @@ SsoBrowserLoginUtil::SsoBrowserLoginUtil(
     const std::shared_ptr<Aws::SSO::SSOClient>& sso_client)
 {
     ParseSsoConfig(connection_attributes);
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
 
     // SSO/SSO-OIDC are not SigV4 APIs; anonymous creds stop the SDK signing
     // IdC rejects a signed CreateToken with InvalidRequestException
@@ -131,6 +131,7 @@ SsoBrowserLoginUtil::~SsoBrowserLoginUtil()
     if (sso_client_) {
         sso_client_ = nullptr;
     }
+    AwsSdkHelper::Shutdown();
 }
 
 void SsoBrowserLoginUtil::ParseSsoConfig(const std::map<std::string, std::string>& connection_attributes)

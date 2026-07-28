@@ -75,7 +75,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
     secret_key = secret_id + "-" + region;
 
-    AwsSdkHelper::EnsureInitialized();
+    AwsSdkHelper::Init();
     if (client) {
         secrets_manager_client = client;
     } else {
@@ -103,6 +103,7 @@ SecretsManagerPlugin::~SecretsManagerPlugin()
 {
     if (secrets_manager_client) {
         secrets_manager_client.reset();
+        AwsSdkHelper::Shutdown();
     }
 }
 

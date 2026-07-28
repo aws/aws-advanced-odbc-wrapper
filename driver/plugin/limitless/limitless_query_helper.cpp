@@ -41,8 +41,13 @@ std::vector<HostInfo> LimitlessQueryHelper::QueryForLimitlessRouters(
     const DBC* dbc = static_cast<DBC*>(conn);
     SQLHSTMT stmt = SQL_NULL_HANDLE;
 
+    if (!dbc || !dbc->wrapped_dbc) {
+        LOG(WARNING) << "Cannot query routers, underlying DBC nulled";
+        return {};
+    }
+
     const RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
-    if (!SQL_SUCCEEDED(res.fn_result)) {
+    if (!SQL_SUCCEEDED(res.fn_result) || stmt == SQL_NULL_HANDLE) {
         LOG(WARNING) << "Failed to allocate statement handle to query routers";
         return {};
     }
