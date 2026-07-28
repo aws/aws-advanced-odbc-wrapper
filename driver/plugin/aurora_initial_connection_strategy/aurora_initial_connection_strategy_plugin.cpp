@@ -68,7 +68,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     const bool is_monitoring_conn = MapUtils::GetBooleanValue(conn_info, KEY_MONITORING_CONN_UUID, false);
     if (!RdsUtils::IsRdsClusterDns(host) || is_monitoring_conn) {
         LOG(WARNING) << "Non-RdsClusterDns or internal monitoring connection detected. Bypassing Aurora Initial Connection Strategy plugin.";
-        return next_plugin->Connect(
+        return ConnectNext(
             ConnectionHandle,
             WindowHandle,
             OutConnectionString,
@@ -100,7 +100,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::Connect(
     }
 
     LOG(WARNING) << "Unable to determine connection type. Attempting connection with default connection parameters.";
-    return next_plugin->Connect(
+    return ConnectNext(
         ConnectionHandle,
         WindowHandle,
         OutConnectionString,
@@ -126,7 +126,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
             HostInfo writer_candidate = service->GetTopologyUtil()->GetWriter(service->GetHosts());
             if (writer_candidate.GetHost().empty()) {
                 LOG(WARNING) << "Could not find valid writer host. Attempting connection with default connection parameters.";
-                rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                rc = ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
                 if (!SQL_SUCCEEDED(rc)) {
                     if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                         LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
@@ -151,7 +151,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
             }
 
             dbc->conn_attr.insert_or_assign(KEY_SERVER, writer_candidate.GetHost());
-            rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+            rc = ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
             if (!SQL_SUCCEEDED(rc)) {
                 if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
@@ -166,7 +166,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedWriter(
         }
     }
     LOG(WARNING) << "Retry timeout exceeded and unable to find a writer host. Attempting connection with default connection parameters.";
-    return next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    return ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 }
 
 SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
@@ -195,7 +195,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             HostInfo reader_candidate = this->GetReader(region);
             if (reader_candidate.GetHost().empty()) {
                 LOG(WARNING) << "Could not find valid reader host. Connecting with default server properties.";
-                rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                rc = ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
                 if (!SQL_SUCCEEDED(rc)) {
                     if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                         LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
@@ -233,7 +233,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
             }
             LOG(INFO) << "Connecting to reader host: " << reader_candidate.GetHost();
             dbc->conn_attr.insert_or_assign(KEY_SERVER, reader_candidate.GetHost());
-            rc = next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+            rc = ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (!SQL_SUCCEEDED(rc)) {
                 if (dialect_->IsSqlStateNetworkError(odbc_helper_->GetSqlStateAndLogMessage(dbc).c_str())) {
                     LOG(WARNING) << "Failed connection due to network error. Retrying connection.";
@@ -263,7 +263,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
         }
     }
     LOG(WARNING) << "Retry timeout exceeded and unable to find a reader host. Using default connection parameters.";
-    return next_plugin->Connect(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    return ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 }
 
 HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string region) {

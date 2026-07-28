@@ -133,7 +133,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, cached_secret.password);
-                ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+                ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 LOG(INFO) << "Existing secrets are expired";
                 secrets_cache.erase(secret_key);
@@ -163,7 +163,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
         dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
-        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
     ClearError(dbc);

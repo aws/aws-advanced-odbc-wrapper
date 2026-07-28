@@ -2964,6 +2964,9 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             }
 
             // Finalize and track in DBC
+            if (!plugin_head) {
+                throw std::runtime_error("Plugin chain construction produced an empty chain.");
+            }
             dbc->plugin_head = plugin_head.get();
             dbc->plugin_service->SetPluginChain(plugin_head);
         }

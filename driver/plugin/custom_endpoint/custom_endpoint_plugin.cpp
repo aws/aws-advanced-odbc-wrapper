@@ -100,13 +100,13 @@ SQLRETURN CustomEndpointPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     const DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
-        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     const std::string host = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
 
     if (!RdsUtils::IsRdsDns(host)) {
-        return next_plugin->Connect(
+        return ConnectNext(
             ConnectionHandle,
             WindowHandle,
             OutConnectionString,
@@ -120,7 +120,7 @@ SQLRETURN CustomEndpointPlugin::Connect(
         WaitForInfo();
     }
 
-    return next_plugin->Connect(
+    return ConnectNext(
         ConnectionHandle,
         WindowHandle,
         OutConnectionString,
@@ -139,7 +139,7 @@ SQLRETURN CustomEndpointPlugin::Execute(
     if (this->wait_for_info_) {
         WaitForInfo();
     }
-    return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    return ExecuteNext(StatementHandle, StatementText, TextLength);
 }
 
 std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor() {

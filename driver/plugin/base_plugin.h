@@ -46,6 +46,19 @@ public:
     virtual void ReleaseResources();
 
 protected:
+    SQLRETURN ConnectNext(
+        SQLHDBC        ConnectionHandle,
+        SQLHWND        WindowHandle,
+        SQLTCHAR *     OutConnectionString,
+        SQLSMALLINT    BufferLength,
+        SQLSMALLINT *  StringLengthPtr,
+        SQLUSMALLINT   DriverCompletion);
+
+    SQLRETURN ExecuteNext(
+        SQLHSTMT       StatementHandle,
+        SQLTCHAR *     StatementText,
+        SQLINTEGER     TextLength);
+
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
     std::shared_ptr<BasePlugin> next_plugin = nullptr;
     std::string plugin_name;

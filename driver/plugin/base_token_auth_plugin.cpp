@@ -119,7 +119,7 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     const bool is_cached_token = token.second;
 
     dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-    SQLRETURN ret = next_plugin->Connect(
+    SQLRETURN ret = ConnectNext(
         ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     if (SQL_SUCCEEDED(ret)) {
@@ -151,7 +151,7 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     token = auth_provider->GetToken(
         iam_host, region, port, username, false, extra_url_encode, token_expiration);
     dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
-    ret = next_plugin->Connect(
+    ret = ConnectNext(
         ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     return ret;

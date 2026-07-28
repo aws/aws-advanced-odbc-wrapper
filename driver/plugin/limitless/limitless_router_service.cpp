@@ -110,6 +110,14 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         return SQL_INVALID_HANDLE;
     }
 
+    if (next_plugin == nullptr) {
+        LOG(ERROR) << "Null next plugin passed to EstablishConnection";
+        const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
+        ClearError(dbc);
+        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin has no next plugin to delegate Connect to.", ERR_GENERAL_ERROR);
+        return SQL_ERROR;
+    }
+
     std::shared_ptr<LimitlessRouterMonitor> monitor;
     std::vector<HostInfo> limitless_routers;
     {

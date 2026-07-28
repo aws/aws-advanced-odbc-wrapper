@@ -56,7 +56,7 @@ SQLRETURN BlueGreenPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
-        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     this->ResetRoutingTiming();
@@ -184,20 +184,20 @@ SQLRETURN BlueGreenPlugin::Execute(
     this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
     if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
         LOG(INFO) << "Default execution, no status found: " << this->blue_green_id_;
-        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+        return ExecuteNext(StatementHandle, StatementText, TextLength);
     }
 
     std::string conn_host = stmt->dbc->conn_attr.at(KEY_SERVER);
     BlueGreenRole host_role = this->blue_green_status_.GetRole(conn_host);
     if (host_role.GetRole() == BlueGreenRole::UNKNOWN) {
         LOG(INFO) << "Default execution, unexpected role: UNKNOWN, host: " << conn_host;
-        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+        return ExecuteNext(StatementHandle, StatementText, TextLength);
     }
 
     std::vector<std::shared_ptr<BaseExecuteRouting>> execute_routes = this->blue_green_status_.GetExecuteRoutes();
     if (execute_routes.empty()) {
         LOG(INFO) << "Default execution, no routes found for: " << conn_host;
-        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+        return ExecuteNext(StatementHandle, StatementText, TextLength);
     }
 
     auto route_itr = std::find_if(execute_routes.begin(), execute_routes.end(),
@@ -207,7 +207,7 @@ SQLRETURN BlueGreenPlugin::Execute(
 
     if (route_itr == execute_routes.end()) {
         LOG(INFO) << "Default execution, no routes matched for role: " << host_role.ToString() << ", host: " << conn_host;
-        return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+        return ExecuteNext(StatementHandle, StatementText, TextLength);
     }
 
     SQLRETURN rc = SQL_ERROR;
@@ -223,7 +223,7 @@ SQLRETURN BlueGreenPlugin::Execute(
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::steady_clock::now();
                     LOG(WARNING) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;
-                    return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+                    return ExecuteNext(StatementHandle, StatementText, TextLength);
                 }
 
                 execute_routes = this->blue_green_status_.GetExecuteRoutes();
@@ -244,7 +244,7 @@ SQLRETURN BlueGreenPlugin::Execute(
         }
 
         LOG(WARNING) << "Default execution, out of routes: " << host_role.ToString() << ", host: " << conn_host;
-        rc = next_plugin->Execute(StatementHandle, StatementText, TextLength);
+        rc = ExecuteNext(StatementHandle, StatementText, TextLength);
     } catch (const std::exception& ex) {
         ClearError(stmt);
         std::string error_message("Blue/Green Execute route failed: ");
@@ -280,7 +280,7 @@ SQLRETURN BlueGreenPlugin::InitConnection(
     SQLSMALLINT* StringLengthPtr,
     SQLUSMALLINT DriverCompletion)
 {
-    const SQLRETURN rc = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    const SQLRETURN rc = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
     if (SQL_SUCCEEDED(rc)) {
         this->InitProvider();

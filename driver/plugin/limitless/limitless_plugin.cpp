@@ -64,7 +64,7 @@ SQLRETURN LimitlessPlugin::Connect(
     LOG(INFO) << "Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
     if (dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
-        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     const std::shared_ptr<DialectLimitless> limitless_dialect = std::dynamic_pointer_cast<DialectLimitless>(this->dialect_);
@@ -92,5 +92,5 @@ SQLRETURN LimitlessPlugin::Connect(
         }
     }
 
-    return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+    return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 }
