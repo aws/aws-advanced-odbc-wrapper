@@ -46,11 +46,8 @@ if(NOT WIN32)
     list(APPEND AWS_DYN_LIBS
         core aws-crt-cpp aws-c-http aws-c-mqtt aws-c-cal aws-c-auth aws-c-common
         aws-c-io aws-checksums aws-c-event-stream aws-c-s3 aws-c-compression
-        aws-c-sdkutils rds secretsmanager sts sso sso-oidc
+        aws-c-sdkutils rds secretsmanager sts sso sso-oidc s2n
     )
-    if(NOT APPLE)
-        list(APPEND AWS_DYN_LIBS s2n)
-    endif()
 endif()
 
 # -- ODBC --
