@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Segmentation faults from invalid ODBC handles and monitor thread races [(PR #157)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/157)
-- Schema-qualified internal SQL queries so Blue/Green detection [(PR #158)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/158)
+- Schema-qualified internal SQL queries for Blue/Green detection [(PR #158)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/158)
 
 ## [1.2.0] - 2026-06-16
 
