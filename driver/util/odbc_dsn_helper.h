@@ -27,6 +27,7 @@
 namespace OdbcDsnHelper {
     void LoadAll(const std::string &dsn_key, std::map<std::string, std::string> &conn_map);
     std::string Load(const std::string &dsn_key, const std::string &entry_key);
+    std::string ResolveDriverName(const std::string &driver_name);
 }
 
 #endif // ODBC_DSN_HELPER_H_

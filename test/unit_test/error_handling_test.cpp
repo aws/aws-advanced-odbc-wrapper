@@ -17,6 +17,7 @@
 #include "../../driver/driver.h"
 #include "../../driver/odbcapi_rds_helper.h"
 #include "../../driver/error.h"
+#include "../../driver/util/connection_string_keys.h"
 
 class ErrorHandlingTest : public testing::Test {
 protected:
@@ -248,15 +249,45 @@ TEST_F(ErrorHandlingTest, DiagRec_RecordTwoReturnsNoData) {
     EXPECT_EQ(SQL_NO_DATA, ret);
 }
 
+TEST_F(ErrorHandlingTest, InitializeConnection_UnloadableDriverReturnsErrorDiagnostic) {
+    dbc->conn_attr[KEY_BASE_DRIVER] = "/nonexistent/path/no-such-driver.so";
+
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+
+    ASSERT_TRUE(dbc->err);
+    EXPECT_STREQ("IM003", dbc->err->sqlstate);
+    const std::string message(dbc->err->error_msg);
+    EXPECT_NE(std::string::npos, message.find("/nonexistent/path/no-such-driver.so"));
+    EXPECT_FALSE(env->driver_lib_loader);
+}
+
+TEST_F(ErrorHandlingTest, InitializeConnection_UnregisteredDriverNameReturnsErrorDiagnostic) {
+    dbc->conn_attr[KEY_BASE_DRIVER] = "DefinitelyNotARegisteredOdbcDriver123";
+
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+
+    ASSERT_TRUE(dbc->err);
+    EXPECT_STREQ("IM003", dbc->err->sqlstate);
+    const std::string message(dbc->err->error_msg);
+    EXPECT_NE(std::string::npos, message.find("DefinitelyNotARegisteredOdbcDriver123"));
+    EXPECT_FALSE(env->driver_lib_loader);
+}
+
+TEST_F(ErrorHandlingTest, InitializeConnection_NoDriverKeepsExistingDiagnostic) {
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+
+    ASSERT_TRUE(dbc->err);
+    EXPECT_EQ(static_cast<SQLINTEGER>(ERR_NO_UNDER_LYING_DRIVER), dbc->err->native_err);
+}
+
 TEST_F(ErrorHandlingTest, DiagRec_InvalidHandleType) {
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = {0};
     SQLINTEGER native_error = 0;
     SQLTCHAR message[MAX_MSG_LEN] = {0};
     SQLSMALLINT text_length = 0;
-
-    SQLRETURN ret = RDS_SQLGetDiagRec(
-        99, dbc, 1,
-        sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
+    
+    const SQLSMALLINT INVALID_HANDLE_TYPE = 999;
+    SQLRETURN ret = RDS_SQLGetDiagRec(INVALID_HANDLE_TYPE, dbc, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
 
     EXPECT_EQ(SQL_INVALID_HANDLE, ret);
 }

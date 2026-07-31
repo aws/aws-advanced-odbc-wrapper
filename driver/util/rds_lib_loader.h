@@ -65,14 +65,17 @@ public:
     RdsLibResult CallFunction(const std::string& func_name, Args... args);
     virtual FUNC_HANDLE GetFunction(const std::string& function_name);
     std::string GetDriverPath();
+    bool IsLoaded() const;
+    std::string GetLoadError();
 
 protected:
 private:
     std::string driver_path;
+    std::string load_error;
 
-    MODULE_HANDLE driver_handle;
+    MODULE_HANDLE driver_handle = nullptr;
 
-    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache;
+    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
 };
 
 template <typename RDS_Func, typename... Args>

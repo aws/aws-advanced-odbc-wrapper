@@ -50,6 +50,7 @@ aws_sdk/*
 # Test Files
 odbc.ini
 odbcinst.ini
+!test/unit_test/resources/odbcinst.ini
 *.log
 
 # Installer Files
