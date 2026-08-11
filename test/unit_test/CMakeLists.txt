@@ -51,6 +51,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/plugin_service_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/random_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/read_write_splitting_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rds_lib_loader_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_strings_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/round_robin_host_selector_test.cpp

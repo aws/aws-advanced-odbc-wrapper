@@ -97,6 +97,43 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
     }
 }
 
+std::string OdbcDsnHelper::ResolveDriverName(const std::string &driver_name)
+{
+    int size = 0;
+
+#ifdef UNICODE
+    std::vector<uint16_t> driver_name_vec = ConvertUTF8ToUTF16(driver_name);
+    uint16_t *driver_name_ushort = driver_name_vec.data();
+
+    std::vector<uint16_t> entry_key_vec = ConvertUTF8ToUTF16(KEY_DRIVER);
+    uint16_t *entry_key_ushort = entry_key_vec.data();
+
+    std::vector<uint16_t> empty_vec = ConvertUTF8ToUTF16("");
+    uint16_t *empty = empty_vec.data();
+    std::vector<uint16_t> odbcinst_ini_vec = ConvertUTF8ToUTF16(ODBCINST_INI);
+    odbcinst_ini_vec.push_back(0);
+    uint16_t *odbcinst_ini = odbcinst_ini_vec.data();
+
+    uint16_t buffer_utf16[MAX_VAL_SIZE];
+    size = SQLGetPrivateProfileString(reinterpret_cast<SQLWCHAR*>(driver_name_ushort), reinterpret_cast<SQLWCHAR*>(entry_key_ushort), reinterpret_cast<SQLWCHAR*>(empty), reinterpret_cast<SQLWCHAR*>(buffer_utf16), MAX_VAL_SIZE, reinterpret_cast<SQLWCHAR*>(odbcinst_ini));
+
+    if (size < 1) {
+        LOG(WARNING) << "No driver registered under name: " << driver_name;
+        return {};
+    }
+    return ConvertUTF16ToUTF8(buffer_utf16);
+#else
+    char buffer[MAX_VAL_SIZE];
+    size = SQLGetPrivateProfileString(driver_name.c_str(), KEY_DRIVER, EMPTY_RDS_STR, buffer, MAX_VAL_SIZE, ODBCINST_INI);
+
+    if (size < 1) {
+        LOG(WARNING) << "No driver registered under name: " << driver_name;
+        return {};
+    }
+    return { buffer };
+#endif
+}
+
 std::string OdbcDsnHelper::Load(const std::string &dsn_key, const std::string &entry_key)
 {
     int size = 0;

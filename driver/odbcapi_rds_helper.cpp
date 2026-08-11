@@ -2815,11 +2815,38 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         const std::lock_guard env_guard(env->lock);
         if (dbc->conn_attr.contains(KEY_DRIVER)) {
             // TODO - Need to ensure the paths (slashes) are correct per OS
-            const std::string driver_path = dbc->conn_attr.at(KEY_DRIVER);
+            const std::string driver_value = dbc->conn_attr.at(KEY_DRIVER);
+
+            std::string driver_path = driver_value;
+            // If driver does not contain slashes which are used to indicate paths on OS
+            // try to load driver from odbcinst / installed drivers list by name
+            if (driver_value.find('/') == std::string::npos && driver_value.find('\\') == std::string::npos) {
+                driver_path = OdbcDsnHelper::ResolveDriverName(driver_value);
+                if (driver_path.empty()) {
+                    const std::string load_err_message = "Cannot load underlying driver '" + driver_value
+                        + "': no ODBC driver registered under this name (odbcinst.ini) and the value is not a path";
+                    LOG(ERROR) << load_err_message;
+                    ClearError(dbc);
+                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    return SQL_ERROR;
+                }
+            }
 
             // Load Module to Env if empty
             if (!env->driver_lib_loader) {
-                env->driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
+                auto driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
+                if (!driver_lib_loader->IsLoaded()) {
+                    std::string load_err_message = "Cannot load underlying driver '" + driver_value + "'";
+                    if (driver_path != driver_value) {
+                        load_err_message += " (resolved to '" + driver_path + "')";
+                    }
+                    load_err_message += ": " + driver_lib_loader->GetLoadError();
+                    LOG(ERROR) << load_err_message;
+                    ClearError(dbc);
+                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    return SQL_ERROR;
+                }
+                env->driver_lib_loader = driver_lib_loader;
             } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
                 LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
                 ClearError(dbc);
