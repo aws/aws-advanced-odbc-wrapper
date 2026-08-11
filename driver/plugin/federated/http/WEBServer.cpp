@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "../../../util/logger_wrapper.h"
+#include "../../../util/number_utils.h"
 #include "HtmlResponse.h"
 #include "SocketStream.h"
 #include "WEBServer.h"
@@ -30,7 +31,7 @@ WEBServer::WEBServer( std::string& state,
     std::string& port, std::string& timeout) :
         state_(state),
         port_(port),
-        timeout_(std::stoi(timeout)),
+        timeout_(NumberUtils::ParseInt(timeout).value_or(DEFAULT_TIMEOUT_SECS)),
         listen_port_(0),
         connections_counter_(0),
         listening_(false)

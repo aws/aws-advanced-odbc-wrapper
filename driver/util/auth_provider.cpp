@@ -28,6 +28,7 @@
 #include "connection_string_keys.h"
 #include "logger_wrapper.h"
 #include "map_utils.h"
+#include "number_utils.h"
 #include "plugin_service.h"
 
 AuthProvider::AuthProvider(const std::string &region) {
@@ -126,8 +127,14 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         }
     }
 
+    const std::optional<int> parsed_port = NumberUtils::ParseInt(port);
+    if (!parsed_port.has_value()) {
+        // A token signed for a bogus port can never authenticate, fail fast instead.
+        LOG(ERROR) << "Invalid port \"" << port << "\" for auth token generation";
+        return {"", false};
+    }
     const std::string aws_token =
-        rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), std::strtol(port.c_str(), nullptr, 0), username.c_str());
+        rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), parsed_port.value(), username.c_str());
     token_info.token = extra_url_encode ? ExtraUrlEncodeString(aws_token) : aws_token;
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);

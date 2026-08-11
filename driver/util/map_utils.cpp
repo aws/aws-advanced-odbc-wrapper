@@ -16,17 +16,40 @@
 
 #include <chrono>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "connection_string_keys.h"
+#include "logger_wrapper.h"
+#include "number_utils.h"
 
+namespace {
+    // Returns the parsed value, or std::nullopt (with a warning) when the key is present but its value is not a valid base-10 integer.
+    std::optional<int64_t> ParseValue(const std::map<std::string, std::string> &map, const std::string &key) {
+        if (!map.contains(key)) {
+            return std::nullopt;
+        }
+        const std::string &value = map.at(key);
+        const std::optional<int64_t> parsed = NumberUtils::ParseInt64(value);
+        if (!parsed.has_value()) {
+            LOG(WARNING) << "Invalid numeric value \"" << value << "\" for attribute " << key << "; using default";
+        }
+        return parsed;
+    }
+}  // namespace
 
 std::string MapUtils::GetStringValue(const std::map<std::string, std::string> &map, const std::string &key, const std::string &defaultValue) {
     return map.contains(key) ? map.at(key) : defaultValue;
 }
 
 std::chrono::milliseconds MapUtils::GetMillisecondsValue(const std::map<std::string, std::string> &map, const std::string &key, const std::chrono::milliseconds &defaultValue) {
-    return map.contains(key) ? std::chrono::milliseconds(static_cast<int>(std::strtol(map.at(key).c_str(), nullptr, 0))) : defaultValue;
+    const std::optional<int64_t> parsed = ParseValue(map, key);
+    return parsed.has_value() ? std::chrono::milliseconds(parsed.value()) : defaultValue;
+}
+
+std::chrono::seconds MapUtils::GetSecondsValue(const std::map<std::string, std::string> &map, const std::string &key, const std::chrono::seconds &defaultValue) {
+    const std::optional<int64_t> parsed = ParseValue(map, key);
+    return parsed.has_value() ? std::chrono::seconds(parsed.value()) : defaultValue;
 }
 
 bool MapUtils::GetBooleanValue(const std::map<std::string, std::string> &map, const std::string &key, const bool defaultValue) {
@@ -34,5 +57,14 @@ bool MapUtils::GetBooleanValue(const std::map<std::string, std::string> &map, co
 }
 
 int MapUtils::GetIntValue(const std::map<std::string, std::string> &map, const std::string &key, const int defaultValue) {
-    return map.contains(key) ? static_cast<int>(std::strtol(map.at(key).c_str(), nullptr, 0))  : defaultValue;
+    if (!map.contains(key)) {
+        return defaultValue;
+    }
+    const std::string &value = map.at(key);
+    const std::optional<int> parsed = NumberUtils::ParseInt(value);
+    if (!parsed.has_value()) {
+        LOG(WARNING) << "Invalid numeric value \"" << value << "\" for attribute " << key << "; using default";
+        return defaultValue;
+    }
+    return parsed.value();
 }

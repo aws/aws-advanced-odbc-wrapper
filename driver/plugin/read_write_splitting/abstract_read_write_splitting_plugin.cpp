@@ -17,6 +17,7 @@
 #include "abstract_read_write_splitting_plugin.h"
 
 #include "../../odbcapi_rds_helper.h"
+#include "../../util/map_utils.h"
 #include "../../util/plugin_service.h"
 #include "../../util/sql_query_analyzer.h"
 
@@ -379,9 +380,8 @@ SQLRETURN AbstractReadWriteSplittingPlugin::SwitchToReaderConnection(const HostI
 
 std::pair<std::chrono::steady_clock::time_point, std::chrono::milliseconds>
 AbstractReadWriteSplittingPlugin::GetKeepAliveTimeout() {
-    const std::chrono::milliseconds keep_alive_timeout = dbc_->conn_attr.contains(KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS) ?
-       std::chrono::milliseconds(std::strtol(dbc_->conn_attr.at(KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS).c_str(), nullptr, 0))
-       : default_keep_alive_timeout_;
+    const std::chrono::milliseconds keep_alive_timeout = MapUtils::GetMillisecondsValue(
+        dbc_->conn_attr, KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS, default_keep_alive_timeout_);
     const std::chrono::steady_clock::time_point expiry_time = std::chrono::steady_clock::now() + keep_alive_timeout;
     return std::pair{expiry_time, keep_alive_timeout};
 }
