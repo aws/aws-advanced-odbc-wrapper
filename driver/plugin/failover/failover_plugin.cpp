@@ -43,9 +43,7 @@ FailoverPlugin::FailoverPlugin(
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 
     std::map<std::string, std::string> &conn_info = dbc->conn_attr;
-    this->failover_timeout_ms_= conn_info.contains(KEY_FAILOVER_TIMEOUT) ?
-        std::chrono::milliseconds(std::strtol(conn_info.at(KEY_FAILOVER_TIMEOUT).c_str(), nullptr, 0))
-        : DEFAULT_FAILOVER_TIMEOUT_MS;
+    this->failover_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_FAILOVER_TIMEOUT, DEFAULT_FAILOVER_TIMEOUT_MS);
     this->failover_mode_ = InitFailoverMode(conn_info);
 }
 

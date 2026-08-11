@@ -98,9 +98,9 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     const std::string region = ResolveRegion(dbc);
     const std::string port = AuthProvider::GetPort(dbc);
     const std::string username = MapUtils::GetStringValue(dbc->conn_attr, KEY_DB_USERNAME, "");
-    const std::chrono::milliseconds token_expiration = dbc->conn_attr.contains(KEY_TOKEN_EXPIRATION) ?
-        std::chrono::seconds(std::strtol(dbc->conn_attr.at(KEY_TOKEN_EXPIRATION).c_str(), nullptr, 10))
-        : AuthProvider::DEFAULT_EXPIRATION_MS;
+    const std::chrono::milliseconds token_expiration = MapUtils::GetSecondsValue(
+        dbc->conn_attr, KEY_TOKEN_EXPIRATION,
+        std::chrono::duration_cast<std::chrono::seconds>(AuthProvider::DEFAULT_EXPIRATION_MS));
     const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
 
     if (!ValidateRequiredParams(dbc, iam_host, region, port, username)) {

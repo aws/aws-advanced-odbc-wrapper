@@ -39,7 +39,9 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
     const std::string endpoint = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ENDPOINT, "");
     const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
 
-    expiration_ms = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_TOKEN_EXPIRATION, DEFAULT_EXPIRATION_MS);
+    expiration_ms = MapUtils::GetSecondsValue(
+        dbc->conn_attr, KEY_TOKEN_EXPIRATION,
+        std::chrono::duration_cast<std::chrono::seconds>(DEFAULT_EXPIRATION_MS));
 
     username_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_USERNAME_PROPERTY, DEFAULT_SECRET_USERNAME_KEY);
     password_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);

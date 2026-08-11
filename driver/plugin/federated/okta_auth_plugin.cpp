@@ -27,6 +27,7 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
+#include "../../util/number_utils.h"
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
 
@@ -306,7 +307,8 @@ std::string OktaSamlUtil::VerifyPushChallenge(
     const std::string &verify_url,
     const std::string &state_token)
 {
-    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now() + std::chrono::seconds(std::strtol(mfa_timeout.c_str(), nullptr, 0));
+    const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now()
+        + std::chrono::seconds(NumberUtils::ParseInt(mfa_timeout).value_or(DEFAULT_MFA_TIMEOUT_SECS));
     while (std::chrono::steady_clock::now() < end_time) {
         const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
             verify_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);

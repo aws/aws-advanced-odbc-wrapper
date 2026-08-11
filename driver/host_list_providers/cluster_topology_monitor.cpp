@@ -23,6 +23,7 @@
 #include "../util/connection_string_helper.h"
 #include "../util/connection_string_keys.h"
 #include "../util/logger_wrapper.h"
+#include "../util/map_utils.h"
 #include "../util/odbc_helper.h"
 #include "../util/rds_utils.h"
 
@@ -53,18 +54,12 @@ ClusterTopologyMonitor::ClusterTopologyMonitor(
       dialect_{ plugin_service->GetDialect() },
       odbc_helper_{ plugin_service->GetOdbcHelper() }
 {
-    if (connection_attributes_.contains(KEY_IGNORE_TOPOLOGY_REQUEST)) {
-        ignore_topology_request_ms_ = std::chrono::milliseconds(std::strtol(
-            connection_attributes_.at(KEY_IGNORE_TOPOLOGY_REQUEST).c_str(), nullptr, 0));
-    }
-    if (connection_attributes_.contains(KEY_HIGH_REFRESH_RATE)) {
-        high_refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            connection_attributes_.at(KEY_HIGH_REFRESH_RATE).c_str(), nullptr, 0));
-    }
-    if (connection_attributes_.contains(KEY_REFRESH_RATE)) {
-        refresh_rate_ms_ = std::chrono::milliseconds(std::strtol(
-            connection_attributes_.at(KEY_REFRESH_RATE).c_str(), nullptr, 0));
-    }
+    ignore_topology_request_ms_ = MapUtils::GetMillisecondsValue(
+        connection_attributes_, KEY_IGNORE_TOPOLOGY_REQUEST, ignore_topology_request_ms_);
+    high_refresh_rate_ms_ = MapUtils::GetMillisecondsValue(
+        connection_attributes_, KEY_HIGH_REFRESH_RATE, high_refresh_rate_ms_);
+    refresh_rate_ms_ = MapUtils::GetMillisecondsValue(
+        connection_attributes_, KEY_REFRESH_RATE, refresh_rate_ms_);
 
     connection_attributes_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 

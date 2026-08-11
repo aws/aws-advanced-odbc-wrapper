@@ -48,7 +48,8 @@ private:
 
     std::string VerifyPushChallenge(const std::string &verify_url, const std::string &state_token);
 
-    static inline const std::string DEFAULT_MFA_TIMEOUT = "60";
+    static constexpr int DEFAULT_MFA_TIMEOUT_SECS = 60;
+    static inline const std::string DEFAULT_MFA_TIMEOUT = std::to_string(DEFAULT_MFA_TIMEOUT_SECS);
     static inline const int VERIFY_PUSH_INTERVAL = 5;
     static inline const std::string DEFAULT_PORT = "8080";
     static inline const std::string WEBSERVER_HOST = "http://127.0.0.1";

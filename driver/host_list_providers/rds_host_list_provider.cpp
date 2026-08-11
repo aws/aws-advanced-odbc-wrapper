@@ -15,6 +15,7 @@
 #include "rds_host_list_provider.h"
 
 #include "../util/connection_string_keys.h"
+#include "../util/map_utils.h"
 #include "../util/rds_utils.h"
 #include "../util/logger_wrapper.h"
 
@@ -32,10 +33,8 @@ RdsHostListProvider::RdsHostListProvider(
     HostListProvider(std::move(cluster_id))
 {
     this->initial_host_info_ = HostInfo(
-        conn_attr_.contains(KEY_SERVER) ?
-            conn_attr_.at(KEY_SERVER) : "",
-        conn_attr_.contains(KEY_PORT) ?
-            static_cast<int>(std::strtol(conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
+        MapUtils::GetStringValue(conn_attr_, KEY_SERVER, ""),
+        MapUtils::GetIntValue(conn_attr_, KEY_PORT, HostInfo::NO_PORT)
     );
     this->template_host_info_ = plugin_service->GetTemplateHostInfo();
     this->conn_attr_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);

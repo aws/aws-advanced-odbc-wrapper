@@ -16,8 +16,11 @@
 
 #include "plugin_service.h"
 
+#include <optional>
+
 #include "../driver.h"
 #include "map_utils.h"
+#include "number_utils.h"
 #include "rds_utils.h"
 
 #include "../dialect/dialect.h"
@@ -44,20 +47,22 @@ PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, co
     original_conn_attr_{ std::move(original_conn_attr) }
 {
     this->initial_host_ = HostInfo(
-        original_conn_attr_.contains(KEY_SERVER) ?
-            original_conn_attr_.at(KEY_SERVER) : "",
-        original_conn_attr_.contains(KEY_PORT) ?
-            static_cast<int>(std::strtol(original_conn_attr_.at(KEY_PORT).c_str(), nullptr, 0)) : HostInfo::NO_PORT
+        MapUtils::GetStringValue(original_conn_attr_, KEY_SERVER, ""),
+        MapUtils::GetIntValue(original_conn_attr_, KEY_PORT, HostInfo::NO_PORT)
     );
     this->current_host_ = this->initial_host_;
 
     if (original_conn_attr_.contains(KEY_ENDPOINT_TEMPLATE)) {
         const std::string pattern = original_conn_attr_.at(KEY_ENDPOINT_TEMPLATE);
         const size_t colon_pos = pattern.rfind(':');
-        if (colon_pos != std::string::npos && colon_pos > pattern.rfind('.')) {
+        const bool has_port_suffix = colon_pos != std::string::npos && colon_pos > pattern.rfind('.');
+        if (has_port_suffix) {
             const std::string host_part = pattern.substr(0, colon_pos);
-            const int port_part = static_cast<int>(std::strtol(pattern.substr(colon_pos + 1).c_str(), nullptr, 0));
-            this->template_host_ = HostInfo(host_part, port_part);
+            const std::optional<int> port_part = NumberUtils::ParseInt(pattern.substr(colon_pos + 1));
+            if (!port_part.has_value()) {
+                LOG(WARNING) << "Invalid port in " << KEY_ENDPOINT_TEMPLATE << " \"" << pattern << "\"; using the connection port";
+            }
+            this->template_host_ = HostInfo(host_part, port_part.value_or(this->initial_host_.GetPort()));
         } else {
             this->template_host_ = HostInfo(pattern, this->initial_host_.GetPort());
         }

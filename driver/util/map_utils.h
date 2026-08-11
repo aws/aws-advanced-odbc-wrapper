@@ -24,6 +24,8 @@ namespace MapUtils {
 
     std::chrono::milliseconds GetMillisecondsValue(const std::map<std::string, std::string> &map, const std::string &key, const std::chrono::milliseconds &defaultValue);
 
+    std::chrono::seconds GetSecondsValue(const std::map<std::string, std::string> &map, const std::string &key, const std::chrono::seconds &defaultValue);
+
     bool GetBooleanValue(const std::map<std::string, std::string> &map, const std::string &key, const bool defaultValue);
 
     int GetIntValue(const std::map<std::string, std::string> &map, const std::string &key, const int defaultValue);

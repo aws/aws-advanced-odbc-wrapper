@@ -38,13 +38,13 @@ SamlUtil::SamlUtil(
     } else {
         Aws::Client::ClientConfiguration http_client_config;
         if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
-            const std::string socket_timeout_str = connection_attributes.at(KEY_HTTP_SOCKET_TIMEOUT);
-            const int64_t socket_timeout = std::strtol(socket_timeout_str.c_str(), nullptr, 0);
+            const int socket_timeout = MapUtils::GetIntValue(
+                connection_attributes, KEY_HTTP_SOCKET_TIMEOUT, DEFAULT_SOCKET_TIMEOUT_MS);
             http_client_config.requestTimeoutMs = socket_timeout > 0 ? socket_timeout : DEFAULT_SOCKET_TIMEOUT_MS;
         }
         if (connection_attributes.contains(KEY_HTTP_CONNECT_TIMEOUT)) {
-            const std::string connect_timeout_str = connection_attributes.at(KEY_HTTP_CONNECT_TIMEOUT);
-            const int64_t connect_timeout = std::strtol(connect_timeout_str.c_str(), nullptr, 0);
+            const int connect_timeout = MapUtils::GetIntValue(
+                connection_attributes, KEY_HTTP_CONNECT_TIMEOUT, DEFAULT_CONNECT_TIMEOUT_MS);
             http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
         }
         http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;

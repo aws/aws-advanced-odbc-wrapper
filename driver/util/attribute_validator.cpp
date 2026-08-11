@@ -15,9 +15,11 @@
 #include "attribute_validator.h"
 
 #include <map>
+#include <optional>
 #include <unordered_set>
 
 #include "connection_string_keys.h"
+#include "number_utils.h"
 #include "rds_strings.h"
 
 bool AttributeValidator::ShouldKeyBeUnsignedInt(const std::string& key) {
@@ -36,25 +38,32 @@ bool AttributeValidator::ShouldKeyBeUnsignedInt(const std::string& key) {
         KEY_ROUTER_MAX_RETRIES,
         KEY_LIMITLESS_MAX_RETRIES,
         KEY_MFA_PORT,
-        KEY_MFA_TIMEOUT
+        KEY_MFA_TIMEOUT,
+        KEY_LISTEN_PORT,
+        KEY_IDP_RESPONSE_TIMEOUT,
+        KEY_SSO_LISTEN_PORT,
+        KEY_SSO_IDP_RESPONSE_TIMEOUT,
+        KEY_CACHED_READER_KEEP_ALIVE_TIMEOUT_MS,
+        KEY_SRW_CONN_TIMEOUT_MS,
+        KEY_SRW_CONN_INTERVAL_MS,
+        KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS,
+        KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS,
+        KEY_CUSTOM_ENDPOINT_INTERVAL_MS,
+        KEY_CUSTOM_ENDPOINT_MAX_INTERVAL_MS,
+        KEY_CUSTOM_ENDPOINT_BACKOFF_RATE,
+        KEY_WAIT_FOR_CUSTOM_ENDPOINT_INFO_TIMEOUT_MS,
+        KEY_BG_CONNECT_TIMEOUT_MS,
+        KEY_BG_BASELINE_REFRESH_MS,
+        KEY_BG_INCREASED_REFRESH_MS,
+        KEY_BG_HIGH_REFRESH_MS,
+        KEY_BG_SWITCH_TIMEOUT_MS
     };
     return INTEGER_KEYS.contains(key);
 }
 
 bool AttributeValidator::IsValueUnsignedInt(const std::string& value) {
-    if (value.empty()) {
-        return false;
-    }
-
-    try {
-        std::size_t pos{};
-        const int int_val = std::stoi(value, &pos);
-        return pos == value.length() && int_val >= 0;
-    } catch (const std::invalid_argument&) {
-        return false;
-    } catch (const std::out_of_range&) {
-        return false;
-    }
+    const std::optional<int> int_val = NumberUtils::ParseInt(value);
+    return int_val.has_value() && int_val.value() >= 0;
 }
 
 std::unordered_set<std::string> AttributeValidator::ValidateMap(const std::map<std::string, std::string>& conn_attr) {

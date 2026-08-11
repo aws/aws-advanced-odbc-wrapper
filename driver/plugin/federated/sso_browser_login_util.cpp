@@ -155,8 +155,8 @@ void SsoBrowserLoginUtil::ParseSsoConfig(const std::map<std::string, std::string
 
     idp_response_timeout_secs_ = DEFAULT_IDP_RESPONSE_TIMEOUT_SECS;
     if (connection_attributes.contains(KEY_SSO_IDP_RESPONSE_TIMEOUT)) {
-        const int configured = static_cast<int>(
-            std::strtol(connection_attributes.at(KEY_SSO_IDP_RESPONSE_TIMEOUT).c_str(), nullptr, 10));
+        const int configured = MapUtils::GetIntValue(
+            connection_attributes, KEY_SSO_IDP_RESPONSE_TIMEOUT, DEFAULT_IDP_RESPONSE_TIMEOUT_SECS);
         idp_response_timeout_secs_ = configured > MIN_IDP_RESPONSE_TIMEOUT_SECS
             ? configured : MIN_IDP_RESPONSE_TIMEOUT_SECS;
     }

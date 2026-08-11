@@ -101,6 +101,8 @@ class WEBServer
         */
         bool WEBServerInit();
 
+        static constexpr int DEFAULT_TIMEOUT_SECS = 120;
+
         std::string state_;
         std::string port_;
         int timeout_;
