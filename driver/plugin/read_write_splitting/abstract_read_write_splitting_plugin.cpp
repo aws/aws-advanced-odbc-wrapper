@@ -90,7 +90,7 @@ void AbstractReadWriteSplittingPlugin::ReleaseResources() {
     this->writer_connection_ = nullptr;
     this->writer_host_info_ = HostInfo{};
 
-    this->next_plugin->ReleaseResources();
+    BasePlugin::ReleaseResources();
 }
 
 SQLRETURN AbstractReadWriteSplittingPlugin::Execute(SQLHSTMT StatementHandle, SQLTCHAR *StatementText, SQLINTEGER TextLength) {
@@ -123,7 +123,7 @@ SQLRETURN AbstractReadWriteSplittingPlugin::Execute(SQLHSTMT StatementHandle, SQ
         return ret;
     }
 
-    ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    ret = ExecuteNext(StatementHandle, StatementText, TextLength);
 
     if (SQL_SUCCEEDED(ret)) {
         return ret;

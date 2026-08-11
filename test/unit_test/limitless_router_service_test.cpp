@@ -48,6 +48,24 @@ protected:
     }
 };
 
+TEST_F(LimitlessRouterServiceTest, EstablishConnectionWithNullDbcReturnsInvalidHandle) {
+    std::shared_ptr<DialectLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
+    TestLimitlessRouterService router_service(dialect, {}, odbc_helper_);
+
+    EXPECT_EQ(SQL_INVALID_HANDLE, router_service.EstablishConnection(mock_base_plugin, nullptr));
+}
+
+TEST_F(LimitlessRouterServiceTest, EstablishConnectionWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
+    std::shared_ptr<DialectLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
+    TestLimitlessRouterService router_service(dialect, {}, odbc_helper_);
+
+    const SQLRETURN ret = router_service.EstablishConnection(nullptr, dbc);
+
+    EXPECT_EQ(SQL_ERROR, ret);
+    ASSERT_NE(nullptr, dbc->err);
+    EXPECT_STREQ("HY000", dbc->err->sqlstate);
+}
+
 TEST_F(LimitlessRouterServiceTest, LimitlessRouterMonitorReferenceCountingTest) {
     const std::map<std::string, std::string> attr1 = {
         {KEY_SERVER, "server_1"}

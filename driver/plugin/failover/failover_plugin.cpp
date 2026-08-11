@@ -58,7 +58,7 @@ SQLRETURN FailoverPlugin::Connect(
     SQLUSMALLINT   DriverCompletion)
 {
     LOG(INFO) << "Entering Connect";
-    return next_plugin->Connect(
+    return ConnectNext(
         ConnectionHandle,
         WindowHandle,
         OutConnectionString,
@@ -76,7 +76,7 @@ SQLRETURN FailoverPlugin::Execute(
     LOG(INFO) << "Entering Execute";
     STMT* stmt = static_cast<STMT*>(StatementHandle);
     DBC* dbc = stmt->dbc;
-    const SQLRETURN ret = next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    const SQLRETURN ret = ExecuteNext(StatementHandle, StatementText, TextLength);
 
     if (SQL_SUCCEEDED(ret)) {
         return ret;

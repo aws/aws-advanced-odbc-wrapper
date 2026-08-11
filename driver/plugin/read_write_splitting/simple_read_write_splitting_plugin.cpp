@@ -51,7 +51,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::Connect(
     const bool skip_plugin = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_SRW_SKIP, false);
     if (!this->verify_new_conns_ || skip_plugin) {
         // No verification required. Continue with a normal workflow.
-        return next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
 
     const std::string host = MapUtils::GetStringValue(dbc_->conn_attr, KEY_SERVER, "");
@@ -66,7 +66,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::Connect(
 
     if (!SQL_SUCCEEDED(ret)) {
         // Continue with a normal workflow.
-        ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+        ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
         conn = dbc;
     }
 
@@ -102,7 +102,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
     const std::chrono::time_point end_time = std::chrono::steady_clock::now() + this->connect_retry_timeout_ms;
     while (std::chrono::steady_clock::now() < end_time) {
         if (ConnectionHandle != SQL_NULL_HDBC) {
-            ret = next_plugin->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
+            ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             if (SQL_SUCCEEDED(ret)) {
                 conn = static_cast<DBC*>(ConnectionHandle);
             }
