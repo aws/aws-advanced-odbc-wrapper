@@ -22,11 +22,7 @@ void Selector::Register(SOCKET sfd)
 
     FD_SET(sfd, &master_fds_);
 
-#ifdef WIN32
-    max_fd_ = max(max_fd_, sfd);
-#else
     max_fd_ = std::max(max_fd_, sfd);
-#endif
 }
 
 void Selector::Unregister(SOCKET sfd)

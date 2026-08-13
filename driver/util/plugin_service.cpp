@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "plugin_chain_builder.h"
-
 #include "plugin_service.h"
 
 #include <optional>
+#include "plugin_chain_builder.h"
 
 #include "../driver.h"
 #include "map_utils.h"

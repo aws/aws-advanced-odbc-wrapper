@@ -15,8 +15,6 @@
 #ifndef SOCKET_H_
 #define SOCKET_H_
 
-#pragma once
-
 #include "SocketSupport.h"
 #include "Selector.h"
 #include <string>

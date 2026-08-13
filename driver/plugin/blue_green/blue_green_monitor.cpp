@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "../../util/auth_provider.h"
-
 #include "blue_green_monitor.h"
+
+#include "../../util/auth_provider.h"
 
 #include "../../host_list_providers/rds_host_list_provider.h"
 
@@ -26,11 +26,10 @@
 
 #include <algorithm>
 
+#include "../../util/windows_headers.h"
+
 #ifdef _WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
     #include <stdio.h>
-    #pragma comment(lib, "Ws2_32.lib")
 #else
     #include <arpa/inet.h>
     #include <netdb.h>

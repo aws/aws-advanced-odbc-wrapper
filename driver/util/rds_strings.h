@@ -15,9 +15,9 @@
 #ifndef RDS_STRINGS_H_
 #define RDS_STRINGS_H_
 
+#include "windows_headers.h"
+
 #ifdef WIN32
-    // TEXT() Define already in <windows.h>
-    #include <windows.h> // Required to include sql.h
     #include <tchar.h>
 #else // Unix Platforms
     #define TEXT(x) x

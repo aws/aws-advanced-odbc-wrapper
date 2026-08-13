@@ -16,9 +16,7 @@
 #define LIMITLESS_ROUTER_MONITOR_H_
 #include "limitless_query_helper.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../../util/windows_headers.h"
 
 #include <atomic>
 #include <condition_variable>

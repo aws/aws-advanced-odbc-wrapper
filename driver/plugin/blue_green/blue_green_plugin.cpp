@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "blue_green_plugin.h"
+
 #include "../../util/auth_provider.h"
 
-#include "blue_green_plugin.h"
 #include "blue_green_status_provider.h"
 
 #include "../../driver.h"

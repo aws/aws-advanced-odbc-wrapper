@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "blue_green_hasher.h"
 #include "blue_green_interim_status.h"
+
+#include "blue_green_hasher.h"
 
 #include <functional>
 

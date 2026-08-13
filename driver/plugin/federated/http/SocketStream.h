@@ -15,8 +15,6 @@
 #ifndef SOCKET_STREAM_H_
 #define SOCKET_STREAM_H_
 
-#pragma once
-
 #include "Socket.h"
 
 #include <sstream>

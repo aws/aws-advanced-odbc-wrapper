@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if (defined(_WIN32) || defined(_WIN64))
-    #include <windows.h>
-    #include <shellapi.h>
-    #undef GetObject
-#endif
-
 #include "browser_auth_flow.h"
+
+#include "../../util/windows_headers.h"
+
+#if (defined(_WIN32) || defined(_WIN64))
+    #include <shellapi.h>
+#endif
 
 #include <algorithm>
 #include <chrono>

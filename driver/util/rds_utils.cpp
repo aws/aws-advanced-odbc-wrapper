@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "rds_utils.h"
+
+#include "windows_headers.h"
 
 #include <regex>
 #include <string>
 
 #include "rds_strings.h"
-#include "rds_utils.h"
 
 namespace {
     const std::regex AURORA_DNS_PATTERN(

@@ -16,9 +16,7 @@
 
 #include "odbc_helper.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "windows_headers.h"
 
 #include <sql.h>
 #include <sqlext.h>

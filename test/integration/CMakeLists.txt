@@ -117,7 +117,8 @@ endif()
 # Build Executable ------------------------------------------------------------------------------------------
 if(WIN32)
     add_compile_definitions(${PROJECT_NAME} PRIVATE
-        WIN32_LEAN_AND_MEAN # Exclude rarely-used stuff from Windows headers
+        WIN32_LEAN_AND_MEAN # Exclude rarely-used declarations, including WinSock 1.1
+        NOMINMAX            # Suppress the min()/max() macros, which break std::min/std::max
     )
 endif()
 

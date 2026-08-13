@@ -14,18 +14,16 @@
 
 #ifndef CLUSTER_HELPER_H
 #define CLUSTER_HELPER_H
-#include "odbc_helper.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "windows_headers.h"
 
 #include <sql.h>
 
-#include <string>
 #include <memory>
+#include <string>
 
-#include "../dialect/dialect.h"
+class Dialect;
+class OdbcHelper;
 
 static const int MAX_HOST_SIZE = 1024;
 std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, const std::shared_ptr<OdbcHelper> &odbc_helper);

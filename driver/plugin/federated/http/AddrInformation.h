@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#ifndef ADDR_INFORMATION_H_
+#define ADDR_INFORMATION_H_
 
 #include "SocketSupport.h"
 #include <string>
@@ -69,3 +70,5 @@ public:
 private:
     addrinfo *addrinfo_;
 };
+
+#endif // ADDR_INFORMATION_H_

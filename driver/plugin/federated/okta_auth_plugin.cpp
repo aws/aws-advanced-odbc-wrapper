@@ -14,12 +14,6 @@
 
 #include "okta_auth_plugin.h"
 
-// windows.h arrives transitively (driver.h) and its GetObject macro breaks the
-// Aws::Utils::Json::JsonView::GetObject call below.
-#ifdef GetObject
-    #undef GetObject
-#endif
-
 #include "html_util.h"
 #include "http/WEBServer_utils.h"
 #include "saml_util.h"

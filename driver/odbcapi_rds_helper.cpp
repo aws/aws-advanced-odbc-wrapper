@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "util/auth_provider.h"
-
 #include "odbcapi_rds_helper.h"
+
+#include "util/auth_provider.h"
 
 #include <optional>
 #include <unordered_set>

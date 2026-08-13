@@ -26,7 +26,6 @@ Checks: ">
   -modernize-use-scoped-lock,
   -modernize-use-trailing-return-type,
   -modernize-pass-by-value,
-  -llvm-include-order,
   -optin.cplusplus.VirtualCall,
   -performance-no-int-to-ptr,
   -performance-unnecessary-value-param,
@@ -35,8 +34,8 @@ Checks: ">
   -readability-inconsistent-declaration-parameter-name,
 "
 
-HeaderFilterRegex: "aws-advanced-odbc-wrapper/(build|src).*\\.(cpp|h)$"
-ExcludeHeaderFilterRegex: "(_deps|aws_sdk)"
+HeaderFilterRegex: "(driver|test)/.*\\.h$"
+ExcludeHeaderFilterRegex: "(_deps|aws_sdk|external|driver/plugin/federated/http)"
 InheritParentConfig: false
 SystemHeaders: false
 

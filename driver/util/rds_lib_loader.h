@@ -23,8 +23,9 @@
 
 #include "../odbcapi.h"
 
+#include "windows_headers.h"
+
 #ifdef _WIN32
-    #include <windows.h>
     #define MODULE_HANDLE HINSTANCE
     #define FUNC_HANDLE FARPROC
     #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)

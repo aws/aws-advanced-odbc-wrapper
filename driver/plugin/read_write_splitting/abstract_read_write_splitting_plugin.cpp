@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
-
 #include "abstract_read_write_splitting_plugin.h"
+
+#include <algorithm>
 
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/map_utils.h"

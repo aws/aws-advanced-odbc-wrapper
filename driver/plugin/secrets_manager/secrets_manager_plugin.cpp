@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "secrets_manager_plugin.h"
+
 #include <aws/secretsmanager/SecretsManagerClient.h>
 #include <aws/secretsmanager/model/GetSecretValueRequest.h>
 
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
 #include <aws/core/client/ClientConfiguration.h>
-
-#include "secrets_manager_plugin.h"
 
 #include "../../util/auth_provider.h"
 #include "../../util/aws_sdk_helper.h"

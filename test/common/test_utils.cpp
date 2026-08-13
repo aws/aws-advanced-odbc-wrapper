@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "test_utils.h"
+
+#include "../../driver/util/windows_headers.h"
+
 #ifdef _WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
     #include <stdio.h>
-    #pragma comment(lib, "Ws2_32.lib")
 #else
     #include <arpa/inet.h>
     #include <netdb.h>
@@ -36,8 +37,6 @@
 #include <gtest/gtest.h>
 
 #include "../common/string_helper.h"
-
-#include "test_utils.h"
 
 std::string TEST_UTILS::GetEnvVar(const char* key, const char* default_value) {
     char* value = std::getenv(key);

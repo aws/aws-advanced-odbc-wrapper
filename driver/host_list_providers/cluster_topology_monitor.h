@@ -25,9 +25,7 @@
 #include <thread>
 #include <vector>
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../util/windows_headers.h"
 #include <sql.h>
 #include <sqltypes.h>
 
