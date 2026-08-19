@@ -19,8 +19,6 @@
 #define ODBCVER 0x0380
 #endif
 
-#define ODBCVER_BITS 256
-
 #define DRIVER_VERSION "1.0.0"
 
 #if WIN32
@@ -80,10 +78,14 @@ class PluginService;
 
 /* Const Lengths */
 #define NO_DATA_SQL_STATE "00000"
-#define NO_DATA_NATIVE_ERR 0
-#define MAX_SQL_STATE_LEN 6
-#define ODBC_VER_SiZE 16
-#define MAX_MSG_LEN 1024
+
+enum DriverLengths : std::uint16_t {
+    NO_DATA_NATIVE_ERR = 0,
+    MAX_SQL_STATE_LEN = 6,
+    ODBC_VER_SIZE = 16,
+    ODBCVER_BITS = 256,
+    MAX_MSG_LEN = 1024
+};
 
 /* Struct Declarations */
 enum CONN_STATUS : std::uint8_t { CONN_NOT_CONNECTED, CONN_CONNECTED, CONN_DOWN, CONN_EXECUTING };

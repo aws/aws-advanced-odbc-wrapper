@@ -36,7 +36,7 @@ inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
     return LoadLibraryEx(reinterpret_cast<SQLWCHAR*>(mod_name_ushort), NULL, load_flag);
 }
     #else
-        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name.c_str(), NULL, load_flag)
+        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx((module_name).c_str(), NULL, load_flag)
     #endif // UNICODE
     #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
     #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
@@ -44,7 +44,7 @@ inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
     #include <dlfcn.h>
     #define MODULE_HANDLE void*
     #define FUNC_HANDLE void*
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name.c_str(), RTLD_LAZY | RTLD_LOCAL)
+    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE((module_name).c_str(), RTLD_LAZY | RTLD_LOCAL)
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)

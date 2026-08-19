@@ -306,7 +306,7 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
     #define AS_UTF8_CSTR(str) ConvertUTF16ToUTF8(reinterpret_cast<uint16_t *>(str)).data()
     #define RDS_TSTR(str) ConvertUTF8ToWString(str)
 #else
-    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(str.data()))
+    #define AS_SQLTCHAR(str) const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>((str).data()))
     #define AS_UTF8_CSTR(str) reinterpret_cast<const char *>(str)
     #define RDS_TSTR(str) str
 #endif

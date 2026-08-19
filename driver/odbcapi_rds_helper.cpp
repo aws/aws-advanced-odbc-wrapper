@@ -2069,7 +2069,7 @@ SQLRETURN RDS_SQLGetInfo(
     SQLULEN len = sizeof(SQLSMALLINT);
     SQLULEN value = 0;
     const char* char_value = nullptr;
-    char odbcver[ODBC_VER_SiZE];
+    char odbcver[ODBC_VER_SIZE];
 
     // Query underlying driver if connection is established
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -2126,7 +2126,7 @@ SQLRETURN RDS_SQLGetInfo(
         // Get info for shell driver
         switch (InfoType) {
             case SQL_DRIVER_ODBC_VER:
-                snprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / ODBCVER_BITS, ODBCVER % ODBCVER_BITS);
+                snprintf(odbcver, ODBC_VER_SIZE, "%02x.%02x", ODBCVER / ODBCVER_BITS, ODBCVER % ODBCVER_BITS);
                 char_value = odbcver;
                 break;
             case SQL_MAX_CONCURRENT_ACTIVITIES:
