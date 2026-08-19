@@ -14,21 +14,6 @@
 
 #include "sso_browser_login_util.h"
 
-#include <aws/core/auth/AWSCredentialsProvider.h>
-#include <aws/core/client/AWSError.h>
-#include <aws/core/platform/FileSystem.h>
-#include <aws/core/utils/DateTime.h>
-#include <aws/core/utils/HashingUtils.h>
-#include <aws/core/utils/StringUtils.h>
-#include <aws/core/utils/json/JsonSerializer.h>
-#include <aws/sso/SSOErrors.h>
-#include <aws/sso/model/GetRoleCredentialsRequest.h>
-#include <aws/sso/model/GetRoleCredentialsResult.h>
-#include <aws/sso/model/RoleCredentials.h>
-#include <aws/sso-oidc/SSOOIDCErrors.h>
-#include <aws/sso-oidc/model/CreateTokenRequest.h>
-#include <aws/sso-oidc/model/RegisterClientRequest.h>
-
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
@@ -37,7 +22,20 @@
 #include <system_error>
 #include <thread>
 
-#include "http/WEBServer_utils.h"
+#include <aws/core/auth/AWSCredentialsProvider.h>
+#include <aws/core/client/AWSError.h>
+#include <aws/core/platform/FileSystem.h>
+#include <aws/core/utils/DateTime.h>
+#include <aws/core/utils/HashingUtils.h>
+#include <aws/core/utils/StringUtils.h>
+#include <aws/core/utils/json/JsonSerializer.h>
+#include <aws/sso-oidc/SSOOIDCErrors.h>
+#include <aws/sso-oidc/model/CreateTokenRequest.h>
+#include <aws/sso-oidc/model/RegisterClientRequest.h>
+#include <aws/sso/SSOErrors.h>
+#include <aws/sso/model/GetRoleCredentialsRequest.h>
+#include <aws/sso/model/GetRoleCredentialsResult.h>
+#include <aws/sso/model/RoleCredentials.h>
 
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/connection_string_keys.h"
@@ -45,6 +43,7 @@
 #include "../../util/map_utils.h"
 #include "../../util/rds_strings.h"
 #include "../../util/rds_utils.h"
+#include "http/WEBServer_utils.h"
 
 std::recursive_mutex SsoBrowserLoginUtil::cache_mutex_;
 

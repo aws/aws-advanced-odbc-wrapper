@@ -15,10 +15,10 @@
 #ifndef DEFAULT_PLUGIN_H_
 #define DEFAULT_PLUGIN_H_
 
-#include "base_plugin.h"
-#include "../util/odbc_helper.h"
-
 #include <memory>
+
+#include "../util/odbc_helper.h"
+#include "base_plugin.h"
 
 class DefaultPlugin : public BasePlugin {
 public:

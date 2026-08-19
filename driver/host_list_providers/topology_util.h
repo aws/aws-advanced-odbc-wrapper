@@ -15,11 +15,10 @@
 #ifndef TOPOLOGY_UTILS_H_
 #define TOPOLOGY_UTILS_H_
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "../dialect/dialect.h"
-
 #include "../host_info.h"
 #include "../util/odbc_helper.h"
 

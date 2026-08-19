@@ -15,6 +15,7 @@
 #ifndef DIALECT_H
 #define DIALECT_H
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>

@@ -15,11 +15,11 @@
 #ifndef AURORA_INITIAL_CONNECTION_STRATEGY_PLUGIN_H
 #define AURORA_INITIAL_CONNECTION_STRATEGY_PLUGIN_H
 
-#include "../base_plugin.h"
-#include "../../host_info.h"
 #include "../../driver.h"
+#include "../../host_info.h"
 #include "../../host_selector/host_selector.h"
 #include "../../util/plugin_service.h"
+#include "../base_plugin.h"
 
 class AuroraInitialConnectionStrategyPlugin : public BasePlugin {
 public:

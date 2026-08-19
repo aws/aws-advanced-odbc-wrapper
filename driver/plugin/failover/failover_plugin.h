@@ -15,15 +15,17 @@
 #ifndef FAILOVER_PLUGIN_H_
 #define FAILOVER_PLUGIN_H_
 
-#include "../base_plugin.h"
-#include "../../driver.h"
+#include <cstdint>
+
 #include "../../dialect/dialect.h"
-#include "../../host_selector/host_selector.h"
+#include "../../driver.h"
 #include "../../host_info.h"
+#include "../../host_selector/host_selector.h"
 #include "../../util/connection_string_keys.h"
-#include "../../util/sliding_cache_map.h"
-#include "../../util/plugin_service.h"
 #include "../../util/odbc_helper.h"
+#include "../../util/plugin_service.h"
+#include "../../util/sliding_cache_map.h"
+#include "../base_plugin.h"
 
 typedef enum {
     STRICT_READER,

@@ -15,6 +15,11 @@
 #ifndef CLUSTER_TOPOLOGY_MONITOR_H
 #define CLUSTER_TOPOLOGY_MONITOR_H
 
+#include "../util/windows_headers.h"
+
+#include <sql.h>
+#include <sqltypes.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -25,23 +30,16 @@
 #include <thread>
 #include <vector>
 
-#include "../util/windows_headers.h"
-#include <sql.h>
-#include <sqltypes.h>
-
-#include "topology_util.h"
-
-#include "../plugin/default_plugin.h"
+#include "../dialect/dialect.h"
 #include "../driver.h"
 #include "../host_info.h"
-
-#include "../dialect/dialect.h"
-
+#include "../plugin/default_plugin.h"
 #include "../util/logger_wrapper.h"
 #include "../util/odbc_helper.h"
 #include "../util/plugin_service.h"
 #include "../util/rds_strings.h"
 #include "../util/sliding_cache_map.h"
+#include "topology_util.h"
 
 struct DBC;
 struct ENV;

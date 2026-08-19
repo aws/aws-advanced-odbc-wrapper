@@ -15,6 +15,7 @@
 #ifndef ODBC_DSN_HELPER_H_
 #define ODBC_DSN_HELPER_H_
 
+#include <cstdint>
 #include <map>
 
 #include "rds_strings.h"

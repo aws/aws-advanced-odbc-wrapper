@@ -14,19 +14,17 @@
 
 #include "limitless_router_service.h"
 
-#include "../../util/auth_provider.h"
-
 #include <chrono>
 #include <memory>
 
-#include "../../util/logger_wrapper.h"
-#include "../../util/plugin_chain_builder.h"
 #include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
+#include "../../util/plugin_chain_builder.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
-
-#include "../../util/map_utils.h"
 #include "limitless_query_helper.h"
 #include "limitless_router_monitor.h"
 

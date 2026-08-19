@@ -20,9 +20,11 @@
 #include <sql.h>
 #include <sqltypes.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
-#include <string>
 #include <map>
+#include <string>
 
 typedef enum {
     /* ODBC SQL States*/

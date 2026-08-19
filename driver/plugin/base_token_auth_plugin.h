@@ -15,14 +15,13 @@
 #ifndef BASE_TOKEN_AUTH_PLUGIN_H_
 #define BASE_TOKEN_AUTH_PLUGIN_H_
 
-#include "../util/auth_provider.h"
-
-#include "base_plugin.h"
-#include "../driver.h"
-#include "../dialect/dialect.h"
-#include "../util/odbc_helper.h"
-
 #include <memory>
+
+#include "../dialect/dialect.h"
+#include "../driver.h"
+#include "../util/auth_provider.h"
+#include "../util/odbc_helper.h"
+#include "base_plugin.h"
 
 class BaseTokenAuthPlugin : public BasePlugin {
 public:

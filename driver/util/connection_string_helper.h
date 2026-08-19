@@ -16,8 +16,8 @@
 #define CONNECTION_STRING_HELPER_H_
 
 #include <map>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "connection_string_keys.h"
 #include "rds_strings.h"

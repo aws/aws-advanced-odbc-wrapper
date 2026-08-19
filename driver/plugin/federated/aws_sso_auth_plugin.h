@@ -15,15 +15,14 @@
 #ifndef AWS_SSO_AUTH_PLUGIN_H_
 #define AWS_SSO_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
-
-#include "../base_token_auth_plugin.h"
-#include "../../driver.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
-#include "sso_browser_login_util.h"
-
 #include <memory>
+
+#include "../../dialect/dialect.h"
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/odbc_helper.h"
+#include "../base_token_auth_plugin.h"
+#include "sso_browser_login_util.h"
 
 class AwsSsoAuthPlugin : public BaseTokenAuthPlugin {
 public:

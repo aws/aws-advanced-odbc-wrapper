@@ -15,15 +15,13 @@
 #ifndef AURORA_TOPOLOGY_UTILS_H_
 #define AURORA_TOPOLOGY_UTILS_H_
 
-#include "topology_util.h"
-
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "../dialect/dialect.h"
-
 #include "../host_info.h"
 #include "../util/odbc_helper.h"
+#include "topology_util.h"
 
 class AuroraTopologyUtil : public TopologyUtil {
 public:

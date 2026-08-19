@@ -15,9 +15,9 @@
 #include "rds_host_list_provider.h"
 
 #include "../util/connection_string_keys.h"
+#include "../util/logger_wrapper.h"
 #include "../util/map_utils.h"
 #include "../util/rds_utils.h"
-#include "../util/logger_wrapper.h"
 
 RdsHostListProvider::RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service) :
     RdsHostListProvider(topology_util, plugin_service, plugin_service->GetOriginalConnAttr(), plugin_service->GetClusterId()) {}

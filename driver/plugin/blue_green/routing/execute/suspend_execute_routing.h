@@ -15,17 +15,15 @@
 #ifndef SUSPEND_EXECUTE_ROUTING_H_
 #define SUSPEND_EXECUTE_ROUTING_H_
 
-#include "base_execute_routing.h"
-
-#include "../../blue_green_role.h"
-#include "../../blue_green_status.h"
-
-#include "../../../../driver.h"
-#include "../../../../util/odbc_helper.h"
-#include "../../../../util/concurrent_map.h"
-
 #include <memory>
 #include <string>
+
+#include "../../../../driver.h"
+#include "../../../../util/concurrent_map.h"
+#include "../../../../util/odbc_helper.h"
+#include "../../blue_green_role.h"
+#include "../../blue_green_status.h"
+#include "base_execute_routing.h"
 
 class SuspendExecuteRouting : public BaseExecuteRouting {
 public:

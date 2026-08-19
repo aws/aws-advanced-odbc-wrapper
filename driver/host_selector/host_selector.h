@@ -15,6 +15,7 @@
 #ifndef HOST_SELECTOR_H_
 #define HOST_SELECTOR_H_
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>

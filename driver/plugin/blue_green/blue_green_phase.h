@@ -15,6 +15,7 @@
 #ifndef BLUE_GREEN_PHASE_H_
 #define BLUE_GREEN_PHASE_H_
 
+#include <cstdint>
 #include <map>
 #include <string>
 

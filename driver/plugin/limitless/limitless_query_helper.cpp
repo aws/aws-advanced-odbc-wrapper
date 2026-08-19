@@ -22,9 +22,11 @@
 #include <cmath>
 #include <string>
 
+#include "../../dialect/dialect.h"
 #include "../../driver.h"
 #include "../../host_info.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/odbc_helper.h"
 
 LimitlessQueryHelper::LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper) {
     this->odbc_helper_ = odbc_helper;

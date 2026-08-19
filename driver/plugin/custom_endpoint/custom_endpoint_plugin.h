@@ -15,17 +15,15 @@
 #ifndef CUSTOM_ENDPOINT_PLUGIN_H_
 #define CUSTOM_ENDPOINT_PLUGIN_H_
 
-#include "../base_plugin.h"
-
-#include "custom_endpoint_monitor.h"
-
-#include "../../driver.h"
-#include "../../util/rds_utils.h"
-#include "../../util/plugin_service.h"
-
 #include <chrono>
 #include <memory>
 #include <unordered_map>
+
+#include "../../driver.h"
+#include "../../util/plugin_service.h"
+#include "../../util/rds_utils.h"
+#include "../base_plugin.h"
+#include "custom_endpoint_monitor.h"
 
 class CustomEndpointPlugin : public BasePlugin {
 public:

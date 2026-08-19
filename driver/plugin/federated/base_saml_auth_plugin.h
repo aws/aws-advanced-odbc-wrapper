@@ -15,15 +15,14 @@
 #ifndef BASE_SAML_AUTH_PLUGIN_H_
 #define BASE_SAML_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
-
-#include "saml_util.h"
-#include "../base_token_auth_plugin.h"
-#include "../../driver.h"
-
 #include <memory>
+
+#include "../../dialect/dialect.h"
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/odbc_helper.h"
+#include "../base_token_auth_plugin.h"
+#include "saml_util.h"
 
 class BaseSamlAuthPlugin : public BaseTokenAuthPlugin {
 public:

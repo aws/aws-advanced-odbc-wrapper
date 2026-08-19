@@ -16,6 +16,7 @@
 #define HOST_INFO_H_
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <ostream>
 #include <string>

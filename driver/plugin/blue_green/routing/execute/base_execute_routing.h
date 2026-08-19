@@ -15,17 +15,15 @@
 #ifndef BASE_EXECUTE_ROUTING_H_
 #define BASE_EXECUTE_ROUTING_H_
 
-#include "../base_routing.h"
-
-#include "../../blue_green_role.h"
-#include "../../blue_green_status.h"
-
-#include "../../../../driver.h"
-#include "../../../../util/odbc_helper.h"
-#include "../../../../util/concurrent_map.h"
-
 #include <memory>
 #include <string>
+
+#include "../../../../driver.h"
+#include "../../../../util/concurrent_map.h"
+#include "../../../../util/odbc_helper.h"
+#include "../../blue_green_role.h"
+#include "../../blue_green_status.h"
+#include "../base_routing.h"
 
 class BaseExecuteRouting : public BaseRouting {
 public:

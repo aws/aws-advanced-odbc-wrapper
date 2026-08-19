@@ -16,8 +16,8 @@
 #define SLIDING_CACHE_MAP_H_
 
 #include <chrono>
-#include <mutex>
 #include <map>
+#include <mutex>
 
 template <typename V>
 struct CacheEntry {

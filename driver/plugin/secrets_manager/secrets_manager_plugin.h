@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <regex>
+
 #include <aws/secretsmanager/SecretsManagerClient.h>
 #include <aws/secretsmanager/model/GetSecretValueRequest.h>
 
 #include "../base_plugin.h"
-
-#include <regex>
-#include <memory>
 
 #ifndef SECRETS_MANAGER_PLUGIN_H_
 #define SECRETS_MANAGER_PLUGIN_H_

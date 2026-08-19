@@ -21,11 +21,15 @@
 #include <chrono>
 #include <regex>
 
+#include "../../dialect/dialect.h"
 #include "../../host_info.h"
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/cluster_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/rds_lib_loader.h"
+#include "../base_plugin.h"
 #include "limitless_query_helper.h"
 
 LimitlessRouterMonitor::LimitlessRouterMonitor(

@@ -16,18 +16,15 @@
 #define RDS_HOST_LIST_PROVIDER_H_
 
 #include <chrono>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
-
-#include "host_list_provider.h"
-
-#include "cluster_topology_monitor.h"
 
 #include "../host_info.h"
-
-#include "../util/sliding_cache_map.h"
 #include "../util/plugin_service.h"
+#include "../util/sliding_cache_map.h"
+#include "cluster_topology_monitor.h"
+#include "host_list_provider.h"
 
 class RdsHostListProvider : public HostListProvider {
 public:

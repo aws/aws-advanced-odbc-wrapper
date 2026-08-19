@@ -16,6 +16,7 @@
 #define AUTH_PROVIDER_H_
 
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>

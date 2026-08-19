@@ -15,12 +15,13 @@
 #ifndef OKTA_AUTH_PLUGIN_H_
 #define OKTA_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
+#include <cstdint>
 
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "base_saml_auth_plugin.h"
 #include "browser_auth_flow.h"
 #include "saml_util.h"
-#include "base_saml_auth_plugin.h"
-#include "../../driver.h"
 
 typedef enum {
     NONE,

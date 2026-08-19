@@ -18,6 +18,8 @@
 #include "../../util/windows_headers.h"
 
 #include <sqltypes.h>
+
+#include <memory>
 #include <vector>
 
 #include "../../host_info.h"

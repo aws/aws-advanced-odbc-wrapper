@@ -15,11 +15,11 @@
 #ifndef CUSTOM_ENDPOINT_MONITOR_H_
 #define CUSTOM_ENDPOINT_MONITOR_H_
 
+#include <memory>
+#include <thread>
+
 #include "../../util/plugin_service.h"
 #include "../../util/sliding_cache_map.h"
-
-#include <thread>
-#include <memory>
 
 class CustomEndpointMonitor {
 public:

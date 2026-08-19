@@ -15,17 +15,17 @@
 #ifndef SSO_BROWSER_LOGIN_UTIL_H_
 #define SSO_BROWSER_LOGIN_UTIL_H_
 
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentials.h>
-#include <aws/sso/SSOClient.h>
-#include <aws/sso-oidc/SSOOIDCClient.h>
-
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentials.h>
+#include <aws/sso-oidc/SSOOIDCClient.h>
+#include <aws/sso/SSOClient.h>
 
 #include "browser_auth_flow.h"
 
