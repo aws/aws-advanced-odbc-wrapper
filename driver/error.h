@@ -212,8 +212,8 @@ struct ERR_INFO {
         if (msg) {
             error_msg = strdup(msg);
         }
-        if (sql_state >= 0 && sql_state <= INVALID_ERR) {
-            std::string str_sql_state = ODBC_STATE_MAP[sql_state];
+        if (sql_state <= INVALID_ERR) {
+            const std::string str_sql_state = ODBC_STATE_MAP[sql_state];
             is_odbc3_subclass = IsOdbc3Subclass(str_sql_state);
             sqlstate = strdup(str_sql_state.c_str());
         }

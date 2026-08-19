@@ -25,7 +25,7 @@ public:
     ~ConcurrentMap() = default;
 
     ConcurrentMap(const ConcurrentMap& other) {
-        std::lock_guard<std::mutex> other_lock(other.mutex_);
+        const std::lock_guard<std::mutex> other_lock(other.mutex_);
         map_ = other.map_;
     };
 
@@ -41,23 +41,23 @@ public:
     };
 
     void InsertOrAssign(const Key& key, const Value& value) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         map_.insert_or_assign(key, value);
     };
 
     bool TryEmplace(const Key& key, const Value& value) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         auto itr_pair = map_.try_emplace(key, value);
         return itr_pair.second;
     };
 
     void CopyMap(std::map<Key, Value> other) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         map_.insert(other.begin(), other.end());
     };
 
     Value Get(const Key& key) const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         if (auto itr = map_.find(key); itr != map_.end()) {
             return itr->second;
         }
@@ -65,35 +65,35 @@ public:
     };
 
     std::map<Key, Value> GetMapCopy() const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         std::map<Key, Value> map_copy;
         map_copy.insert(map_.begin(), map_.end());
         return map_copy;
     };
 
     void Erase(const Key& key) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         map_.erase(key);
     };
 
     bool Contains(const Key& key) const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return map_.contains(key);
     };
 
     size_t Size() const {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return map_.size();
     };
 
     void Clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         map_.clear();
     };
 
     bool operator==(const ConcurrentMap& other) const {
-        std::lock_guard<std::mutex> lock(mutex_);
-        std::lock_guard<std::mutex> other_lock(other.mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> other_lock(other.mutex_);
         return map_ == other.map_;
     };
 

@@ -141,7 +141,7 @@ inline std::vector<uint16_t> ConvertUTF8ToUTF16(std::string input) {
     const icu::StringPiece string_piece(input.c_str(), static_cast<int32_t>(input.length()));
     icu::UnicodeString string_utf16 = icu::UnicodeString::fromUTF8(string_piece);
     uint16_t *ushort_string = reinterpret_cast<uint16_t*>(const_cast<char16_t*>(string_utf16.getTerminatedBuffer()));
-    size_t size = UShortStrlen(ushort_string);
+    const size_t size = UShortStrlen(ushort_string);
     std::vector<uint16_t> ushort_vec(ushort_string, ushort_string + size);
     // Insert null terminator because vector.data() returns NULL when empty
     ushort_vec.push_back(0);
@@ -154,7 +154,7 @@ inline int CopyUTF16StringToBuffer(uint16_t* buf, size_t buf_len, std::vector<ui
     if (buf_len == 0) {
         return str_len;
     }
-    icu::UnicodeString ustr(reinterpret_cast<const char16_t*>(vec.data()), str_len);
+    const icu::UnicodeString ustr(reinterpret_cast<const char16_t*>(vec.data()), str_len);
     UErrorCode err = U_ZERO_ERROR;
     ustr.extract(reinterpret_cast<char16_t*>(buf), static_cast<int32_t>(buf_len), err);
     if (U_FAILURE(err)) {
@@ -169,7 +169,7 @@ inline int CopyUTF8ToUTF16Buffer(uint16_t* buf, size_t buf_len, std::string str)
 
 // The input string buffer is assumed to be null terminated
 inline std::string ConvertUTF16ToUTF8(uint16_t *buffer_utf16) {
-    icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
+    const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(buffer_utf16));
     std::string buffer_utf8;
     unicode_str.toUTF8String(buffer_utf8);
     return buffer_utf8;
@@ -274,8 +274,8 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
 
     const std::string utf8 = ConvertUserAppToUTF8(user_4_byte, in, in_length);
     if (driver_4_byte) {
-        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
-        size_t utf16_len = utf16.size() > 0 ? utf16.size() - 1 : 0;
+        const std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+        const size_t utf16_len = utf16.empty() ? 0 : utf16.size() - 1;
 
         size_t size;
         if (in_length == SQL_NTS || in_length < 0) {
@@ -326,7 +326,7 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
 
 inline std::string RDS_STR_UPPER(std::string str) {
     if (!str.empty()) {
-        size_t buf_len = str.length() * 4;
+        const size_t buf_len = str.length() * 4;
         char *buf = new char[buf_len];
         UErrorCode ucasemap_status = U_ZERO_ERROR;
         UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
@@ -426,7 +426,7 @@ inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out,
     int32_t end_index = std::min(written, output_size);
 
     if (end_index > 0) {
-        UChar last = reinterpret_cast<UChar *>(temp.data())[end_index - 1];
+        const UChar last = reinterpret_cast<UChar *>(temp.data())[end_index - 1];
         if (U16_IS_LEAD(last)) {
             end_index--;
         }

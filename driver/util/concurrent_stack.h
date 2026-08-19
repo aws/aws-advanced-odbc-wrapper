@@ -28,51 +28,51 @@ public:
     ~ConcurrentStack() = default;
 
     Value Back() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return stack_.back();
     }
 
     void PushBack(const Value& value) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return stack_.push_back(value);
     }
 
     void PopBack() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         stack_.pop_back();
     }
 
     Value PopAndGetBack() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         Value v = stack_.back();
         stack_.pop_back();
         return v;
     }
 
     size_t Size() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return stack_.size();
     }
 
     bool Empty() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         return stack_.empty();
     }
 
     void Clear() {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         stack_.clear();
     }
 
     void ForEach(std::function<void(Value)> fn) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         for (const auto& val : stack_) {
             fn(val);
         }
     }
 
     void RemoveIf(std::function<bool(Value)> fn) {
-        std::lock_guard<std::mutex> lock(mutex_);
+        const std::lock_guard<std::mutex> lock(mutex_);
         stack_.erase(std::remove_if(stack_.begin(), stack_.end(), fn), stack_.end());
     }
 
