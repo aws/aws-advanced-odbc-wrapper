@@ -46,9 +46,12 @@ public:
         std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 
 protected:
+    // Substitution targets read directly by the IAM-aware connect subclasses
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     HostInfo substitute_info_;
     std::vector<HostInfo> iam_hosts_;
     std::function<void(const std::string&)> iam_connect_notify_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 #endif // SUBSTITUTE_CONNECT_ROUTING_H_

@@ -59,6 +59,8 @@ protected:
         SQLTCHAR *     StatementText,
         SQLINTEGER     TextLength);
 
+    // Plugin chain read / assign 
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
     std::shared_ptr<BasePlugin> next_plugin_ = nullptr;
     std::string plugin_name_;

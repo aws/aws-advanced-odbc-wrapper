@@ -42,6 +42,8 @@ public:
         SQLUSMALLINT   DriverCompletion) override;
 
 protected:
+    // Strategy state the reader/writer verification subclasses read while retrying
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::weak_ptr<PluginService> plugin_service_;
     std::shared_ptr<HostSelector> host_selector_;
     std::shared_ptr<Dialect> dialect_;
@@ -50,6 +52,7 @@ protected:
     std::chrono::milliseconds retry_delay_ms_;
     std::chrono::milliseconds retry_timeout_ms_;
     std::string verify_initial_connection_type_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     SQLRETURN GetVerifiedWriter(
         SQLHDBC        ConnectionHandle,

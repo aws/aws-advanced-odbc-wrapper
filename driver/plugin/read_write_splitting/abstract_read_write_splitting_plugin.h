@@ -77,6 +77,8 @@ public:
     virtual SQLRETURN InitializeReaderConnection() = 0;
 
 protected:
+    // State shared with the read/write splitting plugins, which read / reassign while routing statements
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::shared_ptr<OdbcHelper> odbc_helper_;
     BasePlugin* plugin_head_ = nullptr;
     DBC* writer_connection_ = nullptr;
@@ -87,6 +89,7 @@ protected:
     SQLHENV henv_;
     SQLHDBC current_connection_ = nullptr;
     DBC* dbc_ = nullptr;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
 private:
     CacheEntry<DBC*> reader_cache_item_ = CacheEntry<DBC*>();

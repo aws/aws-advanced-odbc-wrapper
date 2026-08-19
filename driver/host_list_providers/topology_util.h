@@ -37,8 +37,11 @@ public:
     static void LogTopology(const std::vector<HostInfo>& hosts);
 
 protected:
+    // Collaborators subclasses query topology with
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<Dialect> dialect_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     static constexpr int BUFFER_SIZE = 1024;
     static constexpr int IS_READER_COL = 1;

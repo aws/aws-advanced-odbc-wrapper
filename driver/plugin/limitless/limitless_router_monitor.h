@@ -74,6 +74,7 @@ protected:
     std::shared_ptr<DialectLimitless> dialect_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<LimitlessQueryHelper> limitless_query_helper_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     void Run(SQLHENV henv, SQLHDBC conn, const std::map<std::string, std::string>& conn_attr, int host_port);
 };

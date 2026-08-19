@@ -40,7 +40,10 @@ public:
     virtual void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {}
 
 protected:
+    // Subclasses set and read the cluster id
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::string cluster_id_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 #endif // HOST_LIST_PROVIDER_H_
