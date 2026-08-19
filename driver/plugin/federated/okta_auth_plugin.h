@@ -35,6 +35,7 @@ static std::map<std::string, MfaType> const MFA_TYPE_TABLE = {
     {VALUE_MFA_PUSH, MfaType::PUSH}
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class OktaSamlUtil : public SamlUtil, protected BrowserAuthFlow {
 public:
     explicit OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);

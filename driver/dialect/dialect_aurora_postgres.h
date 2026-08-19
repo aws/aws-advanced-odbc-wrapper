@@ -22,6 +22,7 @@
 #include "../util/rds_strings.h"
 #include "dialect.h"
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectAuroraPostgres : public DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
@@ -122,6 +123,7 @@ private:
     };
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectAuroraPostgresLimitless : public DialectLimitless, public DialectAuroraPostgres {
 public:
     std::string GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
@@ -131,6 +133,7 @@ private:
     const std::string LIMITLESS_ROUTER_ENDPOINT_QUERY = "SELECT router_endpoint, load FROM pg_catalog.aurora_limitless_router_endpoints()";
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectMultiAzClusterPostgres : public DialectMultiAzCluster, public DialectAuroraPostgres {
 public:
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_PG; }

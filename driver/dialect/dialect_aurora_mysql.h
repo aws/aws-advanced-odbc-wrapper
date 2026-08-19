@@ -22,6 +22,7 @@
 #include "../util/rds_strings.h"
 #include "dialect.h"
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectAuroraMySql : public DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_MYSQL_PORT; };
@@ -51,7 +52,6 @@ public:
 
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
 
-protected:
     std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
         if (statement.starts_with(SET_READ_ONLY_QUERY)) {
             return true;
@@ -109,6 +109,7 @@ private:
     };
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectMultiAzClusterMySql : public DialectMultiAzCluster, public DialectAuroraMySql {
 public:
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_MYSQL; };
