@@ -27,12 +27,12 @@
 #include "../../util/sliding_cache_map.h"
 #include "../base_plugin.h"
 
-typedef enum {
+enum FailoverMode : std::uint8_t {
     STRICT_READER,
     STRICT_WRITER,
     READER_OR_WRITER,
     UNKNOWN_FAILOVER_MODE
-} FailoverMode;
+};
 
 static std::map<std::string, FailoverMode> const failover_mode_table = {
     {VALUE_FAILOVER_MODE_STRICT_READER,     FailoverMode::STRICT_READER},

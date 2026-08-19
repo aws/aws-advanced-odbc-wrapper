@@ -59,14 +59,14 @@ struct RdsLibResult {
 class RdsLibLoader {
 public:
     RdsLibLoader() = default;
-    RdsLibLoader(std::string library_path);
+    explicit RdsLibLoader(std::string library_path);
     ~RdsLibLoader();
 
     template<typename RDS_Func, typename... Args>
     RdsLibResult CallFunction(const std::string& func_name, Args... args);
     virtual FUNC_HANDLE GetFunction(const std::string& function_name);
     std::string GetDriverPath();
-    bool IsLoaded() const;
+    [[nodiscard]] bool IsLoaded() const;
     std::string GetLoadError();
 
 protected:

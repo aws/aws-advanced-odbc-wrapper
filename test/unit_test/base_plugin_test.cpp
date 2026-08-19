@@ -61,7 +61,7 @@ public:
     DelegatingPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {}
 
     void SetNextPlugin(std::shared_ptr<BasePlugin> next) {
-        next_plugin = std::move(next);
+        next_plugin_ = std::move(next);
     }
 
     SQLRETURN Connect(

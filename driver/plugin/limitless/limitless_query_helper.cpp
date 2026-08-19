@@ -85,7 +85,7 @@ HostInfo LimitlessQueryHelper::CreateHost(SQLTCHAR* load, SQLTCHAR* router_endpo
 
     const std::string router_endpoint_str(AS_UTF8_CSTR(router_endpoint));
 
-    return {
+    return HostInfo{
         router_endpoint_str,
         host_port_to_map,
         UP,

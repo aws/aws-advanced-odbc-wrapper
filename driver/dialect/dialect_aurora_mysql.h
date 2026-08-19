@@ -40,14 +40,14 @@ public:
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(ACCESS_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
     bool IsSqlStateNetworkError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(NETWORK_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 

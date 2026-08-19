@@ -26,7 +26,7 @@ struct STMT;
 class BasePlugin {
 public:
     BasePlugin() = default;
-    BasePlugin(DBC* dbc);
+    explicit BasePlugin(DBC* dbc);
     BasePlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     virtual ~BasePlugin();
 
@@ -60,8 +60,9 @@ protected:
         SQLINTEGER     TextLength);
 
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
-    std::shared_ptr<BasePlugin> next_plugin = nullptr;
-    std::string plugin_name;
+    std::shared_ptr<BasePlugin> next_plugin_ = nullptr;
+    std::string plugin_name_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
 private:
 };

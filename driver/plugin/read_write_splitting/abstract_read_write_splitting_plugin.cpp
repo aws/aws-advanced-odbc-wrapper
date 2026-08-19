@@ -28,13 +28,13 @@ const std::vector<std::string> FAILOVER_ERRORS = {
 AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc) : AbstractReadWriteSplittingPlugin(dbc, nullptr) {}
 
 AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {
-    this->plugin_name = "ABSTRACT_READ_WRITE_SPLITTING";
+    this->plugin_name_ = "ABSTRACT_READ_WRITE_SPLITTING";
     this->plugin_service_ = dbc->plugin_service;
     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
         this->odbc_helper_ = service->GetOdbcHelper();
         this->connection_attributes_ = service->GetOriginalConnAttr();
     }
-    this->next_plugin = next_plugin;
+    this->next_plugin_ = next_plugin;
     this->dbc_ = dbc;
 
     henv_ = dbc_->env;

@@ -15,22 +15,23 @@
 #ifndef LIMITLESS_ROUTER_SERVICE_H_
 #define LIMITLESS_ROUTER_SERVICE_H_
 
-#include "limitless_router_monitor.h"
-#include "limitless_query_helper.h"
-#include "../../host_info.h"
-#include "../../host_selector/round_robin_host_selector.h"
-#include "../../host_selector/highest_weight_host_selector.h"
-#include "../../util/sliding_cache_map.h"
-#include "../../util/odbc_helper.h"
-#include "../../dialect/dialect.h"
-
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
-typedef enum {
+#include "../../dialect/dialect.h"
+#include "../../host_info.h"
+#include "../../host_selector/highest_weight_host_selector.h"
+#include "../../host_selector/round_robin_host_selector.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/sliding_cache_map.h"
+#include "limitless_query_helper.h"
+#include "limitless_router_monitor.h"
+
+enum LimitlessDefault : std::uint16_t {
     MONITOR_INTERVAL_MS = 7500,
     CONNECT_RETRY_ATTEMPTS = 5
-} LimitlessDefault;
+};
 
 class LimitlessRouterService {
 public:

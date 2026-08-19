@@ -21,11 +21,11 @@
 
 class BlueGreenRole {
 public:
-    typedef enum {
+    enum Role : std::uint8_t {
         SOURCE,
         TARGET,
         UNKNOWN
-    } Role;
+    };
 
     static inline std::string VERSION_1_0 = "1.0";
 
@@ -42,8 +42,8 @@ public:
     BlueGreenRole();
     BlueGreenRole(Role role);
 
-    Role GetRole() const;
-    std::string ToString() const;
+    [[nodiscard]] Role GetRole() const;
+    [[nodiscard]] std::string ToString() const;
 
     bool operator==(const BlueGreenRole& other) const { return role_ == other.role_; }
 

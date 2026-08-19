@@ -32,7 +32,7 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client) : BasePlugin(dbc, next_plugin)
 {
-    this->plugin_name = "SECRETS_MANAGER";
+    this->plugin_name_ = "SECRETS_MANAGER";
 
     const std::string secret_id = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ID, "");
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_REGION, "");

@@ -42,7 +42,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<CustomEndpointMonitor>& endpoint_monitor) : BasePlugin(dbc, next_plugin)
 {
-    this->plugin_name = "CUSTOM_ENDPOINT";
+    this->plugin_name_ = "CUSTOM_ENDPOINT";
     this->plugin_service_ = plugin_service ? plugin_service : dbc->plugin_service;
 
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);

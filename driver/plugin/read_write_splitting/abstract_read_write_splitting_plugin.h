@@ -22,7 +22,7 @@
 
 class AbstractReadWriteSplittingPlugin : public BasePlugin {
 public:
-    AbstractReadWriteSplittingPlugin(DBC* dbc);
+    explicit AbstractReadWriteSplittingPlugin(DBC* dbc);
     AbstractReadWriteSplittingPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     ~AbstractReadWriteSplittingPlugin();
 

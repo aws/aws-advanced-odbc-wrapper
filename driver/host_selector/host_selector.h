@@ -23,12 +23,12 @@
 #include "../host_info.h"
 #include "../util/connection_string_keys.h"
 
-typedef enum {
+enum HostSelectorStrategies : std::uint8_t {
     HIGHEST_WEIGHT,
     RANDOM_HOST,
     ROUND_ROBIN,
     UNKNOWN_STRATEGY
-} HostSelectorStrategies;
+};
 
 static std::unordered_map<std::string, HostSelectorStrategies> const host_selector_table = {
     {VALUE_HIGHEST_WEIGHT_HOST_SELECTOR,    HostSelectorStrategies::HIGHEST_WEIGHT},

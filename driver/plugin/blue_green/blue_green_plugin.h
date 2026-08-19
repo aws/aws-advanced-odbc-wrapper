@@ -28,7 +28,7 @@
 class BlueGreenPlugin : public BasePlugin {
 public:
     BlueGreenPlugin() = default;
-    BlueGreenPlugin(DBC* dbc);
+    explicit BlueGreenPlugin(DBC* dbc);
     BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     ~BlueGreenPlugin();
 

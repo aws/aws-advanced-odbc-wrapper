@@ -40,7 +40,7 @@ public:
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(ACCESS_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
@@ -62,11 +62,11 @@ public:
     bool IsSqlStateNetworkError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(NETWORK_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
-    virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
 
     std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
         if (statement.starts_with(SET_READ_ONLY_QUERY)) {

@@ -28,7 +28,7 @@
 class SamlUtil {
 public:
     SamlUtil() = default;
-    SamlUtil(std::map<std::string, std::string> connection_attributes);
+    explicit SamlUtil(std::map<std::string, std::string> connection_attributes);
     SamlUtil(std::map<std::string, std::string> connection_attributes, const std::shared_ptr<Aws::Http::HttpClient>& http_client, const std::shared_ptr<Aws::STS::STSClient>& sts_client);
     virtual ~SamlUtil();
 

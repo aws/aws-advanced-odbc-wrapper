@@ -68,7 +68,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
         CreateAdfsAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
-    this->plugin_name = "ADFS";
+    this->plugin_name_ = "ADFS";
 }
 
 AdfsSamlUtil::AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes)

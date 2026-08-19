@@ -25,7 +25,7 @@
 
 class IamAuthPlugin : public BaseTokenAuthPlugin {
 public:
-    IamAuthPlugin(DBC* dbc);
+    explicit IamAuthPlugin(DBC* dbc);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,

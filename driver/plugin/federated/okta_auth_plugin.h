@@ -23,11 +23,11 @@
 #include "browser_auth_flow.h"
 #include "saml_util.h"
 
-typedef enum {
+enum MfaType : std::uint8_t {
     NONE,
     TOTP,
     PUSH
-} MfaType;
+};
 
 static std::map<std::string, MfaType> const mfa_type_table = {
     {"", MfaType::NONE},
@@ -37,7 +37,7 @@ static std::map<std::string, MfaType> const mfa_type_table = {
 
 class OktaSamlUtil : public SamlUtil, protected BrowserAuthFlow {
 public:
-    OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
+    explicit OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
     OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
@@ -70,7 +70,7 @@ private:
 
 class OktaAuthPlugin : public BaseSamlAuthPlugin {
 public:
-    OktaAuthPlugin(DBC* dbc);
+    explicit OktaAuthPlugin(DBC* dbc);
     OktaAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,

@@ -41,7 +41,7 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     std::shared_ptr<Dialect> dialect,
     std::shared_ptr<OdbcHelper> odbc_helper) : BasePlugin(dbc, next_plugin) {
 
-    this->plugin_name = "INITIAL_CONNECTION";
+    this->plugin_name_ = "INITIAL_CONNECTION";
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
     this->plugin_service_ = plugin_service;

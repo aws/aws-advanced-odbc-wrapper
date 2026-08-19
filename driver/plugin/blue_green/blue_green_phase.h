@@ -21,7 +21,7 @@
 
 class BlueGreenPhase {
 public:
-    typedef enum {
+    enum Phase : std::uint8_t {
         UNKNOWN,
         NOT_CREATED,
         CREATED,
@@ -29,7 +29,7 @@ public:
         IN_PROGRESS,
         POST,
         COMPLETED
-    } Phase;
+    };
 
     static inline std::map<Phase, bool> const PHASE_STATE_MAPPING = {
         {Phase::NOT_CREATED,    false},
@@ -62,8 +62,8 @@ public:
     BlueGreenPhase(Phase phase);
     BlueGreenPhase(Phase phase, bool switchover_or_completed);
 
-    Phase GetPhase() const;
-    bool IsSwitchoverOrCompleted() const;
+    [[nodiscard]] Phase GetPhase() const;
+    [[nodiscard]] bool IsSwitchoverOrCompleted() const;
 
     static BlueGreenPhase ParsePhase(std::string value, std::string version);
 

@@ -44,11 +44,11 @@
 #include <unordered_map>
 #include <vector>
 
-typedef enum {
+enum BlueGreenIntervalRate : std::uint8_t {
     BASELINE,
     INCREASED,
     HIGH
-} BlueGreenIntervalRate;
+};
 
 class BlueGreenMonitor {
 public:

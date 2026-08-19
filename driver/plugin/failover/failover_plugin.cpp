@@ -35,7 +35,7 @@ FailoverPlugin::FailoverPlugin(
     DBC* dbc,
     std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin)
 {
-    this->plugin_name = "FAILOVER";
+    this->plugin_name_ = "FAILOVER";
     this->plugin_service_ = dbc->plugin_service;
     this->cluster_id_ = dbc->plugin_service->GetClusterId();
     this->dialect_ = dbc->plugin_service->GetDialect();

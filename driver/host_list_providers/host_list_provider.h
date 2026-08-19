@@ -29,7 +29,7 @@ class Dialect;
 
 class HostListProvider {
 public:
-    HostListProvider(std::string cluster_id) : cluster_id_{ cluster_id } {};
+    explicit HostListProvider(std::string cluster_id) : cluster_id_{ cluster_id } {};
     virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) { return {}; };
     virtual std::vector<HostInfo> Refresh()  { return {}; };
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) { return {}; };

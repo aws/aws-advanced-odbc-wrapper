@@ -26,14 +26,14 @@
 struct DBC;
 class OdbcHelper;
 
-typedef enum {
+enum DatabaseDialectType : std::uint8_t {
     AURORA_POSTGRESQL,
     AURORA_POSTGRESQL_LIMITLESS,
     AURORA_MYSQL,
     MULTI_AZ_MYSQL,
     MULTI_AZ_PG,
     UNKNOWN_DIALECT
-} DatabaseDialectType;
+};
 
 static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL,            DatabaseDialectType::AURORA_POSTGRESQL},
@@ -92,7 +92,7 @@ public:
 
 class DialectMultiAzCluster : virtual public Dialect {
 public:
-    virtual std::string GetWriterIdColumnName() { return ""; };
+    std::string GetWriterIdColumnName() override { return ""; };
 };
 
 #endif // DIALECT_H

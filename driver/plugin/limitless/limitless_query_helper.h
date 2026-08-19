@@ -28,7 +28,7 @@
 
 class LimitlessQueryHelper {
 public:
-    LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper);
+    explicit LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper);
     // Generally accepted URL endpoint max length (2048) + 1 for null terminator
     static const int ROUTER_ENDPOINT_LENGTH = 2049;
     static const int LOAD_LENGTH = 5;

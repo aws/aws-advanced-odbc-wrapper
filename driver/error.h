@@ -26,7 +26,7 @@
 #include <map>
 #include <string>
 
-typedef enum {
+enum SQL_STATE_CODE : std::uint8_t {
     /* ODBC SQL States*/
     WARN_GENERAL_WARNING,
     WARN_CURSOR_OPERATION_CONFLICT,
@@ -164,7 +164,7 @@ typedef enum {
 
     /* End Error, used for sizing */
     INVALID_ERR
-} SQL_STATE_CODE;
+};
 
 const std::string ODBC_STATE_MAP[] = {
     /* ODBC SQL States*/
@@ -248,7 +248,7 @@ struct ERR_INFO {
         }
     }
 
-    bool IsOdbc3Subclass(std::string str_sql_state) {
+    static bool IsOdbc3Subclass(const std::string& str_sql_state) {
         if (str_sql_state.empty()) {
             return false;
         }

@@ -33,7 +33,7 @@ AwsSsoAuthPlugin::AwsSsoAuthPlugin(
     std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseTokenAuthPlugin(dbc, next_plugin, auth_provider, dialect, odbc_helper)
 {
-    this->plugin_name = "AWS_SSO";
+    this->plugin_name_ = "AWS_SSO";
     login_util_ = login_util ? login_util : std::make_shared<SsoBrowserLoginUtil>(dbc->conn_attr);
 }
 
@@ -62,7 +62,7 @@ bool AwsSsoAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, st
 {
     // Acquire credentials via SSO if not already resolved.
     // An interactive browser login is only attempted when the caller permitted prompting.
-    if (auth_provider) {
+    if (auth_provider_) {
         return true;
     }
 
@@ -74,7 +74,7 @@ bool AwsSsoAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, st
             ? "AWS IAM Identity Center (SSO) authentication failed" : login_error;
         return false;
     }
-    auth_provider = std::make_shared<AuthProvider>(region, credentials);
+    auth_provider_ = std::make_shared<AuthProvider>(region, credentials);
     return true;
 }
 
@@ -87,6 +87,6 @@ bool AwsSsoAuthPlugin::RefreshCredentials(DBC* dbc, const std::string& region)
     if (credentials.IsEmpty()) {
         return false;
     }
-    auth_provider->UpdateAwsCredential(credentials, region);
+    auth_provider_->UpdateAwsCredential(credentials, region);
     return true;
 }

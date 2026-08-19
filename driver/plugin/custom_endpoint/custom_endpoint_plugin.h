@@ -27,7 +27,7 @@
 
 class CustomEndpointPlugin : public BasePlugin {
 public:
-    CustomEndpointPlugin(DBC* dbc);
+    explicit CustomEndpointPlugin(DBC* dbc);
     CustomEndpointPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     CustomEndpointPlugin(
         DBC* dbc,

@@ -73,7 +73,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
         CreateOktaAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
-    this->plugin_name = "OKTA";
+    this->plugin_name_ = "OKTA";
 }
 
 OktaSamlUtil::OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes)

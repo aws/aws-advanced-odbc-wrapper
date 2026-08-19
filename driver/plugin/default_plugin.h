@@ -23,7 +23,7 @@
 class DefaultPlugin : public BasePlugin {
 public:
     DefaultPlugin() = default;
-    DefaultPlugin(DBC* dbc);
+    explicit DefaultPlugin(DBC* dbc);
     DefaultPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     virtual SQLRETURN Connect(

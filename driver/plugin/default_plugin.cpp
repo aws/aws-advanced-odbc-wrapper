@@ -25,7 +25,8 @@
 
 DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
-DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : plugin_name("DefaultPlugin") {
+DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) {
+    this->plugin_name_ = "DefaultPlugin";
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 }
 

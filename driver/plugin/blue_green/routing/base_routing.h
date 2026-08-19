@@ -32,10 +32,10 @@ public:
         BlueGreenStatus status,
         const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
         std::string id);
-    virtual std::chrono::steady_clock::time_point GetCurrTime() const;
+    [[nodiscard]] virtual std::chrono::steady_clock::time_point GetCurrTime() const;
 
-    std::string ToString() const;
-    bool IsMatch(const std::string& host_port, BlueGreenRole host_role) const;
+    [[nodiscard]] std::string ToString() const;
+    [[nodiscard]] bool IsMatch(const std::string& host_port, BlueGreenRole host_role) const;
 
 protected:
     std::string route_class_;

@@ -23,7 +23,7 @@
 
 class AdfsSamlUtil : public SamlUtil {
 public:
-    AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes);
+    explicit AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes);
     AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
     std::string GetSamlAssertion();
 
@@ -45,7 +45,7 @@ private:
 
 class AdfsAuthPlugin : public BaseSamlAuthPlugin {
 public:
-    AdfsAuthPlugin(DBC* dbc);
+    explicit AdfsAuthPlugin(DBC* dbc);
     AdfsAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,

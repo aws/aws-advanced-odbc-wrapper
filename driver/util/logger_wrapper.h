@@ -35,8 +35,8 @@ namespace logger_config {
 class LoggerWrapper {
 public:
     LoggerWrapper();
-    LoggerWrapper(int threshold);
-    LoggerWrapper(const std::string &log_location);
+    explicit LoggerWrapper(int threshold);
+    explicit LoggerWrapper(const std::string &log_location);
     LoggerWrapper(std::string log_location, int threshold);
     ~LoggerWrapper();
 

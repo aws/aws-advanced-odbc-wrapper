@@ -172,7 +172,7 @@ HostInfo TopologyUtil::CreateHost(
     uint64_t weight,
     std::chrono::steady_clock::time_point last_update)
 {
-    return {std::move(host), port, state, role, weight, last_update};
+    return HostInfo{std::move(host), port, state, role, weight, last_update};
 }
 
 HostInfo TopologyUtil::GetWriter(const std::vector<HostInfo>& hosts) {

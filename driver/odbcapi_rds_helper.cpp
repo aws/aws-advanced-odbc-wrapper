@@ -2206,25 +2206,29 @@ SQLRETURN RDS_SQLGetStmtAttr(
     switch (Attribute) {
         case SQL_ATTR_APP_ROW_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->app_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->app_row_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_row_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_APP_PARAM_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->app_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->app_param_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_param_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_IMP_ROW_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->imp_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->imp_row_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_row_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_IMP_PARAM_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->imp_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->imp_param_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_param_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);

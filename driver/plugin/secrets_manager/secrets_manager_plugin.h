@@ -32,7 +32,7 @@ public:
 
 class SecretsManagerPlugin : public BasePlugin {
 public:
-    SecretsManagerPlugin(DBC* dbc);
+    explicit SecretsManagerPlugin(DBC* dbc);
     SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client);
     ~SecretsManagerPlugin() override;

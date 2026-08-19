@@ -261,7 +261,7 @@ HostInfo SimpleReadWriteSplittingPlugin::CreateHostInfo(const std::string &endpo
         default_port = service->GetDialect()->GetDefaultPort();
     }
     const int port = MapUtils::GetIntValue(dbc_->conn_attr, KEY_PORT, default_port);
-    return {endpoint, port, UP, role};
+    return HostInfo{endpoint, port, UP, role};
 }
 
 SQLRETURN SimpleReadWriteSplittingPlugin::RefreshAndStoreTopology() {

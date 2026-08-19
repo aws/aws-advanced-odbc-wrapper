@@ -153,23 +153,23 @@
 #endif
 
 /* Function Pointer Headers */
-typedef SQLRETURN (*RDS_FP_SQLAllocConnect)(
+using RDS_FP_SQLAllocConnect = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLHDBC *      ConnectionHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLAllocEnv)(
+using RDS_FP_SQLAllocEnv = SQLRETURN (*)(
     SQLHENV *      EnvironmentHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLAllocHandle)(
+using RDS_FP_SQLAllocHandle = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      InputHandle,
     SQLHANDLE *    OutputHandlePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLAllocStmt)(
+using RDS_FP_SQLAllocStmt = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLHSTMT *     StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLBindCol)(
+using RDS_FP_SQLBindCol = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ColumnNumber,
     SQLSMALLINT    TargetType,
@@ -177,7 +177,7 @@ typedef SQLRETURN (*RDS_FP_SQLBindCol)(
     SQLLEN         BufferLength,
     SQLLEN *       StrLen_or_IndPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLBindParameter)(
+using RDS_FP_SQLBindParameter = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ParameterNumber,
     SQLSMALLINT    InputOutputType,
@@ -189,7 +189,7 @@ typedef SQLRETURN (*RDS_FP_SQLBindParameter)(
     SQLLEN         BufferLength,
     SQLLEN *       StrLen_or_IndPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLBrowseConnect)(
+using RDS_FP_SQLBrowseConnect = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLTCHAR *     InConnectionString,
     SQLSMALLINT    StringLength1,
@@ -197,21 +197,21 @@ typedef SQLRETURN (*RDS_FP_SQLBrowseConnect)(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLength2Ptr);
 
-typedef SQLRETURN (*RDS_FP_SQLBulkOperations)(
+using RDS_FP_SQLBulkOperations = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    Operation);
 
-typedef SQLRETURN (*RDS_FP_SQLCancel)(
+using RDS_FP_SQLCancel = SQLRETURN (*)(
     SQLHSTMT       StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLCancelHandle)(
+using RDS_FP_SQLCancelHandle = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle);
 
-typedef SQLRETURN (*RDS_FP_SQLCloseCursor)(
+using RDS_FP_SQLCloseCursor = SQLRETURN (*)(
     SQLHSTMT       StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLColAttribute)(
+using RDS_FP_SQLColAttribute = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ColumnNumber,
     SQLUSMALLINT   FieldIdentifier,
@@ -220,7 +220,7 @@ typedef SQLRETURN (*RDS_FP_SQLColAttribute)(
     SQLSMALLINT *  StringLengthPtr,
     SQLLEN *       NumericAttributePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLColAttributes)(
+using RDS_FP_SQLColAttributes = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ColumnNumber,
     SQLUSMALLINT   FieldIdentifier,
@@ -229,7 +229,7 @@ typedef SQLRETURN (*RDS_FP_SQLColAttributes)(
     SQLSMALLINT *  StringLengthPtr,
     SQLLEN *       NumericAttributePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLColumnPrivileges)(
+using RDS_FP_SQLColumnPrivileges = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -240,7 +240,7 @@ typedef SQLRETURN (*RDS_FP_SQLColumnPrivileges)(
     SQLTCHAR *     ColumnName,
     SQLSMALLINT    NameLength4);
 
-typedef SQLRETURN (*RDS_FP_SQLColumns)(
+using RDS_FP_SQLColumns = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -251,12 +251,12 @@ typedef SQLRETURN (*RDS_FP_SQLColumns)(
     SQLTCHAR *     ColumnName,
     SQLSMALLINT    NameLength4);
 
-typedef SQLRETURN (*RDS_FP_SQLCompleteAsync)(
+using RDS_FP_SQLCompleteAsync = SQLRETURN (*)(
     SQLSMALLINT   HandleType,
     SQLHANDLE     Handle,
     RETCODE *     AsyncRetCodePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLConnect)(
+using RDS_FP_SQLConnect = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLTCHAR *     ServerName,
     SQLSMALLINT    NameLength1,
@@ -265,11 +265,11 @@ typedef SQLRETURN (*RDS_FP_SQLConnect)(
     SQLTCHAR *     Authentication,
     SQLSMALLINT    NameLength3);
 
-typedef SQLRETURN (*RDS_FP_SQLCopyDesc)(
+using RDS_FP_SQLCopyDesc = SQLRETURN (*)(
     SQLHDESC       SourceDescHandle,
     SQLHDESC       TargetDescHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLDataSources)(
+using RDS_FP_SQLDataSources = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLUSMALLINT   Direction,
     SQLTCHAR *     ServerName,
@@ -279,7 +279,7 @@ typedef SQLRETURN (*RDS_FP_SQLDataSources)(
     SQLSMALLINT    BufferLength2,
     SQLSMALLINT *  NameLength2Ptr);
 
-typedef SQLRETURN (*RDS_FP_SQLDescribeCol)(
+using RDS_FP_SQLDescribeCol = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ColumnNumber,
     SQLTCHAR *     ColumnName,
@@ -290,7 +290,7 @@ typedef SQLRETURN (*RDS_FP_SQLDescribeCol)(
     SQLSMALLINT *  DecimalDigitsPtr,
     SQLSMALLINT *  NullablePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLDescribeParam)(
+using RDS_FP_SQLDescribeParam = SQLRETURN (*)(
     SQLHSTMT      StatementHandle,
     SQLUSMALLINT  ParameterNumber,
     SQLSMALLINT * DataTypePtr,
@@ -298,10 +298,10 @@ typedef SQLRETURN (*RDS_FP_SQLDescribeParam)(
     SQLSMALLINT * DecimalDigitsPtr,
     SQLSMALLINT * NullablePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLDisconnect)(
+using RDS_FP_SQLDisconnect = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLDriverConnect)(
+using RDS_FP_SQLDriverConnect = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLHWND        WindowHandle,
     SQLTCHAR *     InConnectionString,
@@ -311,7 +311,7 @@ typedef SQLRETURN (*RDS_FP_SQLDriverConnect)(
     SQLSMALLINT *  StringLength2Ptr,
     SQLUSMALLINT   DriverCompletion);
 
-typedef SQLRETURN (*RDS_FP_SQLDrivers)(
+using RDS_FP_SQLDrivers = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLUSMALLINT   Direction,
     SQLTCHAR *     DriverDescription,
@@ -321,12 +321,12 @@ typedef SQLRETURN (*RDS_FP_SQLDrivers)(
     SQLSMALLINT    BufferLength2,
     SQLSMALLINT *  AttributesLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLEndTran)(
+using RDS_FP_SQLEndTran = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle,
     SQLSMALLINT    CompletionType);
 
-typedef SQLRETURN (*RDS_FP_SQLError)(
+using RDS_FP_SQLError = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLHDBC        ConnectionHandle,
     SQLHSTMT       StatementHandle,
@@ -336,30 +336,30 @@ typedef SQLRETURN (*RDS_FP_SQLError)(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  TextLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLExecDirect)(
+using RDS_FP_SQLExecDirect = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength);
 
-typedef SQLRETURN (*RDS_FP_SQLExecute)(
+using RDS_FP_SQLExecute = SQLRETURN (*)(
     SQLHSTMT       StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLExtendedFetch)(
+using RDS_FP_SQLExtendedFetch = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   FetchOrientation,
     SQLLEN         FetchOffset,
     SQLULEN *      RowCountPtr,
     SQLUSMALLINT * RowStatusArray);
 
-typedef SQLRETURN (*RDS_FP_SQLFetch)(
+using RDS_FP_SQLFetch = SQLRETURN (*)(
     SQLHSTMT        StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLFetchScroll)(
+using RDS_FP_SQLFetchScroll = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    FetchOrientation,
     SQLLEN         FetchOffset);
 
-typedef SQLRETURN (*RDS_FP_SQLForeignKeys)(
+using RDS_FP_SQLForeignKeys = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     PKCatalogName,
     SQLSMALLINT    NameLength1,
@@ -374,39 +374,39 @@ typedef SQLRETURN (*RDS_FP_SQLForeignKeys)(
     SQLTCHAR *     FKTableName,
     SQLSMALLINT    NameLength6);
 
-typedef SQLRETURN (*RDS_FP_SQLFreeConnect)(
+using RDS_FP_SQLFreeConnect = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLFreeEnv)(
+using RDS_FP_SQLFreeEnv = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLFreeHandle)(
+using RDS_FP_SQLFreeHandle = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle);
 
-typedef SQLRETURN (*RDS_FP_SQLFreeStmt)(
+using RDS_FP_SQLFreeStmt = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Option);
 
-typedef SQLRETURN (*RDS_FP_SQLGetConnectAttr)(
+using RDS_FP_SQLGetConnectAttr = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetConnectOption)(
+using RDS_FP_SQLGetConnectOption = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetCursorName)(
+using RDS_FP_SQLGetCursorName = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CursorName,
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  NameLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetData)(
+using RDS_FP_SQLGetData = SQLRETURN (*)(
     SQLHSTMT      StatementHandle,
     SQLUSMALLINT  Col_or_Param_Num,
     SQLSMALLINT   TargetType,
@@ -414,7 +414,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetData)(
     SQLLEN        BufferLength,
     SQLLEN *      StrLen_or_IndPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetDescField)(
+using RDS_FP_SQLGetDescField = SQLRETURN (*)(
     SQLHDESC       DescriptorHandle,
     SQLSMALLINT    RecNumber,
     SQLSMALLINT    FieldIdentifier,
@@ -422,7 +422,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetDescField)(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetDescRec)(
+using RDS_FP_SQLGetDescRec = SQLRETURN (*)(
     SQLHDESC       DescriptorHandle,
     SQLSMALLINT    RecNumber,
     SQLTCHAR *     Name,
@@ -435,7 +435,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetDescRec)(
     SQLSMALLINT *  ScalePtr,
     SQLSMALLINT *  NullablePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetDiagField)(
+using RDS_FP_SQLGetDiagField = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle,
     SQLSMALLINT    RecNumber,
@@ -444,7 +444,7 @@ typedef SQLRETURN (*RDS_FP_SQLGetDiagField)(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetDiagRec)(
+using RDS_FP_SQLGetDiagRec = SQLRETURN (*)(
     SQLSMALLINT    HandleType,
     SQLHANDLE      Handle,
     SQLSMALLINT    RecNumber,
@@ -454,45 +454,45 @@ typedef SQLRETURN (*RDS_FP_SQLGetDiagRec)(
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  TextLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetEnvAttr)(
+using RDS_FP_SQLGetEnvAttr = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetFunctions)(
+using RDS_FP_SQLGetFunctions = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   FunctionId,
     SQLUSMALLINT * SupportedPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetInfo)(
+using RDS_FP_SQLGetInfo = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   InfoType,
     SQLPOINTER     InfoValuePtr,
     SQLSMALLINT    BufferLength,
     SQLSMALLINT *  StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetStmtAttr)(
+using RDS_FP_SQLGetStmtAttr = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     BufferLength,
     SQLINTEGER *   StringLengthPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetStmtOption)(
+using RDS_FP_SQLGetStmtOption = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Attribute,
     SQLPOINTER     ValuePtr);
 
-typedef SQLRETURN (*RDS_FP_SQLGetTypeInfo)(
+using RDS_FP_SQLGetTypeInfo = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    DataType);
 
-typedef SQLRETURN (*RDS_FP_SQLMoreResults)(
+using RDS_FP_SQLMoreResults = SQLRETURN (*)(
     SQLHSTMT       StatementHandle);
 
-typedef SQLRETURN (*RDS_FP_SQLNativeSql)(
+using RDS_FP_SQLNativeSql = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLTCHAR *     InStatementText,
     SQLINTEGER     TextLength1,
@@ -500,29 +500,29 @@ typedef SQLRETURN (*RDS_FP_SQLNativeSql)(
     SQLINTEGER     BufferLength,
     SQLINTEGER *   TextLength2Ptr);
 
-typedef SQLRETURN (*RDS_FP_SQLNumParams)(
+using RDS_FP_SQLNumParams = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT *  ParameterCountPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLNumResultCols)(
+using RDS_FP_SQLNumResultCols = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT *  ColumnCountPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLParamData)(
+using RDS_FP_SQLParamData = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLPOINTER *   ValuePtrPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLParamOptions)(
+using RDS_FP_SQLParamOptions = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLULEN        Crow,
     SQLULEN *      FetchOffsetPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLPrepare)(
+using RDS_FP_SQLPrepare = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength);
 
-typedef SQLRETURN (*RDS_FP_SQLPrimaryKeys)(
+using RDS_FP_SQLPrimaryKeys = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -531,7 +531,7 @@ typedef SQLRETURN (*RDS_FP_SQLPrimaryKeys)(
     SQLTCHAR *     TableName,
     SQLSMALLINT    NameLength3);
 
-typedef SQLRETURN (*RDS_FP_SQLProcedureColumns)(
+using RDS_FP_SQLProcedureColumns = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -542,7 +542,7 @@ typedef SQLRETURN (*RDS_FP_SQLProcedureColumns)(
     SQLTCHAR *     ColumnName,
     SQLSMALLINT    NameLength4);
 
-typedef SQLRETURN (*RDS_FP_SQLProcedures)(
+using RDS_FP_SQLProcedures = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -551,39 +551,39 @@ typedef SQLRETURN (*RDS_FP_SQLProcedures)(
     SQLTCHAR *     ProcName,
     SQLSMALLINT    NameLength3);
 
-typedef SQLRETURN (*RDS_FP_SQLPutData)(
+using RDS_FP_SQLPutData = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLPOINTER     DataPtr,
     SQLLEN         StrLen_or_Ind);
 
-typedef SQLRETURN (*RDS_FP_SQLRowCount)(
+using RDS_FP_SQLRowCount = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLLEN *       RowCountPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLSetConnectAttr)(
+using RDS_FP_SQLSetConnectAttr = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength);
 
-typedef SQLRETURN (*RDS_FP_SQLSetConnectOption)(
+using RDS_FP_SQLSetConnectOption = SQLRETURN (*)(
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   Option,
     SQLULEN        Param);
 
-typedef SQLRETURN (*RDS_FP_SQLSetCursorName)(
+using RDS_FP_SQLSetCursorName = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CursorName,
     SQLSMALLINT    NameLength);
 
-typedef SQLRETURN (*RDS_FP_SQLSetDescField)(
+using RDS_FP_SQLSetDescField = SQLRETURN (*)(
     SQLHDESC       DescriptorHandle,
     SQLSMALLINT    RecNumber,
     SQLSMALLINT    FieldIdentifier,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     BufferLength);
 
-typedef SQLRETURN (*RDS_FP_SQLSetDescRec)(
+using RDS_FP_SQLSetDescRec = SQLRETURN (*)(
     SQLHDESC      DescriptorHandle,
     SQLSMALLINT   RecNumber,
     SQLSMALLINT   Type,
@@ -595,13 +595,13 @@ typedef SQLRETURN (*RDS_FP_SQLSetDescRec)(
     SQLLEN *      StringLengthPtr,
     SQLLEN *      IndicatorPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLSetEnvAttr)(
+using RDS_FP_SQLSetEnvAttr = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength);
 
-typedef SQLRETURN (*RDS_FP_SQLSetParam)(
+using RDS_FP_SQLSetParam = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   ParameterNumber,
     SQLSMALLINT    ValueType,
@@ -611,30 +611,30 @@ typedef SQLRETURN (*RDS_FP_SQLSetParam)(
     SQLPOINTER     ParameterValuePtr,
     SQLLEN *       StrLen_or_IndPtr);
 
-typedef SQLRETURN (*RDS_FP_SQLSetPos)(
+using RDS_FP_SQLSetPos = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSETPOSIROW  RowNumber,
     SQLUSMALLINT   Operation,
     SQLUSMALLINT   LockType);
 
-typedef SQLRETURN (*RDS_FP_SQLSetScrollOptions)(
+using RDS_FP_SQLSetScrollOptions = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Concurrency,
     SQLLEN         KeysetSize,
     SQLUSMALLINT   RowsetSize);
 
-typedef SQLRETURN (*RDS_FP_SQLSetStmtAttr)(
+using RDS_FP_SQLSetStmtAttr = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLINTEGER     Attribute,
     SQLPOINTER     ValuePtr,
     SQLINTEGER     StringLength);
 
-typedef SQLRETURN (*RDS_FP_SQLSetStmtOption)(
+using RDS_FP_SQLSetStmtOption = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLUSMALLINT   Option,
     SQLULEN        Param);
 
-typedef SQLRETURN (*RDS_FP_SQLSpecialColumns)(
+using RDS_FP_SQLSpecialColumns = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLSMALLINT    IdentifierType,
     SQLTCHAR *     CatalogName,
@@ -646,7 +646,7 @@ typedef SQLRETURN (*RDS_FP_SQLSpecialColumns)(
     SQLSMALLINT    Scope,
     SQLSMALLINT    Nullable);
 
-typedef SQLRETURN (*RDS_FP_SQLStatistics)(
+using RDS_FP_SQLStatistics = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -657,7 +657,7 @@ typedef SQLRETURN (*RDS_FP_SQLStatistics)(
     SQLUSMALLINT   Unique,
     SQLUSMALLINT   Reserved);
 
-typedef SQLRETURN (*RDS_FP_SQLTablePrivileges)(
+using RDS_FP_SQLTablePrivileges = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -666,7 +666,7 @@ typedef SQLRETURN (*RDS_FP_SQLTablePrivileges)(
     SQLTCHAR *     TableName,
     SQLSMALLINT    NameLength3);
 
-typedef SQLRETURN (*RDS_FP_SQLTables)(
+using RDS_FP_SQLTables = SQLRETURN (*)(
     SQLHSTMT       StatementHandle,
     SQLTCHAR *     CatalogName,
     SQLSMALLINT    NameLength1,
@@ -677,7 +677,7 @@ typedef SQLRETURN (*RDS_FP_SQLTables)(
     SQLTCHAR *     TableType,
     SQLSMALLINT    NameLength4);
 
-typedef SQLRETURN (*RDS_FP_SQLTransact)(
+using RDS_FP_SQLTransact = SQLRETURN (*)(
     SQLHENV        EnvironmentHandle,
     SQLHDBC        ConnectionHandle,
     SQLUSMALLINT   CompletionType);

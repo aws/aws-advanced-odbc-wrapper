@@ -37,20 +37,20 @@ BaseSamlAuthPlugin::~BaseSamlAuthPlugin()
 
 bool BaseSamlAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error)
 {
-    if (!auth_provider) {
-        out_error = "No AWS credential provider is available for " + plugin_name + " authentication";
+    if (!auth_provider_) {
+        out_error = "No AWS credential provider is available for " + plugin_name_ + " authentication";
         return false;
     }
-    if (auth_provider->HasResolvedCredentials()) {
+    if (auth_provider_->HasResolvedCredentials()) {
         return true;
     }
 
     const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
     if (credentials.IsEmpty()) {
-        out_error = "Unable to resolve AWS credentials for " + plugin_name + " authentication";
+        out_error = "Unable to resolve AWS credentials for " + plugin_name_ + " authentication";
         return false;
     }
-    auth_provider->UpdateAwsCredential(credentials);
+    auth_provider_->UpdateAwsCredential(credentials);
     return true;
 }
 
@@ -61,9 +61,9 @@ bool BaseSamlAuthPlugin::RefreshCredentials(DBC* dbc, const std::string& region)
     const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
     if (credentials.IsEmpty()) {
         // Do not generate a token from empty credentials will return garbage token
-        LOG(ERROR) << "[" << plugin_name << "] Unable to refresh SAML credentials; skipping token retry";
+        LOG(ERROR) << "[" << plugin_name_ << "] Unable to refresh SAML credentials; skipping token retry";
         return false;
     }
-    auth_provider->UpdateAwsCredential(credentials);
+    auth_provider_->UpdateAwsCredential(credentials);
     return true;
 }

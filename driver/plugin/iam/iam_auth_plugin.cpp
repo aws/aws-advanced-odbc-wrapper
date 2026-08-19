@@ -61,7 +61,7 @@ IamAuthPlugin::IamAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,
                              std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseTokenAuthPlugin(dbc, next_plugin, CreateIamAuthProvider(dbc, auth_provider), dialect, odbc_helper)
 {
-    this->plugin_name = "IAM";
+    this->plugin_name_ = "IAM";
 }
 
 std::string IamAuthPlugin::ResolveRegion(DBC* dbc)
@@ -71,7 +71,7 @@ std::string IamAuthPlugin::ResolveRegion(DBC* dbc)
 
 bool IamAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error)
 {
-    if (auth_provider && auth_provider->HasResolvedCredentials()) {
+    if (auth_provider_ && auth_provider_->HasResolvedCredentials()) {
         return true;
     }
 

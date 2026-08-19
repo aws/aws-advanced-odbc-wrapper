@@ -25,7 +25,7 @@
 
 class LimitlessPlugin : public BasePlugin {
 public:
-    LimitlessPlugin(DBC* dbc);
+    explicit LimitlessPlugin(DBC* dbc);
     LimitlessPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     LimitlessPlugin(
         DBC* dbc,

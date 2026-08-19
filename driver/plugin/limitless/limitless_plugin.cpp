@@ -36,7 +36,7 @@ LimitlessPlugin::LimitlessPlugin(
     const std::shared_ptr<OdbcHelper> &odbc_helper) : BasePlugin(dbc, next_plugin)
 {
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
-    this->plugin_name = "LIMITLESS";
+    this->plugin_name_ = "LIMITLESS";
     if (dialect) {
         this->dialect_ = dialect;
     } else if (dbc->plugin_service) {
@@ -88,7 +88,7 @@ SQLRETURN LimitlessPlugin::Connect(
             }
 
             limitless_router_service_->StartMonitoring(dbc, limitless_dialect);
-            return limitless_router_service_->EstablishConnection(next_plugin, dbc);
+            return limitless_router_service_->EstablishConnection(next_plugin_, dbc);
         }
     }
 
