@@ -21,11 +21,11 @@
 #include <string>
 
 namespace {
-    const std::string one = "one";
-    const std::string two = "two";
-    const std::string three = "three";
-    const std::string four = "four";
-    const std::string five = "five";
+    const std::string ONE = "one";
+    const std::string TWO = "two";
+    const std::string THREE = "three";
+    const std::string FOUR = "four";
+    const std::string FIVE = "five";
 }
 
 class ConcurrentStackTest : public testing::Test {
@@ -45,22 +45,22 @@ TEST_F(ConcurrentStackTest, Test_Push_And_Pop) {
     EXPECT_EQ(0, stack.Size());
     EXPECT_TRUE(stack.Empty());
 
-    stack.PushBack(one);
-    stack.PushBack(two);
-    stack.PushBack(three);
-    stack.PushBack(four);
-    stack.PushBack(five);
+    stack.PushBack(ONE);
+    stack.PushBack(TWO);
+    stack.PushBack(THREE);
+    stack.PushBack(FOUR);
+    stack.PushBack(FIVE);
     EXPECT_EQ(5, stack.Size());
     EXPECT_FALSE(stack.Empty());
-    EXPECT_EQ(five, stack.Back());
+    EXPECT_EQ(FIVE, stack.Back());
 
     stack.PopBack();
     EXPECT_EQ(4, stack.Size());
-    EXPECT_EQ(four, stack.Back());
+    EXPECT_EQ(FOUR, stack.Back());
 
     stack.PopBack();
     EXPECT_EQ(3, stack.Size());
-    EXPECT_EQ(three, stack.Back());
+    EXPECT_EQ(THREE, stack.Back());
 
     stack.Clear();
 
@@ -70,45 +70,45 @@ TEST_F(ConcurrentStackTest, Test_Push_And_Pop) {
 
 TEST_F(ConcurrentStackTest, Test_RemoveIf) {
     ConcurrentStack<std::string> stack;
-    stack.PushBack(one);
-    stack.PushBack(two);
-    stack.PushBack(three);
-    stack.PushBack(four);
-    stack.PushBack(five);
+    stack.PushBack(ONE);
+    stack.PushBack(TWO);
+    stack.PushBack(THREE);
+    stack.PushBack(FOUR);
+    stack.PushBack(FIVE);
 
     EXPECT_EQ(5, stack.Size());
 
-    std::function<bool(std::string)> isThree = [](std::string value) { return value == three; };
-    stack.RemoveIf(isThree);
+    std::function<bool(std::string)> is_three = [](std::string value) { return value == THREE; };
+    stack.RemoveIf(is_three);
 
     EXPECT_EQ(4, stack.Size());
 
-    EXPECT_EQ(five, stack.Back());
+    EXPECT_EQ(FIVE, stack.Back());
 
     stack.PopBack();
-    EXPECT_EQ(four, stack.Back());
+    EXPECT_EQ(FOUR, stack.Back());
 
     stack.PopBack();
-    EXPECT_EQ(two, stack.Back());
+    EXPECT_EQ(TWO, stack.Back());
 
     stack.PopBack();
-    EXPECT_EQ(one, stack.Back());
+    EXPECT_EQ(ONE, stack.Back());
 }
 
 TEST_F(ConcurrentStackTest, Test_ForEach) {
     ConcurrentStack<std::string> stack;
-    stack.PushBack(one);
-    stack.PushBack(two);
-    stack.PushBack(three);
-    stack.PushBack(four);
-    stack.PushBack(five);
+    stack.PushBack(ONE);
+    stack.PushBack(TWO);
+    stack.PushBack(THREE);
+    stack.PushBack(FOUR);
+    stack.PushBack(FIVE);
 
-    std::string expectedString = one + two + three + four + five;
+    std::string expected_string = ONE + TWO + THREE + FOUR + FIVE;
 
-    std::string actualString = "";
+    std::string actual_string = "";
 
-    std::function<void(std::string)> appendToActualString = [&actualString](std::string value) {actualString = actualString + value; };
-    stack.ForEach(appendToActualString);
+    std::function<void(std::string)> append_to_actual_string = [&actual_string](std::string value) {actual_string = actual_string + value; };
+    stack.ForEach(append_to_actual_string);
 
-    EXPECT_EQ(expectedString, actualString);
+    EXPECT_EQ(expected_string, actual_string);
 }

@@ -164,7 +164,7 @@ SQLRETURN BlueGreenPlugin::Connect(
         ClearError(dbc);
         std::string error_message("Blue/Green Connect route failed: ");
         error_message += ex.what();
-        dbc->err = std::make_unique<ERR_INFO>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         LOG(ERROR) << "[CATCH] " << error_message << ", host: " << conn_host << ", phase: " << this->blue_green_status_.GetCurrentPhase().ToString();
         rc = SQL_ERROR;
     }
@@ -250,7 +250,7 @@ SQLRETURN BlueGreenPlugin::Execute(
         ClearError(stmt);
         std::string error_message("Blue/Green Execute route failed: ");
         error_message += ex.what();
-        stmt->err = std::make_unique<ERR_INFO>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        stmt->err = std::make_unique<ErrInfo>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         rc = SQL_ERROR;
         LOG(ERROR) << error_message;
     }

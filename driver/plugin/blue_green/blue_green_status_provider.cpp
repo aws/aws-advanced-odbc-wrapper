@@ -37,7 +37,7 @@ static constexpr int TIMESTAMP_FIELD_WIDTH = 28;
 static constexpr int OFFSET_FIELD_WIDTH = 18;
 static constexpr int DIVIDER_BASE_WIDTH = 52;
 
-std::hash<std::string> BlueGreenStatusProvider::hasher;
+std::hash<std::string> BlueGreenStatusProvider::hasher_;
 
 BlueGreenStatusProvider::BlueGreenStatusProvider(
     std::shared_ptr<PluginService> plugin_service,
@@ -123,7 +123,7 @@ std::map<std::string, std::string> BlueGreenStatusProvider::GetMonitoringPropert
 }
 
 void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterimStatus interim_status) {
-    const std::lock_guard<std::mutex> lock_guard(this->process_lock_guard);
+    const std::lock_guard<std::mutex> lock_guard(this->process_lock_guard_);
 
     // Detect changes
     const int32_t status_hash = interim_status.GetHashCode();

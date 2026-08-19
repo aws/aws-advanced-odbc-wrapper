@@ -16,15 +16,13 @@
 #define DIALECT_AURORA_MYSQL_H
 
 #include <algorithm>
-
-#include "dialect.h"
-
 #include <vector>
 
-#include "../util/rds_strings.h"
 #include "../util/odbc_helper.h"
+#include "../util/rds_strings.h"
+#include "dialect.h"
 
-class DialectAuroraMySql : virtual public Dialect, DialectBlueGreen {
+class DialectAuroraMySql : public DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_MYSQL_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };

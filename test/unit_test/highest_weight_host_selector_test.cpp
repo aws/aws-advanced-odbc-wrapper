@@ -23,17 +23,17 @@
 #include <gtest/gtest.h>
 
 namespace {
-    constexpr int base_port = 1234;
-    HostInfo reader_host_info_a("reader_a", base_port, UP, READER, HostInfo::DEFAULT_WEIGHT - 2);
-    HostInfo reader_host_info_b("reader_b", base_port, UP, READER, HostInfo::DEFAULT_WEIGHT - 1);
-    HostInfo reader_host_info_c("reader_c", base_port, UP, READER, HostInfo::DEFAULT_WEIGHT - 1);
-    HostInfo reader_host_info_down_a("reader_down_a", base_port, DOWN, READER, HostInfo::DEFAULT_WEIGHT);
-    HostInfo reader_host_info_down_b("reader_down_b", base_port, DOWN, READER, HostInfo::DEFAULT_WEIGHT + 1);
-    HostInfo writer_host_info_a("writer_a", base_port, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 2);
-    HostInfo writer_host_info_b("writer_b", base_port, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 1);
-    HostInfo writer_host_info_c("writer_c", base_port, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 1);
-    HostInfo writer_host_info_down_a("writer_down_a", base_port, DOWN, WRITER, HostInfo::DEFAULT_WEIGHT);
-    HostInfo writer_host_info_down_b("writer_down_b", base_port, DOWN, WRITER, HostInfo::DEFAULT_WEIGHT + 1);
+    constexpr int BASE_PORT = 1234;
+    HostInfo reader_host_info_a("reader_a", BASE_PORT, UP, READER, HostInfo::DEFAULT_WEIGHT - 2);
+    HostInfo reader_host_info_b("reader_b", BASE_PORT, UP, READER, HostInfo::DEFAULT_WEIGHT - 1);
+    HostInfo reader_host_info_c("reader_c", BASE_PORT, UP, READER, HostInfo::DEFAULT_WEIGHT - 1);
+    HostInfo reader_host_info_down_a("reader_down_a", BASE_PORT, DOWN, READER, HostInfo::DEFAULT_WEIGHT);
+    HostInfo reader_host_info_down_b("reader_down_b", BASE_PORT, DOWN, READER, HostInfo::DEFAULT_WEIGHT + 1);
+    HostInfo writer_host_info_a("writer_a", BASE_PORT, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 2);
+    HostInfo writer_host_info_b("writer_b", BASE_PORT, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 1);
+    HostInfo writer_host_info_c("writer_c", BASE_PORT, UP, WRITER, HostInfo::DEFAULT_WEIGHT - 1);
+    HostInfo writer_host_info_down_a("writer_down_a", BASE_PORT, DOWN, WRITER, HostInfo::DEFAULT_WEIGHT);
+    HostInfo writer_host_info_down_b("writer_down_b", BASE_PORT, DOWN, WRITER, HostInfo::DEFAULT_WEIGHT + 1);
     std::vector<HostInfo> all_hosts = {
         reader_host_info_a,
         reader_host_info_b,

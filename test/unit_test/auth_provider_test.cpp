@@ -38,13 +38,13 @@ namespace {
 #endif
     }
 
-    const std::string test_resource_dir = AWS_PROFILE_TEST_RESOURCES_DIR;
-    const std::string test_config_file = test_resource_dir + "/aws_config";
+    const std::string TEST_RESOURCE_DIR = AWS_PROFILE_TEST_RESOURCES_DIR;
+    const std::string TEST_CONFIG_FILE = TEST_RESOURCE_DIR + "/aws_config";
 }
 
 class AuthProviderTest : public testing::Test {
 protected:
-    std::shared_ptr<MOCK_RDS_CLIENT> mock_rds_client;
+    std::shared_ptr<MockRdsClient> mock_rds_client_;
     // Runs once per suite
     static void SetUpTestSuite() {
         AwsSdkHelper::Init();
@@ -54,12 +54,12 @@ protected:
     }
 
     void SetUp() override {
-        mock_rds_client = std::make_shared<MOCK_RDS_CLIENT>();
+        mock_rds_client_ = std::make_shared<MockRdsClient>();
         AuthProvider::ClearCache();
-        SetEnvVar("AWS_CONFIG_FILE", test_config_file);
+        SetEnvVar("AWS_CONFIG_FILE", TEST_CONFIG_FILE);
     }
     void TearDown() override {
-        if (mock_rds_client) mock_rds_client.reset();
+        if (mock_rds_client_) mock_rds_client_.reset();
     }
 };
 
@@ -102,10 +102,10 @@ TEST_F(AuthProviderTest, BuildCacheKey_Test) {
 TEST_F(AuthProviderTest, GetToken_CacheMiss) {
     std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
-    EXPECT_CALL(*mock_rds_client, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*mock_rds_client_, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return("token"));
 
-    AuthProvider auth_provider(mock_rds_client);
+    AuthProvider auth_provider(mock_rds_client_);
     std::pair<std::string, bool> token_info = auth_provider.GetToken(server, region, port, username);
     EXPECT_EQ("token", token_info.first);
     EXPECT_FALSE(token_info.second);
@@ -114,10 +114,10 @@ TEST_F(AuthProviderTest, GetToken_CacheMiss) {
 TEST_F(AuthProviderTest, GetToken_CacheHit) {
     std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
-    EXPECT_CALL(*mock_rds_client, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*mock_rds_client_, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return("token"));
 
-    AuthProvider auth_provider(mock_rds_client);
+    AuthProvider auth_provider(mock_rds_client_);
     std::pair<std::string, bool> token_info = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info.second);
     std::pair<std::string, bool> token_info_cached = auth_provider.GetToken(server, region, port, username);
@@ -128,11 +128,11 @@ TEST_F(AuthProviderTest, GetToken_CacheHit) {
 TEST_F(AuthProviderTest, GetToken_Expired) {
     std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
 
-    EXPECT_CALL(*mock_rds_client, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
+    EXPECT_CALL(*mock_rds_client_, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
         .WillOnce(testing::Return("token-1"))
         .WillOnce(testing::Return("token-2"));
 
-    AuthProvider auth_provider(mock_rds_client);
+    AuthProvider auth_provider(mock_rds_client_);
     std::pair<std::string, bool> token_info_first = auth_provider.GetToken(server, region, port, username, true, false, std::chrono::milliseconds(-99999));
     EXPECT_FALSE(token_info_first.second);
     std::pair<std::string, bool> token_info_second = auth_provider.GetToken(server, region, port, username);

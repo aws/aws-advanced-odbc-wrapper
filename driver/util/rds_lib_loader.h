@@ -62,7 +62,7 @@ public:
     explicit RdsLibLoader(std::string library_path);
     ~RdsLibLoader();
 
-    template<typename RDS_Func, typename... Args>
+    template<typename RdsFunc, typename... Args>
     RdsLibResult CallFunction(const std::string& func_name, Args... args);
     virtual FUNC_HANDLE GetFunction(const std::string& function_name);
     std::string GetDriverPath();
@@ -71,23 +71,23 @@ public:
 
 protected:
 private:
-    std::string driver_path;
-    std::string load_error;
+    std::string driver_path_;
+    std::string load_error_;
 
-    MODULE_HANDLE driver_handle = nullptr;
+    MODULE_HANDLE driver_handle_ = nullptr;
 
-    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
+    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache_ = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
 };
 
-template <typename RDS_Func, typename... Args>
+template <typename RdsFunc, typename... Args>
 RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... args)
 {
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache
     {
-        if (function_cache->Contains(func_name)) {
+        if (function_cache_->Contains(func_name)) {
             try {
-                driver_function = function_cache->Get(func_name);
+                driver_function = function_cache_->Get(func_name);
             } catch (const std::out_of_range&) {
                 // Should not happen but done to satisfy clang-tidy
                 driver_function = nullptr;
@@ -104,7 +104,7 @@ RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... ar
     bool fn_load = false;
     if (driver_function) {
         fn_load = true;
-        RDS_Func rds_func = reinterpret_cast<RDS_Func>(const_cast<FUNC_HANDLE>(driver_function));
+        const RdsFunc rds_func = reinterpret_cast<RdsFunc>(driver_function);
         fn_ret = (*rds_func)(args...);
     }
 

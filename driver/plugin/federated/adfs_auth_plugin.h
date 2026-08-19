@@ -25,7 +25,7 @@ class AdfsSamlUtil : public SamlUtil {
 public:
     explicit AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes);
     AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
-    std::string GetSamlAssertion();
+    std::string GetSamlAssertion() override;
 
 private:
     std::map<std::string, std::string> GetParameterFromBody(std::string& body);
@@ -34,7 +34,7 @@ private:
     static std::vector<std::string> GetInputTagsFromBody(const std::string& body);
     static std::string GetValueByKey(const std::string& input, const std::string& key);
 
-    std::string sign_in_url;
+    std::string sign_in_url_;
 
     static inline const std::string DEFAULT_RELAY_ID = "urn:amazon:webservices";
     static inline const std::regex FORM_ACTION_PATTERN = std::regex("<form.*?action=\"([^\"]+)\"");

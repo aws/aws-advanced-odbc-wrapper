@@ -112,7 +112,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         LOG(ERROR) << "Null next plugin passed to EstablishConnection";
         const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin has no next plugin to delegate Connect to.", ERR_GENERAL_ERROR);
+        dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin has no next plugin to delegate Connect to.", ERR_GENERAL_ERROR);
         return SQL_ERROR;
     }
 
@@ -125,15 +125,12 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         if (itr == limitless_router_monitors_.end() || !itr->second.second) {
             LOG(ERROR) << "No limitless router monitor registered for: " << router_monitor_key_;
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("No limitless router monitor registered.", ERR_GENERAL_ERROR);
+            dbc->err = std::make_unique<ErrInfo>("No limitless router monitor registered.", ERR_GENERAL_ERROR);
             return SQL_ERROR;
         }
         monitor = itr->second.second;
     }
-    {
-        const std::lock_guard<std::mutex> limitless_routers_guard(monitor->limitless_routers_mutex_);
-        limitless_routers = *monitor->limitless_routers_;
-    }
+    limitless_routers = monitor->GetLimitlessRouters();
 
     if (limitless_routers.empty()) {
         int retry_count = -1; // Start at -1 since the first try is not a retry.
@@ -145,11 +142,11 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         if (!SQL_SUCCEEDED(res.fn_result)) {
             LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+            dbc->err = std::make_unique<ErrInfo>("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
         odbc_helper_->SetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-        env->driver_lib_loader = monitor->lib_loader_;
+        env->driver_lib_loader = monitor->GetLibLoader();
 
         do {
             // Query for routers directly
@@ -161,7 +158,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
             local_dbc->conn_attr = dbc->conn_attr;
             local_dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 
-            const SQLRETURN res = monitor->plugin_head_->Connect(
+            const SQLRETURN res = monitor->GetPluginHead()->Connect(
                 local_hdbc,
                 nullptr,
                 nullptr,
@@ -188,7 +185,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
     if (limitless_routers.empty()) {
         LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -237,7 +234,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 
     LOG(ERROR) << "The limitless connection plugin was unable to establish a connection";
     ClearError(dbc);
-    dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 

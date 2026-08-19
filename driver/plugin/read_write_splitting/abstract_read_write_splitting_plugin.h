@@ -24,11 +24,11 @@ class AbstractReadWriteSplittingPlugin : public BasePlugin {
 public:
     explicit AbstractReadWriteSplittingPlugin(DBC* dbc);
     AbstractReadWriteSplittingPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
-    ~AbstractReadWriteSplittingPlugin();
+    ~AbstractReadWriteSplittingPlugin() override;
 
     SQLRETURN Execute(
         SQLHSTMT       StatementHandle,
-        SQLTCHAR *     StatementText = 0,
+        SQLTCHAR *     StatementText = nullptr,
         SQLINTEGER     TextLength = -1) override;
 
     void ReleaseResources() override;
@@ -80,16 +80,16 @@ protected:
     std::shared_ptr<OdbcHelper> odbc_helper_;
     BasePlugin* plugin_head_ = nullptr;
     DBC* writer_connection_ = nullptr;
-    CacheEntry<DBC*> reader_cache_item_ = CacheEntry<DBC*>();
     std::weak_ptr<PluginService> plugin_service_;
-    HostInfo writer_host_info_ = HostInfo{};
-    HostInfo reader_host_info_ = HostInfo{};
+    HostInfo writer_host_info_;
+    HostInfo reader_host_info_;
     std::map<std::string, std::string> connection_attributes_;
     SQLHENV henv_;
     SQLHDBC current_connection_ = nullptr;
     DBC* dbc_ = nullptr;
 
 private:
+    CacheEntry<DBC*> reader_cache_item_ = CacheEntry<DBC*>();
     const std::chrono::milliseconds default_keep_alive_timeout_ = std::chrono::milliseconds(0);
     std::recursive_mutex lock_;
 };

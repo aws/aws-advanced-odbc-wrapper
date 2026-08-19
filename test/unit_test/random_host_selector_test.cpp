@@ -23,13 +23,13 @@
 #include <gtest/gtest.h>
 
 namespace {
-    constexpr int base_port = 1234;
-    HostInfo writer_host_info_a("writer_a", base_port, UP, WRITER);
-    HostInfo writer_host_info_b("writer_b", base_port, UP, WRITER);
-    HostInfo writer_host_info_down("writer_down", base_port, DOWN, WRITER);
-    HostInfo reader_host_info_a("reader_a", base_port, UP, READER);
-    HostInfo reader_host_info_b("reader_b", base_port, UP, READER);
-    HostInfo reader_host_info_down("reader_down", base_port, DOWN, READER);
+    constexpr int BASE_PORT = 1234;
+    HostInfo writer_host_info_a("writer_a", BASE_PORT, UP, WRITER);
+    HostInfo writer_host_info_b("writer_b", BASE_PORT, UP, WRITER);
+    HostInfo writer_host_info_down("writer_down", BASE_PORT, DOWN, WRITER);
+    HostInfo reader_host_info_a("reader_a", BASE_PORT, UP, READER);
+    HostInfo reader_host_info_b("reader_b", BASE_PORT, UP, READER);
+    HostInfo reader_host_info_down("reader_down", BASE_PORT, DOWN, READER);
     std::unordered_map<std::string, std::string> empty_map;
 }
 

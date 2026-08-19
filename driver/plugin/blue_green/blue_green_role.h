@@ -40,7 +40,8 @@ public:
     };
 
     BlueGreenRole();
-    BlueGreenRole(Role role);
+    // BlueGreenRole is a value wrapper around the enum and is passed, compared, and used as a map key directly as Role constants
+    BlueGreenRole(Role role); // NOLINT(google-explicit-constructor)
 
     [[nodiscard]] Role GetRole() const;
     [[nodiscard]] std::string ToString() const;

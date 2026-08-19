@@ -224,8 +224,8 @@ TEST_F(SsoBrowserLoginUtilTest, Construct_MissingRequiredParams_Throws) {
 }
 
 TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_InteractivePkceRoundTrip) {
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*oidc, RegisterClient(testing::_))
         .Times(testing::Exactly(1))
@@ -251,8 +251,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_InteractivePkceRoundTrip) {
 }
 
 TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_PollLoop_PendingThenSlowDownThenSuccess) {
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*oidc, RegisterClient(testing::_))
         .WillOnce(testing::Return(OidcRegisterSuccess()));
@@ -273,8 +273,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_PollLoop_PendingThenSlowDownTh
 }
 
 TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_PollLoop_NonRetryableError_FailsImmediately) {
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*oidc, RegisterClient(testing::_))
         .WillOnce(testing::Return(OidcRegisterSuccess()));
@@ -297,8 +297,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_FallsBackT
     SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token",
               "good-refresh-token", true);
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     // First call rejects the stale token; second (post-refresh) succeeds.
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
@@ -324,8 +324,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_NoRefresh_
     attrs[KEY_SSO_SESSION_NAME] = "signed-out-no-refresh";
     SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token");
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
         .Times(testing::Exactly(2))
@@ -351,8 +351,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_NoPrompt_F
     attrs[KEY_SSO_SESSION_NAME] = "signed-out-noprompt";
     SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "stale-access-token");
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
         .Times(testing::Exactly(1))
@@ -374,8 +374,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenTransientError_NoRe
     SeedCache(attrs.at(KEY_SSO_SESSION_NAME), "cached-access-token",
               "good-refresh-token", true);
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
         .Times(testing::Exactly(1))
@@ -400,8 +400,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_DeletesWra
     const std::string cache_path = CachePathFor(attrs.at(KEY_SSO_SESSION_NAME));
     ASSERT_TRUE(std::ifstream(cache_path).good());
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
         .Times(testing::Exactly(1))
@@ -436,8 +436,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_PreservesF
     };
     const std::string original_contents = read_file(cache_path);
 
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*sso, GetRoleCredentials(testing::_))
         .Times(testing::Exactly(1))
@@ -456,8 +456,8 @@ TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_CachedTokenRejected_PreservesF
 }
 
 TEST_F(SsoBrowserLoginUtilTest, GetAwsCredentials_NoPromptNoCache_FailsFast) {
-    auto oidc = std::make_shared<MOCK_SSO_OIDC_CLIENT>();
-    auto sso = std::make_shared<MOCK_SSO_CLIENT>();
+    auto oidc = std::make_shared<MockSsoOidcClient>();
+    auto sso = std::make_shared<MockSsoClient>();
 
     EXPECT_CALL(*oidc, RegisterClient(testing::_)).Times(testing::Exactly(0));
     EXPECT_CALL(*oidc, CreateToken(testing::_)).Times(testing::Exactly(0));

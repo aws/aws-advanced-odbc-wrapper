@@ -30,7 +30,7 @@ public:
     BlueGreenPlugin() = default;
     explicit BlueGreenPlugin(DBC* dbc);
     BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
-    ~BlueGreenPlugin();
+    ~BlueGreenPlugin() override;
 
     SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,

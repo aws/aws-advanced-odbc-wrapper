@@ -24,48 +24,48 @@
 
 class NullWrappedHandleTest : public testing::Test {
 protected:
-    ENV env;
-    DBC* dbc = nullptr;
-    STMT* stmt = nullptr;
+    ENV env_;
+    DBC* dbc_ = nullptr;
+    STMT* stmt_ = nullptr;
 
     void SetUp() override {
-        dbc = new DBC();
-        dbc->env = &env;
-        env.dbc_list.push_back(dbc);
+        dbc_ = new DBC();
+        dbc_->env = &env_;
+        env_.dbc_list.push_back(dbc_);
 
         // Simulate a statement invalidated by a failed failover.
-        stmt = new STMT();
-        stmt->dbc = dbc;
-        stmt->wrapped_stmt = SQL_NULL_HSTMT;
-        stmt->app_row_desc = new DESC();
-        stmt->app_row_desc->dbc = dbc;
-        stmt->app_param_desc = new DESC();
-        stmt->app_param_desc->dbc = dbc;
-        stmt->imp_row_desc = new DESC();
-        stmt->imp_row_desc->dbc = dbc;
-        stmt->imp_param_desc = new DESC();
-        stmt->imp_param_desc->dbc = dbc;
-        dbc->stmt_list.push_back(stmt);
+        stmt_ = new STMT();
+        stmt_->dbc = dbc_;
+        stmt_->wrapped_stmt = SQL_NULL_HSTMT;
+        stmt_->app_row_desc = new DESC();
+        stmt_->app_row_desc->dbc = dbc_;
+        stmt_->app_param_desc = new DESC();
+        stmt_->app_param_desc->dbc = dbc_;
+        stmt_->imp_row_desc = new DESC();
+        stmt_->imp_row_desc->dbc = dbc_;
+        stmt_->imp_param_desc = new DESC();
+        stmt_->imp_param_desc->dbc = dbc_;
+        dbc_->stmt_list.push_back(stmt_);
     }
 
     void TearDown() override {
-        delete stmt->app_row_desc;
-        delete stmt->app_param_desc;
-        delete stmt->imp_row_desc;
-        delete stmt->imp_param_desc;
-        delete stmt;
-        delete dbc;
-        env.dbc_list.clear();
+        delete stmt_->app_row_desc;
+        delete stmt_->app_param_desc;
+        delete stmt_->imp_row_desc;
+        delete stmt_->imp_param_desc;
+        delete stmt_;
+        delete dbc_;
+        env_.dbc_list.clear();
     }
 };
 
 // SQL_ATTR_*_DESC lookups previously forwarded wrapped_stmt unguarded.
 TEST_F(NullWrappedHandleTest, GetStmtAttrDescOnNulledStmtReturnsInvalidHandle) {
     SQLPOINTER value = nullptr;
-    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt, SQL_ATTR_APP_ROW_DESC, &value, SQL_IS_POINTER, nullptr));
-    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt, SQL_ATTR_APP_PARAM_DESC, &value, SQL_IS_POINTER, nullptr));
-    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt, SQL_ATTR_IMP_ROW_DESC, &value, SQL_IS_POINTER, nullptr));
-    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt, SQL_ATTR_IMP_PARAM_DESC, &value, SQL_IS_POINTER, nullptr));
+    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt_, SQL_ATTR_APP_ROW_DESC, &value, SQL_IS_POINTER, nullptr));
+    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt_, SQL_ATTR_APP_PARAM_DESC, &value, SQL_IS_POINTER, nullptr));
+    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt_, SQL_ATTR_IMP_ROW_DESC, &value, SQL_IS_POINTER, nullptr));
+    EXPECT_EQ(SQL_INVALID_HANDLE, RDS_SQLGetStmtAttr(stmt_, SQL_ATTR_IMP_PARAM_DESC, &value, SQL_IS_POINTER, nullptr));
 }
 
 TEST_F(NullWrappedHandleTest, GetStmtAttrNullHandleReturnsInvalidHandle) {
@@ -76,45 +76,45 @@ TEST_F(NullWrappedHandleTest, GetStmtAttrNullHandleReturnsInvalidHandle) {
 // Disconnect previously passed already-nulled wrapped handles to SQLFreeHandle.
 TEST_F(NullWrappedHandleTest, DisconnectWithNulledWrappedHandlesDoesNotCrash) {
     DESC* desc = new DESC();
-    desc->dbc = dbc;
+    desc->dbc = dbc_;
     desc->wrapped_desc = SQL_NULL_HDESC;
-    dbc->desc_list.push_back(desc);
+    dbc_->desc_list.push_back(desc);
 
-    OdbcHelper helper(nullptr, &env);
-    helper.Disconnect(dbc);
+    OdbcHelper helper(nullptr, &env_);
+    helper.Disconnect(dbc_);
 
-    EXPECT_EQ(SQL_NULL_HSTMT, stmt->wrapped_stmt);
+    EXPECT_EQ(SQL_NULL_HSTMT, stmt_->wrapped_stmt);
     EXPECT_EQ(SQL_NULL_HDESC, desc->wrapped_desc);
 
-    dbc->desc_list.clear();
+    dbc_->desc_list.clear();
     delete desc;
 }
 
 // Implicit descriptors are not in dbc->desc_list; invalidation must null them.
 TEST_F(NullWrappedHandleTest, InvalidateImplicitDescriptorsNullsAllFour) {
     const int fake = 1;
-    stmt->app_row_desc->wrapped_desc = const_cast<int*>(&fake);
-    stmt->app_param_desc->wrapped_desc = const_cast<int*>(&fake);
-    stmt->imp_row_desc->wrapped_desc = const_cast<int*>(&fake);
-    stmt->imp_param_desc->wrapped_desc = const_cast<int*>(&fake);
+    stmt_->app_row_desc->wrapped_desc = const_cast<int*>(&fake);
+    stmt_->app_param_desc->wrapped_desc = const_cast<int*>(&fake);
+    stmt_->imp_row_desc->wrapped_desc = const_cast<int*>(&fake);
+    stmt_->imp_param_desc->wrapped_desc = const_cast<int*>(&fake);
 
-    OdbcHelper::InvalidateImplicitDescriptors(stmt);
+    OdbcHelper::InvalidateImplicitDescriptors(stmt_);
 
-    EXPECT_EQ(SQL_NULL_HDESC, stmt->app_row_desc->wrapped_desc);
-    EXPECT_EQ(SQL_NULL_HDESC, stmt->app_param_desc->wrapped_desc);
-    EXPECT_EQ(SQL_NULL_HDESC, stmt->imp_row_desc->wrapped_desc);
-    EXPECT_EQ(SQL_NULL_HDESC, stmt->imp_param_desc->wrapped_desc);
+    EXPECT_EQ(SQL_NULL_HDESC, stmt_->app_row_desc->wrapped_desc);
+    EXPECT_EQ(SQL_NULL_HDESC, stmt_->app_param_desc->wrapped_desc);
+    EXPECT_EQ(SQL_NULL_HDESC, stmt_->imp_row_desc->wrapped_desc);
+    EXPECT_EQ(SQL_NULL_HDESC, stmt_->imp_param_desc->wrapped_desc);
 }
 
 // SQLCopyDesc previously forwarded a missing/invalid target's NULL handle.
 TEST_F(NullWrappedHandleTest, CopyDescToInvalidTargetReturnsInvalidHandle) {
     const int fake = 1;
     DESC src;
-    src.dbc = dbc;
+    src.dbc = dbc_;
     src.wrapped_desc = const_cast<int*>(&fake);
 
     DESC dst;
-    dst.dbc = dbc;
+    dst.dbc = dbc_;
     dst.wrapped_desc = SQL_NULL_HDESC;
 
     EXPECT_EQ(SQL_INVALID_HANDLE, SQLCopyDesc(&src, &dst));

@@ -35,7 +35,7 @@ enum DatabaseDialectType : std::uint8_t {
     UNKNOWN_DIALECT
 };
 
-static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
+static std::map<std::string, DatabaseDialectType> const DATABASE_DIALECT_TABLE = {
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL,            DatabaseDialectType::AURORA_POSTGRESQL},
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,  DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS},
     {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL},
@@ -68,10 +68,9 @@ public:
     virtual std::optional<bool> DoesStatementSetReadOnly(std::string statement) { return {}; };
 
     static DatabaseDialectType DatabaseDialectFromString(const std::string &database_dialect) {
-        std::string local_str = database_dialect;
-        std::string upper_local_str = RDS_STR_UPPER(local_str);
-        if (database_dialect_table.contains(upper_local_str)) {
-            return database_dialect_table.at(upper_local_str);
+        const std::string upper_local_str = RDS_STR_UPPER(database_dialect);
+        if (DATABASE_DIALECT_TABLE.contains(upper_local_str)) {
+            return DATABASE_DIALECT_TABLE.at(upper_local_str);
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }

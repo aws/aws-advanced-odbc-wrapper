@@ -26,7 +26,7 @@
 #include <filesystem>
 #include <mutex>
 
-namespace logger_config {
+namespace LoggerConfig {
     const std::string PROGRAM_NAME = "aws-odbc-wrapper";
     const std::string DEFAULT_LOG_LOCATION = std::filesystem::temp_directory_path().append(PROGRAM_NAME).string();
     const int DEFAULT_LOG_THRESHOLD = 4;

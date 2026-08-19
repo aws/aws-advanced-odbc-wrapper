@@ -44,7 +44,7 @@ private:
     void IncreaseDelay();
     void DecreaseDelay();
 
-    static SlidingCacheMap<std::string, HostFilter> endpoint_cache;
+    static SlidingCacheMap<std::string, HostFilter> endpoint_cache_;
 
     std::shared_ptr<std::thread> monitoring_thread_;
     std::atomic<bool> is_running_;

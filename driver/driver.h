@@ -98,7 +98,7 @@ struct ENV {
     std::list<DBC*> dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map;  // Key, <Value, Length>
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
 
@@ -129,7 +129,7 @@ struct DBC {
     bool allow_interactive_auth = false;
     BasePlugin* plugin_head = nullptr;
     std::shared_ptr<PluginService> plugin_service;
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~DBC();
@@ -183,7 +183,7 @@ struct STMT {
     std::vector<BoundParamBuffer> bound_param_buffers;  // Intercepted WCHAR param bindings
     bool put_data_char_conversion = false;
 
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~STMT();
@@ -195,35 +195,11 @@ struct DESC {
     // TODO - What to put here
     DBC* dbc;
     SQLHDESC wrapped_desc = SQL_NULL_HDESC;
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~DESC();
 };  // DESC
-
-/* Function Declarations */
-SQLRETURN RDS_AllocEnv(SQLHENV* EnvironmentHandlePointer);
-
-SQLRETURN RDS_AllocDbc(SQLHENV EnvironmentHandle, SQLHDBC* ConnectionHandlePointer);
-
-SQLRETURN RDS_AllocStmt(SQLHDBC ConnectionHandle, SQLHSTMT* StatementHandlePointer);
-
-SQLRETURN RDS_AllocDesc(SQLHDBC ConnectionHandle, SQLHANDLE* DescriptorHandlePointer);
-
-SQLRETURN RDS_SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle, SQLSMALLINT CompletionType);
-
-SQLRETURN RDS_FreeConnect(SQLHDBC ConnectionHandle);
-
-SQLRETURN RDS_FreeDesc(SQLHDESC DescriptorHandle);
-
-SQLRETURN RDS_FreeEnv(SQLHENV EnvironmentHandle);
-
-SQLRETURN RDS_FreeStmt(SQLHSTMT StatementHandle, SQLUSMALLINT Option);
-
-SQLRETURN RDS_GetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength,
-                             SQLINTEGER* StringLengthPtr);
-
-SQLRETURN RDS_SQLSetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength);
 
 /* Simple Macros */
 #define RDS_NOT_IMPLEMENTED return SQL_ERROR

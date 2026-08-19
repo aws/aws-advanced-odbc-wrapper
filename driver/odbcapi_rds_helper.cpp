@@ -115,7 +115,7 @@ SQLRETURN RDS_ProcessLibRes(
     const RdsLibResult& LibResult)
 {
     if (!LibResult.fn_load_success) {
-        auto new_err = std::make_unique<ERR_INFO>(
+        auto new_err = std::make_unique<ErrInfo>(
             ("Underlying driver failed to load/execute: " + LibResult.fn_name).c_str(),
             ERR_NO_UNDER_LYING_FUNCTION);
         LOG(ERROR) << new_err->error_msg;
@@ -676,7 +676,7 @@ SQLRETURN RDS_SQLBrowseConnect(
 
     LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect";
     ClearError(dbc);
-    dbc->err = std::make_unique<ERR_INFO>("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    dbc->err = std::make_unique<ErrInfo>("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -920,7 +920,7 @@ SQLRETURN RDS_SQLConnect(
     } else {
         // Error, no DSN
         // TODO - Load default DSN?
-        dbc->err = std::make_unique<ERR_INFO>("SQLConnect - DSN not provided", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>("SQLConnect - DSN not provided", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -975,7 +975,7 @@ SQLRETURN RDS_SQLDataSources(
 
     LOG(ERROR) << "Unsupported SQL API - SQLDataSources";
     ClearError(env);
-    env->err = std::make_unique<ERR_INFO>("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    env->err = std::make_unique<ErrInfo>("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -1172,7 +1172,7 @@ SQLRETURN RDS_SQLDrivers(
 
     LOG(ERROR) << "Unsupported SQL API - SQLDrivers";
     ClearError(env);
-    env->err = std::make_unique<ERR_INFO>("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    env->err = std::make_unique<ErrInfo>("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -1247,7 +1247,7 @@ SQLRETURN RDS_SQLExecDirect(
     }
 
     LOG(ERROR) << "Cannot execute without an open connection";
-    stmt->err = std::make_unique<ERR_INFO>("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
+    stmt->err = std::make_unique<ErrInfo>("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
     return SQL_ERROR;
 }
 
@@ -1497,7 +1497,7 @@ SQLRETURN RDS_SQLGetDiagField(
     DBC* dbc = nullptr;
     ENV* env = nullptr;
 
-    std::optional<ERR_INFO> err;
+    std::optional<ErrInfo> err;
 
     RdsLibResult res;
     SQLRETURN ret = SQL_SUCCESS;
@@ -1816,7 +1816,7 @@ SQLRETURN RDS_SQLGetDiagRec(
     ENV* env = nullptr;
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
-    std::optional<ERR_INFO> err;
+    std::optional<ErrInfo> err;
     bool has_underlying_data = false;
 
 #if UNICODE
@@ -2141,7 +2141,7 @@ SQLRETURN RDS_SQLGetInfo(
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+                dbc->err = std::make_unique<ErrInfo>("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
                 RDS_NOT_IMPLEMENTED;
         }
     }
@@ -2586,7 +2586,7 @@ SQLRETURN RDS_SQLSetStmtAttr(
         case SQL_ATTR_IMP_PARAM_DESC:
         case SQL_ATTR_IMP_ROW_DESC:
         case SQL_ATTR_ROW_NUMBER:
-            stmt->err = std::make_unique<ERR_INFO>("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
+            stmt->err = std::make_unique<ErrInfo>("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
             return SQL_ERROR;
         default:
             break;
@@ -2808,7 +2808,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         }
         LOG(ERROR) << invalid_message;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
 
@@ -2831,7 +2831,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                         + "': no ODBC driver registered under this name (odbcinst.ini) and the value is not a path";
                     LOG(ERROR) << load_err_message;
                     ClearError(dbc);
-                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    dbc->err = std::make_unique<ErrInfo>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
                     return SQL_ERROR;
                 }
             }
@@ -2847,20 +2847,20 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                     load_err_message += ": " + driver_lib_loader->GetLoadError();
                     LOG(ERROR) << load_err_message;
                     ClearError(dbc);
-                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    dbc->err = std::make_unique<ErrInfo>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
                     return SQL_ERROR;
                 }
                 env->driver_lib_loader = driver_lib_loader;
             } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
                 LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
+                dbc->err = std::make_unique<ErrInfo>("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
                 return SQL_ERROR;
             }
         } else {
             LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
+            dbc->err = std::make_unique<ErrInfo>("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
             return SQL_ERROR;
         }
 
@@ -2874,7 +2874,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (!SQL_SUCCEEDED(ret) || !env->wrapped_env) {
                 LOG(ERROR) << "Unable to allocate underlying ENV";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+                dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
                 return SQL_ERROR;
             }
             // Apply Tracked Environment Attributes
@@ -3007,7 +3007,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
 

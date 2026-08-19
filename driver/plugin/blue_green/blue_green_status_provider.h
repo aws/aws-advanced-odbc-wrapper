@@ -91,7 +91,7 @@ protected:
     void LogCurrentContext();
 
 private:
-    std::mutex process_lock_guard;
+    std::mutex process_lock_guard_;
     std::shared_ptr<PluginService> plugin_service_;
     std::map<std::string, std::string> conn_attr_;
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache_;
@@ -108,7 +108,7 @@ private:
     std::atomic<bool> monitor_reset_on_topology_completed_{false};
     std::atomic<bool> all_green_nodes_changed_{false};
 
-    std::chrono::steady_clock::time_point post_status_end_time_ = std::chrono::steady_clock::time_point{};
+    std::chrono::steady_clock::time_point post_status_end_time_;
     std::chrono::milliseconds switchover_timeout_ms_;
 
     std::mutex monitor_mutex_;
@@ -130,7 +130,7 @@ private:
 
     BlueGreenStatus summary_status_;
     BlueGreenPhase latest_status_phase_;
-    static std::hash<std::string> hasher;
+    static std::hash<std::string> hasher_;
 
     static constexpr std::chrono::milliseconds BASELINE_MS = std::chrono::milliseconds(60000);
     static constexpr std::chrono::milliseconds INCREASED_MS = std::chrono::milliseconds(1000);

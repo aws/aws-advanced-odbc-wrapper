@@ -464,6 +464,6 @@ void AbstractReadWriteSplittingPlugin::SetStmtError(const std::string &msg, SQL_
         }
         stmt->wrapped_stmt = nullptr;
         ClearError(stmt);
-        stmt->err = std::make_unique<ERR_INFO>(msg.c_str(), state);
+        stmt->err = std::make_unique<ErrInfo>(msg.c_str(), state);
     }
 }

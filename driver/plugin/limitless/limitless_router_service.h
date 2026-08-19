@@ -42,8 +42,6 @@ public:
         const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper);
 
     ~LimitlessRouterService();
-    RoundRobinHostSelector round_robin_;
-    HighestWeightHostSelector highest_weight_;
 
     virtual std::shared_ptr<LimitlessRouterMonitor> CreateMonitor(
         const std::map<std::string, std::string>& conn_attr,
@@ -57,6 +55,8 @@ public:
 
 private:
     static std::mutex limitless_router_monitors_mutex_;
+    RoundRobinHostSelector round_robin_;
+    HighestWeightHostSelector highest_weight_;
     std::string router_monitor_key_;
     std::shared_ptr<DialectLimitless> dialect_;
     int limitless_monitor_interval_ms_;

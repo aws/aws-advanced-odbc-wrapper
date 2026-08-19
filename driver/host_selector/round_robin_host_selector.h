@@ -35,22 +35,22 @@ private:
     const int DEFAULT_WEIGHT = 1;
     const int NO_HOST_IDX = -1;
 
-    static std::mutex cache_mutex;
-    static SlidingCacheMap<std::string, std::shared_ptr<round_robin_property::RoundRobinClusterInfo>> round_robin_cache;
+    static std::mutex cache_mutex_;
+    static SlidingCacheMap<std::string, std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>> round_robin_cache_;
 
-    virtual int convert_to_int(const std::string& str);
+    virtual int ConvertToInt(const std::string& str);
 
-    virtual bool check_prop_change(const std::string& value, const std::string& prop_name,
+    virtual bool CheckPropChange(const std::string& value, const std::string& prop_name,
         const std::unordered_map<std::string, std::string>& props);
-    virtual void create_cache_entries(const std::vector<HostInfo>& hosts,
+    virtual void CreateCacheEntries(const std::vector<HostInfo>& hosts,
         const std::unordered_map<std::string, std::string>& props);
-    virtual void update_cache(const std::vector<HostInfo>& hosts,
-        const std::shared_ptr<round_robin_property::RoundRobinClusterInfo>& cluster_info);
-    virtual void update_props_default_weight(
-        const std::shared_ptr<round_robin_property::RoundRobinClusterInfo>& info,
+    virtual void UpdateCache(const std::vector<HostInfo>& hosts,
+        const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& cluster_info);
+    virtual void UpdatePropsDefaultWeight(
+        const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& info,
         const std::unordered_map<std::string, std::string>& props);
-    virtual void update_props_host_weight(
-        const std::shared_ptr<round_robin_property::RoundRobinClusterInfo>& info,
+    virtual void UpdatePropsHostWeight(
+        const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& info,
         const std::unordered_map<std::string, std::string>& props);
 };
 

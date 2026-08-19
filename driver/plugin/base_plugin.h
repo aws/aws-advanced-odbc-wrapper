@@ -40,7 +40,7 @@ public:
 
     virtual SQLRETURN Execute(
         SQLHSTMT       StatementHandle,
-        SQLTCHAR *     StatementText = 0,
+        SQLTCHAR *     StatementText = nullptr,
         SQLINTEGER     TextLength = -1);
 
     virtual void ReleaseResources();

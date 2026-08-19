@@ -65,7 +65,7 @@ protected:
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion);
-    HostInfo GetReader(const std::string region);
+    HostInfo GetReader(const std::string& region);
     bool HasNoReadersAndTopologyIsHealthy();
 
     static inline const std::chrono::milliseconds DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS = std::chrono::milliseconds(1000);

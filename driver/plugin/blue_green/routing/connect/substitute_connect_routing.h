@@ -43,7 +43,7 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 
 protected:
     HostInfo substitute_info_;

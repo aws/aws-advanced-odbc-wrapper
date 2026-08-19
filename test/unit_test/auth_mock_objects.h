@@ -34,17 +34,17 @@
 
 #include <sqlext.h>
 
-class MOCK_SAML_UTIL : public SamlUtil {
+class MockSamlUtil : public SamlUtil {
 public:
-    MOCK_SAML_UTIL() : SamlUtil() { AwsSdkHelper::Init(); };
+    MockSamlUtil() : SamlUtil() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD(Aws::Auth::AWSCredentials, GetAwsCredentials, (const std::string &assertion), ());
     MOCK_METHOD(std::string, GetSamlAssertion, (), ());
 };
 
-class MOCK_AUTH_PROVIDER : public AuthProvider {
+class MockAuthProvider : public AuthProvider {
 public:
-    MOCK_AUTH_PROVIDER() : AuthProvider() { AwsSdkHelper::Init(); };
+    MockAuthProvider() : AuthProvider() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD((std::pair<std::string, bool>), GetToken, (const std::string &server, const std::string &region,
         const std::string &port, const std::string &username, bool use_cache, bool extra_url_encode,
@@ -56,26 +56,26 @@ public:
     bool HasResolvedCredentials() const override { return mock_has_resolved_credentials; }
 };
 
-class MOCK_RDS_CLIENT : public Aws::RDS::RDSClient {
+class MockRdsClient : public Aws::RDS::RDSClient {
 public:
-    MOCK_RDS_CLIENT() : Aws::RDS::RDSClient() {};
+    MockRdsClient() : Aws::RDS::RDSClient() {};
 
     MOCK_METHOD(Aws::String, GenerateConnectAuthToken,
         (const char* dbHostName, const char* dbRegion, unsigned port, const char* dbUserName), (const, override));
 };
 
-class MOCK_SECRETS_MANAGER_CLIENT : public Aws::SecretsManager::SecretsManagerClient {
+class MockSecretsManagerClient : public Aws::SecretsManager::SecretsManagerClient {
 public:
-    MOCK_SECRETS_MANAGER_CLIENT() : Aws::SecretsManager::SecretsManagerClient() {};
+    MockSecretsManagerClient() : Aws::SecretsManager::SecretsManagerClient() {};
 
     MOCK_METHOD(Aws::SecretsManager::Model::GetSecretValueOutcome, GetSecretValue,
         (const Aws::SecretsManager::Model::GetSecretValueRequest&), (const));
 };
 
-class MOCK_BASE_PLUGIN : public BasePlugin {
+class MockBasePlugin : public BasePlugin {
 public:
-    MOCK_BASE_PLUGIN() : BasePlugin() {}
-    ~MOCK_BASE_PLUGIN() override {}
+    MockBasePlugin() : BasePlugin() {}
+    ~MockBasePlugin() override {}
 
     MOCK_METHOD(SQLRETURN, Connect,
         (SQLHDBC ConnectionHandle, SQLHWND WindowHandle, SQLTCHAR *OutConnectionString, SQLSMALLINT BufferLength,
@@ -85,10 +85,10 @@ public:
         (SQLHSTMT StatementHandle, SQLTCHAR* StatementText, SQLINTEGER TextLength), ());
 };
 
-class MOCK_HTTP_RESP : public Aws::Http::HttpResponse {
+class MockHttpResp : public Aws::Http::HttpResponse {
 public:
-    MOCK_HTTP_RESP() : Aws::Http::HttpResponse(nullptr) {}
-    ~MOCK_HTTP_RESP() override {}
+    MockHttpResp() : Aws::Http::HttpResponse(nullptr) {}
+    ~MockHttpResp() override {}
 
     MOCK_METHOD(Aws::Http::HttpResponseCode, GetResponseCode, (), (const));
     MOCK_METHOD(std::shared_ptr<Aws::Http::HttpResponse>, MakeRequest, (
@@ -111,7 +111,7 @@ public:
     MOCK_METHOD(void, SetContentType, (const Aws::String&), ());
 };
 
-class MOCK_HTTP_CLIENT : public Aws::Http::HttpClient {
+class MockHttpClient : public Aws::Http::HttpClient {
 public:
     MOCK_METHOD(std::shared_ptr<Aws::Http::HttpResponse>, MakeRequest, (
         const std::shared_ptr<Aws::Http::HttpRequest>&), (const));
@@ -124,15 +124,15 @@ public:
     MOCK_METHOD(bool, SupportsChunkedTransferEncoding, (), (const));
 };
 
-class MOCK_STS_CLIENT : public Aws::STS::STSClient {
+class MockStsClient : public Aws::STS::STSClient {
 public:
     MOCK_METHOD(Aws::STS::Model::AssumeRoleWithSAMLOutcome, AssumeRoleWithSAML, (const Aws::STS::Model::AssumeRoleWithSAMLRequest&), (const));
     MOCK_METHOD(bool, SupportsChunkedTransferEncoding, (), (const));
 };
 
-class MOCK_SSO_OIDC_CLIENT : public Aws::SSOOIDC::SSOOIDCClient {
+class MockSsoOidcClient : public Aws::SSOOIDC::SSOOIDCClient {
 public:
-    MOCK_SSO_OIDC_CLIENT() : Aws::SSOOIDC::SSOOIDCClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
+    MockSsoOidcClient() : Aws::SSOOIDC::SSOOIDCClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
 
     MOCK_METHOD(Aws::SSOOIDC::Model::RegisterClientOutcome, RegisterClient,
         (const Aws::SSOOIDC::Model::RegisterClientRequest&), (const));
@@ -140,17 +140,17 @@ public:
         (const Aws::SSOOIDC::Model::CreateTokenRequest&), (const));
 };
 
-class MOCK_SSO_CLIENT : public Aws::SSO::SSOClient {
+class MockSsoClient : public Aws::SSO::SSOClient {
 public:
-    MOCK_SSO_CLIENT() : Aws::SSO::SSOClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
+    MockSsoClient() : Aws::SSO::SSOClient(Aws::Auth::AWSCredentials("ak", "sk")) {};
 
     MOCK_METHOD(Aws::SSO::Model::GetRoleCredentialsOutcome, GetRoleCredentials,
         (const Aws::SSO::Model::GetRoleCredentialsRequest&), (const));
 };
 
-class MOCK_SSO_LOGIN_UTIL : public SsoBrowserLoginUtil {
+class MockSsoLoginUtil : public SsoBrowserLoginUtil {
 public:
-    MOCK_SSO_LOGIN_UTIL() : SsoBrowserLoginUtil() { AwsSdkHelper::Init(); };
+    MockSsoLoginUtil() : SsoBrowserLoginUtil() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD(Aws::Auth::AWSCredentials, GetAwsCredentials, (bool allow_interactive, std::string& out_error), (override));
 };

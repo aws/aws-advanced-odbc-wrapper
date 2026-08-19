@@ -76,8 +76,8 @@ public:
 
 private:
     static constexpr char HOST_PORT_SEPARATOR = ':';
-    std::string host_ = "";
-    std::string host_id_ = "";
+    std::string host_;
+    std::string host_id_;
     int port_ = NO_PORT;
     uint64_t weight_ = DEFAULT_WEIGHT;
 

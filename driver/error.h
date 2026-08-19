@@ -201,14 +201,14 @@ const std::string ODBC_3_SUBCLASS[] = {
     "IM011", "IM012"
 };
 
-struct ERR_INFO {
+struct ErrInfo {
     SQLRETURN   ret_code            = SQL_SUCCESS;
     char*       error_msg           = nullptr;
     int         native_err          = 0;
     char*       sqlstate            = nullptr;
     bool        is_odbc3_subclass   = false;
 
-    ERR_INFO(const char *msg, SQL_STATE_CODE sql_state) {
+    ErrInfo(const char *msg, SQL_STATE_CODE sql_state) {
         if (msg) {
             error_msg = strdup(msg);
         }
@@ -228,7 +228,7 @@ struct ERR_INFO {
         }
     }
 
-    ERR_INFO(const ERR_INFO &source) {
+    ErrInfo(const ErrInfo &source) {
         if (source.error_msg) {
             error_msg = strdup(source.error_msg);
         }
@@ -239,7 +239,7 @@ struct ERR_INFO {
         ret_code = source.ret_code;
     }
 
-    ~ERR_INFO() {
+    ~ErrInfo() {
         if (error_msg != nullptr) {
             free(error_msg);
         }
@@ -253,12 +253,9 @@ struct ERR_INFO {
             return false;
         }
 
-        for (size_t i = 0; i < sizeof(ODBC_3_SUBCLASS) / sizeof(ODBC_3_SUBCLASS[0]); i++) {
-            if (str_sql_state.compare(ODBC_3_SUBCLASS[i]) == 0) {
-                return true;
-            }
-        }
-        return false;
+        return std::ranges::any_of(ODBC_3_SUBCLASS, [&str_sql_state](const std::string& subclass) {
+            return str_sql_state == subclass;
+        });
     }
 
 }; // ERR_INFO

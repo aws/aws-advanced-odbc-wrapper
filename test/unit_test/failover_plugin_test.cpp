@@ -21,8 +21,8 @@ class FailoverPluginTest : public ::testing::Test {};
 TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
     const std::string cluster_id = "test-cluster";
 
-    auto mock_lib_loader = std::make_shared<MockRdsLibLoader>();
-    auto mock_plugin_service = std::make_shared<MockPluginService>();
+    auto mock_lib_loader = std::make_shared<FailoverMockRdsLibLoader>();
+    auto mock_plugin_service = std::make_shared<FailoverMockPluginService>();
 
     ENV env;
     env.driver_lib_loader = mock_lib_loader;

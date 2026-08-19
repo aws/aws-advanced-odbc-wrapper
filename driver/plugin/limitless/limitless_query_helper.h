@@ -23,8 +23,9 @@
 #include <vector>
 
 #include "../../host_info.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
+
+class DialectLimitless;
+class OdbcHelper;
 
 class LimitlessQueryHelper {
 public:

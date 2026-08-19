@@ -30,7 +30,7 @@ public:
     virtual void Delay(
         std::chrono::milliseconds delay_ms,
         BlueGreenStatus status,
-        const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
+        const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>>& status_cache,
         std::string id);
     [[nodiscard]] virtual std::chrono::steady_clock::time_point GetCurrTime() const;
 

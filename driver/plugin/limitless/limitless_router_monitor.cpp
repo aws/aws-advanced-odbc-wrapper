@@ -103,6 +103,22 @@ bool LimitlessRouterMonitor::IsStopped() {
     return this->stopped_;
 }
 
+std::vector<HostInfo> LimitlessRouterMonitor::GetLimitlessRouters() {
+    const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
+    if (!this->limitless_routers_) {
+        return {};
+    }
+    return *this->limitless_routers_;
+}
+
+std::shared_ptr<RdsLibLoader> LimitlessRouterMonitor::GetLibLoader() const {
+    return this->lib_loader_;
+}
+
+std::shared_ptr<BasePlugin> LimitlessRouterMonitor::GetPluginHead() const {
+    return this->plugin_head_;
+}
+
 void LimitlessRouterMonitor::Close() {
     if (this->stopped_) {
         return;

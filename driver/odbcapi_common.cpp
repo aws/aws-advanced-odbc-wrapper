@@ -532,7 +532,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle ENV";
             ClearError(env);
-            env->err = std::make_unique<ERR_INFO>("SQLCancelHandle ENV - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            env->err = std::make_unique<ErrInfo>("SQLCancelHandle ENV - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             RDS_NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DBC:
@@ -544,7 +544,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DBC";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("SQLCancelHandle DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            dbc->err = std::make_unique<ErrInfo>("SQLCancelHandle DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             RDS_NOT_IMPLEMENTED;
         }
         case SQL_HANDLE_DESC:
@@ -556,7 +556,7 @@ SQLRETURN SQL_API SQLCancelHandle(
             const std::lock_guard<std::recursive_mutex> lock_guard(desc->lock);
             LOG(ERROR) << "Unsupported SQL API - SQLCancelHandle DESC";
             ClearError(desc);
-            desc->err = std::make_unique<ERR_INFO>("SQLCancelHandle DESC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            desc->err = std::make_unique<ErrInfo>("SQLCancelHandle DESC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             RDS_NOT_IMPLEMENTED;
         }
         default:
@@ -611,7 +611,7 @@ SQLRETURN SQL_API SQLCompleteAsync(
             const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
             LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync DBC";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("SQLCompleteAsync DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            dbc->err = std::make_unique<ErrInfo>("SQLCompleteAsync DBC - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
         }
 
@@ -624,7 +624,7 @@ SQLRETURN SQL_API SQLCompleteAsync(
             const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
             LOG(ERROR) << "Unsupported SQL API - SQLCompleteAsync STMT";
             ClearError(stmt);
-            stmt->err = std::make_unique<ERR_INFO>("SQLCompleteAsync STMT - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+            stmt->err = std::make_unique<ErrInfo>("SQLCompleteAsync STMT - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
             break;
         }
         default:
@@ -777,7 +777,7 @@ SQLRETURN SQL_API SQLExecute(
         rc = dbc->plugin_head->Execute(StatementHandle);
     } else {
         LOG(ERROR) << "Cannot execute without an open connection";
-        stmt->err = std::make_unique<ERR_INFO>("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
+        stmt->err = std::make_unique<ErrInfo>("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
     }
 
 #if UNICODE && !defined(_WIN32)

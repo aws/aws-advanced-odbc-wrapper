@@ -14,9 +14,10 @@
 
 #ifndef LIMITLESS_ROUTER_MONITOR_H_
 #define LIMITLESS_ROUTER_MONITOR_H_
-#include "limitless_query_helper.h"
-
 #include "../../util/windows_headers.h"
+
+#include <sql.h>
+#include <sqltypes.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -28,10 +29,13 @@
 #include <vector>
 
 #include "../../host_info.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
-#include "../../util/rds_strings.h"
-#include "../base_plugin.h"
+
+class BasePlugin;
+class DialectLimitless;
+class LimitlessQueryHelper;
+class OdbcHelper;
+class RdsLibLoader;
+struct DBC;
 
 class LimitlessRouterMonitor {
 public:
@@ -51,6 +55,12 @@ public:
     );
     virtual bool IsStopped();
 
+    std::vector<HostInfo> GetLimitlessRouters();
+    [[nodiscard]] std::shared_ptr<RdsLibLoader> GetLibLoader() const;
+    [[nodiscard]] std::shared_ptr<BasePlugin> GetPluginHead() const;
+
+protected:
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::shared_ptr<std::vector<HostInfo>> limitless_routers_;
     std::mutex limitless_routers_mutex_;
     std::shared_ptr<RdsLibLoader> lib_loader_;
@@ -58,7 +68,6 @@ public:
     std::condition_variable monitor_loop_cv_;
     std::mutex monitor_loop_mutex_;
 
-protected:
     std::atomic_bool stopped_ = false;
     unsigned int interval_ms_;
     std::shared_ptr<std::thread> monitor_thread_ = nullptr;

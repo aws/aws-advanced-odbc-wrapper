@@ -26,9 +26,9 @@
 
 #include <chrono>
 
-class MOCK_DIALECT : public Dialect {
+class MockDialect : public Dialect {
 public:
-    MOCK_DIALECT() : Dialect() {};
+    MockDialect() : Dialect() {};
     MOCK_METHOD(bool, IsSqlStateNetworkError, (const char* sql_state), ());
     MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state), (override));
     MOCK_METHOD(bool, IsSqlStateAccessError, (const char* sql_state, const std::string& error_message), (override));
@@ -37,30 +37,30 @@ public:
     MOCK_METHOD(std::optional<bool>, DoesStatementSetReadOnly, (std::string statement), ());
 };
 
-class MOCK_HOST_SELECTOR : public HighestWeightHostSelector {
+class MockHighestWeightHostSelector : public HighestWeightHostSelector {
 public:
-    MOCK_HOST_SELECTOR() : HighestWeightHostSelector() {};
+    MockHighestWeightHostSelector() : HighestWeightHostSelector() {};
     MOCK_METHOD(HostInfo, GetHost, (std::vector<HostInfo> hosts, bool is_writer,
         std::string properties), ());
 };
 
-class MOCK_HOST_LIST_PROVIDER : public HostListProvider {
+class MockHostListProvider : public HostListProvider {
 public:
-    MOCK_HOST_LIST_PROVIDER(): HostListProvider("someClusterId") {};
+    MockHostListProvider(): HostListProvider("someClusterId") {};
     MOCK_METHOD(HostInfo, GetConnectionInfo, (SQLHDBC hdbc), ());
     MOCK_METHOD(HOST_ROLE, GetConnectionRole, (SQLHDBC hdbc), ());
     MOCK_METHOD(std::vector<HostInfo>, Refresh, (), ());
     MOCK_METHOD(std::vector<HostInfo>, ForceRefresh, (bool verify_writer, uint32_t timeout_ms), ());
 };
 
-class MockHostSelector : public HostSelector {
+class StubHostSelector : public HostSelector {
 public:
     HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer, std::unordered_map<std::string, std::string> properties) override {
         return HostInfo();
     }
 };
 
-class MOCK_HOST_SELECTOR_GMOCK : public HostSelector {
+class MockHostSelector : public HostSelector {
 public:
     using PropMap = std::unordered_map<std::string, std::string>;
     MOCK_METHOD(HostInfo, GetHost,
@@ -68,9 +68,9 @@ public:
          PropMap properties), ());
 };
 
-class MOCK_ODBC_HELPER : public OdbcHelper {
+class MockOdbcHelper : public OdbcHelper {
 public:
-    MOCK_ODBC_HELPER() : OdbcHelper(std::make_shared<RdsLibLoader>(), nullptr) {};
+    MockOdbcHelper() : OdbcHelper(std::make_shared<RdsLibLoader>(), nullptr) {};
     MOCK_METHOD(void, Disconnect, (DBC *dbc), (override));
     MOCK_METHOD(void, Disconnect, (SQLHDBC *hdbc), (override));
     MOCK_METHOD(std::string, GetSqlStateAndLogMessage, (DBC *dbc), ());
@@ -81,9 +81,9 @@ public:
     MOCK_METHOD(bool, IsClosed, (SQLHDBC hdbc), (override));
 };
 
-class MOCK_PLUGIN_SERVICE : public PluginService {
+class MockPluginService : public PluginService {
 public:
-    MOCK_PLUGIN_SERVICE() : PluginService() {}
+    MockPluginService() : PluginService() {}
 
     MOCK_METHOD(std::vector<HostInfo>, GetHosts, (), ());
     MOCK_METHOD(HostInfo, GetCurrentHostInfo, (), ());
@@ -100,10 +100,10 @@ public:
     MOCK_METHOD(void, NotifyConnectionChanged, (), ());
 };
 
-class MOCK_TOPOLOGY_UTIL : public TopologyUtil {
+class MockTopologyUtil : public TopologyUtil {
 public:
-    MOCK_TOPOLOGY_UTIL() : TopologyUtil() {};
-    MOCK_TOPOLOGY_UTIL(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect) : TopologyUtil(odbc_helper, dialect) {};
+    MockTopologyUtil() : TopologyUtil() {};
+    MockTopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect) : TopologyUtil(odbc_helper, dialect) {};
 
     MOCK_METHOD(std::vector<HostInfo>, GetHosts, (SQLHDBC hdbc, const HostInfo& initial_host, const HostInfo& host_template), (override));
     MOCK_METHOD(HostInfo, GetWriter, (const std::vector<HostInfo>& hosts), ());

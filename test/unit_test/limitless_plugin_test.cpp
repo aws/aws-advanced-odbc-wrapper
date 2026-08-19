@@ -25,8 +25,8 @@
 
 class LimitlessPluginTest : public testing::Test {
 protected:
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
-    DBC* dbc;
+    std::shared_ptr<MockBasePlugin> mock_base_plugin_;
+    DBC* dbc_;
 
     // Runs once per suite
     static void SetUpTestSuite() {}
@@ -34,52 +34,52 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
-        dbc = new DBC();
+        mock_base_plugin_ = std::make_shared<MockBasePlugin>();
+        dbc_ = new DBC();
     }
     void TearDown() override {
-        if (dbc) delete dbc;
+        if (dbc_) delete dbc_;
     }
 };
 
 TEST_F(LimitlessPluginTest, Connect_Success) {
     EXPECT_CALL(
-        *mock_base_plugin,
+        *mock_base_plugin_,
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(0));
-    dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_TRUE);
+    dbc_->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_TRUE);
     std::shared_ptr<DialectAuroraPostgresLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
-    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr, std::make_shared<OdbcHelper>(nullptr, nullptr));
+    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc_->conn_attr, std::make_shared<OdbcHelper>(nullptr, nullptr));
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(1));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(1)).WillOnce(testing::Return(SQL_SUCCESS));
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
-    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    LimitlessPlugin plugin(dbc_, mock_base_plugin_, dialect, mock_router_service, nullptr);
+    SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
 }
 
 TEST_F(LimitlessPluginTest, Connect_LimitlessDisabled) {
     EXPECT_CALL(
-        *mock_base_plugin,
+        *mock_base_plugin_,
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(SQL_SUCCESS));
-    dbc->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
+    dbc_->conn_attr.insert_or_assign(KEY_ENABLE_LIMITLESS, VALUE_BOOL_FALSE);
     std::shared_ptr<DialectAuroraPostgresLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
-    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc->conn_attr, std::make_shared<OdbcHelper>(nullptr, nullptr));
+    std::shared_ptr<MockLimitlessRouterService> mock_router_service = std::make_shared<MockLimitlessRouterService>(dialect, dbc_->conn_attr, std::make_shared<OdbcHelper>(nullptr, nullptr));
     EXPECT_CALL(*mock_router_service, StartMonitoring(testing::_, testing::_)).Times(testing::Exactly(0));
     EXPECT_CALL(*mock_router_service, EstablishConnection(testing::_, testing::_)).Times(testing::Exactly(0));
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, mock_router_service, nullptr);
-    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    LimitlessPlugin plugin(dbc_, mock_base_plugin_, dialect, mock_router_service, nullptr);
+    SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
 }
 
 TEST_F(LimitlessPluginTest, IncorrectDialect) {
     EXPECT_CALL(
-        *mock_base_plugin,
+        *mock_base_plugin_,
         Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(0));
     std::shared_ptr<DialectAuroraPostgres> dialect = std::make_shared<DialectAuroraPostgres>();
-    LimitlessPlugin plugin(dbc, mock_base_plugin, dialect, nullptr, nullptr);
-    SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    LimitlessPlugin plugin(dbc_, mock_base_plugin_, dialect, nullptr, nullptr);
+    SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
 }

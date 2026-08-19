@@ -266,7 +266,7 @@ SQLRETURN AuroraInitialConnectionStrategyPlugin::GetVerifiedReader(
     return ConnectNext(dbc, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 }
 
-HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string region) {
+HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string& region) {
     std::vector<HostInfo> hosts;
     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
         hosts = service->GetHosts();

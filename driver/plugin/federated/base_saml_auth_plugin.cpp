@@ -25,13 +25,13 @@ BaseSamlAuthPlugin::BaseSamlAuthPlugin(
     std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseTokenAuthPlugin(dbc, next_plugin, auth_provider, dialect, odbc_helper)
 {
-    this->saml_util = saml_util;
+    this->saml_util_ = saml_util;
 }
 
 BaseSamlAuthPlugin::~BaseSamlAuthPlugin()
 {
-    if (saml_util) {
-        saml_util.reset();
+    if (saml_util_) {
+        saml_util_.reset();
     }
 }
 
@@ -45,7 +45,7 @@ bool BaseSamlAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, 
         return true;
     }
 
-    const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
+    const Aws::Auth::AWSCredentials credentials = saml_util_->GetCredentials();
     if (credentials.IsEmpty()) {
         out_error = "Unable to resolve AWS credentials for " + plugin_name_ + " authentication";
         return false;
@@ -57,8 +57,8 @@ bool BaseSamlAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, 
 bool BaseSamlAuthPlugin::RefreshCredentials(DBC* dbc, const std::string& region)
 {
     // Refresh SAML credentials before generating a new token
-    saml_util->InvalidateCachedCredentials();
-    const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
+    saml_util_->InvalidateCachedCredentials();
+    const Aws::Auth::AWSCredentials credentials = saml_util_->GetCredentials();
     if (credentials.IsEmpty()) {
         // Do not generate a token from empty credentials will return garbage token
         LOG(ERROR) << "[" << plugin_name_ << "] Unable to refresh SAML credentials; skipping token retry";

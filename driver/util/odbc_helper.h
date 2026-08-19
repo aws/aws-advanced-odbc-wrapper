@@ -71,8 +71,8 @@ public:
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc, std::string& out_message);
     virtual std::string GetStmtErrorMessage(SQLHSTMT stmt);
 
-    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_byte_count, size_t dst_byte_count) const;
-    void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_byte_count, size_t dst_byte_count) const;
+    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, size_t src_byte_count, size_t dst_byte_count) const;
+    void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, size_t src_byte_count, size_t dst_byte_count) const;
 
     void ConvertWrapperOutputToTarget(SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
     void ConvertWrapperOutputToTarget(bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;

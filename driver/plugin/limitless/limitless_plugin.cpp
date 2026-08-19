@@ -71,7 +71,7 @@ SQLRETURN LimitlessPlugin::Connect(
     if (!limitless_dialect) {
         LOG(ERROR) << "The limitless connection plugin does not support the current dialect or database";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin does not support the current dialect or database.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin does not support the current dialect or database.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 

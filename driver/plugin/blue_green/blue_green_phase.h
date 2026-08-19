@@ -59,7 +59,8 @@ public:
         {"SWITCHOVER_COMPLETED",            Phase::COMPLETED}
     };
     BlueGreenPhase();
-    BlueGreenPhase(Phase phase);
+    // BlueGreenPhase is a value wrapper around the enum and is compared and assigned against Phase constants
+    BlueGreenPhase(Phase phase); // NOLINT(google-explicit-constructor)
     BlueGreenPhase(Phase phase, bool switchover_or_completed);
 
     [[nodiscard]] Phase GetPhase() const;

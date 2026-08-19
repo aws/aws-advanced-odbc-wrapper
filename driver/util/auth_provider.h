@@ -46,7 +46,7 @@ enum AuthType : std::uint8_t {
     INVALID,
 };
 
-static std::map<std::string, AuthType> const auth_table = {
+static std::map<std::string, AuthType> const AUTH_TABLE = {
     {VALUE_AUTH_DATABASE,   AuthType::DATABASE},
     {VALUE_AUTH_IAM,        AuthType::IAM},
     {VALUE_AUTH_SECRETS,    AuthType::SECRETS_MANAGER},
@@ -99,9 +99,9 @@ public:
 protected:
 private:
     void SetUpRdsClient(const Aws::Auth::AWSCredentials& credentials, const std::string &region);
-    static inline std::unordered_map<std::string, TokenInfo> token_cache;
-    static inline std::recursive_mutex token_cache_mutex;
-    std::shared_ptr<Aws::RDS::RDSClient> rds_client;
+    static inline std::unordered_map<std::string, TokenInfo> token_cache_;
+    static inline std::recursive_mutex token_cache_mutex_;
+    std::shared_ptr<Aws::RDS::RDSClient> rds_client_;
     bool credentials_resolved_ = true;
 };
 

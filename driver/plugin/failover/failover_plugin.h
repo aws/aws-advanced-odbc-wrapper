@@ -34,7 +34,7 @@ enum FailoverMode : std::uint8_t {
     UNKNOWN_FAILOVER_MODE
 };
 
-static std::map<std::string, FailoverMode> const failover_mode_table = {
+static std::map<std::string, FailoverMode> const FAILOVER_MODE_TABLE = {
     {VALUE_FAILOVER_MODE_STRICT_READER,     FailoverMode::STRICT_READER},
     {VALUE_FAILOVER_MODE_STRICT_WRITER,     FailoverMode::STRICT_WRITER},
     {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER}

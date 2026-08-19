@@ -106,7 +106,7 @@ inline size_t UShortStrlen(const uint16_t* str, const bool use_4_byte = false) {
     }
 
     if (use_4_byte) {
-        while (str[length * 2] != 0 || str[length * 2 + 1] != 0) {
+        while (str[length * 2] != 0 || str[(length * 2) + 1] != 0) {
             length++;
         }
     } else {
@@ -131,7 +131,7 @@ inline std::wstring ConvertUTF8ToWString(std::string input) {
 
     if (U_FAILURE(error)) {
         LOG(ERROR) << "ConvertUTF8ToWString conversion failed: " << u_errorName(error);
-        return std::wstring();
+        return {};
     }
 
     return wstr;
@@ -206,8 +206,8 @@ inline void ExpandUTF16ToUTF32InPlace(SQLTCHAR* buf, size_t src_chars, size_t bu
 }
 
 inline std::string Convert4ByteSqlWChar(
-    SQLTCHAR *     InputStr,
-    SQLINTEGER     BufferLength
+    const SQLTCHAR *   InputStr,
+    SQLINTEGER         BufferLength
     )
 {
     if (!InputStr) {
@@ -269,7 +269,7 @@ inline void ConvertUTF8ToDriver(bool driver_4_byte, std::string input, SQLTCHAR*
 inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, bool driver_4_byte, SQLTCHAR* in, SQLINTEGER in_length) {
     // nullptr is valid ODBC input
     if (in == nullptr) {
-        return std::vector<SQLTCHAR>();
+        return {};
     }
 
     const std::string utf8 = ConvertUserAppToUTF8(user_4_byte, in, in_length);
@@ -286,18 +286,16 @@ inline std::vector<SQLTCHAR> ConvertUserAppInputToBaseDriver(bool user_4_byte, b
                 : utf16_len;
         }
 
-        size_t size_converted = size * 2 + 2; // Each char expands to 2 SQLTCHAR + null pair
-        SQLTCHAR* wide_converted_4byte = new SQLTCHAR[size_converted];
-        ConvertUTF16ToUTF32(reinterpret_cast<const SQLTCHAR*>(utf16.data()), wide_converted_4byte, size, size_converted);
-        std::vector<SQLTCHAR> result(wide_converted_4byte, wide_converted_4byte + size_converted);
-        delete[] wide_converted_4byte;
+        const size_t size_converted = (size * 2) + 2; // Each char expands to 2 SQLTCHAR + null pair
+        std::vector<SQLTCHAR> result(size_converted, 0);
+        ConvertUTF16ToUTF32(reinterpret_cast<const SQLTCHAR*>(utf16.data()), result.data(), size, size_converted);
         return result;
-    } else {
-        std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
-        return std::vector<SQLTCHAR>(
-            reinterpret_cast<SQLTCHAR*>(utf16.data()),
-            reinterpret_cast<SQLTCHAR*>(utf16.data() + utf16.size()));
     }
+
+    std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(utf8);
+    return {
+        reinterpret_cast<SQLTCHAR*>(utf16.data()),
+        reinterpret_cast<SQLTCHAR*>(utf16.data() + utf16.size())};
 }
 #endif
 
@@ -329,7 +327,7 @@ inline std::string RDS_STR_UPPER(std::string str) {
         const size_t buf_len = str.length() * 4;
         char *buf = new char[buf_len];
         UErrorCode ucasemap_status = U_ZERO_ERROR;
-        UCaseMap *ucasemap = ucasemap_open(NULL, 0, &ucasemap_status);
+        UCaseMap *ucasemap = ucasemap_open(nullptr, 0, &ucasemap_status);
         if (U_FAILURE(ucasemap_status)) {
             LOG(ERROR) << std::format("Failed to convert string {} to uppercase when opening ucasemap: {}", str, u_errorName(ucasemap_status));
             delete[] buf;

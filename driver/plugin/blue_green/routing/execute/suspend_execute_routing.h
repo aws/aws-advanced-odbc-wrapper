@@ -36,7 +36,7 @@ public:
     SQLRETURN Execute(
         STMT* stmt,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 
 private:
     std::string blue_green_id_;

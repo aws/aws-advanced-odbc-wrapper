@@ -34,7 +34,7 @@ public:
     SQLRETURN Execute(
         STMT* stmt,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 };
 
 #endif // CLOSE_CONNECTION_EXECUTE_ROUTING_H_

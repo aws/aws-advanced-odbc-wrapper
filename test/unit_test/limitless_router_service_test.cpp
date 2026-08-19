@@ -26,8 +26,8 @@
 
 class LimitlessRouterServiceTest : public testing::Test {
 protected:
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
-    DBC* dbc;
+    std::shared_ptr<MockBasePlugin> mock_base_plugin_;
+    DBC* dbc_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
 
     // Runs once per suite
@@ -36,15 +36,15 @@ protected:
 
     // Runs per test
     void SetUp() override {
-        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
-        dbc = new DBC();
-        dbc->plugin_head = mock_base_plugin.get();
-        dbc->plugin_service = std::make_shared<PluginService>();
-        dbc->plugin_service->SetPluginChain(mock_base_plugin);
+        mock_base_plugin_ = std::make_shared<MockBasePlugin>();
+        dbc_ = new DBC();
+        dbc_->plugin_head = mock_base_plugin_.get();
+        dbc_->plugin_service = std::make_shared<PluginService>();
+        dbc_->plugin_service->SetPluginChain(mock_base_plugin_);
         odbc_helper_ = std::make_shared<OdbcHelper>(nullptr, nullptr);
     }
     void TearDown() override {
-        if (dbc) delete dbc;
+        if (dbc_) delete dbc_;
     }
 };
 
@@ -52,18 +52,18 @@ TEST_F(LimitlessRouterServiceTest, EstablishConnectionWithNullDbcReturnsInvalidH
     std::shared_ptr<DialectLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
     TestLimitlessRouterService router_service(dialect, {}, odbc_helper_);
 
-    EXPECT_EQ(SQL_INVALID_HANDLE, router_service.EstablishConnection(mock_base_plugin, nullptr));
+    EXPECT_EQ(SQL_INVALID_HANDLE, router_service.EstablishConnection(mock_base_plugin_, nullptr));
 }
 
 TEST_F(LimitlessRouterServiceTest, EstablishConnectionWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
     std::shared_ptr<DialectLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
     TestLimitlessRouterService router_service(dialect, {}, odbc_helper_);
 
-    const SQLRETURN ret = router_service.EstablishConnection(nullptr, dbc);
+    const SQLRETURN ret = router_service.EstablishConnection(nullptr, dbc_);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, dbc->err);
-    EXPECT_STREQ("HY000", dbc->err->sqlstate);
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
 }
 
 TEST_F(LimitlessRouterServiceTest, LimitlessRouterMonitorReferenceCountingTest) {
@@ -76,15 +76,15 @@ TEST_F(LimitlessRouterServiceTest, LimitlessRouterMonitorReferenceCountingTest) 
 
     std::shared_ptr<DialectLimitless> dialect = std::make_shared<DialectAuroraPostgresLimitless>();
 
-    dbc->conn_attr = attr1;
+    dbc_->conn_attr = attr1;
     TestLimitlessRouterService* router_service1 = new TestLimitlessRouterService(dialect, attr1, odbc_helper_);
     TestLimitlessRouterService* router_service2 = new TestLimitlessRouterService(dialect, attr1, odbc_helper_);
-    router_service1->StartMonitoring(dbc, dialect);
-    router_service2->StartMonitoring(dbc, dialect);
+    router_service1->StartMonitoring(dbc_, dialect);
+    router_service2->StartMonitoring(dbc_, dialect);
 
-    dbc->conn_attr = attr2;
+    dbc_->conn_attr = attr2;
     TestLimitlessRouterService* router_service3 = new TestLimitlessRouterService(dialect, attr2, odbc_helper_);
-    router_service3->StartMonitoring(dbc, dialect);
+    router_service3->StartMonitoring(dbc_, dialect);
 
     std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>> pair = LimitlessRouterService::limitless_router_monitors_.at("server_1");
     EXPECT_EQ(2, pair.first);

@@ -30,7 +30,7 @@ SQLRETURN ChainDelegationError(HandleT* handle, const std::string& plugin_name, 
     ClearError(handle);
     const std::string error_msg = "The plugin chain is misconfigured: ["
         + plugin_name + "] has no valid next plugin to delegate " + operation + " to.";
-    handle->err = std::make_unique<ERR_INFO>(error_msg.c_str(), ERR_GENERAL_ERROR);
+    handle->err = std::make_unique<ErrInfo>(error_msg.c_str(), ERR_GENERAL_ERROR);
     return SQL_ERROR;
 }
 
