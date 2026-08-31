@@ -15,8 +15,6 @@
 #ifndef WEBSERVER_H_
 #define WEBSERVER_H_
 
-#pragma once
-
 #include "Parser.h"
 #include "Selector.h"
 #include "Socket.h"

@@ -40,7 +40,36 @@ ContinuationIndentWidth: 4
 Cpp11BracedListStyle: false
 DerivePointerAlignment: false
 EmptyLineBeforeAccessModifier: LogicalBlock
-IncludeBlocks: Preserve
+IncludeBlocks: Regroup
+IncludeIsMainRegex: '$'
+IncludeCategories:
+  # Must precede <sql.h> and any third-party header on Windows.
+  - Regex:           '"([-./[:alnum:]_]*)windows_headers\.h"'
+    Priority:        1
+  # ODBC headers, which depend on the Windows types.
+  - Regex:           '<(sql|sqlext|sqltypes|sqlucode|odbcinst)\.h>'
+    Priority:        2
+  # Other platform / system C headers.
+  - Regex:           '<(tchar|windowsx|CommCtrl|commdlg|shellapi|dlfcn|unistd|fcntl|poll|netdb|arpa/inet|sys/socket)\.h>'
+    Priority:        3
+  # C++ standard library, plus the C compatibility headers.
+  - Regex:           '<[[:alnum:]_]+>'
+    Priority:        4
+  - Regex:           '<c[[:alnum:]_]+>'
+    Priority:        4
+  - Regex:           '<(string|stdio|stdlib|assert|math|wchar)\.h>'
+    Priority:        4
+  # Third party.
+  - Regex:           '<(aws|ng-log|gtest|gmock)/'
+    Priority:        5
+  - Regex:           '"unicode/'
+    Priority:        5
+  # Project-local headers.
+  - Regex:           '".*"'
+    Priority:        6
+  # Unrecognized sorted into system headers
+  - Regex:           '<.*>'
+    Priority:        3
 IndentCaseLabels: true
 IndentPPDirectives: None
 IndentWidth: 4

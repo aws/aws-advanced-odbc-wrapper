@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#ifndef SOCKET_SUPPORT_H_
+#define SOCKET_SUPPORT_H_
 
 #if (defined(_WIN32) || defined(_WIN64))
 
-#include <windows.h>
-#include <winsock2.h>
-#include "Ws2tcpip.h"
-#pragma comment(lib, "Ws2_32.lib")
+#include "../../../util/windows_headers.h"
 
 #else /* Linux or MAC */
 
@@ -33,3 +31,5 @@ typedef int SOCKET;
 #define INVALID_SOCKET -1
 
 #endif
+
+#endif // SOCKET_SUPPORT_H_

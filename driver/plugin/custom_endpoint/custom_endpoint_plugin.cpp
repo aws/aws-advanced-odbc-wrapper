@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <aws/core/Aws.h>
-
 #include "custom_endpoint_plugin.h"
+
+#include <aws/core/Aws.h>
 
 #include "../../util/auth_provider.h"
 #include "../../util/connection_string_keys.h"

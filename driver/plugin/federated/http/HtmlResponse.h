@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#ifndef HTML_RESPONSE_H_
+#define HTML_RESPONSE_H_
+
+#include <string>
 
 inline std::string GetResponse =
     "HTTP/1.1 200 OK\r\n"
@@ -42,3 +45,5 @@ const std::string InvalidResponse =
     "Connection: close\r\n"
     "Content-Type: text/html; charset=utf-8\r\n\r\n"
     "<!DOCTYPE html><html><body>The request could not be understood by the server!</p></body></html>";
+
+#endif // HTML_RESPONSE_H_

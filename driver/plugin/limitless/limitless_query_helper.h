@@ -15,9 +15,7 @@
 #ifndef LIMITLESS_QUERY_HELPER_H_
 #define LIMITLESS_QUERY_HELPER_H_
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../../util/windows_headers.h"
 
 #include <sqltypes.h>
 #include <vector>

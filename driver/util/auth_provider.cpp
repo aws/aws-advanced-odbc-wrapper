@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "auth_provider.h"
+
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentials.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
@@ -20,8 +22,6 @@
 #include <aws/core/config/AWSConfigFileProfileConfigLoader.h>
 #include <aws/core/config/AWSProfileConfig.h>
 #include <aws/rds/RDSClient.h>
-
-#include "auth_provider.h"
 
 #include "../dialect/dialect.h"
 #include "../driver.h"

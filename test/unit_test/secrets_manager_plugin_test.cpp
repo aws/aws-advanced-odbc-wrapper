@@ -23,9 +23,7 @@
 #include "../../driver/util/aws_sdk_helper.h"
 #include "../../driver/util/connection_string_keys.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../../driver/util/windows_headers.h"
 #include <sql.h>
 
 namespace {

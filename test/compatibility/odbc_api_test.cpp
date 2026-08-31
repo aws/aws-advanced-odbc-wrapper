@@ -19,9 +19,7 @@
 #include <map>
 #include <filesystem>
 
-#ifdef WIN32
-#include <windows.h>
-#endif
+#include "../../driver/util/windows_headers.h"
 
 #include <sql.h>
 #include <sqlext.h>

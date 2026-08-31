@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "AddrInformation.h"
 #include "Socket.h"
+
+#include "AddrInformation.h"
 
 #include <chrono>
 #include <stdexcept>

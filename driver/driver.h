@@ -49,9 +49,7 @@
 #endif
 #endif
 
-#ifdef WIN32
-#include <windows.h>
-#endif
+#include "util/windows_headers.h"
 
 #include <sql.h>
 

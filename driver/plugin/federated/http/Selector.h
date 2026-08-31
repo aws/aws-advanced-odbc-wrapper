@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#ifndef SELECTOR_H_
+#define SELECTOR_H_
 
 #include "SocketSupport.h"
 
@@ -50,3 +51,5 @@ class Selector
         SOCKET max_fd_;
         fd_set master_fds_;
 };
+
+#endif // SELECTOR_H_

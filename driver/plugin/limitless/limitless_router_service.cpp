@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "../../util/auth_provider.h"
-
 #include "limitless_router_service.h"
+
+#include "../../util/auth_provider.h"
 
 #include <chrono>
 #include <memory>

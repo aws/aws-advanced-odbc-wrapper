@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "custom_endpoint_monitor.h"
+
 #include <aws/core/auth/AWSCredentialsProviderChain.h>
 #include <aws/core/client/ClientConfiguration.h>
 #include <aws/rds/RDSClient.h>
 #include <aws/rds/RDSErrors.h>
 #include <aws/rds/model/DBClusterEndpoint.h>
 #include <aws/rds/model/DescribeDBClusterEndpointsRequest.h>
-
-#include "custom_endpoint_monitor.h"
 
 #include "../../util/aws_sdk_helper.h"
 #include "../../util/logger_wrapper.h"

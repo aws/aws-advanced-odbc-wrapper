@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "../../../util/logger_wrapper.h"
 #include "Parser.h"
+
+#include "../../../util/logger_wrapper.h"
 
 #include <algorithm>
 #include <chrono>

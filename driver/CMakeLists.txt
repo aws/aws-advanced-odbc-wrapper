@@ -112,6 +112,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/windows_headers.h
 
     # Dialects
     ${CMAKE_CURRENT_SOURCE_DIR}/dialect/dialect_aurora_mysql.h
@@ -249,8 +250,14 @@ endif()
 # Configure Build Defines ------------------------------------------------------------------------------------
 add_compile_definitions(
     ODBCVER=0x0380
-    WIN32_LEAN_AND_MEAN # Exclude rarely-used stuff from Windows headers
 )
+
+if(WIN32)
+    add_compile_definitions(
+        WIN32_LEAN_AND_MEAN # Exclude rarely-used declarations, including WinSock 1.1
+        NOMINMAX            # Suppress the min()/max() macros, which break std::min/std::max
+    )
+endif()
 
 # Unicode
 IF(BUILD_UNICODE OR NOT BUILD_ANSI)

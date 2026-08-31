@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#ifndef PARSER_H_
+#define PARSER_H_
 
+#include <istream>
+#include <string>
 #include <unordered_map>
 
 enum class STATE
@@ -119,3 +122,5 @@ class Parser {
         std::unordered_map<std::string, std::string> body_;
                         
 };
+
+#endif // PARSER_H_

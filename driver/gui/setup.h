@@ -12,4 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef SETUP_H_
+#define SETUP_H_
+
+#include "../util/windows_headers.h"
+
+#include <sqltypes.h>
+
+#include <string>
+#include <tuple>
+
 std::tuple<std::string, std::string, bool> StartDialogForSqlDriverConnect(HWND hwnd, SQLTCHAR* InConnectionString, SQLTCHAR* OutConnectionString, bool complete_required);
+
+#endif // SETUP_H_

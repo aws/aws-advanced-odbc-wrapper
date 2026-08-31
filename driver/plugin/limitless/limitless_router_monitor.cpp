@@ -14,9 +14,7 @@
 
 #include "limitless_router_monitor.h"
 
-#ifdef WIN32
-    #include <windows.h>
-#endif
+#include "../../util/windows_headers.h"
 
 #include <sqlext.h>
 

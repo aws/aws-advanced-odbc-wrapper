@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "setup.h"
+
+#include "../util/windows_headers.h"
+
 #ifdef WIN32
-    #include <windows.h>
     #include <windowsx.h>
     #include <CommCtrl.h>
 #endif
@@ -30,7 +33,6 @@
 #include <commdlg.h>
 
 #include "resource.h"
-#include "setup.h"
 #include "../util/connection_string_keys.h"
 #include "../util/odbc_dsn_helper.h"
 #include "../odbcapi_rds_helper.h"
