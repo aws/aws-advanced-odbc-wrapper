@@ -36,7 +36,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
 
 namespace {
     std::shared_ptr<SamlUtil> CreateOktaSamlUtil(
-        DBC* dbc,
+        const DBC* dbc,
         const std::shared_ptr<SamlUtil>& saml_util)
     {
         if (saml_util) {
@@ -73,7 +73,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
         CreateOktaAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
-    this->plugin_name = "OKTA";
+    this->plugin_name_ = "OKTA";
 }
 
 OktaSamlUtil::OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes)
@@ -88,56 +88,56 @@ OktaSamlUtil::OktaSamlUtil(
     // Browser mode selects the Okta app via LOGIN_URL, so APP_ID is not required there.
     // The headless flow builds its sign-in / session-token URLs from APP_ID and still needs it.
     const std::string app_id = MapUtils::GetStringValue(connection_attributes, KEY_APP_ID, "");
-    if (!browser_mode) {
+    if (!browser_mode_) {
         if (app_id.empty()) {
             throw std::runtime_error(std::string("Missing required parameter for Okta Authentication: ") + KEY_APP_ID);
         }
-        sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
-        session_token_url = "https://" + idp_endpoint + ":" + idp_port + "/api/v1/authn";
+        sign_in_url_ = "https://" + idp_endpoint_ + ":" + idp_port_ + "/app/amazon_aws/" + app_id + "/sso/saml" + "?onetimetoken=";
+        session_token_url_ = "https://" + idp_endpoint_ + ":" + idp_port_ + "/api/v1/authn";
     } else {
-        sso_url = MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "");
-        if (sso_url.empty()) {
+        sso_url_ = MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "");
+        if (sso_url_.empty()) {
             throw std::runtime_error(std::string("Missing required parameter for Okta browser authentication: ") + KEY_LOGIN_URL);
         }
     }
 
-    if (browser_mode) {
+    if (browser_mode_) {
         // The MFA_* keys drive the headless /api/v1/authn challenge (VerifyTOTPChallenge / VerifyPushChallenge).
         // Browser mode never touches that path
         if (!MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "").empty()) {
             LOG(WARNING) << "MFA_TYPE is ignored in browser SAML mode; MFA is governed by the Okta sign-in policy";
         }
-        listen_port = MapUtils::GetStringValue(connection_attributes, KEY_LISTEN_PORT, DEFAULT_PORT);
-        response_timeout = MapUtils::GetStringValue(connection_attributes, KEY_IDP_RESPONSE_TIMEOUT, DEFAULT_MFA_TIMEOUT);
+        listen_port_ = MapUtils::GetStringValue(connection_attributes, KEY_LISTEN_PORT, DEFAULT_PORT);
+        response_timeout_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_RESPONSE_TIMEOUT, DEFAULT_MFA_TIMEOUT);
     } else {
         const std::string mfa_type_str = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TYPE, "");
-        if (mfa_type_table.contains(mfa_type_str)) {
-            mfa_type = mfa_type_table.at(mfa_type_str);
+        if (MFA_TYPE_TABLE.contains(mfa_type_str)) {
+            mfa_type_ = MFA_TYPE_TABLE.at(mfa_type_str);
         }
-        mfa_port = MapUtils::GetStringValue(connection_attributes, KEY_MFA_PORT, DEFAULT_PORT);
-        mfa_timeout = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TIMEOUT, DEFAULT_MFA_TIMEOUT);
+        mfa_port_ = MapUtils::GetStringValue(connection_attributes, KEY_MFA_PORT, DEFAULT_PORT);
+        mfa_timeout_ = MapUtils::GetStringValue(connection_attributes, KEY_MFA_TIMEOUT, DEFAULT_MFA_TIMEOUT);
     }
 }
 
 std::string OktaSamlUtil::GetSamlAssertion()
 {
-    if (browser_mode) {
+    if (browser_mode_) {
         return GetSamlAssertionViaBrowser();
     }
 
-    LOG(INFO) << "OKTA Sign In URL w/o Session Token: " << sign_in_url;
+    LOG(INFO) << "OKTA Sign In URL w/o Session Token: " << sign_in_url_;
     const std::string session_token = GetSessionToken();
     if (session_token.empty()) {
         LOG(ERROR) << "No session token generated for SAML request";
         return "";
     }
 
-    std::string url(sign_in_url);
+    std::string url(sign_in_url_);
     url += session_token;
 
     const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
         url, Aws::Http::HttpMethod::HTTP_GET, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
-    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client_->MakeRequest(req);
 
     std::string retval;
     // Check response code
@@ -164,7 +164,7 @@ std::string OktaSamlUtil::GetSamlAssertionViaBrowser()
     // Browser flow: open the Okta SSO URL (resolved from LOGIN_URL in the constructor)
     // and listen for the SAML POST back to localhost.
     const BrowserFlowResult result = RunBrowserFlow(
-        sso_url, WebServerUtils::GenerateState(), listen_port, response_timeout);
+        sso_url_, WebServerUtils::GenerateState(), listen_port_, response_timeout_);
     if (result.saml_response.empty()) {
         LOG(ERROR) << "No SAMLResponse received from browser flow";
         return "";
@@ -176,18 +176,18 @@ std::string OktaSamlUtil::GetSamlAssertionViaBrowser()
 std::string OktaSamlUtil::GetSessionToken()
 {
     // Send request for session token
-    LOG(INFO) << "Got OKTA Session Token URL: " << session_token_url;
+    LOG(INFO) << "Got OKTA Session Token URL: " << session_token_url_;
     const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
-        session_token_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
+        session_token_url_, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
     Aws::Utils::Json::JsonValue json_body;
-    json_body.WithString("username", idp_username)
-        .WithString("password", idp_password);
+    json_body.WithString("username", idp_username_)
+        .WithString("password", idp_password_);
     const Aws::String json_str = json_body.View().WriteReadable();
     const Aws::String json_len = Aws::Utils::StringUtils::to_string(json_str.size());
     req->SetContentType("application/json");
     req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
     req->SetContentLength(json_len);
-    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client_->MakeRequest(req);
 
     // Check resp status
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
@@ -205,7 +205,7 @@ std::string OktaSamlUtil::GetSessionToken()
         return "";
     }
 
-    if (mfa_type != NONE) {
+    if (mfa_type_ != NONE) {
         const Aws::Utils::Json::JsonView json_view = json_val.View();
 
         if (!json_view.KeyExists("stateToken")) {
@@ -220,7 +220,7 @@ std::string OktaSamlUtil::GetSessionToken()
         std::string factor_id;
         for (int i = 0; i < factor_views.GetLength(); i++) {
             const std::string type = factor_views[i].GetString("factorType");
-            if (mfa_type == TOTP && type == "token:software:totp" || mfa_type == PUSH && type == "push") {
+            if (mfa_type_ == TOTP && type == "token:software:totp" || mfa_type_ == PUSH && type == "push") {
                 factor_id = factor_views[i].GetString("id");
             }
         }
@@ -230,11 +230,11 @@ std::string OktaSamlUtil::GetSessionToken()
             return "";
         }
 
-        const std::string verify_url = session_token_url + "/factors/" + factor_id + "/verify";
-        if (mfa_type == TOTP) {
+        const std::string verify_url = session_token_url_ + "/factors/" + factor_id + "/verify";
+        if (mfa_type_ == TOTP) {
             return VerifyTOTPChallenge(verify_url, state_token);
         }
-        if (mfa_type == PUSH) {
+        if (mfa_type_ == PUSH) {
             return VerifyPushChallenge(verify_url, state_token);
         }
     }
@@ -252,9 +252,9 @@ std::string OktaSamlUtil::VerifyTOTPChallenge(
     const std::string &verify_url,
     const std::string &state_token)
 {
-    const std::string mfa_form_url = WEBSERVER_HOST + ":" + mfa_port;
+    const std::string mfa_form_url = WEBSERVER_HOST + ":" + mfa_port_;
     const std::string pass_code = RunBrowserFlow(
-        mfa_form_url, WebServerUtils::GenerateState(), mfa_port, mfa_timeout).auth_code;
+        mfa_form_url, WebServerUtils::GenerateState(), mfa_port_, mfa_timeout_).auth_code;
     if (pass_code.empty()) {
         LOG(ERROR) << "MFA Authorization code was not obtained";
         return "";
@@ -271,7 +271,7 @@ std::string OktaSamlUtil::VerifyTOTPChallenge(
     req->SetContentType("application/json");
     req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
     req->SetContentLength(json_len);
-    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client_->MakeRequest(req);
 
     // Check resp status
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
@@ -302,7 +302,7 @@ std::string OktaSamlUtil::VerifyPushChallenge(
     const std::string &state_token)
 {
     const std::chrono::time_point<std::chrono::steady_clock> end_time = std::chrono::steady_clock::now()
-        + std::chrono::seconds(NumberUtils::ParseInt(mfa_timeout).value_or(DEFAULT_MFA_TIMEOUT_SECS));
+        + std::chrono::seconds(NumberUtils::ParseInt(mfa_timeout_).value_or(DEFAULT_MFA_TIMEOUT_SECS));
     while (std::chrono::steady_clock::now() < end_time) {
         const std::shared_ptr<Aws::Http::HttpRequest> req = Aws::Http::CreateHttpRequest(
             verify_url, Aws::Http::HttpMethod::HTTP_POST, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
@@ -313,7 +313,7 @@ std::string OktaSamlUtil::VerifyPushChallenge(
         req->SetContentType("application/json");
         req->AddContentBody(Aws::MakeShared<Aws::StringStream>("", json_str));
         req->SetContentLength(json_len);
-        const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+        const std::shared_ptr<Aws::Http::HttpResponse> response = http_client_->MakeRequest(req);
 
         // Check resp status
         if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {

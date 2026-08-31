@@ -23,9 +23,9 @@
 
 #include "../../driver/plugin/custom_endpoint/custom_endpoint_monitor.h"
 
-class MOCK_CUSTOM_ENDPOINT_MONITOR : public CustomEndpointMonitor {
+class MockCustomEndpointMonitor : public CustomEndpointMonitor {
 public:
-    MOCK_CUSTOM_ENDPOINT_MONITOR() : CustomEndpointMonitor() {};
+    MockCustomEndpointMonitor() : CustomEndpointMonitor() {};
 
     MOCK_METHOD(bool, HasInfo, (), ());
     MOCK_METHOD(void, Run, (), ());

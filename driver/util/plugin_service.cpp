@@ -15,25 +15,22 @@
 #include "plugin_service.h"
 
 #include <optional>
-#include "plugin_chain_builder.h"
-
-#include "../driver.h"
-#include "map_utils.h"
-#include "number_utils.h"
-#include "rds_utils.h"
 
 #include "../dialect/dialect.h"
 #include "../dialect/dialect_aurora_mysql.h"
 #include "../dialect/dialect_aurora_postgres.h"
-
-#include "../host_selector/highest_weight_host_selector.h"
-#include "../host_selector/random_host_selector.h"
-#include "../host_selector/round_robin_host_selector.h"
-
+#include "../driver.h"
 #include "../host_list_providers/aurora_topology_util.h"
 #include "../host_list_providers/host_list_provider.h"
 #include "../host_list_providers/multi_az_topology_util.h"
 #include "../host_list_providers/rds_host_list_provider.h"
+#include "../host_selector/highest_weight_host_selector.h"
+#include "../host_selector/random_host_selector.h"
+#include "../host_selector/round_robin_host_selector.h"
+#include "map_utils.h"
+#include "number_utils.h"
+#include "plugin_chain_builder.h"
+#include "rds_utils.h"
 
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr)
     : PluginService(lib_loader, nullptr, original_conn_attr, "") {}
@@ -227,7 +224,7 @@ std::shared_ptr<BasePlugin> PluginService::GetPluginChain() {
 }
 
 void PluginService::SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain) {
-    this->plugin_chain_ = plugin_chain;
+    this->plugin_chain_ = std::move(plugin_chain);
 }
 
 void PluginService::InitHostListProvider() {
@@ -370,7 +367,7 @@ void PluginService::UpdateDialect(DBC* dbc) {
     }
 
     if (new_dialect != nullptr && new_dialect->IsDialect(dbc, this->odbc_helper_)) {
-        this->dialect_ = new_dialect;
+        this->dialect_ = std::move(new_dialect);
         this->topology_util_ = std::make_shared<MultiAzTopologyUtil>(this->odbc_helper_, this->dialect_);
 
         if (this->host_list_provider_) {

@@ -27,14 +27,14 @@
 // We define our own here rather than including failover_mock_objects.h to
 // avoid pulling in the failover plugin dependency.
 // ---------------------------------------------------------------------------
-inline SQLRETURN RW_MockFunction() { return SQL_SUCCESS; }
+inline SQLRETURN RwMockFunction() { return SQL_SUCCESS; }
 
-class RW_MockRdsLibLoader : public RdsLibLoader {
+class RwMockRdsLibLoader : public RdsLibLoader {
 public:
-    RW_MockRdsLibLoader() : RdsLibLoader("") {}
+    RwMockRdsLibLoader() : RdsLibLoader("") {}
 
     FUNC_HANDLE GetFunction(const std::string& function_name) override {
-        return reinterpret_cast<FUNC_HANDLE>(&RW_MockFunction);
+        return reinterpret_cast<FUNC_HANDLE>(&RwMockFunction);
     }
 };
 

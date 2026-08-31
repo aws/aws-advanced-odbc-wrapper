@@ -68,7 +68,7 @@ std::string ConnectionStringHelper::BuildFullConnectionString(const std::map<std
 std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &conn_str)
 {
     std::string result(conn_str);
-    for (const std::string& key : sensitive_key_set) {
+    for (const std::string& key : SENSITIVE_KEY_SET) {
         const std::regex pattern("(" + key + "=)([^;]+)");
         result = std::regex_replace(result, pattern, "$1[REDACTED]");
     }
@@ -77,7 +77,7 @@ std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &
 
 std::string ConnectionStringHelper::RemoveInternalWrapperKeys(const std::string& conn_str) {
     std::string result(conn_str);
-    for (const std::string& key : internal_wrapper_key_set) {
+    for (const std::string& key : INTERNAL_WRAPPER_KEY_SET) {
         const std::regex pattern("(" + key + "=)([^;]+)");
         result = std::regex_replace(result, pattern, "");
     }
@@ -93,18 +93,18 @@ std::string ConnectionStringHelper::BuildDsnOnlyConnectionString(const std::map<
 
 bool ConnectionStringHelper::IsAwsOdbcKey(const std::string &aws_odbc_key)
 {
-    return aws_odbc_key_set.contains(aws_odbc_key);
+    return AWS_ODBC_KEY_SET.contains(aws_odbc_key);
 }
 
 bool ConnectionStringHelper::IsSensitiveData(const std::string &sensitive_key)
 {
-    return sensitive_key_set.contains(sensitive_key);
+    return SENSITIVE_KEY_SET.contains(sensitive_key);
 }
 
 std::string ConnectionStringHelper::GetRealKeyName(const std::string& alias_key)
 {
-    auto key_it = alias_to_real_map.find(alias_key);
-    if (key_it != alias_to_real_map.end()) {
+    const auto key_it = ALIAS_TO_REAL_MAP.find(alias_key);
+    if (key_it != ALIAS_TO_REAL_MAP.end()) {
         return key_it->second;
     }
     return alias_key;

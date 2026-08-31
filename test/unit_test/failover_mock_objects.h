@@ -23,32 +23,32 @@
 #include "../../driver/host_selector/host_selector.h"
 #include "../../driver/plugin/failover/failover_plugin.h"
 
-class MockDialect : public Dialect {};
+class FailoverMockDialect : public Dialect {};
 
 SQLRETURN MockFunction() {
     return SQL_SUCCESS;
 }
 
-class MockRdsLibLoader : public RdsLibLoader {
+class FailoverMockRdsLibLoader : public RdsLibLoader {
     public:
         // Pass a dummy path so the base constructor initializes function_cache.
-        MockRdsLibLoader() : RdsLibLoader("") {}
+        FailoverMockRdsLibLoader() : RdsLibLoader("") {}
 
         FUNC_HANDLE GetFunction(const std::string& function_name) override {
             return reinterpret_cast<FUNC_HANDLE>(&MockFunction);
         }
 };
 
-class MockHostSelector : public HostSelector {
+class FailoverMockHostSelector : public HostSelector {
     public:
         HostInfo GetHost(std::vector<HostInfo> hosts, bool is_writer, std::unordered_map<std::string, std::string> properties) override {
             return HostInfo();
         }
 };
 
-class MockPluginService : public PluginService {
+class FailoverMockPluginService : public PluginService {
     public:
-        MockPluginService() : PluginService(nullptr, nullptr, {}, "") {}
+        FailoverMockPluginService() : PluginService(nullptr, nullptr, {}, "") {}
         std::vector<HostInfo> GetHosts() override { return {}; }
         void SetHosts(const std::vector<HostInfo>&) override {}
 };

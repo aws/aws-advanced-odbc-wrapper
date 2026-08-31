@@ -26,65 +26,65 @@
 
 class PluginServiceTest : public testing::Test {
 protected:
-    std::shared_ptr<PluginService> plugin_service;
-    std::vector<HostInfo> all_hosts;
-    HostInfo host_a = HostInfo("host_a.region.com", 1234, UP, READER, 0);
-    HostInfo host_b = HostInfo("host_b.region.com", 1234, UP, READER, 0);
-    HostInfo host_c = HostInfo("host_c.region.com", 1234, UP, READER, 0);
+    std::shared_ptr<PluginService> plugin_service_;
+    std::vector<HostInfo> all_hosts_;
+    HostInfo host_a_ = HostInfo("host_a.region.com", 1234, UP, READER, 0);
+    HostInfo host_b_ = HostInfo("host_b.region.com", 1234, UP, READER, 0);
+    HostInfo host_c_ = HostInfo("host_c.region.com", 1234, UP, READER, 0);
 
     // Runs once per suite
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}
 
     void SetUp() override {
-        all_hosts.push_back(host_a);
-        all_hosts.push_back(host_b);
-        all_hosts.push_back(host_c);
+        all_hosts_.push_back(host_a_);
+        all_hosts_.push_back(host_b_);
+        all_hosts_.push_back(host_c_);
         std::map<std::string, std::string> empty_map;
-        plugin_service = std::make_shared<PluginService>(nullptr, nullptr, empty_map, "ClusterId");
-        plugin_service->SetHosts(all_hosts);
+        plugin_service_ = std::make_shared<PluginService>(nullptr, nullptr, empty_map, "ClusterId");
+        plugin_service_->SetHosts(all_hosts_);
     }
     void TearDown() override {}
 };
 
 TEST_F(PluginServiceTest, GetHosts) {
-    std::vector<HostInfo> topology_hosts = plugin_service->GetHosts();
-    EXPECT_EQ(all_hosts, topology_hosts);
+    std::vector<HostInfo> topology_hosts = plugin_service_->GetHosts();
+    EXPECT_EQ(all_hosts_, topology_hosts);
 }
 
 TEST_F(PluginServiceTest, GetHosts_WithFilter) {
     HostFilter filter;
-    filter.blocked_host_ids.insert(host_a.GetHostId());
-    filter.blocked_host_ids.insert(host_b.GetHostId());
-    filter.blocked_host_ids.insert(host_c.GetHostId());
-    plugin_service->SetHostFilter(filter);
+    filter.blocked_host_ids.insert(host_a_.GetHostId());
+    filter.blocked_host_ids.insert(host_b_.GetHostId());
+    filter.blocked_host_ids.insert(host_c_.GetHostId());
+    plugin_service_->SetHostFilter(filter);
 
-    std::vector<HostInfo> topology_hosts = plugin_service->GetHosts();
-    EXPECT_EQ(all_hosts, topology_hosts);
+    std::vector<HostInfo> topology_hosts = plugin_service_->GetHosts();
+    EXPECT_EQ(all_hosts_, topology_hosts);
 }
 
 TEST_F(PluginServiceTest, GetFilteredHosts_Allowed) {
     std::vector<HostInfo> expected_hosts;
-    expected_hosts.push_back(host_a);
+    expected_hosts.push_back(host_a_);
 
     HostFilter filter;
-    filter.allowed_host_ids.insert(host_a.GetHostId());
-    plugin_service->SetHostFilter(filter);
+    filter.allowed_host_ids.insert(host_a_.GetHostId());
+    plugin_service_->SetHostFilter(filter);
 
-    std::vector<HostInfo> topology_hosts = plugin_service->GetFilteredHosts();
+    std::vector<HostInfo> topology_hosts = plugin_service_->GetFilteredHosts();
     EXPECT_EQ(expected_hosts, topology_hosts);
 }
 
 TEST_F(PluginServiceTest, GetFilteredHosts_Blocked) {
     std::vector<HostInfo> expected_hosts;
-    expected_hosts.push_back(host_b);
-    expected_hosts.push_back(host_c);
+    expected_hosts.push_back(host_b_);
+    expected_hosts.push_back(host_c_);
 
     HostFilter filter;
-    filter.blocked_host_ids.insert(host_a.GetHostId());
-    plugin_service->SetHostFilter(filter);
+    filter.blocked_host_ids.insert(host_a_.GetHostId());
+    plugin_service_->SetHostFilter(filter);
 
-    std::vector<HostInfo> topology_hosts = plugin_service->GetFilteredHosts();
+    std::vector<HostInfo> topology_hosts = plugin_service_->GetFilteredHosts();
     EXPECT_EQ(expected_hosts, topology_hosts);
 }
 

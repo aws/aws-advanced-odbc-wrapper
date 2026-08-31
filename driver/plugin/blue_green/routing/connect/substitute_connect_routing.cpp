@@ -14,14 +14,13 @@
 
 #include "substitute_connect_routing.h"
 
-#include "../../../base_plugin.h"
+#include <map>
 
 #include "../../../../util/connection_string_keys.h"
 #include "../../../../util/logger_wrapper.h"
-#include "../../../../util/rds_utils.h"
 #include "../../../../util/plugin_service.h"
-
-#include <map>
+#include "../../../../util/rds_utils.h"
+#include "../../../base_plugin.h"
 
 SQLRETURN SubstituteConnectRouting::Connect(
     DBC* dbc,

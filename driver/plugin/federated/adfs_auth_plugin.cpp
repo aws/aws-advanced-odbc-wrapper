@@ -31,7 +31,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
 
 namespace {
     std::shared_ptr<SamlUtil> CreateAdfsSamlUtil(
-        DBC* dbc,
+        const DBC* dbc,
         const std::shared_ptr<SamlUtil>& saml_util)
     {
         if (saml_util) {
@@ -68,7 +68,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
         CreateAdfsAuthProvider(dbc, auth_provider),
         dialect, odbc_helper)
 {
-    this->plugin_name = "ADFS";
+    this->plugin_name_ = "ADFS";
 }
 
 AdfsSamlUtil::AdfsSamlUtil(const std::map<std::string, std::string> &connection_attributes)
@@ -86,14 +86,14 @@ AdfsSamlUtil::AdfsSamlUtil(
         relaying_party_id = DEFAULT_RELAY_ID;
     }
 
-    sign_in_url = "https://" + idp_endpoint + ":" + idp_port + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
+    sign_in_url_ = "https://" + idp_endpoint_ + ":" + idp_port_ + "/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=" + relaying_party_id;
 }
 
 std::string AdfsSamlUtil::GetSamlAssertion()
 {
-    std::string url = sign_in_url;
+    std::string url = sign_in_url_;
     const std::shared_ptr<Aws::Http::HttpRequest> http_request = Aws::Http::CreateHttpRequest(url, Aws::Http::HttpMethod::HTTP_GET, Aws::Utils::Stream::DefaultResponseStreamFactoryMethod);
-    const std::shared_ptr<Aws::Http::HttpResponse> http_response = http_client->MakeRequest(http_request);
+    const std::shared_ptr<Aws::Http::HttpResponse> http_response = http_client_->MakeRequest(http_request);
 
     std::string retval;
     if (Aws::Http::HttpResponseCode::OK != http_response->GetResponseCode()) {
@@ -116,9 +116,9 @@ std::string AdfsSamlUtil::GetSamlAssertion()
 
     if (!action.empty() && action[0]=='/') {
         url = "https://";
-        url += idp_endpoint;
-        url += ":";
-        url += idp_port;
+        url += idp_endpoint_;
+        url += ':';
+        url += idp_port_;
         url += action;
     }
     DLOG(INFO) << "Updated URL [" << url << "] using Action [" << action << "]";
@@ -136,7 +136,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
 std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::string &body)
 {
     std::map<std::string, std::string> parameters;
-    for (auto& input_tag : GetInputTagsFromBody(body)) {
+    for (const auto& input_tag : GetInputTagsFromBody(body)) {
         const std::string name = GetValueByKey(input_tag, std::string("name"));
         const std::string value = GetValueByKey(input_tag, std::string("value"));
         DLOG(INFO) << "Input Tag [" << input_tag << "], Name [" << name << "], Value [" << value << "]";
@@ -146,13 +146,13 @@ std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::strin
         });
 
         if (name_lower.find("username") != std::string::npos) {
-            parameters.insert(std::pair<std::string, std::string>(name, std::string(idp_username)));
+            parameters.insert(std::pair<std::string, std::string>(name, std::string(idp_username_)));
         } else if (name_lower.find("authmethod") != std::string::npos) {
             if (!value.empty()) {
                 parameters.insert(std::pair<std::string, std::string>(name, value));
             }
         } else if (name_lower.find("password") != std::string::npos) {
-            parameters.insert(std::pair<std::string, std::string>(name, std::string(idp_password)));
+            parameters.insert(std::pair<std::string, std::string>(name, std::string(idp_password_)));
         } else if (!name.empty()) {
             parameters.insert(std::pair<std::string, std::string>(name, value));
         }
@@ -178,9 +178,9 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
     std::string body;
     for (const auto&[key, value] : params) {
         body += key;
-        body += "=";
+        body += '=';
         body += value;
-        body += "&";
+        body += '&';
     }
     if (!body.empty()) {
         body.pop_back();
@@ -193,7 +193,7 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
     req->SetContentLength(std::to_string(body.size()));
 
     // Check response code
-    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client->MakeRequest(req);
+    const std::shared_ptr<Aws::Http::HttpResponse> response = http_client_->MakeRequest(req);
     if (response->GetResponseCode() != Aws::Http::HttpResponseCode::OK) {
         LOG(WARNING) << "ADFS request returned bad HTTP response code: " << response->GetResponseCode();
         if (response->HasClientError()) {

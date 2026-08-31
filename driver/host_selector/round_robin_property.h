@@ -21,11 +21,11 @@
 
 #include "../host_info.h"
 
-namespace round_robin_property {
+namespace RoundRobinProperty {
     const std::string HOST_WEIGHT_KEY = "round_robin_host_weight_pairs";
     const std::string DEFAULT_WEIGHT_KEY = "round_robin_default_weight";
 
-    using RoundRobinClusterInfo = struct RoundRobinClusterInfo {
+    struct RoundRobinClusterInfo {
         std::shared_ptr<HostInfo> last_host;
         std::unordered_map<std::string, int> cluster_weight_map;
         int default_weight = 1;
@@ -33,6 +33,6 @@ namespace round_robin_property {
         std::string last_default_weight_str;
         std::string last_host_weight_str;
     };
-};
+}  // namespace RoundRobinProperty
 
 #endif // ROUND_ROBIN_PROPERTY_H

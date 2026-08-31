@@ -18,15 +18,18 @@
 #include "../../util/windows_headers.h"
 
 #include <sqltypes.h>
+
+#include <memory>
 #include <vector>
 
 #include "../../host_info.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
+
+class DialectLimitless;
+class OdbcHelper;
 
 class LimitlessQueryHelper {
 public:
-    LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper);
+    explicit LimitlessQueryHelper(std::shared_ptr<OdbcHelper> &odbc_helper);
     // Generally accepted URL endpoint max length (2048) + 1 for null terminator
     static const int ROUTER_ENDPOINT_LENGTH = 2049;
     static const int LOAD_LENGTH = 5;

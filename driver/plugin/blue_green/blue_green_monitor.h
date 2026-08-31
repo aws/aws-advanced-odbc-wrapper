@@ -35,6 +35,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <optional>
@@ -43,11 +44,11 @@
 #include <unordered_map>
 #include <vector>
 
-typedef enum {
+enum BlueGreenIntervalRate : std::uint8_t {
     BASELINE,
     INCREASED,
-    HIGH
-} BlueGreenIntervalRate;
+    HIGH,
+};
 
 class BlueGreenMonitor {
 public:

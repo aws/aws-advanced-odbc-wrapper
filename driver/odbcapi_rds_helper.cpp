@@ -115,7 +115,7 @@ SQLRETURN RDS_ProcessLibRes(
     const RdsLibResult& LibResult)
 {
     if (!LibResult.fn_load_success) {
-        auto new_err = std::make_unique<ERR_INFO>(
+        auto new_err = std::make_unique<ErrInfo>(
             ("Underlying driver failed to load/execute: " + LibResult.fn_name).c_str(),
             ERR_NO_UNDER_LYING_FUNCTION);
         LOG(ERROR) << new_err->error_msg;
@@ -636,7 +636,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
         if (odbc_helper->NeedsConversion() && ValuePtr
             && OdbcHelper::IsStringConnectAttr(Attribute)
             && (StringLength == SQL_NTS || StringLength > 0)) {
-            auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), StringLength);
+            const auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), StringLength);
             const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
                 dbc->wrapped_dbc, Attribute, value_converted.tchar_ptr, StringLength
             );
@@ -676,7 +676,7 @@ SQLRETURN RDS_SQLBrowseConnect(
 
     LOG(ERROR) << "Unsupported SQL API - SQLBrowseConnect";
     ClearError(dbc);
-    dbc->err = std::make_unique<ERR_INFO>("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    dbc->err = std::make_unique<ErrInfo>("SQLBrowseConnect - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -797,10 +797,10 @@ SQLRETURN RDS_SQLColumnPrivileges(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
-    auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLColumnPrivileges, RDS_STR_SQLColumnPrivileges,
         stmt->wrapped_stmt,
@@ -842,10 +842,10 @@ SQLRETURN RDS_SQLColumns(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
-    auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
         env->driver_lib_loader,
@@ -920,7 +920,7 @@ SQLRETURN RDS_SQLConnect(
     } else {
         // Error, no DSN
         // TODO - Load default DSN?
-        dbc->err = std::make_unique<ERR_INFO>("SQLConnect - DSN not provided", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>("SQLConnect - DSN not provided", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -975,7 +975,7 @@ SQLRETURN RDS_SQLDataSources(
 
     LOG(ERROR) << "Unsupported SQL API - SQLDataSources";
     ClearError(env);
-    env->err = std::make_unique<ERR_INFO>("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    env->err = std::make_unique<ErrInfo>("SQLDataSources - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -1172,7 +1172,7 @@ SQLRETURN RDS_SQLDrivers(
 
     LOG(ERROR) << "Unsupported SQL API - SQLDrivers";
     ClearError(env);
-    env->err = std::make_unique<ERR_INFO>("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+    env->err = std::make_unique<ErrInfo>("SQLDrivers - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
     RDS_NOT_IMPLEMENTED;
 }
 
@@ -1247,7 +1247,7 @@ SQLRETURN RDS_SQLExecDirect(
     }
 
     LOG(ERROR) << "Cannot execute without an open connection";
-    stmt->err = std::make_unique<ERR_INFO>("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
+    stmt->err = std::make_unique<ErrInfo>("SQLExecDirect - Connection not open", ERR_CONNECTION_NOT_OPEN);
     return SQL_ERROR;
 }
 
@@ -1281,12 +1281,12 @@ SQLRETURN RDS_SQLForeignKeys(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto pk_catalog_converted = odbc_helper->ConvertInput(PKCatalogName, NameLength1);
-    auto pk_schema_converted  = odbc_helper->ConvertInput(PKSchemaName,  NameLength2);
-    auto pk_table_converted   = odbc_helper->ConvertInput(PKTableName,   NameLength3);
-    auto fk_catalog_converted = odbc_helper->ConvertInput(FKCatalogName, NameLength4);
-    auto fk_schema_converted  = odbc_helper->ConvertInput(FKSchemaName,  NameLength5);
-    auto fk_table_converted   = odbc_helper->ConvertInput(FKTableName,   NameLength6);
+    const auto pk_catalog_converted = odbc_helper->ConvertInput(PKCatalogName, NameLength1);
+    const auto pk_schema_converted  = odbc_helper->ConvertInput(PKSchemaName,  NameLength2);
+    const auto pk_table_converted   = odbc_helper->ConvertInput(PKTableName,   NameLength3);
+    const auto fk_catalog_converted = odbc_helper->ConvertInput(FKCatalogName, NameLength4);
+    const auto fk_schema_converted  = odbc_helper->ConvertInput(FKSchemaName,  NameLength5);
+    const auto fk_table_converted   = odbc_helper->ConvertInput(FKTableName,   NameLength6);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLForeignKeys, RDS_STR_SQLForeignKeys,
         stmt->wrapped_stmt,
@@ -1497,7 +1497,7 @@ SQLRETURN RDS_SQLGetDiagField(
     DBC* dbc = nullptr;
     ENV* env = nullptr;
 
-    std::optional<ERR_INFO> err;
+    std::optional<ErrInfo> err;
 
     RdsLibResult res;
     SQLRETURN ret = SQL_SUCCESS;
@@ -1816,7 +1816,7 @@ SQLRETURN RDS_SQLGetDiagRec(
     ENV* env = nullptr;
     RdsLibResult res;
     SQLRETURN ret = SQL_ERROR;
-    std::optional<ERR_INFO> err;
+    std::optional<ErrInfo> err;
     bool has_underlying_data = false;
 
 #if UNICODE
@@ -2069,7 +2069,7 @@ SQLRETURN RDS_SQLGetInfo(
     SQLULEN len = sizeof(SQLSMALLINT);
     SQLULEN value = 0;
     const char* char_value = nullptr;
-    char odbcver[ODBC_VER_SiZE];
+    char odbcver[ODBC_VER_SIZE];
 
     // Query underlying driver if connection is established
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
@@ -2126,7 +2126,7 @@ SQLRETURN RDS_SQLGetInfo(
         // Get info for shell driver
         switch (InfoType) {
             case SQL_DRIVER_ODBC_VER:
-                snprintf(odbcver, ODBC_VER_SiZE, "%02x.%02x", ODBCVER / ODBCVER_BITS, ODBCVER % ODBCVER_BITS);
+                snprintf(odbcver, ODBC_VER_SIZE, "%02x.%02x", ODBCVER / ODBCVER_BITS, ODBCVER % ODBCVER_BITS);
                 char_value = odbcver;
                 break;
             case SQL_MAX_CONCURRENT_ACTIVITIES:
@@ -2141,7 +2141,7 @@ SQLRETURN RDS_SQLGetInfo(
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 LOG(ERROR) << "[" << InfoType << "] not implemented for AWS Advanced ODBC Wrapper's SQLGetInfo";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
+                dbc->err = std::make_unique<ErrInfo>("SQLGetInfo - API Unsupported", ERR_OPTIONAL_FEATURE_NOT_IMPLEMENTED);
                 RDS_NOT_IMPLEMENTED;
         }
     }
@@ -2206,25 +2206,29 @@ SQLRETURN RDS_SQLGetStmtAttr(
     switch (Attribute) {
         case SQL_ATTR_APP_ROW_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->app_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->app_row_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_row_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_APP_PARAM_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->app_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->app_param_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->app_param_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_IMP_ROW_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->imp_row_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->imp_row_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_row_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
         case SQL_ATTR_IMP_PARAM_DESC:
             res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtAttr, RDS_STR_SQLGetStmtAttr,
-                stmt->wrapped_stmt, Attribute, &(stmt->imp_param_desc->wrapped_desc), BufferLength, StringLengthPtr
+                stmt->wrapped_stmt, Attribute, static_cast<SQLPOINTER>(&(stmt->imp_param_desc->wrapped_desc)), BufferLength,
+                StringLengthPtr
             );
             *(static_cast<SQLPOINTER*>(ValuePtr)) = stmt->imp_param_desc;
             return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -2283,7 +2287,7 @@ SQLRETURN RDS_SQLNativeSql(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto stmt_converted = odbc_helper->ConvertInput(InStatementText, TextLength1);
+    const auto stmt_converted = odbc_helper->ConvertInput(InStatementText, TextLength1);
 
 #if UNICODE
     {
@@ -2334,7 +2338,7 @@ SQLRETURN RDS_SQLPrepare(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto stmt_converted = odbc_helper->ConvertInput(StatementText, TextLength);
+    const auto stmt_converted = odbc_helper->ConvertInput(StatementText, TextLength);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrepare, RDS_STR_SQLPrepare,
         stmt->wrapped_stmt,
@@ -2367,9 +2371,9 @@ SQLRETURN RDS_SQLPrimaryKeys(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPrimaryKeys, RDS_STR_SQLPrimaryKeys,
         stmt->wrapped_stmt,
@@ -2409,10 +2413,10 @@ SQLRETURN RDS_SQLProcedureColumns(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
-    auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
+    const auto column_converted  = odbc_helper->ConvertInput(ColumnName,  NameLength4);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedureColumns, RDS_STR_SQLProcedureColumns,
         stmt->wrapped_stmt,
@@ -2452,9 +2456,9 @@ SQLRETURN RDS_SQLProcedures(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLProcedures, RDS_STR_SQLProcedures,
         stmt->wrapped_stmt,
@@ -2498,7 +2502,7 @@ SQLRETURN RDS_SQLSetCursorName(
 
     if (stmt->wrapped_stmt) {
         const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-        auto cursor_converted = odbc_helper->ConvertInput(CursorName, NameLength);
+        const auto cursor_converted = odbc_helper->ConvertInput(CursorName, NameLength);
 
         const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
             stmt->wrapped_stmt,
@@ -2546,7 +2550,7 @@ SQLRETURN RDS_SQLSetDescField(
         if (odbc_helper->NeedsConversion() && ValuePtr
             && OdbcHelper::IsStringDescField(FieldIdentifier)
             && (BufferLength == SQL_NTS || BufferLength > 0)) {
-            auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), BufferLength);
+            const auto value_converted = odbc_helper->ConvertInput(static_cast<SQLTCHAR*>(ValuePtr), BufferLength);
             const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescField, RDS_STR_SQLSetDescField,
                 desc->wrapped_desc, RecNumber, FieldIdentifier, value_converted.tchar_ptr, BufferLength
             );
@@ -2582,7 +2586,7 @@ SQLRETURN RDS_SQLSetStmtAttr(
         case SQL_ATTR_IMP_PARAM_DESC:
         case SQL_ATTR_IMP_ROW_DESC:
         case SQL_ATTR_ROW_NUMBER:
-            stmt->err = std::make_unique<ERR_INFO>("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
+            stmt->err = std::make_unique<ErrInfo>("Attribute is read-only for Statement Handles", ERR_INVALID_ATTRIBUTE_VALUE);
             return SQL_ERROR;
         default:
             break;
@@ -2626,9 +2630,9 @@ SQLRETURN RDS_SQLSpecialColumns(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSpecialColumns, RDS_STR_SQLSpecialColumns,
         stmt->wrapped_stmt,
@@ -2671,9 +2675,9 @@ SQLRETURN RDS_SQLStatistics(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLStatistics, RDS_STR_SQLStatistics,
         stmt->wrapped_stmt,
@@ -2713,9 +2717,9 @@ SQLRETURN RDS_SQLTablePrivileges(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTablePrivileges, RDS_STR_SQLTablePrivileges,
         stmt->wrapped_stmt,
@@ -2755,10 +2759,10 @@ SQLRETURN RDS_SQLTables(
     }
 
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
-    auto catalog_converted  = odbc_helper->ConvertInput(CatalogName, NameLength1);
-    auto schema_converted   = odbc_helper->ConvertInput(SchemaName,  NameLength2);
-    auto table_converted    = odbc_helper->ConvertInput(TableName,   NameLength3);
-    auto table_type_converted = odbc_helper->ConvertInput(TableType,  NameLength4);
+    const auto catalog_converted  = odbc_helper->ConvertInput(CatalogName, NameLength1);
+    const auto schema_converted   = odbc_helper->ConvertInput(SchemaName,  NameLength2);
+    const auto table_converted    = odbc_helper->ConvertInput(TableName,   NameLength3);
+    const auto table_type_converted = odbc_helper->ConvertInput(TableType,  NameLength4);
 
     const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLTables, RDS_STR_SQLTables,
         stmt->wrapped_stmt,
@@ -2804,7 +2808,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         }
         LOG(ERROR) << invalid_message;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>(invalid_message.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
 
@@ -2827,14 +2831,14 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                         + "': no ODBC driver registered under this name (odbcinst.ini) and the value is not a path";
                     LOG(ERROR) << load_err_message;
                     ClearError(dbc);
-                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    dbc->err = std::make_unique<ErrInfo>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
                     return SQL_ERROR;
                 }
             }
 
             // Load Module to Env if empty
             if (!env->driver_lib_loader) {
-                auto driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
+                const auto driver_lib_loader = std::make_shared<RdsLibLoader>(driver_path);
                 if (!driver_lib_loader->IsLoaded()) {
                     std::string load_err_message = "Cannot load underlying driver '" + driver_value + "'";
                     if (driver_path != driver_value) {
@@ -2843,20 +2847,20 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                     load_err_message += ": " + driver_lib_loader->GetLoadError();
                     LOG(ERROR) << load_err_message;
                     ClearError(dbc);
-                    dbc->err = std::make_unique<ERR_INFO>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
+                    dbc->err = std::make_unique<ErrInfo>(load_err_message.c_str(), ERR_SPECIFIED_DRIVER_COULD_NOT_BE_LOADED);
                     return SQL_ERROR;
                 }
                 env->driver_lib_loader = driver_lib_loader;
             } else if (driver_path != env->driver_lib_loader->GetDriverPath()) {
                 LOG(ERROR) << "Environment underlying driver differs from new connect. Create a new environment for different underlying drivers";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
+                dbc->err = std::make_unique<ErrInfo>("Environment underlying driver differs from new connect. Create a new environment for different underlying drivers", ERR_DIFF_ENV_UNDERLYING_DRIVER);
                 return SQL_ERROR;
             }
         } else {
             LOG(ERROR) << "No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
+            dbc->err = std::make_unique<ErrInfo>("No underlying driver found. Provide proper path to [BASE_DRIVER] or [DRIVER] within the [BASE_DSN]", ERR_NO_UNDER_LYING_DRIVER);
             return SQL_ERROR;
         }
 
@@ -2870,7 +2874,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (!SQL_SUCCEEDED(ret) || !env->wrapped_env) {
                 LOG(ERROR) << "Unable to allocate underlying ENV";
                 ClearError(dbc);
-                dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+                dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
                 return SQL_ERROR;
             }
             // Apply Tracked Environment Attributes
@@ -2898,31 +2902,25 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         // Plugin Builder
         if (!dbc->plugin_head) {
             std::shared_ptr<BasePlugin> plugin_head = std::make_shared<DefaultPlugin>(dbc);
-            std::shared_ptr<BasePlugin> next_plugin;
 
             // Auth Plugins
             if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
                 const AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
                 switch (type) {
                         case AuthType::IAM:
-                            next_plugin = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
-                            plugin_head = next_plugin;
+                            plugin_head = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
                             break;
                         case AuthType::SECRETS_MANAGER:
-                            next_plugin = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
-                            plugin_head = next_plugin;
+                            plugin_head = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
                             break;
                         case AuthType::ADFS:
-                            next_plugin = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
-                            plugin_head = next_plugin;
+                            plugin_head = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
                             break;
                         case AuthType::OKTA:
-                            next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
-                            plugin_head = next_plugin;
+                            plugin_head = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
                             break;
                         case AuthType::AWS_SSO:
-                            next_plugin = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
-                            plugin_head = next_plugin;
+                            plugin_head = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
                             break;
                         case AuthType::DATABASE:
                         case AuthType::INVALID:
@@ -2935,23 +2933,20 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS)
                 && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE)
             {
-                next_plugin = std::make_shared<LimitlessPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<LimitlessPlugin>(dbc, plugin_head);
             }
 
             // Failover
             if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
                 && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
             {
-                next_plugin = std::make_shared<FailoverPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<FailoverPlugin>(dbc, plugin_head);
             }
 
             // Aurora Initial Connection Strategy
             if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
                 && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
-                next_plugin = std::make_shared<AuroraInitialConnectionStrategyPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<AuroraInitialConnectionStrategyPlugin>(dbc, plugin_head);
             }
 
             // Read Write Splitting
@@ -2959,8 +2954,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
             if (dbc->conn_attr.contains(KEY_ENABLE_SRW_SPLIT)
                 && dbc->conn_attr.at(KEY_ENABLE_SRW_SPLIT) == VALUE_BOOL_TRUE)
             {
-                next_plugin = std::make_shared<SimpleReadWriteSplittingPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<SimpleReadWriteSplittingPlugin>(dbc, plugin_head);
                 srw_enabled = true;
             }
 
@@ -2970,24 +2964,21 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 if (srw_enabled) {
                     throw std::runtime_error("Only one of the Read Write Splitting and Simple Read Write Splitting plugins should be enabled at a time.");
                 }
-                next_plugin = std::make_shared<ReadWriteSplittingPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<ReadWriteSplittingPlugin>(dbc, plugin_head);
             }
 
             // Custom Endpoint
             if (dbc->conn_attr.contains(KEY_ENABLE_CUSTOM_ENDPOINT)
                 && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
             {
-                next_plugin = std::make_shared<CustomEndpointPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<CustomEndpointPlugin>(dbc, plugin_head);
             }
 
             // Blue Green
             if (dbc->conn_attr.contains(KEY_ENABLE_BLUE_GREEN)
                 && dbc->conn_attr.at(KEY_ENABLE_BLUE_GREEN) == VALUE_BOOL_TRUE)
             {
-                next_plugin = std::make_shared<BlueGreenPlugin>(dbc, plugin_head);
-                plugin_head = next_plugin;
+                plugin_head = std::make_shared<BlueGreenPlugin>(dbc, plugin_head);
             }
 
             // Finalize and track in DBC
@@ -3003,7 +2994,7 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
         const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>(err_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return SQL_ERROR;
     }
 

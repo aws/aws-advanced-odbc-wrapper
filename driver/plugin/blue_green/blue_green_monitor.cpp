@@ -328,7 +328,7 @@ std::optional<std::string> BlueGreenMonitor::GetIpAddress(std::string host) {
         const void* addr = nullptr;
 
         const auto* ipv4 = reinterpret_cast<const sockaddr_in*>(p->ai_addr);
-        addr = &(ipv4->sin_addr);
+        addr = &ipv4->sin_addr;
 
         if (inet_ntop(p->ai_family, addr, ipstr, sizeof(ipstr))) {
             result = ipstr;
@@ -388,7 +388,7 @@ void BlueGreenMonitor::CollectStatus() {
             if (!this->odbc_helper_->IsClosed(this->hdbc_)) {
                 this->current_phase_ = BlueGreenPhase::NOT_CREATED;
             } else {
-                this->odbc_helper_->DisconnectAndFree(&(this->hdbc_));
+                this->odbc_helper_->DisconnectAndFree(&this->hdbc_);
                 this->hdbc_ = SQL_NULL_HDBC;
                 this->current_phase_ = BlueGreenPhase::UNKNOWN;
                 this->in_panic_mode_.store(true);
@@ -414,7 +414,7 @@ void BlueGreenMonitor::CollectStatus() {
             || !this->odbc_helper_->IsClosed(this->hdbc_)) {
             this->current_phase_ = BlueGreenPhase::NOT_CREATED;
         } else {
-            this->odbc_helper_->DisconnectAndFree(&(this->hdbc_));
+            this->odbc_helper_->DisconnectAndFree(&this->hdbc_);
             this->hdbc_ = SQL_NULL_HDBC;
             this->current_phase_ = BlueGreenPhase::UNKNOWN;
             this->in_panic_mode_.store(true);
@@ -519,7 +519,7 @@ void BlueGreenMonitor::CollectStatus() {
         if (!connected_ip.empty() && connected_ip != endpoint_ip) {
             // Need to reconnect as not connected to desired cluster
             this->connecting_host_info_ = HostInfo(itr->endpoint, itr->port);
-            this->odbc_helper_->DisconnectAndFree(&(this->hdbc_));
+            this->odbc_helper_->DisconnectAndFree(&this->hdbc_);
             this->in_panic_mode_.store(true);
         } else {
             this->in_panic_mode_.store(false);
@@ -537,7 +537,7 @@ void BlueGreenMonitor::OpenConnection() {
         return;
     }
 
-    this->odbc_helper_->DisconnectAndFree(&(this->hdbc_));
+    this->odbc_helper_->DisconnectAndFree(&this->hdbc_);
     this->in_panic_mode_.store(true);
 
     SQLHDBC local_hdbc;

@@ -20,11 +20,14 @@
 #include <sql.h>
 #include <sqltypes.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
-#include <string>
 #include <map>
+#include <string>
 
-typedef enum {
+enum SQL_STATE_CODE : std::uint8_t {
     /* ODBC SQL States*/
     WARN_GENERAL_WARNING,
     WARN_CURSOR_OPERATION_CONFLICT,
@@ -161,8 +164,8 @@ typedef enum {
     ERR_RW_TX_SWITCH_FAILED,
 
     /* End Error, used for sizing */
-    INVALID_ERR
-} SQL_STATE_CODE;
+    INVALID_ERR,
+};
 
 const std::string ODBC_STATE_MAP[] = {
     /* ODBC SQL States*/
@@ -185,7 +188,7 @@ const std::string ODBC_STATE_MAP[] = {
     /* RW Splitting Related */
     "08007", "08003", "08001", "08001", "25001",
     /* END */
-    "ERROR"
+    "ERROR",
 };
 
 const std::string ODBC_3_SUBCLASS[] = {
@@ -196,22 +199,22 @@ const std::string ODBC_3_SUBCLASS[] = {
     "HY100", "HY101", "HY105", "HY107", "HY109", "HY110",
     "HY111", "HYT00", "HYT01", "IM001", "IM002", "IM003",
     "IM004", "IM005", "IM006", "IM007", "IM008", "IM010",
-    "IM011", "IM012"
+    "IM011", "IM012",
 };
 
-struct ERR_INFO {
+struct ErrInfo {
     SQLRETURN   ret_code            = SQL_SUCCESS;
     char*       error_msg           = nullptr;
     int         native_err          = 0;
     char*       sqlstate            = nullptr;
     bool        is_odbc3_subclass   = false;
 
-    ERR_INFO(const char *msg, SQL_STATE_CODE sql_state) {
+    ErrInfo(const char *msg, SQL_STATE_CODE sql_state) {
         if (msg) {
             error_msg = strdup(msg);
         }
-        if (sql_state >= 0 && sql_state <= INVALID_ERR) {
-            std::string str_sql_state = ODBC_STATE_MAP[sql_state];
+        if (sql_state <= INVALID_ERR) {
+            const std::string str_sql_state = ODBC_STATE_MAP[sql_state];
             is_odbc3_subclass = IsOdbc3Subclass(str_sql_state);
             sqlstate = strdup(str_sql_state.c_str());
         }
@@ -226,7 +229,7 @@ struct ERR_INFO {
         }
     }
 
-    ERR_INFO(const ERR_INFO &source) {
+    ErrInfo(const ErrInfo &source) {
         if (source.error_msg) {
             error_msg = strdup(source.error_msg);
         }
@@ -237,7 +240,7 @@ struct ERR_INFO {
         ret_code = source.ret_code;
     }
 
-    ~ERR_INFO() {
+    ~ErrInfo() {
         if (error_msg != nullptr) {
             free(error_msg);
         }
@@ -246,17 +249,14 @@ struct ERR_INFO {
         }
     }
 
-    bool IsOdbc3Subclass(std::string str_sql_state) {
+    static bool IsOdbc3Subclass(const std::string& str_sql_state) {
         if (str_sql_state.empty()) {
             return false;
         }
 
-        for (size_t i = 0; i < sizeof(ODBC_3_SUBCLASS) / sizeof(ODBC_3_SUBCLASS[0]); i++) {
-            if (str_sql_state.compare(ODBC_3_SUBCLASS[i]) == 0) {
-                return true;
-            }
-        }
-        return false;
+        return std::ranges::any_of(ODBC_3_SUBCLASS, [&str_sql_state](const std::string& subclass) {
+            return str_sql_state == subclass;
+        });
     }
 
 }; // ERR_INFO

@@ -61,7 +61,7 @@ public:
     DelegatingPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {}
 
     void SetNextPlugin(std::shared_ptr<BasePlugin> next) {
-        next_plugin = std::move(next);
+        next_plugin_ = std::move(next);
     }
 
     SQLRETURN Connect(
@@ -86,163 +86,163 @@ public:
 
 class BasePluginTest : public testing::Test {
 protected:
-    ENV* env = nullptr;
-    DBC* dbc = nullptr;
-    STMT* stmt = nullptr;
+    ENV* env_ = nullptr;
+    DBC* dbc_ = nullptr;
+    STMT* stmt_ = nullptr;
 
     void SetUp() override {
-        env = new ENV();
-        dbc = new DBC();
-        dbc->env = env;
-        stmt = new STMT();
-        stmt->dbc = dbc;
+        env_ = new ENV();
+        dbc_ = new DBC();
+        dbc_->env = env_;
+        stmt_ = new STMT();
+        stmt_->dbc = dbc_;
     }
 
     void TearDown() override {
-        delete stmt;
-        delete dbc;
-        delete env;
+        delete stmt_;
+        delete dbc_;
+        delete env_;
     }
 };
 
 TEST_F(BasePluginTest, ConnectWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
-    BasePlugin plugin(dbc, nullptr);
+    BasePlugin plugin(dbc_, nullptr);
 
-    const SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, dbc->err);
-    EXPECT_STREQ("HY000", dbc->err->sqlstate);
-    EXPECT_EQ(SQL_ERROR, dbc->err->ret_code);
-    ASSERT_NE(nullptr, dbc->err->error_msg);
-    EXPECT_NE(nullptr, strstr(dbc->err->error_msg, "BasePlugin"));
-    EXPECT_NE(nullptr, strstr(dbc->err->error_msg, "Connect"));
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
+    EXPECT_EQ(SQL_ERROR, dbc_->err->ret_code);
+    ASSERT_NE(nullptr, dbc_->err->error_msg);
+    EXPECT_NE(nullptr, strstr(dbc_->err->error_msg, "BasePlugin"));
+    EXPECT_NE(nullptr, strstr(dbc_->err->error_msg, "Connect"));
 }
 
 TEST_F(BasePluginTest, ExecuteWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
-    BasePlugin plugin(dbc, nullptr);
+    BasePlugin plugin(dbc_, nullptr);
 
-    const SQLRETURN ret = plugin.Execute(stmt, nullptr, 0);
+    const SQLRETURN ret = plugin.Execute(stmt_, nullptr, 0);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, stmt->err);
-    EXPECT_STREQ("HY000", stmt->err->sqlstate);
-    EXPECT_EQ(SQL_ERROR, stmt->err->ret_code);
-    ASSERT_NE(nullptr, stmt->err->error_msg);
-    EXPECT_NE(nullptr, strstr(stmt->err->error_msg, "BasePlugin"));
-    EXPECT_NE(nullptr, strstr(stmt->err->error_msg, "Execute"));
+    ASSERT_NE(nullptr, stmt_->err);
+    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
+    EXPECT_EQ(SQL_ERROR, stmt_->err->ret_code);
+    ASSERT_NE(nullptr, stmt_->err->error_msg);
+    EXPECT_NE(nullptr, strstr(stmt_->err->error_msg, "BasePlugin"));
+    EXPECT_NE(nullptr, strstr(stmt_->err->error_msg, "Execute"));
 }
 
 TEST_F(BasePluginTest, ConnectWithNullNextPluginReplacesExistingDiagnostic) {
-    BasePlugin plugin(dbc, nullptr);
-    dbc->err = std::make_unique<ERR_INFO>("Stale error from a previous operation", ERR_GENERAL_ERROR);
+    BasePlugin plugin(dbc_, nullptr);
+    dbc_->err = std::make_unique<ErrInfo>("Stale error from a previous operation", ERR_GENERAL_ERROR);
 
-    EXPECT_EQ(SQL_ERROR, plugin.Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_ERROR, plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 
-    ASSERT_NE(nullptr, dbc->err);
-    ASSERT_NE(nullptr, dbc->err->error_msg);
-    EXPECT_EQ(nullptr, strstr(dbc->err->error_msg, "Stale error"));
+    ASSERT_NE(nullptr, dbc_->err);
+    ASSERT_NE(nullptr, dbc_->err->error_msg);
+    EXPECT_EQ(nullptr, strstr(dbc_->err->error_msg, "Stale error"));
 }
 
 TEST_F(BasePluginTest, ConnectWithNullNextPluginAndNullHandleReturnsInvalidHandle) {
-    BasePlugin plugin(dbc, nullptr);
+    BasePlugin plugin(dbc_, nullptr);
 
     EXPECT_EQ(SQL_INVALID_HANDLE, plugin.Connect(nullptr, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
 
 TEST_F(BasePluginTest, ExecuteWithNullNextPluginAndNullHandleReturnsInvalidHandle) {
-    BasePlugin plugin(dbc, nullptr);
+    BasePlugin plugin(dbc_, nullptr);
 
     EXPECT_EQ(SQL_INVALID_HANDLE, plugin.Execute(nullptr, nullptr, 0));
 }
 
 TEST_F(BasePluginTest, ConnectDelegatesToNextPlugin) {
     const std::shared_ptr<RecordingPlugin> next = std::make_shared<RecordingPlugin>();
-    BasePlugin plugin(dbc, next);
+    BasePlugin plugin(dbc_, next);
 
-    const SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_TRUE(next->connect_called);
-    EXPECT_EQ(nullptr, dbc->err);
+    EXPECT_EQ(nullptr, dbc_->err);
 }
 
 TEST_F(BasePluginTest, ExecuteDelegatesToNextPlugin) {
     const std::shared_ptr<RecordingPlugin> next = std::make_shared<RecordingPlugin>();
-    BasePlugin plugin(dbc, next);
+    BasePlugin plugin(dbc_, next);
 
-    const SQLRETURN ret = plugin.Execute(stmt, nullptr, 0);
+    const SQLRETURN ret = plugin.Execute(stmt_, nullptr, 0);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_TRUE(next->execute_called);
-    EXPECT_EQ(nullptr, stmt->err);
+    EXPECT_EQ(nullptr, stmt_->err);
 }
 
 TEST_F(BasePluginTest, ConnectWithSelfReferencingNextPluginReturnsErrorInsteadOfRecursing) {
-    const std::shared_ptr<DelegatingPlugin> plugin = std::make_shared<DelegatingPlugin>(dbc, nullptr);
+    const std::shared_ptr<DelegatingPlugin> plugin = std::make_shared<DelegatingPlugin>(dbc_, nullptr);
     plugin->SetNextPlugin(plugin);
 
-    const SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN ret = plugin->Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, dbc->err);
-    EXPECT_STREQ("HY000", dbc->err->sqlstate);
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
 
     plugin->SetNextPlugin(nullptr); // Break the self-reference cycle so the plugin is freed.
 }
 
 TEST_F(BasePluginTest, ExecuteWithSelfReferencingNextPluginReturnsErrorInsteadOfRecursing) {
-    const std::shared_ptr<DelegatingPlugin> plugin = std::make_shared<DelegatingPlugin>(dbc, nullptr);
+    const std::shared_ptr<DelegatingPlugin> plugin = std::make_shared<DelegatingPlugin>(dbc_, nullptr);
     plugin->SetNextPlugin(plugin);
 
-    const SQLRETURN ret = plugin->Execute(stmt, nullptr, 0);
+    const SQLRETURN ret = plugin->Execute(stmt_, nullptr, 0);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, stmt->err);
-    EXPECT_STREQ("HY000", stmt->err->sqlstate);
+    ASSERT_NE(nullptr, stmt_->err);
+    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
 
     plugin->SetNextPlugin(nullptr); // Break the self-reference cycle so the plugin is freed.
 }
 
 TEST_F(BasePluginTest, SubclassConnectWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
-    DelegatingPlugin plugin(dbc, nullptr);
+    DelegatingPlugin plugin(dbc_, nullptr);
 
-    const SQLRETURN ret = plugin.Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+    const SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, dbc->err);
-    EXPECT_STREQ("HY000", dbc->err->sqlstate);
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
 }
 
 TEST_F(BasePluginTest, SubclassExecuteWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
-    DelegatingPlugin plugin(dbc, nullptr);
+    DelegatingPlugin plugin(dbc_, nullptr);
 
-    const SQLRETURN ret = plugin.Execute(stmt, nullptr, 0);
+    const SQLRETURN ret = plugin.Execute(stmt_, nullptr, 0);
 
     EXPECT_EQ(SQL_ERROR, ret);
-    ASSERT_NE(nullptr, stmt->err);
-    EXPECT_STREQ("HY000", stmt->err->sqlstate);
+    ASSERT_NE(nullptr, stmt_->err);
+    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
 }
 
 TEST_F(BasePluginTest, SubclassDelegatesThroughChainToTerminalPlugin) {
     const std::shared_ptr<RecordingPlugin> terminal = std::make_shared<RecordingPlugin>();
-    DelegatingPlugin plugin(dbc, terminal);
+    DelegatingPlugin plugin(dbc_, terminal);
 
-    EXPECT_EQ(SQL_SUCCESS, plugin.Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
     EXPECT_TRUE(terminal->connect_called);
-    EXPECT_EQ(SQL_SUCCESS, plugin.Execute(stmt, nullptr, 0));
+    EXPECT_EQ(SQL_SUCCESS, plugin.Execute(stmt_, nullptr, 0));
     EXPECT_TRUE(terminal->execute_called);
 }
 
 TEST_F(BasePluginTest, ReleaseResourcesWithNullNextPluginDoesNotCrash) {
-    BasePlugin plugin(dbc, nullptr);
+    BasePlugin plugin(dbc_, nullptr);
 
     plugin.ReleaseResources();
 }
 
 TEST_F(BasePluginTest, ReleaseResourcesDelegatesToNextPlugin) {
     const std::shared_ptr<RecordingPlugin> next = std::make_shared<RecordingPlugin>();
-    BasePlugin plugin(dbc, next);
+    BasePlugin plugin(dbc_, next);
 
     plugin.ReleaseResources();
 

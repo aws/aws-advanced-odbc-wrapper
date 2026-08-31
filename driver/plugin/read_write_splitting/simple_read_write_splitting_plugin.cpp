@@ -24,8 +24,8 @@ SimpleReadWriteSplittingPlugin::SimpleReadWriteSplittingPlugin(DBC *dbc, std::sh
     if (!dbc->conn_attr.contains(KEY_SRW_READ_ENDPOINT) || !dbc->conn_attr.contains(KEY_SRW_WRITE_ENDPOINT)) {
         throw std::runtime_error("Please ensure the SRW_WRITE_ENDPOINT and SRW_READ_ENDPOINT parameters have been set.");
     }
-    this->read_endpoint = dbc->conn_attr.at(KEY_SRW_READ_ENDPOINT);
-    this->write_endpoint = dbc->conn_attr.at(KEY_SRW_WRITE_ENDPOINT);
+    this->read_endpoint_ = dbc->conn_attr.at(KEY_SRW_READ_ENDPOINT);
+    this->write_endpoint_ = dbc->conn_attr.at(KEY_SRW_WRITE_ENDPOINT);
     this->verify_new_conns_ = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_SRW_VERIFY_CONNS, false);
     this->verify_initial_conn_type_ = UNKNOWN;
     if (dbc->conn_attr.contains(KEY_SRW_VERIFY_INITIAL_CONN_TYPE)) {
@@ -35,8 +35,8 @@ SimpleReadWriteSplittingPlugin::SimpleReadWriteSplittingPlugin(DBC *dbc, std::sh
             this->verify_initial_conn_type_ = READER;
         }
     }
-    this->connect_retry_timeout_ms = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_SRW_CONN_TIMEOUT_MS, DEFAULT_RETRY_TIMEOUT_MS);
-    this->connect_retry_interval_ms = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_SRW_CONN_INTERVAL_MS, DEFAULT_RETRY_INTERVAL_MS);
+    this->connect_retry_timeout_ms_ = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_SRW_CONN_TIMEOUT_MS, DEFAULT_RETRY_TIMEOUT_MS);
+    this->connect_retry_interval_ms_ = MapUtils::GetMillisecondsValue(dbc->conn_attr, KEY_SRW_CONN_INTERVAL_MS, DEFAULT_RETRY_INTERVAL_MS);
 }
 
 SQLRETURN SimpleReadWriteSplittingPlugin::Connect(
@@ -99,7 +99,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
     SQLRETURN ret = SQL_ERROR;
     bool local_dbc_allocated = false;
 
-    const std::chrono::time_point end_time = std::chrono::steady_clock::now() + this->connect_retry_timeout_ms;
+    const std::chrono::time_point end_time = std::chrono::steady_clock::now() + this->connect_retry_timeout_ms_;
     while (std::chrono::steady_clock::now() < end_time) {
         if (ConnectionHandle != SQL_NULL_HDBC) {
             ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
@@ -149,7 +149,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(this->connect_retry_interval_ms));
+            std::this_thread::sleep_for(std::chrono::milliseconds(this->connect_retry_interval_ms_));
             continue;
         }
 
@@ -163,13 +163,13 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
         conn = SQL_NULL_HDBC;
     }
 
-    LOG(ERROR) << "The plugin was unable to establish a " << (role == READER ? "read only" : "read write") << " connection within " << this->connect_retry_timeout_ms.count() << " ms.";
+    LOG(ERROR) << "The plugin was unable to establish a " << (role == READER ? "read only" : "read write") << " connection within " << this->connect_retry_timeout_ms_.count() << " ms.";
     return ret;
 }
 
 SQLRETURN SimpleReadWriteSplittingPlugin::InitializeReaderConnection() {
     if (this->reader_host_info_.GetHost().empty()) {
-        this->reader_host_info_ = CreateHostInfo(this->read_endpoint, READER);
+        this->reader_host_info_ = CreateHostInfo(this->read_endpoint_, READER);
     }
 
     DBC* conn = SQL_NULL_HDBC;
@@ -177,12 +177,12 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeReaderConnection() {
     SQLRETURN ret = SQL_ERROR;
 
     if (this->verify_new_conns_) {
-        ret = GetVerifiedConnection(this->read_endpoint, READER, nullptr, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT, conn);
+        ret = GetVerifiedConnection(this->read_endpoint_, READER, nullptr, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT, conn);
     } else {
         this->odbc_helper_->AllocDbc(henv_, local_hdbc);
         conn = static_cast<DBC*>(local_hdbc);
         conn->conn_attr = connection_attributes_;
-        conn->conn_attr.insert_or_assign(KEY_SERVER, this->read_endpoint);
+        conn->conn_attr.insert_or_assign(KEY_SERVER, this->read_endpoint_);
         conn->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE); // Skip this plugin.
         conn->plugin_service = dbc_->plugin_service;
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
@@ -210,13 +210,13 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeReaderConnection() {
     LOG(INFO) << "Successfully connected to a new reader host: '" << this->reader_host_info_.GetHostPortPair() << "'";
     SetReaderConnection(conn, reader_host_info_);
     SwitchCurrentConnectionTo(conn, reader_host_info_);
-    LOG(INFO) << "Switched from a writer to a reader host. New reader host: '" << this->read_endpoint << "'";
+    LOG(INFO) << "Switched from a writer to a reader host. New reader host: '" << this->read_endpoint_ << "'";
     return SQL_SUCCESS;
 }
 
 SQLRETURN SimpleReadWriteSplittingPlugin::InitializeWriterConnection() {
     if (this->writer_host_info_.GetHost().empty()) {
-        this->writer_host_info_ = CreateHostInfo(this->write_endpoint, WRITER);
+        this->writer_host_info_ = CreateHostInfo(this->write_endpoint_, WRITER);
     }
 
     DBC* conn = SQL_NULL_HDBC;
@@ -224,12 +224,12 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeWriterConnection() {
     SQLRETURN ret = SQL_ERROR;
 
     if (this->verify_new_conns_) {
-        ret = GetVerifiedConnection(this->write_endpoint, WRITER, nullptr, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT, conn);
+        ret = GetVerifiedConnection(this->write_endpoint_, WRITER, nullptr, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT, conn);
     } else {
         this->odbc_helper_->AllocDbc(henv_, local_hdbc);
         conn = static_cast<DBC*>(local_hdbc);
         conn->conn_attr = connection_attributes_;
-        conn->conn_attr.insert_or_assign(KEY_SERVER, this->write_endpoint);
+        conn->conn_attr.insert_or_assign(KEY_SERVER, this->write_endpoint_);
         conn->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE); // Skip this plugin.
         conn->plugin_service = dbc_->plugin_service;
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
@@ -246,7 +246,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::InitializeWriterConnection() {
     }
 
     if (conn == SQL_NULL_HDBC || !SQL_SUCCEEDED(ret)) {
-        SetStmtError("A writer connection was requested, but the plugin was unable to establish a writer connection with the writer endpoint '" + this->write_endpoint + "'.", ERR_RW_WRITER_SWITCH_FAILED);
+        SetStmtError("A writer connection was requested, but the plugin was unable to establish a writer connection with the writer endpoint '" + this->write_endpoint_ + "'.", ERR_RW_WRITER_SWITCH_FAILED);
         return SQL_ERROR;
     }
 
@@ -261,7 +261,7 @@ HostInfo SimpleReadWriteSplittingPlugin::CreateHostInfo(const std::string &endpo
         default_port = service->GetDialect()->GetDefaultPort();
     }
     const int port = MapUtils::GetIntValue(dbc_->conn_attr, KEY_PORT, default_port);
-    return {endpoint, port, UP, role};
+    return HostInfo{endpoint, port, UP, role};
 }
 
 SQLRETURN SimpleReadWriteSplittingPlugin::RefreshAndStoreTopology() {

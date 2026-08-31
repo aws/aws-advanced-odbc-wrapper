@@ -26,7 +26,7 @@ struct STMT;
 class BasePlugin {
 public:
     BasePlugin() = default;
-    BasePlugin(DBC* dbc);
+    explicit BasePlugin(DBC* dbc);
     BasePlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     virtual ~BasePlugin();
 
@@ -40,7 +40,7 @@ public:
 
     virtual SQLRETURN Execute(
         SQLHSTMT       StatementHandle,
-        SQLTCHAR *     StatementText = 0,
+        SQLTCHAR *     StatementText = nullptr,
         SQLINTEGER     TextLength = -1);
 
     virtual void ReleaseResources();
@@ -59,9 +59,12 @@ protected:
         SQLTCHAR *     StatementText,
         SQLINTEGER     TextLength);
 
+    // Plugin chain read / assign 
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     // TODO - Rethink this, DBC will have reference this, and this will reference the DBC
-    std::shared_ptr<BasePlugin> next_plugin = nullptr;
-    std::string plugin_name;
+    std::shared_ptr<BasePlugin> next_plugin_ = nullptr;
+    std::string plugin_name_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
 private:
 };

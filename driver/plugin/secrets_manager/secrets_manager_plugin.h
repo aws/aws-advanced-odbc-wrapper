@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
+#include <regex>
+
 #include <aws/secretsmanager/SecretsManagerClient.h>
 #include <aws/secretsmanager/model/GetSecretValueRequest.h>
 
 #include "../base_plugin.h"
-
-#include <regex>
-#include <memory>
 
 #ifndef SECRETS_MANAGER_PLUGIN_H_
 #define SECRETS_MANAGER_PLUGIN_H_
@@ -32,7 +32,7 @@ public:
 
 class SecretsManagerPlugin : public BasePlugin {
 public:
-    SecretsManagerPlugin(DBC* dbc);
+    explicit SecretsManagerPlugin(DBC* dbc);
     SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     SecretsManagerPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client);
     ~SecretsManagerPlugin() override;
@@ -51,16 +51,16 @@ private:
     static inline const std::string DEFAULT_SECRET_USERNAME_KEY = "username";
     static inline const std::string DEFAULT_SECRET_PASSWORD_KEY = "password";
     static inline const std::chrono::milliseconds DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
-    static inline const std::regex SECRETS_ARN_REGION_PATTERN = std::regex("^arn:aws:secretsmanager:([-\\w\\d]+):[\\d]+:secret:");
-    static inline std::unordered_map<std::string, Secret> secrets_cache;
-    static inline std::recursive_mutex secrets_cache_mutex;
-    Secret secret;
-    std::string secret_key;
-    std::string username_key;
-    std::string password_key;
-    std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> secrets_manager_client;
-    Aws::SecretsManager::Model::GetSecretValueRequest secret_request;
-    std::chrono::milliseconds expiration_ms;
+    static inline const std::regex SECRETS_ARN_REGION_PATTERN = std::regex(R"(^arn:aws:secretsmanager:([-\w\d]+):[\d]+:secret:)");
+    static inline std::unordered_map<std::string, Secret> secrets_cache_;
+    static inline std::recursive_mutex secrets_cache_mutex_;
+    Secret secret_;
+    std::string secret_key_;
+    std::string username_key_;
+    std::string password_key_;
+    std::shared_ptr<Aws::SecretsManager::SecretsManagerClient> secrets_manager_client_;
+    Aws::SecretsManager::Model::GetSecretValueRequest secret_request_;
+    std::chrono::milliseconds expiration_ms_;
     static Secret ParseSecret(const std::string &secret_string, const std::string &username_key, const std::string &password_key, std::chrono::milliseconds expiration);
 };
 

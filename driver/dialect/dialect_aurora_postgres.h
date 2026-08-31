@@ -16,15 +16,14 @@
 #define DIALECT_AURORA_POSTGRES_H
 
 #include <algorithm>
-
-#include "dialect.h"
-
 #include <vector>
 
-#include "../util/rds_strings.h"
 #include "../util/odbc_helper.h"
+#include "../util/rds_strings.h"
+#include "dialect.h"
 
-class DialectAuroraPostgres : virtual public Dialect, DialectBlueGreen {
+// codechecker_suppress [misc-multiple-inheritance]
+class DialectAuroraPostgres : public DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_POSTGRES_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
@@ -40,7 +39,7 @@ public:
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(ACCESS_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
@@ -62,11 +61,11 @@ public:
     bool IsSqlStateNetworkError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(NETWORK_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
-    virtual DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
+    DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_POSTGRESQL; };
 
     std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
         if (statement.starts_with(SET_READ_ONLY_QUERY)) {
@@ -108,7 +107,7 @@ private:
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
-        "28000"   // PAM authentication errors
+        "28000",  // PAM authentication errors
     };
 
     const std::vector<std::string> NETWORK_ERRORS = {
@@ -120,10 +119,11 @@ private:
         "08",       // connection error
         "99",       // unexpected error
         "F0",       // configuration file error (backend)
-        "XX"        // internal error (backend)
+        "XX",       // internal error (backend)
     };
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectAuroraPostgresLimitless : public DialectLimitless, public DialectAuroraPostgres {
 public:
     std::string GetLimitlessRouterEndpointQuery() override { return LIMITLESS_ROUTER_ENDPOINT_QUERY; };
@@ -133,6 +133,7 @@ private:
     const std::string LIMITLESS_ROUTER_ENDPOINT_QUERY = "SELECT router_endpoint, load FROM pg_catalog.aurora_limitless_router_endpoints()";
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectMultiAzClusterPostgres : public DialectMultiAzCluster, public DialectAuroraPostgres {
 public:
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_PG; }

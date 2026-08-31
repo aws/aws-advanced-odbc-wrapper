@@ -16,6 +16,7 @@
 #define AUTH_PROVIDER_H_
 
 #include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -35,7 +36,7 @@ namespace Aws {
     }
 }
 
-typedef enum {
+enum AuthType : std::uint8_t {
     DATABASE,
     IAM,
     SECRETS_MANAGER,
@@ -43,9 +44,9 @@ typedef enum {
     OKTA,
     AWS_SSO,
     INVALID,
-} AuthType;
+};
 
-static std::map<std::string, AuthType> const auth_table = {
+static std::map<std::string, AuthType> const AUTH_TABLE = {
     {VALUE_AUTH_DATABASE,   AuthType::DATABASE},
     {VALUE_AUTH_IAM,        AuthType::IAM},
     {VALUE_AUTH_SECRETS,    AuthType::SECRETS_MANAGER},
@@ -64,10 +65,10 @@ struct DBC;
 class AuthProvider {
 public:
     AuthProvider() = default;
-    AuthProvider(const std::string &region);
+    explicit AuthProvider(const std::string &region);
     AuthProvider(const std::string &region, const std::string &profile);
     AuthProvider(const std::string &region, const Aws::Auth::AWSCredentials& credentials);
-    AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client);
+    explicit AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client);
     ~AuthProvider();
 
     virtual std::pair<std::string, bool> GetToken(
@@ -83,7 +84,7 @@ public:
 
     static std::string GetPort(DBC* dbc);
     static std::string GetRegionForProfile(const std::string &profile);
-    virtual bool HasResolvedCredentials() const { return credentials_resolved_; }
+    [[nodiscard]] virtual bool HasResolvedCredentials() const { return credentials_resolved_; }
 
     static inline const std::chrono::milliseconds
         DEFAULT_EXPIRATION_MS = std::chrono::minutes(15);
@@ -98,9 +99,9 @@ public:
 protected:
 private:
     void SetUpRdsClient(const Aws::Auth::AWSCredentials& credentials, const std::string &region);
-    static inline std::unordered_map<std::string, TokenInfo> token_cache;
-    static inline std::recursive_mutex token_cache_mutex;
-    std::shared_ptr<Aws::RDS::RDSClient> rds_client;
+    static inline std::unordered_map<std::string, TokenInfo> token_cache_;
+    static inline std::recursive_mutex token_cache_mutex_;
+    std::shared_ptr<Aws::RDS::RDSClient> rds_client_;
     bool credentials_resolved_ = true;
 };
 

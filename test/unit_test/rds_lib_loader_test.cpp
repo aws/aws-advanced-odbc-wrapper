@@ -21,7 +21,7 @@
 #include "../../driver/util/rds_lib_loader.h"
 
 namespace {
-const char* NONEXISTENT_MODULE = "/nonexistent/path/to/no-such-driver-module.so";
+const char* nonexistent_module = "/nonexistent/path/to/no-such-driver-module.so";
 
 #ifndef _WIN32
 const bool ODBCSYSINI_SET = [] {
@@ -32,20 +32,20 @@ const bool ODBCSYSINI_SET = [] {
 } // namespace
 
 TEST(RdsLibLoaderTest, NonexistentModuleIsNotLoaded) {
-    RdsLibLoader loader(NONEXISTENT_MODULE);
+    RdsLibLoader loader(nonexistent_module);
     EXPECT_FALSE(loader.IsLoaded());
     EXPECT_FALSE(loader.GetLoadError().empty());
-    EXPECT_EQ(NONEXISTENT_MODULE, loader.GetDriverPath());
+    EXPECT_EQ(nonexistent_module, loader.GetDriverPath());
 }
 
 TEST(RdsLibLoaderTest, GetFunctionOnUnloadedModuleReturnsNull) {
-    RdsLibLoader loader(NONEXISTENT_MODULE);
+    RdsLibLoader loader(nonexistent_module);
     EXPECT_EQ(nullptr, loader.GetFunction("SQLDriverConnect"));
     EXPECT_EQ(nullptr, loader.GetFunction("SQLFreeHandle"));
 }
 
 TEST(RdsLibLoaderTest, CallFunctionOnUnloadedModuleFailsWithoutInvoking) {
-    RdsLibLoader loader(NONEXISTENT_MODULE);
+    RdsLibLoader loader(nonexistent_module);
     SQLHENV env_handle = nullptr;
     const RdsLibResult res = loader.CallFunction<RDS_FP_SQLAllocHandle>(
         "SQLAllocHandle", static_cast<SQLSMALLINT>(SQL_HANDLE_ENV), nullptr, &env_handle);

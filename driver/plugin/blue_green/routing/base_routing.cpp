@@ -27,7 +27,7 @@ BaseRouting::BaseRouting(std::string host_port, BlueGreenRole role) : host_port_
 void BaseRouting::Delay(
     std::chrono::milliseconds delay_ms,
     BlueGreenStatus status,
-    std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
+    const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>>& status_cache,
     std::string id)
 {
     const std::chrono::steady_clock::time_point start = GetCurrTime();

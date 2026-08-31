@@ -71,13 +71,13 @@ AuthProvider::AuthProvider(
 AuthProvider::AuthProvider(const std::shared_ptr<Aws::RDS::RDSClient>& rds_client)
 {
     AwsSdkHelper::Init();
-    this->rds_client = rds_client;
+    this->rds_client_ = rds_client;
 }
 
 AuthProvider::~AuthProvider()
 {
-    if (rds_client) {
-        rds_client = nullptr;
+    if (rds_client_) {
+        rds_client_ = nullptr;
     }
     AwsSdkHelper::Shutdown();
 }
@@ -115,15 +115,15 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     TokenInfo token_info{.token = "", .expiration_point = curr_time + time_to_expire_ms};
 
     if (use_cache) {
-        const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
-        if (token_cache.contains(cache_key)) {
+        const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex_);
+        if (token_cache_.contains(cache_key)) {
             LOG(INFO) << "Found token in cache";
-            token_info = token_cache.at(cache_key);
+            token_info = token_cache_.at(cache_key);
             if (curr_time < token_info.expiration_point) {
                 return {token_info.token, true};
             }
             LOG(INFO) << "Existing token expired";
-            token_cache.erase(cache_key);
+            token_cache_.erase(cache_key);
         }
     }
 
@@ -134,19 +134,19 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         return {"", false};
     }
     const std::string aws_token =
-        rds_client->GenerateConnectAuthToken(server.c_str(), region.c_str(), parsed_port.value(), username.c_str());
+        rds_client_->GenerateConnectAuthToken(server.c_str(), region.c_str(), parsed_port.value(), username.c_str());
     token_info.token = extra_url_encode ? ExtraUrlEncodeString(aws_token) : aws_token;
     {
-        const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
-        token_cache.insert_or_assign(cache_key, token_info);
+        const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex_);
+        token_cache_.insert_or_assign(cache_key, token_info);
     }
     LOG(INFO) << "Generated new token length: " << token_info.token.length();
     return {token_info.token, false};
 }
 
 void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region) {
-    if (rds_client) {
-        rds_client = nullptr;
+    if (rds_client_) {
+        rds_client_ = nullptr;
     }
     credentials_resolved_ = !credentials.IsEmpty();
     SetUpRdsClient(credentials, region);
@@ -187,8 +187,8 @@ std::string AuthProvider::GetPort(DBC* dbc) {
 
 AuthType AuthProvider::AuthTypeFromString(const std::string &auth_type) {
     const std::string local_str_upper = RDS_STR_UPPER(auth_type);
-    if (auth_table.contains(local_str_upper)) {
-        return auth_table.at(local_str_upper);
+    if (AUTH_TABLE.contains(local_str_upper)) {
+        return AUTH_TABLE.at(local_str_upper);
     }
     return AuthType::INVALID;
 }
@@ -205,8 +205,8 @@ std::string AuthProvider::BuildCacheKey(
 }
 
 void AuthProvider::ClearCache() {
-    const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex);
-    token_cache.clear();
+    const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex_);
+    token_cache_.clear();
 }
 
 void AuthProvider::SetUpRdsClient(const Aws::Auth::AWSCredentials& credentials, const std::string &region) {
@@ -215,7 +215,7 @@ void AuthProvider::SetUpRdsClient(const Aws::Auth::AWSCredentials& credentials, 
         client_config.region = region;
     }
 
-    rds_client = std::make_shared<Aws::RDS::RDSClient>(
+    rds_client_ = std::make_shared<Aws::RDS::RDSClient>(
         credentials,
         client_config
     );

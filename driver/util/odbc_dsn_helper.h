@@ -15,12 +15,16 @@
 #ifndef ODBC_DSN_HELPER_H_
 #define ODBC_DSN_HELPER_H_
 
+#include <cstdint>
 #include <map>
 
 #include "rds_strings.h"
 
-#define MAX_KEY_SIZE 8192
-#define MAX_VAL_SIZE 8192
+enum DsnBufferSizes : std::uint16_t {
+    MAX_KEY_SIZE = 8192,
+    MAX_VAL_SIZE = 8192,
+};
+
 #define ODBC_INI "ODBC.INI"
 #define ODBCINST_INI "ODBCINST.INI"
 

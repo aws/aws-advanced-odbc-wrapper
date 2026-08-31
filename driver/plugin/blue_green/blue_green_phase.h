@@ -15,20 +15,21 @@
 #ifndef BLUE_GREEN_PHASE_H_
 #define BLUE_GREEN_PHASE_H_
 
+#include <cstdint>
 #include <map>
 #include <string>
 
 class BlueGreenPhase {
 public:
-    typedef enum {
+    enum Phase : std::uint8_t {
         UNKNOWN,
         NOT_CREATED,
         CREATED,
         PREPARATION,
         IN_PROGRESS,
         POST,
-        COMPLETED
-    } Phase;
+        COMPLETED,
+    };
 
     static inline std::map<Phase, bool> const PHASE_STATE_MAPPING = {
         {Phase::NOT_CREATED,    false},
@@ -37,7 +38,7 @@ public:
         {Phase::IN_PROGRESS,    true},
         {Phase::POST,           true},
         {Phase::COMPLETED,      true},
-        {Phase::UNKNOWN,        false}
+        {Phase::UNKNOWN,        false},
     };
 
     static inline std::map<Phase, std::string> const PHASE_TO_STR_MAPPING = {
@@ -47,7 +48,7 @@ public:
         {Phase::IN_PROGRESS,   "IN_PROGRESS"},
         {Phase::POST,          "POST"},
         {Phase::COMPLETED,     "COMPLETED"},
-        {Phase::UNKNOWN,       "UNKNOWN"}
+        {Phase::UNKNOWN,       "UNKNOWN"},
     };
 
     static inline std::map<std::string, Phase> const STR_TO_PHASE_MAPPING = {
@@ -55,14 +56,15 @@ public:
         {"SWITCHOVER_INITIATED",            Phase::PREPARATION},
         {"SWITCHOVER_IN_PROGRESS",          Phase::IN_PROGRESS},
         {"SWITCHOVER_IN_POST_PROCESSING",   Phase::POST},
-        {"SWITCHOVER_COMPLETED",            Phase::COMPLETED}
+        {"SWITCHOVER_COMPLETED",            Phase::COMPLETED},
     };
     BlueGreenPhase();
-    BlueGreenPhase(Phase phase);
+    // BlueGreenPhase is a value wrapper around the enum and is compared and assigned against Phase constants
+    BlueGreenPhase(Phase phase); // NOLINT(google-explicit-constructor, misc-explicit-constructor)
     BlueGreenPhase(Phase phase, bool switchover_or_completed);
 
-    Phase GetPhase() const;
-    bool IsSwitchoverOrCompleted() const;
+    [[nodiscard]] Phase GetPhase() const;
+    [[nodiscard]] bool IsSwitchoverOrCompleted() const;
 
     static BlueGreenPhase ParsePhase(std::string value, std::string version);
 

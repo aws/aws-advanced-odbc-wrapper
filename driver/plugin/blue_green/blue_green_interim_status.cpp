@@ -20,7 +20,7 @@
 
 static constexpr int HASH_MULTIPLIER = 31;
 
-std::hash<std::string> BlueGreenInterimStatus::hasher;
+std::hash<std::string> BlueGreenInterimStatus::hasher_;
 
 BlueGreenInterimStatus::BlueGreenInterimStatus(
     BlueGreenPhase phase,

@@ -19,7 +19,7 @@
 
 class SimpleReadWriteSplittingPlugin : public AbstractReadWriteSplittingPlugin {
 public:
-    SimpleReadWriteSplittingPlugin(DBC *dbc);
+    explicit SimpleReadWriteSplittingPlugin(DBC *dbc);
     SimpleReadWriteSplittingPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     SQLRETURN Connect(
@@ -46,11 +46,11 @@ public:
     void SetInitialConnectionHostInfo(SQLHDBC conn, std::string host);
 
 private:
-    std::string write_endpoint;
-    std::string read_endpoint;
+    std::string write_endpoint_;
+    std::string read_endpoint_;
     bool verify_new_conns_;
-    std::chrono::milliseconds connect_retry_timeout_ms;
-    std::chrono::milliseconds connect_retry_interval_ms;
+    std::chrono::milliseconds connect_retry_timeout_ms_;
+    std::chrono::milliseconds connect_retry_interval_ms_;
     HOST_ROLE verify_initial_conn_type_;
     const std::chrono::milliseconds DEFAULT_RETRY_TIMEOUT_MS = std::chrono::milliseconds(60000);
     const std::chrono::milliseconds DEFAULT_RETRY_INTERVAL_MS = std::chrono::milliseconds(1000);

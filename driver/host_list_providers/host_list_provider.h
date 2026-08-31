@@ -29,7 +29,7 @@ class Dialect;
 
 class HostListProvider {
 public:
-    HostListProvider(std::string cluster_id) : cluster_id_{ cluster_id } {};
+    explicit HostListProvider(std::string cluster_id) : cluster_id_{ cluster_id } {};
     virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) { return {}; };
     virtual std::vector<HostInfo> Refresh()  { return {}; };
     virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) { return {}; };
@@ -40,7 +40,10 @@ public:
     virtual void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {}
 
 protected:
+    // Subclasses set and read the cluster id
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::string cluster_id_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 #endif // HOST_LIST_PROVIDER_H_

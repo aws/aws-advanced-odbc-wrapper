@@ -15,30 +15,32 @@
 #ifndef OKTA_AUTH_PLUGIN_H_
 #define OKTA_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
+#include <cstdint>
 
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "base_saml_auth_plugin.h"
 #include "browser_auth_flow.h"
 #include "saml_util.h"
-#include "base_saml_auth_plugin.h"
-#include "../../driver.h"
 
-typedef enum {
+enum MfaType : std::uint8_t {
     NONE,
     TOTP,
-    PUSH
-} MfaType;
-
-static std::map<std::string, MfaType> const mfa_type_table = {
-    {"", MfaType::NONE},
-    {VALUE_MFA_TOTP, MfaType::TOTP},
-    {VALUE_MFA_PUSH, MfaType::PUSH}
+    PUSH,
 };
 
+static std::map<std::string, MfaType> const MFA_TYPE_TABLE = {
+    {"", MfaType::NONE},
+    {VALUE_MFA_TOTP, MfaType::TOTP},
+    {VALUE_MFA_PUSH, MfaType::PUSH},
+};
+
+// codechecker_suppress [misc-multiple-inheritance]
 class OktaSamlUtil : public SamlUtil, protected BrowserAuthFlow {
 public:
-    OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
+    explicit OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes);
     OktaSamlUtil(const std::map<std::string, std::string> &connection_attributes, const std::shared_ptr<Aws::Http::HttpClient> &http_client, const std::shared_ptr<Aws::STS::STSClient> &sts_client);
-    std::string GetSamlAssertion();
+    std::string GetSamlAssertion() override;
 
 private:
     std::string GetSessionToken();
@@ -53,23 +55,23 @@ private:
     static inline const int VERIFY_PUSH_INTERVAL = 5;
     static inline const std::string DEFAULT_PORT = "8080";
     static inline const std::string WEBSERVER_HOST = "http://127.0.0.1";
-    std::string sign_in_url;
-    std::string session_token_url;
-    MfaType mfa_type;
-    std::string mfa_port;
-    std::string mfa_timeout;
+    std::string sign_in_url_;
+    std::string session_token_url_;
+    MfaType mfa_type_;
+    std::string mfa_port_;
+    std::string mfa_timeout_;
     // Browser-SAML listener settings, independent of the headless MFA popup keys.
-    std::string listen_port;
-    std::string response_timeout;
+    std::string listen_port_;
+    std::string response_timeout_;
     // Resolved once in the constructor (browser mode only): the Okta SSO URL to open.
-    std::string sso_url;
+    std::string sso_url_;
 
     static inline const std::regex SAML_RESPONSE_PATTERN = std::regex("<input name=\"SAMLResponse\".+value=\"(.+)\"/\\>");
 };
 
 class OktaAuthPlugin : public BaseSamlAuthPlugin {
 public:
-    OktaAuthPlugin(DBC* dbc);
+    explicit OktaAuthPlugin(DBC* dbc);
     OktaAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<SamlUtil> &saml_util, const std::shared_ptr<AuthProvider> &auth_provider);
     OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin,

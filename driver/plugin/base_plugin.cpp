@@ -30,7 +30,7 @@ SQLRETURN ChainDelegationError(HandleT* handle, const std::string& plugin_name, 
     ClearError(handle);
     const std::string error_msg = "The plugin chain is misconfigured: ["
         + plugin_name + "] has no valid next plugin to delegate " + operation + " to.";
-    handle->err = std::make_unique<ERR_INFO>(error_msg.c_str(), ERR_GENERAL_ERROR);
+    handle->err = std::make_unique<ErrInfo>(error_msg.c_str(), ERR_GENERAL_ERROR);
     return SQL_ERROR;
 }
 
@@ -39,8 +39,8 @@ SQLRETURN ChainDelegationError(HandleT* handle, const std::string& plugin_name, 
 BasePlugin::BasePlugin(DBC *dbc) : BasePlugin(dbc, nullptr) {}
 
 BasePlugin::BasePlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) :
-    next_plugin(next_plugin),
-    plugin_name("BasePlugin") {}
+    next_plugin_(next_plugin),
+    plugin_name_("BasePlugin") {}
 
 BasePlugin::~BasePlugin() = default;
 
@@ -81,10 +81,10 @@ SQLRETURN BasePlugin::ConnectNext(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    if (!next_plugin || next_plugin.get() == this) {
-        return ChainDelegationError(static_cast<DBC*>(ConnectionHandle), plugin_name, "Connect");
+    if (!next_plugin_ || next_plugin_.get() == this) {
+        return ChainDelegationError(static_cast<DBC*>(ConnectionHandle), plugin_name_, "Connect");
     }
-    return next_plugin->Connect(
+    return next_plugin_->Connect(
         ConnectionHandle,
         WindowHandle,
         OutConnectionString,
@@ -100,15 +100,15 @@ SQLRETURN BasePlugin::ExecuteNext(
     SQLTCHAR *     StatementText,
     SQLINTEGER     TextLength)
 {
-    if (!next_plugin || next_plugin.get() == this) {
-        return ChainDelegationError(static_cast<STMT*>(StatementHandle), plugin_name, "Execute");
+    if (!next_plugin_ || next_plugin_.get() == this) {
+        return ChainDelegationError(static_cast<STMT*>(StatementHandle), plugin_name_, "Execute");
     }
-    return next_plugin->Execute(StatementHandle, StatementText, TextLength);
+    return next_plugin_->Execute(StatementHandle, StatementText, TextLength);
 }
 
 // codechecker_suppress [misc-no-recursion]
 void BasePlugin::ReleaseResources() {
-    if (next_plugin && next_plugin.get() != this) {
-        next_plugin->ReleaseResources();
+    if (next_plugin_ && next_plugin_.get() != this) {
+        next_plugin_->ReleaseResources();
     }
 }

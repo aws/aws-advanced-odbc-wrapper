@@ -15,17 +15,17 @@
 #ifndef LIMITLESS_PLUGIN_H_
 #define LIMITLESS_PLUGIN_H_
 
-#include "limitless_query_helper.h"
-#include "../base_plugin.h"
+#include <memory>
+
 #include "../../dialect/dialect.h"
 #include "../../util/odbc_helper.h"
+#include "../base_plugin.h"
+#include "limitless_query_helper.h"
 #include "limitless_router_service.h"
-
-#include <memory>
 
 class LimitlessPlugin : public BasePlugin {
 public:
-    LimitlessPlugin(DBC* dbc);
+    explicit LimitlessPlugin(DBC* dbc);
     LimitlessPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     LimitlessPlugin(
         DBC* dbc,

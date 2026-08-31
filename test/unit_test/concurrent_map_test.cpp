@@ -21,8 +21,8 @@
 #include <gtest/gtest.h>
 
 namespace {
-    const std::string cache_key_a("key_a");
-    const std::string cache_key_b("key_b");
+    const std::string CACHE_KEY_A("key_a");
+    const std::string CACHE_KEY_B("key_b");
 }
 
 class ConcurrentMapTest : public testing::Test {
@@ -42,22 +42,22 @@ protected:
 TEST_F(ConcurrentMapTest, sync_basic_operations) {
     ConcurrentMap<std::string, int> cache;
     // Insert & Get
-    cache.InsertOrAssign(cache_key_a, 1);
-    EXPECT_EQ(1, cache.Get(cache_key_a));
+    cache.InsertOrAssign(CACHE_KEY_A, 1);
+    EXPECT_EQ(1, cache.Get(CACHE_KEY_A));
 
     // Update & Get
-    cache.InsertOrAssign(cache_key_a, 2);
-    EXPECT_EQ(2, cache.Get(cache_key_a));
+    cache.InsertOrAssign(CACHE_KEY_A, 2);
+    EXPECT_EQ(2, cache.Get(CACHE_KEY_A));
 
     // Erase
-    cache.Erase(cache_key_a);
-    EXPECT_FALSE(cache.Contains(cache_key_a));
+    cache.Erase(CACHE_KEY_A);
+    EXPECT_FALSE(cache.Contains(CACHE_KEY_A));
 
     // Size
     EXPECT_EQ(0, cache.Size());
-    cache.InsertOrAssign(cache_key_a, 1);
+    cache.InsertOrAssign(CACHE_KEY_A, 1);
     EXPECT_EQ(1, cache.Size());
-    cache.InsertOrAssign(cache_key_b, 2);
+    cache.InsertOrAssign(CACHE_KEY_B, 2);
     EXPECT_EQ(2, cache.Size());
 
     // Clear
@@ -67,6 +67,6 @@ TEST_F(ConcurrentMapTest, sync_basic_operations) {
     // Equality
     ConcurrentMap<std::string, int> cache_b;
     EXPECT_TRUE(cache == cache_b);
-    cache_b.InsertOrAssign(cache_key_b, 2);
+    cache_b.InsertOrAssign(CACHE_KEY_B, 2);
     EXPECT_FALSE(cache == cache_b);
 }

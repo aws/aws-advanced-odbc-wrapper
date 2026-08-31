@@ -30,17 +30,20 @@ public:
     virtual void Delay(
         std::chrono::milliseconds delay_ms,
         BlueGreenStatus status,
-        const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
+        const std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>>& status_cache,
         std::string id);
-    virtual std::chrono::steady_clock::time_point GetCurrTime() const;
+    [[nodiscard]] virtual std::chrono::steady_clock::time_point GetCurrTime() const;
 
-    std::string ToString() const;
-    bool IsMatch(const std::string& host_port, BlueGreenRole host_role) const;
+    [[nodiscard]] std::string ToString() const;
+    [[nodiscard]] bool IsMatch(const std::string& host_port, BlueGreenRole host_role) const;
 
 protected:
+    // Every routing subclass matches on these while deciding a route
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::string route_class_;
     std::string host_port_;
     BlueGreenRole role_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
     static inline const std::chrono::milliseconds DEFAULT_CONNECT_TIMEOUT_MS = std::chrono::seconds(30);
     static inline const std::chrono::milliseconds SLEEP_DURATION_MS = std::chrono::milliseconds(100);
     static inline const std::chrono::milliseconds MIN_SLEEP_MS = std::chrono::milliseconds(50);

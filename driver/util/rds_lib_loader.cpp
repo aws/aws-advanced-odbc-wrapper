@@ -42,11 +42,11 @@ std::string GetLastModuleLoadError()
 
 RdsLibLoader::RdsLibLoader(std::string library_path)
 {
-    driver_path = std::move(library_path);
-    driver_handle = RDS_LOAD_MODULE_DEFAULTS(driver_path);
-    if (!driver_handle) {
-        load_error = GetLastModuleLoadError();
-        LOG(ERROR) << "Failed to load underlying driver module [" << driver_path << "]: " << load_error;
+    driver_path_ = std::move(library_path);
+    driver_handle_ = RDS_LOAD_MODULE_DEFAULTS(driver_path_);
+    if (!driver_handle_) {
+        load_error_ = GetLastModuleLoadError();
+        LOG(ERROR) << "Failed to load underlying driver module [" << driver_path_ << "]: " << load_error_;
     }
 }
 
@@ -56,38 +56,38 @@ RdsLibLoader::~RdsLibLoader()
         Not calling RDS_FREE_MODULE(..),
         let OS cleanup on process termination to prevent incorrect unloading order of loaded library's dependencies
     */
-    driver_handle = nullptr;
-    if (function_cache) {
-        function_cache->Clear();
-        function_cache = nullptr;
+    driver_handle_ = nullptr;
+    if (function_cache_) {
+        function_cache_->Clear();
+        function_cache_ = nullptr;
     }
 }
 
 std::string RdsLibLoader::GetDriverPath()
 {
-    return driver_path;
+    return driver_path_;
 }
 
 bool RdsLibLoader::IsLoaded() const
 {
-    return driver_handle != nullptr;
+    return driver_handle_ != nullptr;
 }
 
 std::string RdsLibLoader::GetLoadError()
 {
-    return load_error;
+    return load_error_;
 }
 
 FUNC_HANDLE RdsLibLoader::GetFunction(const std::string &func_name)
 {
     // Never look up symbols without a loaded module
     // it may pull Driver Manager's function pointer and cause deadlock
-    if (!driver_handle) {
+    if (!driver_handle_) {
         return nullptr;
     }
-    const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle, func_name.c_str());
+    const FUNC_HANDLE driver_function = RDS_GET_FUNC(driver_handle_, func_name.c_str());
     if (driver_function) {
-        function_cache->InsertOrAssign(func_name, const_cast<FUNC_HANDLE>(driver_function));
+        function_cache_->InsertOrAssign(func_name, const_cast<FUNC_HANDLE>(driver_function));
     }
     return const_cast<FUNC_HANDLE>(driver_function);
 }

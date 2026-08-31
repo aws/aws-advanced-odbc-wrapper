@@ -15,6 +15,7 @@
 #include "base_token_auth_plugin.h"
 
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 #include "../util/connection_string_keys.h"
@@ -31,16 +32,16 @@ BaseTokenAuthPlugin::BaseTokenAuthPlugin(
     std::shared_ptr<OdbcHelper> odbc_helper)
     : BasePlugin(dbc, next_plugin)
 {
-    this->auth_provider = auth_provider;
+    this->auth_provider_ = auth_provider;
 
     if (dialect) {
-        this->dialect_ = dialect;
+        this->dialect_ = std::move(dialect);
     } else if (dbc->plugin_service) {
         this->dialect_ = dbc->plugin_service->GetDialect();
     }
 
     if (odbc_helper) {
-        this->odbc_helper_ = odbc_helper;
+        this->odbc_helper_ = std::move(odbc_helper);
     } else if (dbc->plugin_service) {
         this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
     }
@@ -48,8 +49,8 @@ BaseTokenAuthPlugin::BaseTokenAuthPlugin(
 
 BaseTokenAuthPlugin::~BaseTokenAuthPlugin()
 {
-    if (auth_provider) {
-        auth_provider.reset();
+    if (auth_provider_) {
+        auth_provider_.reset();
     }
 }
 
@@ -66,12 +67,12 @@ std::string BaseTokenAuthPlugin::ResolveRegion(DBC* dbc)
 
 bool BaseTokenAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error)
 {
-    if (!auth_provider) {
-        out_error = "No AWS credential provider is available for " + plugin_name + " authentication";
+    if (!auth_provider_) {
+        out_error = "No AWS credential provider is available for " + plugin_name_ + " authentication";
         return false;
     }
-    if (!auth_provider->HasResolvedCredentials()) {
-        out_error = "Unable to resolve AWS credentials for " + plugin_name + " authentication";
+    if (!auth_provider_->HasResolvedCredentials()) {
+        out_error = "Unable to resolve AWS credentials for " + plugin_name_ + " authentication";
         return false;
     }
     return true;
@@ -90,7 +91,7 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     SQLSMALLINT *  StringLengthPtr,
     SQLUSMALLINT   DriverCompletion)
 {
-    LOG(INFO) << "[" << plugin_name << "] Entering Connect";
+    LOG(INFO) << "[" << plugin_name_ << "] Entering Connect";
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
     const std::string server = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
@@ -110,11 +111,11 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     if (std::string credential_error; !EnsureCredentials(dbc, region, credential_error)) {
         LOG(ERROR) << credential_error;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(credential_error.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(credential_error.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
-    std::pair<std::string, bool> token = auth_provider->GetToken(
+    std::pair<std::string, bool> token = auth_provider_->GetToken(
         iam_host, region, port, username, true, extra_url_encode, token_expiration);
     const bool is_cached_token = token.second;
 
@@ -141,14 +142,14 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
         return ret;
     }
 
-    LOG(WARNING) << "[" << plugin_name << "] Cached token failed to connect with access error (sql_state="
+    LOG(WARNING) << "[" << plugin_name_ << "] Cached token failed to connect with access error (sql_state="
                  << sql_state << "). Retrying with fresh credentials and token";
 
     if (!RefreshCredentials(dbc, region)) {
         return ret;
     }
 
-    token = auth_provider->GetToken(
+    token = auth_provider_->GetToken(
         iam_host, region, port, username, false, extra_url_encode, token_expiration);
     dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
     ret = ConnectNext(
@@ -176,7 +177,7 @@ bool BaseTokenAuthPlugin::ValidateRequiredParams(DBC* dbc, const std::string& ia
     }
 
     if (!missing_params.empty()) {
-        std::string error_msg = plugin_name + " Authentication failed. Missing required parameters: ";
+        std::string error_msg = plugin_name_ + " Authentication failed. Missing required parameters: ";
         for (size_t i = 0; i < missing_params.size(); ++i) {
             if (i > 0) {
                 error_msg += ", ";
@@ -185,7 +186,7 @@ bool BaseTokenAuthPlugin::ValidateRequiredParams(DBC* dbc, const std::string& ia
         }
         LOG(ERROR) << error_msg;
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return false;
     }
 

@@ -36,7 +36,7 @@ inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
     return LoadLibraryEx(reinterpret_cast<SQLWCHAR*>(mod_name_ushort), NULL, load_flag);
 }
     #else
-        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx(module_name.c_str(), NULL, load_flag)
+        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx((module_name).c_str(), NULL, load_flag)
     #endif // UNICODE
     #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
     #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
@@ -44,7 +44,7 @@ inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
     #include <dlfcn.h>
     #define MODULE_HANDLE void*
     #define FUNC_HANDLE void*
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name.c_str(), RTLD_LAZY | RTLD_LOCAL)
+    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE((module_name).c_str(), RTLD_LAZY | RTLD_LOCAL)
     #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
     #define RDS_FREE_MODULE(handle) dlclose(handle)
     #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
@@ -59,35 +59,35 @@ struct RdsLibResult {
 class RdsLibLoader {
 public:
     RdsLibLoader() = default;
-    RdsLibLoader(std::string library_path);
+    explicit RdsLibLoader(std::string library_path);
     ~RdsLibLoader();
 
-    template<typename RDS_Func, typename... Args>
+    template<typename RdsFunc, typename... Args>
     RdsLibResult CallFunction(const std::string& func_name, Args... args);
     virtual FUNC_HANDLE GetFunction(const std::string& function_name);
     std::string GetDriverPath();
-    bool IsLoaded() const;
+    [[nodiscard]] bool IsLoaded() const;
     std::string GetLoadError();
 
 protected:
 private:
-    std::string driver_path;
-    std::string load_error;
+    std::string driver_path_;
+    std::string load_error_;
 
-    MODULE_HANDLE driver_handle = nullptr;
+    MODULE_HANDLE driver_handle_ = nullptr;
 
-    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
+    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache_ = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
 };
 
-template <typename RDS_Func, typename... Args>
+template <typename RdsFunc, typename... Args>
 RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... args)
 {
     FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache
     {
-        if (function_cache->Contains(func_name)) {
+        if (function_cache_->Contains(func_name)) {
             try {
-                driver_function = function_cache->Get(func_name);
+                driver_function = function_cache_->Get(func_name);
             } catch (const std::out_of_range&) {
                 // Should not happen but done to satisfy clang-tidy
                 driver_function = nullptr;
@@ -104,14 +104,14 @@ RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... ar
     bool fn_load = false;
     if (driver_function) {
         fn_load = true;
-        RDS_Func rds_func = reinterpret_cast<RDS_Func>(const_cast<FUNC_HANDLE>(driver_function));
+        const RdsFunc rds_func = reinterpret_cast<RdsFunc>(driver_function);
         fn_ret = (*rds_func)(args...);
     }
 
     return {
         .fn_load_success = fn_load,
         .fn_result = fn_ret,
-        .fn_name = func_name
+        .fn_name = func_name,
     };
 }
 

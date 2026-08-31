@@ -62,9 +62,9 @@ Aws::SecretsManager::Model::GetSecretValueOutcome GetMockSecretValueOutcomeMissi
 
 class SecretsManagerPluginTest : public testing::Test {
 protected:
-    std::shared_ptr<MOCK_BASE_PLUGIN> mock_base_plugin;
-    std::shared_ptr<MOCK_SECRETS_MANAGER_CLIENT> mock_sm_client;
-    DBC* dbc;
+    std::shared_ptr<MockBasePlugin> mock_base_plugin_;
+    std::shared_ptr<MockSecretsManagerClient> mock_sm_client_;
+    DBC* dbc_;
 
     static void SetUpTestSuite() {
         AwsSdkHelper::Init();
@@ -75,57 +75,57 @@ protected:
     }
 
     void SetUp() override {
-        mock_sm_client = std::make_shared<MOCK_SECRETS_MANAGER_CLIENT>();
-        mock_base_plugin = std::make_shared<MOCK_BASE_PLUGIN>();
+        mock_sm_client_ = std::make_shared<MockSecretsManagerClient>();
+        mock_base_plugin_ = std::make_shared<MockBasePlugin>();
         EXPECT_CALL(
-            *mock_base_plugin,
+            *mock_base_plugin_,
             Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
             .WillRepeatedly(testing::Return(SQL_SUCCESS));
-        dbc = new DBC();
+        dbc_ = new DBC();
     }
 
     void TearDown() override {
-        if (mock_sm_client) mock_sm_client.reset();
-        if (dbc) delete dbc;
+        if (mock_sm_client_) mock_sm_client_.reset();
+        if (dbc_) delete dbc_;
     }
 };
 
 TEST_F(SecretsManagerPluginTest, MissingSecretId) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
 
-    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(0);
+    EXPECT_CALL(*mock_sm_client_, GetSecretValue(testing::_)).Times(0);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
 
-    EXPECT_TRUE(dbc->err);
-    EXPECT_STREQ("Missing required parameter 'SECRET_ID'.", dbc->err->error_msg);
+    EXPECT_TRUE(dbc_->err);
+    EXPECT_STREQ("Missing required parameter 'SECRET_ID'.", dbc_->err->error_msg);
 
     delete plugin;
 }
 
 TEST_F(SecretsManagerPluginTest, MissingRegion) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
-    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(0);
+    EXPECT_CALL(*mock_sm_client_, GetSecretValue(testing::_)).Times(0);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
 
-    EXPECT_TRUE(dbc->err);
-    EXPECT_STREQ("Could not determine secret region.", dbc->err->error_msg);
+    EXPECT_TRUE(dbc_->err);
+    EXPECT_STREQ("Could not determine secret region.", dbc_->err->error_msg);
 
     delete plugin;
 }
 
 TEST_F(SecretsManagerPluginTest, UseSecretIdAndRegion) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "test-secret");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "us-east-2");
 
-    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeSuccess);
+    EXPECT_CALL(*mock_sm_client_, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
-    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
+    SQLRETURN ret = plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
@@ -135,17 +135,17 @@ TEST_F(SecretsManagerPluginTest, UseSecretIdAndRegion) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseSecretArn) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
     EXPECT_CALL(
-        *mock_sm_client,
+        *mock_sm_client_,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
-    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
+    SQLRETURN ret = plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
@@ -155,18 +155,18 @@ TEST_F(SecretsManagerPluginTest, UseSecretArn) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseCachedSecret) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
 
     EXPECT_CALL(
-        *mock_sm_client,
+        *mock_sm_client_,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
 
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
     plugin->ClearSecretsCache();
@@ -175,21 +175,21 @@ TEST_F(SecretsManagerPluginTest, UseCachedSecret) {
 }
 
 TEST_F(SecretsManagerPluginTest, UseExpiredSecret) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
-        *mock_sm_client,
+        *mock_sm_client_,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(2))
         .WillRepeatedly(GetMockSecretValueOutcomeSuccess);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
 
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     std::this_thread::sleep_for(std::chrono::seconds(2));
-    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_SUCCESS, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
 
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
     plugin->ClearSecretsCache();
@@ -198,75 +198,75 @@ TEST_F(SecretsManagerPluginTest, UseExpiredSecret) {
 }
 
 TEST_F(SecretsManagerPluginTest, SecretIsInvalid) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
-        *mock_sm_client,
+        *mock_sm_client_,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(GetMockSecretValueOutcomeInvalid);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
 
-    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     EXPECT_EQ(0, plugin->GetSecretsCacheSize());
 
     delete plugin;
 }
 
 TEST_F(SecretsManagerPluginTest, SecretMissingCredentials) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
-    dbc->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_REGION, "");
+    dbc_->conn_attr.insert_or_assign(KEY_TOKEN_EXPIRATION, "1");
 
     EXPECT_CALL(
-        *mock_sm_client,
+        *mock_sm_client_,
         GetSecretValue(testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(GetMockSecretValueOutcomeMissingCredentials);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
 
-    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    EXPECT_EQ(SQL_ERROR, plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
     EXPECT_EQ(0, plugin->GetSecretsCacheSize());
 
     delete plugin;
 }
 
 TEST_F(SecretsManagerPluginTest, UseCustomSecretUsernameKey) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_PASSWORD_PROPERTY, "db_pass");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_PASSWORD_PROPERTY, "db_pass");
 
-    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustom);
+    EXPECT_CALL(*mock_sm_client_, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustom);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
-    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
+    SQLRETURN ret = plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
-    EXPECT_EQ("foo", dbc->conn_attr[KEY_DB_USERNAME]);
-    EXPECT_EQ("bar", dbc->conn_attr[KEY_DB_PASSWORD]);
+    EXPECT_EQ("foo", dbc_->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("bar", dbc_->conn_attr[KEY_DB_PASSWORD]);
     plugin->ClearSecretsCache();
 
     delete plugin;
 }
 
 TEST_F(SecretsManagerPluginTest, UseCustomSecretUsernameKeyWithFallback) {
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
-    dbc->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_ID, "arn:aws:secretsmanager:us-east-2:123456789012:secret:my_secret-abcdef");
+    dbc_->conn_attr.insert_or_assign(KEY_SECRET_USERNAME_PROPERTY, "db_user");
 
-    EXPECT_CALL(*mock_sm_client, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustomWithFallback);
+    EXPECT_CALL(*mock_sm_client_, GetSecretValue(testing::_)).Times(testing::Exactly(1)).WillRepeatedly(GetMockSecretValueOutcomeCustomWithFallback);
 
-    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc, mock_base_plugin, mock_sm_client);
-    SQLRETURN ret = plugin->Connect(dbc, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
+    SecretsManagerPlugin* plugin = new SecretsManagerPlugin(dbc_, mock_base_plugin_, mock_sm_client_);
+    SQLRETURN ret = plugin->Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
-    EXPECT_EQ("foo", dbc->conn_attr[KEY_DB_USERNAME]);
-    EXPECT_EQ("bar", dbc->conn_attr[KEY_DB_PASSWORD]);
+    EXPECT_EQ("foo", dbc_->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("bar", dbc_->conn_attr[KEY_DB_PASSWORD]);
     plugin->ClearSecretsCache();
 
     delete plugin;

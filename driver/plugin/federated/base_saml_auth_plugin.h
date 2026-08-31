@@ -15,15 +15,14 @@
 #ifndef BASE_SAML_AUTH_PLUGIN_H_
 #define BASE_SAML_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
-
-#include "saml_util.h"
-#include "../base_token_auth_plugin.h"
-#include "../../driver.h"
-
 #include <memory>
+
+#include "../../dialect/dialect.h"
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/odbc_helper.h"
+#include "../base_token_auth_plugin.h"
+#include "saml_util.h"
 
 class BaseSamlAuthPlugin : public BaseTokenAuthPlugin {
 public:
@@ -38,7 +37,10 @@ protected:
     bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
     bool RefreshCredentials(DBC* dbc, const std::string& region) override;
 
-    std::shared_ptr<SamlUtil> saml_util;
+    // The concrete ADFS/Okta plugins supply and use this util directly.
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+    std::shared_ptr<SamlUtil> saml_util_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 #endif // BASE_SAML_AUTH_PLUGIN_H_

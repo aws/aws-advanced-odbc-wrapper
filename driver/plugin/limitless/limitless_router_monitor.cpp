@@ -20,12 +20,17 @@
 
 #include <chrono>
 #include <regex>
+#include <utility>
 
+#include "../../dialect/dialect.h"
 #include "../../host_info.h"
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/cluster_helper.h"
 #include "../../util/connection_string_helper.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/rds_lib_loader.h"
+#include "../base_plugin.h"
 #include "limitless_query_helper.h"
 
 LimitlessRouterMonitor::LimitlessRouterMonitor(
@@ -33,7 +38,7 @@ LimitlessRouterMonitor::LimitlessRouterMonitor(
     const std::shared_ptr<DialectLimitless>& dialect,
     const std::shared_ptr<OdbcHelper> &odbc_helper_,
     const std::shared_ptr<LimitlessQueryHelper> &limitless_query_helper_) {
-    this->plugin_head_ = plugin_head;
+    this->plugin_head_ = std::move(plugin_head);
     this->dialect_ = dialect;
     this->odbc_helper_ = odbc_helper_;
     this->limitless_query_helper_ = limitless_query_helper_;
@@ -81,7 +86,7 @@ void LimitlessRouterMonitor::Open(
         if (SQL_SUCCEEDED(rc)) {
             const std::vector<HostInfo> new_limitless_routers = this->limitless_query_helper_->QueryForLimitlessRouters(local_hdbc, host_port, dialect_);
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
-            *(this->limitless_routers_) = new_limitless_routers;
+            *this->limitless_routers_ = new_limitless_routers;
             LOG(INFO) << "Queried routers on initial setup: " << new_limitless_routers.size();
         } else {
             // Not successful, ensure limitless routers is empty.
@@ -97,6 +102,22 @@ void LimitlessRouterMonitor::Open(
 
 bool LimitlessRouterMonitor::IsStopped() {
     return this->stopped_;
+}
+
+std::vector<HostInfo> LimitlessRouterMonitor::GetLimitlessRouters() {
+    const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
+    if (!this->limitless_routers_) {
+        return {};
+    }
+    return *this->limitless_routers_;
+}
+
+std::shared_ptr<RdsLibLoader> LimitlessRouterMonitor::GetLibLoader() const {
+    return this->lib_loader_;
+}
+
+std::shared_ptr<BasePlugin> LimitlessRouterMonitor::GetPluginHead() const {
+    return this->plugin_head_;
 }
 
 void LimitlessRouterMonitor::Close() {
@@ -159,7 +180,7 @@ void LimitlessRouterMonitor::Run(SQLHENV henv, SQLHDBC conn, const std::map<std:
             LOG(WARNING) << "Limitless Monitor failed to query any routers";
         } else {
             const std::lock_guard<std::mutex> guard(this->limitless_routers_mutex_);
-            *(this->limitless_routers_) = new_limitless_routers;
+            *this->limitless_routers_ = new_limitless_routers;
         }
     } while (!this->stopped_);
 

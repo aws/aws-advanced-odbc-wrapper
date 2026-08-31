@@ -15,11 +15,11 @@
 #ifndef CUSTOM_ENDPOINT_MONITOR_H_
 #define CUSTOM_ENDPOINT_MONITOR_H_
 
+#include <memory>
+#include <thread>
+
 #include "../../util/plugin_service.h"
 #include "../../util/sliding_cache_map.h"
-
-#include <thread>
-#include <memory>
 
 class CustomEndpointMonitor {
 public:
@@ -44,7 +44,7 @@ private:
     void IncreaseDelay();
     void DecreaseDelay();
 
-    static SlidingCacheMap<std::string, HostFilter> endpoint_cache;
+    static SlidingCacheMap<std::string, HostFilter> endpoint_cache_;
 
     std::shared_ptr<std::thread> monitoring_thread_;
     std::atomic<bool> is_running_;

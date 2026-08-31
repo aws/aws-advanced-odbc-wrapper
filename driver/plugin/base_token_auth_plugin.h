@@ -15,14 +15,13 @@
 #ifndef BASE_TOKEN_AUTH_PLUGIN_H_
 #define BASE_TOKEN_AUTH_PLUGIN_H_
 
-#include "../util/auth_provider.h"
-
-#include "base_plugin.h"
-#include "../driver.h"
-#include "../dialect/dialect.h"
-#include "../util/odbc_helper.h"
-
 #include <memory>
+
+#include "../dialect/dialect.h"
+#include "../driver.h"
+#include "../util/auth_provider.h"
+#include "../util/odbc_helper.h"
+#include "base_plugin.h"
 
 class BaseTokenAuthPlugin : public BasePlugin {
 public:
@@ -45,13 +44,16 @@ protected:
     virtual bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error);
     virtual bool RefreshCredentials(DBC* dbc, const std::string& region);
 
-    std::shared_ptr<AuthProvider> auth_provider;
-    std::shared_ptr<Dialect> dialect_;
-    std::shared_ptr<OdbcHelper> odbc_helper_;
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+    std::shared_ptr<AuthProvider> auth_provider_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
 private:
     bool ValidateRequiredParams(DBC* dbc, const std::string& iam_host, const std::string& region,
                                 const std::string& port, const std::string& username) const;
+
+    std::shared_ptr<Dialect> dialect_;
+    std::shared_ptr<OdbcHelper> odbc_helper_;
 };
 
 #endif // BASE_TOKEN_AUTH_PLUGIN_H_

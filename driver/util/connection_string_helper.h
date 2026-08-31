@@ -16,24 +16,24 @@
 #define CONNECTION_STRING_HELPER_H_
 
 #include <map>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "connection_string_keys.h"
 #include "rds_strings.h"
 
-static std::unordered_set<std::string> const sensitive_key_set = {
+static std::unordered_set<std::string> const SENSITIVE_KEY_SET = {
     KEY_DB_PASSWORD,
-    KEY_IDP_PASSWORD
+    KEY_IDP_PASSWORD,
 };
 
-static std::unordered_set<std::string> const internal_wrapper_key_set = {
+static std::unordered_set<std::string> const INTERNAL_WRAPPER_KEY_SET = {
     KEY_RDS_TEST_CONN,
     KEY_MONITORING_CONN_UUID,
-    KEY_SRW_SKIP
+    KEY_SRW_SKIP,
 };
 
-static std::unordered_set<std::string> const aws_odbc_key_set = {
+static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
     KEY_BASE_DRIVER,
     KEY_BASE_DSN,
     KEY_DSN_ONLY_OUTPUT,
@@ -107,10 +107,10 @@ static std::unordered_set<std::string> const aws_odbc_key_set = {
     KEY_SRW_CONN_TIMEOUT_MS,
     KEY_SRW_CONN_INTERVAL_MS,
     KEY_SRW_VERIFY_INITIAL_CONN_TYPE,
-    KEY_SRW_SKIP
+    KEY_SRW_SKIP,
 };
 
-static std::unordered_map<std::string, std::string> const alias_to_real_map = {
+static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {
     // UID
     {ALIAS_KEY_USERNAME_1, KEY_DB_USERNAME},
     {ALIAS_KEY_USERNAME_2, KEY_DB_USERNAME},
@@ -132,6 +132,6 @@ namespace ConnectionStringHelper {
     bool IsAwsOdbcKey(const std::string &aws_odbc_key);
     bool IsSensitiveData(const std::string &sensitive_key);
     std::string GetRealKeyName(const std::string &alias_key);
-}
+}  // namespace ConnectionStringHelper
 
 #endif // CONNECTION_STRING_HELPER_H_

@@ -15,27 +15,29 @@
 #ifndef FAILOVER_PLUGIN_H_
 #define FAILOVER_PLUGIN_H_
 
-#include "../base_plugin.h"
-#include "../../driver.h"
-#include "../../dialect/dialect.h"
-#include "../../host_selector/host_selector.h"
-#include "../../host_info.h"
-#include "../../util/connection_string_keys.h"
-#include "../../util/sliding_cache_map.h"
-#include "../../util/plugin_service.h"
-#include "../../util/odbc_helper.h"
+#include <cstdint>
 
-typedef enum {
+#include "../../dialect/dialect.h"
+#include "../../driver.h"
+#include "../../host_info.h"
+#include "../../host_selector/host_selector.h"
+#include "../../util/connection_string_keys.h"
+#include "../../util/odbc_helper.h"
+#include "../../util/plugin_service.h"
+#include "../../util/sliding_cache_map.h"
+#include "../base_plugin.h"
+
+enum FailoverMode : std::uint8_t {
     STRICT_READER,
     STRICT_WRITER,
     READER_OR_WRITER,
-    UNKNOWN_FAILOVER_MODE
-} FailoverMode;
+    UNKNOWN_FAILOVER_MODE,
+};
 
-static std::map<std::string, FailoverMode> const failover_mode_table = {
+static std::map<std::string, FailoverMode> const FAILOVER_MODE_TABLE = {
     {VALUE_FAILOVER_MODE_STRICT_READER,     FailoverMode::STRICT_READER},
     {VALUE_FAILOVER_MODE_STRICT_WRITER,     FailoverMode::STRICT_WRITER},
-    {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER}
+    {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER},
 };
 
 class FailoverPlugin : public BasePlugin {

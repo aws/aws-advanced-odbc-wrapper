@@ -24,13 +24,13 @@
 
 
 namespace {
-    std::map<std::string, std::string> stringStringMap = {
+    std::map<std::string, std::string> string_string_map = {
         {"someKey0", "someValue0"}, {"someKey1", "someValue1"}, {"someKey2", "someValue2"}
     };
-    std::map<std::string, std::string> stringMillisecondsMap = {
+    std::map<std::string, std::string> string_milliseconds_map = {
         {"someKey0", "1"}, {"someKey1", "22"}, {"someKey2", "333"}
     };
-    std::map<std::string, std::string> stringBooleanMap = {
+    std::map<std::string, std::string> string_boolean_map = {
         {"someKey0", "0"}, {"someKey1", "1"}, {"someKey2", "0"}
     };
 }
@@ -48,53 +48,53 @@ protected:
 
 TEST_F(MapUtilsTests, GivenKeyExistsWhenGetStringValueThenReturnsValue) {
     const std::string key = "someKey1";
-    const std::string defaultValueString = "someDefaultValue";
-    const std::string expectedStringValue = "someValue1";
-    EXPECT_STREQ(expectedStringValue.c_str(), (MapUtils::GetStringValue(stringStringMap, key, defaultValueString)).c_str());
+    const std::string default_value_string = "someDefaultValue";
+    const std::string expected_string_value = "someValue1";
+    EXPECT_STREQ(expected_string_value.c_str(), (MapUtils::GetStringValue(string_string_map, key, default_value_string)).c_str());
 }
 
 TEST_F(MapUtilsTests, GivenKeyDoesNotExistWhenGetStringValueThenReturnsDefault) {
     const std::string key = "wrongKey";
-    const std::string expectedStringValue = "someDefaultValue";
-    EXPECT_STREQ(expectedStringValue.c_str(), (MapUtils::GetStringValue(stringStringMap, key, expectedStringValue)).c_str());
+    const std::string expected_string_value = "someDefaultValue";
+    EXPECT_STREQ(expected_string_value.c_str(), (MapUtils::GetStringValue(string_string_map, key, expected_string_value)).c_str());
 }
 
 TEST_F(MapUtilsTests, GivenKeyExistsWhenGetMillisecondsValueThenReturnsValue) {
     const std::string key = "someKey2";
-    const std::chrono::milliseconds defaultValue = std::chrono::milliseconds(4444);
-    const std::chrono::milliseconds expectedValue = std::chrono::milliseconds(333);
-    EXPECT_EQ(expectedValue, MapUtils::GetMillisecondsValue(stringMillisecondsMap, key, defaultValue));
+    const std::chrono::milliseconds default_value = std::chrono::milliseconds(4444);
+    const std::chrono::milliseconds expected_value = std::chrono::milliseconds(333);
+    EXPECT_EQ(expected_value, MapUtils::GetMillisecondsValue(string_milliseconds_map, key, default_value));
 }
 
 TEST_F(MapUtilsTests, GivenKeyDoesNotExistsWhenGetMillisecondsValueThenReturnsValue) {
     const std::string key = "wrongKey";
-    const std::chrono::milliseconds defaultValue = std::chrono::milliseconds(4444);
-    const std::chrono::milliseconds expectedValue = std::chrono::milliseconds(4444);
-    EXPECT_EQ(expectedValue, MapUtils::GetMillisecondsValue(stringMillisecondsMap, key, defaultValue));
+    const std::chrono::milliseconds default_value = std::chrono::milliseconds(4444);
+    const std::chrono::milliseconds expected_value = std::chrono::milliseconds(4444);
+    EXPECT_EQ(expected_value, MapUtils::GetMillisecondsValue(string_milliseconds_map, key, default_value));
 }
 
 TEST_F(MapUtilsTests, GivenInvalidValueWhenGetMillisecondsValueThenReturnsDefault) {
     const std::map<std::string, std::string> invalid_map = {
         {"notANumber", "abc"}, {"trailingJunk", "123abc"}, {"empty", ""}, {"decimal", "1.5"}
     };
-    const std::chrono::milliseconds defaultValue = std::chrono::milliseconds(4444);
-    EXPECT_EQ(defaultValue, MapUtils::GetMillisecondsValue(invalid_map, "notANumber", defaultValue));
-    EXPECT_EQ(defaultValue, MapUtils::GetMillisecondsValue(invalid_map, "trailingJunk", defaultValue));
-    EXPECT_EQ(defaultValue, MapUtils::GetMillisecondsValue(invalid_map, "empty", defaultValue));
-    EXPECT_EQ(defaultValue, MapUtils::GetMillisecondsValue(invalid_map, "decimal", defaultValue));
+    const std::chrono::milliseconds default_value = std::chrono::milliseconds(4444);
+    EXPECT_EQ(default_value, MapUtils::GetMillisecondsValue(invalid_map, "notANumber", default_value));
+    EXPECT_EQ(default_value, MapUtils::GetMillisecondsValue(invalid_map, "trailingJunk", default_value));
+    EXPECT_EQ(default_value, MapUtils::GetMillisecondsValue(invalid_map, "empty", default_value));
+    EXPECT_EQ(default_value, MapUtils::GetMillisecondsValue(invalid_map, "decimal", default_value));
 }
 
 TEST_F(MapUtilsTests, GivenKeyExistsWhenGetSecondsValueThenReturnsValue) {
     const std::map<std::string, std::string> seconds_map = {{"someKey0", "900"}};
-    const std::chrono::seconds defaultValue = std::chrono::seconds(10);
-    EXPECT_EQ(std::chrono::seconds(900), MapUtils::GetSecondsValue(seconds_map, "someKey0", defaultValue));
-    EXPECT_EQ(defaultValue, MapUtils::GetSecondsValue(seconds_map, "wrongKey", defaultValue));
+    const std::chrono::seconds default_value = std::chrono::seconds(10);
+    EXPECT_EQ(std::chrono::seconds(900), MapUtils::GetSecondsValue(seconds_map, "someKey0", default_value));
+    EXPECT_EQ(default_value, MapUtils::GetSecondsValue(seconds_map, "wrongKey", default_value));
 }
 
 TEST_F(MapUtilsTests, GivenInvalidValueWhenGetSecondsValueThenReturnsDefault) {
     const std::map<std::string, std::string> invalid_map = {{"someKey0", "15min"}};
-    const std::chrono::seconds defaultValue = std::chrono::seconds(900);
-    EXPECT_EQ(defaultValue, MapUtils::GetSecondsValue(invalid_map, "someKey0", defaultValue));
+    const std::chrono::seconds default_value = std::chrono::seconds(900);
+    EXPECT_EQ(default_value, MapUtils::GetSecondsValue(invalid_map, "someKey0", default_value));
 }
 
 TEST_F(MapUtilsTests, GivenKeyExistsWhenGetIntValueThenReturnsValue) {
@@ -115,14 +115,14 @@ TEST_F(MapUtilsTests, GivenInvalidValueWhenGetIntValueThenReturnsDefault) {
 
 TEST_F(MapUtilsTests, GivenKeyExistsWhenGetBooleanValueThenReturnsValue) {
     const std::string key = "someKey1";
-    const bool defaultValue = false;
-    const bool expectedValue = true;
-    EXPECT_EQ(expectedValue, MapUtils::GetBooleanValue(stringBooleanMap, key, defaultValue));
+    const bool default_value = false;
+    const bool expected_value = true;
+    EXPECT_EQ(expected_value, MapUtils::GetBooleanValue(string_boolean_map, key, default_value));
 }
 
 TEST_F(MapUtilsTests, GivenKeyDoesNotExistsWhenGetBooleanValueThenReturnsValue) {
     const std::string key = "wrongKey";
-    const bool defaultValue = false;
-    const bool expectedValue = false;
-    EXPECT_EQ(expectedValue, MapUtils::GetBooleanValue(stringBooleanMap, key, defaultValue));
+    const bool default_value = false;
+    const bool expected_value = false;
+    EXPECT_EQ(expected_value, MapUtils::GetBooleanValue(string_boolean_map, key, default_value));
 }

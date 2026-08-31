@@ -14,19 +14,17 @@
 
 #include "limitless_router_service.h"
 
-#include "../../util/auth_provider.h"
-
 #include <chrono>
 #include <memory>
 
-#include "../../util/logger_wrapper.h"
-#include "../../util/plugin_chain_builder.h"
 #include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/logger_wrapper.h"
+#include "../../util/map_utils.h"
+#include "../../util/plugin_chain_builder.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
-
-#include "../../util/map_utils.h"
 #include "limitless_query_helper.h"
 #include "limitless_router_monitor.h"
 
@@ -50,7 +48,7 @@ LimitlessRouterService::LimitlessRouterService(
 
 LimitlessRouterService::~LimitlessRouterService() {
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+    if (const auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
         if (pair.first == 1) {
             limitless_router_monitors_.erase(router_monitor_key_);
@@ -114,7 +112,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         LOG(ERROR) << "Null next plugin passed to EstablishConnection";
         const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin has no next plugin to delegate Connect to.", ERR_GENERAL_ERROR);
+        dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin has no next plugin to delegate Connect to.", ERR_GENERAL_ERROR);
         return SQL_ERROR;
     }
 
@@ -127,15 +125,12 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         if (itr == limitless_router_monitors_.end() || !itr->second.second) {
             LOG(ERROR) << "No limitless router monitor registered for: " << router_monitor_key_;
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("No limitless router monitor registered.", ERR_GENERAL_ERROR);
+            dbc->err = std::make_unique<ErrInfo>("No limitless router monitor registered.", ERR_GENERAL_ERROR);
             return SQL_ERROR;
         }
         monitor = itr->second.second;
     }
-    {
-        const std::lock_guard<std::mutex> limitless_routers_guard(monitor->limitless_routers_mutex_);
-        limitless_routers = *monitor->limitless_routers_;
-    }
+    limitless_routers = monitor->GetLimitlessRouters();
 
     if (limitless_routers.empty()) {
         int retry_count = -1; // Start at -1 since the first try is not a retry.
@@ -147,11 +142,11 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
         if (!SQL_SUCCEEDED(res.fn_result)) {
             LOG(ERROR) << "Limitless Router failed to allocate ENV Handle";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
+            dbc->err = std::make_unique<ErrInfo>("Limitless Router failed to allocate ENV Handle.", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
             return SQL_ERROR;
         }
         odbc_helper_->SetEnvAttr(env, SQL_ATTR_ODBC_VERSION, reinterpret_cast<SQLPOINTER>(SQL_OV_ODBC3), 0);
-        env->driver_lib_loader = monitor->lib_loader_;
+        env->driver_lib_loader = monitor->GetLibLoader();
 
         do {
             // Query for routers directly
@@ -163,7 +158,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
             local_dbc->conn_attr = dbc->conn_attr;
             local_dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
 
-            const SQLRETURN res = monitor->plugin_head_->Connect(
+            const SQLRETURN res = monitor->GetPluginHead()->Connect(
                 local_hdbc,
                 nullptr,
                 nullptr,
@@ -190,7 +185,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
     if (limitless_routers.empty()) {
         LOG(ERROR) << "The limitless connection plugin was unable to find any limitless routers";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin was unable to find any limitless routers.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -239,14 +234,14 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 
     LOG(ERROR) << "The limitless connection plugin was unable to establish a connection";
     ClearError(dbc);
-    dbc->err = std::make_unique<ERR_INFO>("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    dbc->err = std::make_unique<ErrInfo>("The limitless connection plugin was unable to establish a connection.", ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
-    const std::string host = conn_attr.at(KEY_SERVER);
+    const std::string& host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
@@ -254,7 +249,7 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
     LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+    if (const auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
         // If the monitor exists, increment the reference count.
         pair.first++;

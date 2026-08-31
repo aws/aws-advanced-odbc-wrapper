@@ -37,7 +37,7 @@ static constexpr int TIMESTAMP_FIELD_WIDTH = 28;
 static constexpr int OFFSET_FIELD_WIDTH = 18;
 static constexpr int DIVIDER_BASE_WIDTH = 52;
 
-std::hash<std::string> BlueGreenStatusProvider::hasher;
+std::hash<std::string> BlueGreenStatusProvider::hasher_;
 
 BlueGreenStatusProvider::BlueGreenStatusProvider(
     std::shared_ptr<PluginService> plugin_service,
@@ -123,7 +123,7 @@ std::map<std::string, std::string> BlueGreenStatusProvider::GetMonitoringPropert
 }
 
 void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterimStatus interim_status) {
-    const std::lock_guard<std::mutex> lock_guard(this->process_lock_guard);
+    const std::lock_guard<std::mutex> lock_guard(this->process_lock_guard_);
 
     // Detect changes
     const int32_t status_hash = interim_status.GetHashCode();
@@ -260,7 +260,7 @@ void BlueGreenStatusProvider::UpdateCorrespondingNodes() {
         for (const std::string& host : blue_hosts) {
             const std::string custom_cluster_name = RdsUtils::GetRdsClusterId(host);
             if (!custom_cluster_name.empty()) {
-                auto itr = std::find_if(green_hosts.begin(), green_hosts.end(), [this, &custom_cluster_name](const std::string& green_host_name)
+                const auto itr = std::find_if(green_hosts.begin(), green_hosts.end(), [this, &custom_cluster_name](const std::string& green_host_name)
                 {
                     return RdsUtils::IsRdsCustomClusterDns(green_host_name) &&
                            custom_cluster_name == RdsUtils::RemoveGreenInstancePrefix(green_host_name);
@@ -596,9 +596,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
             const std::string blue_host = host;
             const bool is_blue_host_instance = RdsUtils::IsRdsInstance(blue_host);
 
-            const std::pair<HostInfo, HostInfo> node_pair = this->corresponding_nodes_->Get(blue_host);
-            const HostInfo blue_host_info = node_pair.first;
-            const HostInfo green_host_info = node_pair.second;
+            const auto [blue_host_info, green_host_info] = this->corresponding_nodes_->Get(blue_host);
 
             if (green_host_info.GetHost().empty()) {
                 connect_routing.push_back(std::make_shared<SuspendUntilNodeFoundConnectRouting>(blue_host, role, this->blue_green_id_));
@@ -711,11 +709,9 @@ void BlueGreenStatusProvider::RegisterIamHost(const std::string& connect_host, c
         return;
     }
     const bool different_node_name = !connect_host.empty() && connect_host != iam_host;
-    if (different_node_name) {
-        if (!this->IsAlreadySuccessfullyConnected(connect_host, iam_host)) {
-            this->green_node_change_name_times_map_->TryEmplace(connect_host, std::chrono::steady_clock::now());
-            LOG(INFO) << "BG Green node name changed";
-        }
+    if (different_node_name && !this->IsAlreadySuccessfullyConnected(connect_host, iam_host)) {
+        this->green_node_change_name_times_map_->TryEmplace(connect_host, std::chrono::steady_clock::now());
+        LOG(INFO) << "BG Green node name changed";
     }
     {
         const std::lock_guard<std::mutex> lock_guard(this->iam_mutex_);

@@ -15,17 +15,17 @@
 #ifndef SSO_BROWSER_LOGIN_UTIL_H_
 #define SSO_BROWSER_LOGIN_UTIL_H_
 
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentials.h>
-#include <aws/sso/SSOClient.h>
-#include <aws/sso-oidc/SSOOIDCClient.h>
-
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
+
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentials.h>
+#include <aws/sso-oidc/SSOOIDCClient.h>
+#include <aws/sso/SSOClient.h>
 
 #include "browser_auth_flow.h"
 
@@ -36,7 +36,7 @@ public:
     SsoBrowserLoginUtil(std::map<std::string, std::string> connection_attributes,
                         const std::shared_ptr<Aws::SSOOIDC::SSOOIDCClient>& oidc_client,
                         const std::shared_ptr<Aws::SSO::SSOClient>& sso_client);
-    virtual ~SsoBrowserLoginUtil();
+    ~SsoBrowserLoginUtil() override;
 
     // Cached token -> refresh-token -> (if allow_interactive) browser login.
     // Returns empty credentials on failure, with the reason in out_error.
@@ -75,7 +75,7 @@ private:
     static bool IsRegistrationValid(const ClientRegistration& registration);
 
     // ~/.aws/sso/cache file, keyed by SHA1(session name, else start URL)
-    std::string CacheFilePath() const;
+    [[nodiscard]] std::string CacheFilePath() const;
     bool ReadCache(SsoToken& out_token, ClientRegistration& out_registration);
     void WriteCache(const SsoToken& token, const ClientRegistration& registration);
     void DeleteCache();

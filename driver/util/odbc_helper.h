@@ -57,8 +57,8 @@ public:
 
     virtual std::shared_ptr<RdsLibLoader> GetLibLoader();
 
-    bool GetUse4BytesBaseDriver() const;
-    bool GetUse4BytesUserApp() const;
+    [[nodiscard]] bool GetUse4BytesBaseDriver() const;
+    [[nodiscard]] bool GetUse4BytesUserApp() const;
     void SetUse4BytesBaseDriver(bool use_4_bytes);
 
     // Converts a user-app SQLTCHAR* input to the encoding expected by the base
@@ -71,21 +71,21 @@ public:
     virtual std::string GetSqlStateAndLogMessage(DBC *dbc, std::string& out_message);
     virtual std::string GetStmtErrorMessage(SQLHSTMT stmt);
 
-    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_byte_count, size_t dst_byte_count) const;
-    void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, const size_t src_byte_count, size_t dst_byte_count) const;
+    void ConvertDriverOutputToTarget(const SQLTCHAR* src, SQLTCHAR* dst, size_t src_byte_count, size_t dst_byte_count) const;
+    void ConvertDriverOutputToTarget(bool wrapper_call, const SQLTCHAR* src, SQLTCHAR* dst, size_t src_byte_count, size_t dst_byte_count) const;
 
     void ConvertWrapperOutputToTarget(SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
     void ConvertWrapperOutputToTarget(bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count) const;
     static void ConvertWrapperOutputToTarget(bool user_4_byte, bool wrapper_call, SQLTCHAR* buf, size_t char_count, size_t buf_byte_count);
 
     // Returns true if driver and user app character widths differ and conversion is needed.
-    bool NeedsConversion() const;
+    [[nodiscard]] bool NeedsConversion() const;
 
-    size_t GetTargetByteCount(const bool wrapper_call, const size_t char_count) const;
+    [[nodiscard]] size_t GetTargetByteCount(bool wrapper_call, size_t char_count) const;
 
     // Returns an appropriately sized intermediate buffer for driver output conversion.
     // Caller should check NeedsConversion() first.
-    std::vector<SQLTCHAR> AllocateConversionBuffer(size_t byte_count) const;
+    [[nodiscard]] std::vector<SQLTCHAR> AllocateConversionBuffer(size_t byte_count) const;
 
     static bool IsStringConnectAttr(SQLINTEGER attribute);
     static bool IsStringDescField(SQLSMALLINT field_identifier);

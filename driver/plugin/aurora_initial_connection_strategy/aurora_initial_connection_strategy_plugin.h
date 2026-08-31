@@ -15,15 +15,15 @@
 #ifndef AURORA_INITIAL_CONNECTION_STRATEGY_PLUGIN_H
 #define AURORA_INITIAL_CONNECTION_STRATEGY_PLUGIN_H
 
-#include "../base_plugin.h"
-#include "../../host_info.h"
 #include "../../driver.h"
+#include "../../host_info.h"
 #include "../../host_selector/host_selector.h"
 #include "../../util/plugin_service.h"
+#include "../base_plugin.h"
 
 class AuroraInitialConnectionStrategyPlugin : public BasePlugin {
 public:
-    AuroraInitialConnectionStrategyPlugin(DBC* dbc);
+    explicit AuroraInitialConnectionStrategyPlugin(DBC* dbc);
     AuroraInitialConnectionStrategyPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     AuroraInitialConnectionStrategyPlugin(
         DBC* dbc,
@@ -42,6 +42,8 @@ public:
         SQLUSMALLINT   DriverCompletion) override;
 
 protected:
+    // Strategy state the reader/writer verification subclasses read while retrying
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::weak_ptr<PluginService> plugin_service_;
     std::shared_ptr<HostSelector> host_selector_;
     std::shared_ptr<Dialect> dialect_;
@@ -50,6 +52,7 @@ protected:
     std::chrono::milliseconds retry_delay_ms_;
     std::chrono::milliseconds retry_timeout_ms_;
     std::string verify_initial_connection_type_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     SQLRETURN GetVerifiedWriter(
         SQLHDBC        ConnectionHandle,
@@ -65,7 +68,7 @@ protected:
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
         SQLUSMALLINT   DriverCompletion);
-    HostInfo GetReader(const std::string region);
+    HostInfo GetReader(const std::string& region);
     bool HasNoReadersAndTopologyIsHealthy();
 
     static inline const std::chrono::milliseconds DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS = std::chrono::milliseconds(1000);

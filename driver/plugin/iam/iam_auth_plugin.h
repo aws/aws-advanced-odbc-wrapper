@@ -15,18 +15,17 @@
 #ifndef IAM_AUTH_PLUGIN_H_
 #define IAM_AUTH_PLUGIN_H_
 
-#include "../../util/auth_provider.h"
-
-#include "../base_token_auth_plugin.h"
-#include "../../driver.h"
-#include "../../dialect/dialect.h"
-#include "../../util/odbc_helper.h"
-
 #include <memory>
+
+#include "../../dialect/dialect.h"
+#include "../../driver.h"
+#include "../../util/auth_provider.h"
+#include "../../util/odbc_helper.h"
+#include "../base_token_auth_plugin.h"
 
 class IamAuthPlugin : public BaseTokenAuthPlugin {
 public:
-    IamAuthPlugin(DBC* dbc);
+    explicit IamAuthPlugin(DBC* dbc);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<AuthProvider>& auth_provider);
     IamAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin,

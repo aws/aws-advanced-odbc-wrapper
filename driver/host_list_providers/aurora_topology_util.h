@@ -15,20 +15,18 @@
 #ifndef AURORA_TOPOLOGY_UTILS_H_
 #define AURORA_TOPOLOGY_UTILS_H_
 
-#include "topology_util.h"
-
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "../dialect/dialect.h"
-
 #include "../host_info.h"
 #include "../util/odbc_helper.h"
+#include "topology_util.h"
 
 class AuroraTopologyUtil : public TopologyUtil {
 public:
     AuroraTopologyUtil(const std::shared_ptr<OdbcHelper> &odbc_helper, const std::shared_ptr<Dialect> &dialect);
-    virtual std::vector<HostInfo> GetHosts(SQLHDBC hdbc, const HostInfo &initial_host, const HostInfo &host_template) override;
+    std::vector<HostInfo> GetHosts(SQLHDBC hdbc, const HostInfo &initial_host, const HostInfo &host_template) override;
     virtual HostInfo CreateHost(SQLTCHAR* node_id, bool is_writer, SQLREAL cpu_usage, SQLINTEGER replica_lag_ms, const HostInfo& initial_host, const HostInfo& host_template);
 
 private:

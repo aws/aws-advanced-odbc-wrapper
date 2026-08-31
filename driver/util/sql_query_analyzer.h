@@ -17,9 +17,9 @@
 
 #include <vector>
 
-#include "rds_strings.h"
 #include "../dialect/dialect.h"
 #include "../driver.h"
+#include "rds_strings.h"
 
 class SqlQueryAnalyzer {
 public:

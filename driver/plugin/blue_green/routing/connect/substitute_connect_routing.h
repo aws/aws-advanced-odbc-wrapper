@@ -15,18 +15,16 @@
 #ifndef SUBSTITUTE_CONNECT_ROUTING_H_
 #define SUBSTITUTE_CONNECT_ROUTING_H_
 
-#include "base_connect_routing.h"
-
-#include "../../blue_green_role.h"
-#include "../../blue_green_status.h"
-
-#include "../../../../driver.h"
-#include "../../../../util/odbc_helper.h"
-#include "../../../../util/concurrent_map.h"
-
 #include <functional>
 #include <memory>
 #include <string>
+
+#include "../../../../driver.h"
+#include "../../../../util/concurrent_map.h"
+#include "../../../../util/odbc_helper.h"
+#include "../../blue_green_role.h"
+#include "../../blue_green_status.h"
+#include "base_connect_routing.h"
 
 class SubstituteConnectRouting : public BaseConnectRouting {
 public:
@@ -45,12 +43,15 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 
 protected:
+    // Substitution targets read directly by the IAM-aware connect subclasses
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     HostInfo substitute_info_;
     std::vector<HostInfo> iam_hosts_;
     std::function<void(const std::string&)> iam_connect_notify_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 #endif // SUBSTITUTE_CONNECT_ROUTING_H_

@@ -42,7 +42,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     const std::shared_ptr<PluginService>& plugin_service,
     const std::shared_ptr<CustomEndpointMonitor>& endpoint_monitor) : BasePlugin(dbc, next_plugin)
 {
-    this->plugin_name = "CUSTOM_ENDPOINT";
+    this->plugin_name_ = "CUSTOM_ENDPOINT";
     this->plugin_service_ = plugin_service ? plugin_service : dbc->plugin_service;
 
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
@@ -77,7 +77,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(
 CustomEndpointPlugin::~CustomEndpointPlugin()
 {
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         if (pair.first == 1) {
             endpoint_monitors_.erase(this->cluster_id_);
@@ -145,7 +145,7 @@ SQLRETURN CustomEndpointPlugin::Execute(
 std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor() {
     std::shared_ptr<CustomEndpointMonitor> monitor;
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         pair.first++;
         monitor = pair.second;

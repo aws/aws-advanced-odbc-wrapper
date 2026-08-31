@@ -15,8 +15,8 @@
 #ifndef ATTRIBUTE_VALIDATOR_H_
 #define ATTRIBUTE_VALIDATOR_H_
 
-#include <unordered_set>
 #include <map>
+#include <unordered_set>
 
 #include "rds_strings.h"
 

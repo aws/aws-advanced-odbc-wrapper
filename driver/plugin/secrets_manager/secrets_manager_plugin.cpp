@@ -32,24 +32,24 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
 
 SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin, const std::shared_ptr<Aws::SecretsManager::SecretsManagerClient>& client) : BasePlugin(dbc, next_plugin)
 {
-    this->plugin_name = "SECRETS_MANAGER";
+    this->plugin_name_ = "SECRETS_MANAGER";
 
     const std::string secret_id = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ID, "");
     std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_REGION, "");
     const std::string endpoint = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_ENDPOINT, "");
     const std::string profile = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
 
-    expiration_ms = MapUtils::GetSecondsValue(
+    expiration_ms_ = MapUtils::GetSecondsValue(
         dbc->conn_attr, KEY_TOKEN_EXPIRATION,
         std::chrono::duration_cast<std::chrono::seconds>(DEFAULT_EXPIRATION_MS));
 
-    username_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_USERNAME_PROPERTY, DEFAULT_SECRET_USERNAME_KEY);
-    password_key = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);
+    username_key_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_USERNAME_PROPERTY, DEFAULT_SECRET_USERNAME_KEY);
+    password_key_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SECRET_PASSWORD_PROPERTY, DEFAULT_SECRET_PASSWORD_KEY);
 
-    if (username_key.empty() || password_key.empty()) {
+    if (username_key_.empty() || password_key_.empty()) {
         LOG(ERROR) << "SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>("SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY cannot be empty strings. Please review the values set and ensure they match the values in the Secret value.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
@@ -64,22 +64,22 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
     if (region.empty()) {
         LOG(ERROR) << "Could not determine secret region";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>("Could not determine secret region.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
     if (secret_id.empty()) {
         LOG(ERROR) << "Missing required parameter 'SECRET_ID'";
         ClearError(dbc);
-        dbc->err = std::make_unique<ERR_INFO>("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        dbc->err = std::make_unique<ErrInfo>("Missing required parameter 'SECRET_ID'.", WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
         return;
     }
 
-    secret_key = secret_id + "-" + region;
+    secret_key_ = secret_id + "-" + region;
 
     AwsSdkHelper::Init();
     if (client) {
-        secrets_manager_client = client;
+        secrets_manager_client_ = client;
     } else {
         Aws::Client::ClientConfiguration client_config;
         if (!endpoint.empty()) {
@@ -87,24 +87,24 @@ SecretsManagerPlugin::SecretsManagerPlugin(DBC *dbc, std::shared_ptr<BasePlugin>
         }
         client_config.region = region;
         if (profile.empty()) {
-            secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(client_config);
+            secrets_manager_client_ = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(client_config);
         } else {
             Aws::Client::ClientConfiguration::CredentialProviderConfiguration credential_config;
             credential_config.profile = profile;
             const Aws::Auth::AWSCredentials credentials =
                 Aws::Auth::DefaultAWSCredentialsProviderChain(credential_config).GetAWSCredentials();
-            secrets_manager_client = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(credentials, client_config);
+            secrets_manager_client_ = std::make_shared<Aws::SecretsManager::SecretsManagerClient>(credentials, client_config);
         }
     }
 
-    secret_request = Aws::SecretsManager::Model::GetSecretValueRequest{};
-    secret_request.SetSecretId(secret_id);
+    secret_request_ = Aws::SecretsManager::Model::GetSecretValueRequest{};
+    secret_request_.SetSecretId(secret_id);
 }
 
 SecretsManagerPlugin::~SecretsManagerPlugin()
 {
-    if (secrets_manager_client) {
-        secrets_manager_client.reset();
+    if (secrets_manager_client_) {
+        secrets_manager_client_.reset();
         AwsSdkHelper::Shutdown();
     }
 }
@@ -121,24 +121,24 @@ SQLRETURN SecretsManagerPlugin::Connect(
     SQLRETURN ret = SQL_ERROR;
     DBC* dbc = static_cast<DBC*>(ConnectionHandle);
 
-    if (!secrets_manager_client) {
+    if (!secrets_manager_client_) {
         LOG(ERROR) << "Secrets Manager plugin was not properly initialized";
         return SQL_ERROR;
     }
 
     {
-        const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
-        if (secrets_cache.contains(secret_key)) {
+        const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex_);
+        if (secrets_cache_.contains(secret_key_)) {
             LOG(INFO) << "Found secrets in cache";
             const std::chrono::time_point<std::chrono::steady_clock> curr_time = std::chrono::steady_clock::now();
-            const Secret cached_secret = secrets_cache.at(secret_key);
+            const Secret cached_secret = secrets_cache_.at(secret_key_);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
                 dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, cached_secret.password);
                 ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 LOG(INFO) << "Existing secrets are expired";
-                secrets_cache.erase(secret_key);
+                secrets_cache_.erase(secret_key_);
             }
         }
     }
@@ -147,20 +147,20 @@ SQLRETURN SecretsManagerPlugin::Connect(
         return ret;
     }
 
-    Aws::SecretsManager::Model::GetSecretValueOutcome request_outcome = secrets_manager_client->GetSecretValue(secret_request);
+    Aws::SecretsManager::Model::GetSecretValueOutcome request_outcome = secrets_manager_client_->GetSecretValue(secret_request_);
 
     if (request_outcome.IsSuccess()) {
-        const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), username_key, password_key, expiration_ms);
+        const Secret secret = ParseSecret(request_outcome.GetResult().GetSecretString(), username_key_, password_key_, expiration_ms_);
         if (secret.username.empty() || secret.password.empty()) {
             const std::string fail_msg = "Secrets Manager did not return any database credentials, please verify the values set via SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY and ensure they match the values in the Secret value.";
             LOG(ERROR) << fail_msg;
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+            dbc->err = std::make_unique<ErrInfo>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
         {
-            const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex);
-            secrets_cache.insert_or_assign(secret_key, secret);
+            const std::lock_guard<std::recursive_mutex> lock_guard(secrets_cache_mutex_);
+            secrets_cache_.insert_or_assign(secret_key_, secret);
         }
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
@@ -170,7 +170,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
     ClearError(dbc);
     const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
-    dbc->err = std::make_unique<ERR_INFO>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    dbc->err = std::make_unique<ErrInfo>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 
@@ -184,20 +184,20 @@ Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const
         return Secret{
             .username = view.GetString(username_key),
             .password = view.GetString(password_key),
-            .expiration_point = curr_time + expiration
+            .expiration_point = curr_time + expiration,
         };
     }
     return Secret{
         .username = "",
         .password = "",
-        .expiration_point = curr_time + expiration
+        .expiration_point = curr_time + expiration,
     };
 }
 
 size_t SecretsManagerPlugin::GetSecretsCacheSize() {
-    return secrets_cache.size();
+    return secrets_cache_.size();
 }
 
 void SecretsManagerPlugin::ClearSecretsCache() {
-    secrets_cache.clear();
+    secrets_cache_.clear();
 }

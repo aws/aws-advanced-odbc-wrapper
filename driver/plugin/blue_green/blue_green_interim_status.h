@@ -59,7 +59,7 @@ public:
 
 protected:
     static int32_t GetValueHash(int current_hash, std::string value);
-    static std::hash<std::string> hasher;
+    static std::hash<std::string> hasher_;
 };
 
 #endif // BLUE_GREEN_INTERIM_STATUS_H_

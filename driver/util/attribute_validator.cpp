@@ -56,7 +56,7 @@ bool AttributeValidator::ShouldKeyBeUnsignedInt(const std::string& key) {
         KEY_BG_BASELINE_REFRESH_MS,
         KEY_BG_INCREASED_REFRESH_MS,
         KEY_BG_HIGH_REFRESH_MS,
-        KEY_BG_SWITCH_TIMEOUT_MS
+        KEY_BG_SWITCH_TIMEOUT_MS,
     };
     return INTEGER_KEYS.contains(key);
 }

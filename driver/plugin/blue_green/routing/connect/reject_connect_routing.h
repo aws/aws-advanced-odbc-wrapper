@@ -15,17 +15,15 @@
 #ifndef REJECT_CONNECT_ROUTING_H_
 #define REJECT_CONNECT_ROUTING_H_
 
-#include "base_connect_routing.h"
-
-#include "../../blue_green_role.h"
-#include "../../blue_green_status.h"
-
-#include "../../../../driver.h"
-#include "../../../../util/odbc_helper.h"
-#include "../../../../util/concurrent_map.h"
-
 #include <memory>
 #include <string>
+
+#include "../../../../driver.h"
+#include "../../../../util/concurrent_map.h"
+#include "../../../../util/odbc_helper.h"
+#include "../../blue_green_role.h"
+#include "../../blue_green_status.h"
+#include "base_connect_routing.h"
 
 class RejectConnectRouting : public BaseConnectRouting {
 public:
@@ -35,7 +33,7 @@ public:
         DBC* dbc,
         HostInfo info,
         std::shared_ptr<OdbcHelper> odbc_helper,
-        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache);
+        std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache) override;
 };
 
 #endif // REJECT_CONNECT_ROUTING_H_

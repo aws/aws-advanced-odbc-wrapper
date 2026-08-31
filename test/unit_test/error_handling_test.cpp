@@ -21,26 +21,26 @@
 
 class ErrorHandlingTest : public testing::Test {
 protected:
-    ENV* env = nullptr;
-    DBC* dbc = nullptr;
-    STMT* stmt = nullptr;
-    DESC* desc = nullptr;
+    ENV* env_ = nullptr;
+    DBC* dbc_ = nullptr;
+    STMT* stmt_ = nullptr;
+    DESC* desc_ = nullptr;
 
     void SetUp() override {
-        env = new ENV();
-        dbc = new DBC();
-        dbc->env = env;
-        stmt = new STMT();
-        stmt->dbc = dbc;
-        desc = new DESC();
-        desc->dbc = dbc;
+        env_ = new ENV();
+        dbc_ = new DBC();
+        dbc_->env = env_;
+        stmt_ = new STMT();
+        stmt_->dbc = dbc_;
+        desc_ = new DESC();
+        desc_->dbc = dbc_;
     }
 
     void TearDown() override {
-        delete desc;
-        delete stmt;
-        delete dbc;
-        delete env;
+        delete desc_;
+        delete stmt_;
+        delete dbc_;
+        delete env_;
     }
 };
 
@@ -51,7 +51,7 @@ TEST_F(ErrorHandlingTest, HasEnvAccess_NullEnv) {
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_ValidEnv) {
-    EXPECT_TRUE(HasEnvAccess<ENV>(env));
+    EXPECT_TRUE(HasEnvAccess<ENV>(env_));
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_NullDbc) {
@@ -65,7 +65,7 @@ TEST_F(ErrorHandlingTest, HasEnvAccess_DbcNullEnv) {
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_ValidDbc) {
-    EXPECT_TRUE(HasEnvAccess<DBC>(dbc));
+    EXPECT_TRUE(HasEnvAccess<DBC>(dbc_));
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_NullStmt) {
@@ -87,7 +87,7 @@ TEST_F(ErrorHandlingTest, HasEnvAccess_StmtDbcNullEnv) {
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_ValidStmt) {
-    EXPECT_TRUE(HasEnvAccess<STMT>(stmt));
+    EXPECT_TRUE(HasEnvAccess<STMT>(stmt_));
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_NullDesc) {
@@ -95,25 +95,25 @@ TEST_F(ErrorHandlingTest, HasEnvAccess_NullDesc) {
 }
 
 TEST_F(ErrorHandlingTest, HasEnvAccess_ValidDesc) {
-    EXPECT_TRUE(HasEnvAccess<DESC>(desc));
+    EXPECT_TRUE(HasEnvAccess<DESC>(desc_));
 }
 
 // HasWrappedHandle tests
 
 TEST_F(ErrorHandlingTest, HasWrappedHandle_EnvNull) {
-    EXPECT_FALSE(HasWrappedHandle(env));
+    EXPECT_FALSE(HasWrappedHandle(env_));
 }
 
 TEST_F(ErrorHandlingTest, HasWrappedHandle_DbcNull) {
-    EXPECT_FALSE(HasWrappedHandle(dbc));
+    EXPECT_FALSE(HasWrappedHandle(dbc_));
 }
 
 TEST_F(ErrorHandlingTest, HasWrappedHandle_StmtNull) {
-    EXPECT_FALSE(HasWrappedHandle(stmt));
+    EXPECT_FALSE(HasWrappedHandle(stmt_));
 }
 
 TEST_F(ErrorHandlingTest, HasWrappedHandle_DescNull) {
-    EXPECT_FALSE(HasWrappedHandle(desc));
+    EXPECT_FALSE(HasWrappedHandle(desc_));
 }
 
 // ClearError tests
@@ -126,35 +126,35 @@ TEST_F(ErrorHandlingTest, ClearError_NullSafe) {
 }
 
 TEST_F(ErrorHandlingTest, ClearError_ResetsEnv) {
-    env->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
-    env->sql_error_called = 1;
-    ClearError(env);
-    EXPECT_FALSE(env->err);
-    EXPECT_EQ(0, env->sql_error_called);
+    env_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    env_->sql_error_called = 1;
+    ClearError(env_);
+    EXPECT_FALSE(env_->err);
+    EXPECT_EQ(0, env_->sql_error_called);
 }
 
 TEST_F(ErrorHandlingTest, ClearError_ResetsDbc) {
-    dbc->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
-    dbc->sql_error_called = 1;
-    ClearError(dbc);
-    EXPECT_FALSE(dbc->err);
-    EXPECT_EQ(0, dbc->sql_error_called);
+    dbc_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    dbc_->sql_error_called = 1;
+    ClearError(dbc_);
+    EXPECT_FALSE(dbc_->err);
+    EXPECT_EQ(0, dbc_->sql_error_called);
 }
 
 TEST_F(ErrorHandlingTest, ClearError_ResetsStmt) {
-    stmt->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
-    stmt->sql_error_called = 1;
-    ClearError(stmt);
-    EXPECT_FALSE(stmt->err);
-    EXPECT_EQ(0, stmt->sql_error_called);
+    stmt_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    stmt_->sql_error_called = 1;
+    ClearError(stmt_);
+    EXPECT_FALSE(stmt_->err);
+    EXPECT_EQ(0, stmt_->sql_error_called);
 }
 
 TEST_F(ErrorHandlingTest, ClearError_ResetsDesc) {
-    desc->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
-    desc->sql_error_called = 1;
-    ClearError(desc);
-    EXPECT_FALSE(desc->err);
-    EXPECT_EQ(0, desc->sql_error_called);
+    desc_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    desc_->sql_error_called = 1;
+    ClearError(desc_);
+    EXPECT_FALSE(desc_->err);
+    EXPECT_EQ(0, desc_->sql_error_called);
 }
 
 // NextErrorRecord tests
@@ -167,15 +167,15 @@ TEST_F(ErrorHandlingTest, NextErrorRecord_NullReturnsZero) {
 }
 
 TEST_F(ErrorHandlingTest, NextErrorRecord_FirstCallReturnsOne) {
-    env->sql_error_called = 0;
-    EXPECT_EQ(1, NextErrorRecord<ENV>(env));
-    EXPECT_EQ(1, env->sql_error_called);
+    env_->sql_error_called = 0;
+    EXPECT_EQ(1, NextErrorRecord<ENV>(env_));
+    EXPECT_EQ(1, env_->sql_error_called);
 }
 
 TEST_F(ErrorHandlingTest, NextErrorRecord_SecondCallReturnsZero) {
-    env->sql_error_called = 0;
-    NextErrorRecord<ENV>(env);
-    EXPECT_EQ(0, NextErrorRecord<ENV>(env));
+    env_->sql_error_called = 0;
+    NextErrorRecord<ENV>(env_);
+    EXPECT_EQ(0, NextErrorRecord<ENV>(env_));
 }
 
 // Invalid handle return tests
@@ -192,30 +192,30 @@ TEST_F(ErrorHandlingTest, RdsFreeEnv_NullReturnsInvalidHandle) {
 // ERR_INFO unique_ptr ownership tests
 
 TEST_F(ErrorHandlingTest, UniquePtr_OwnershipTransfer) {
-    auto err = std::make_unique<ERR_INFO>("original", ERR_GENERAL_ERROR);
-    stmt->err = std::move(err);
-    EXPECT_TRUE(stmt->err);
-    EXPECT_STREQ("original", stmt->err->error_msg);
-    EXPECT_STREQ("HY000", stmt->err->sqlstate);
+    auto err = std::make_unique<ErrInfo>("original", ERR_GENERAL_ERROR);
+    stmt_->err = std::move(err);
+    EXPECT_TRUE(stmt_->err);
+    EXPECT_STREQ("original", stmt_->err->error_msg);
+    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
 }
 
 TEST_F(ErrorHandlingTest, UniquePtr_ReassignmentDeletesPrevious) {
-    stmt->err = std::make_unique<ERR_INFO>("first", ERR_GENERAL_ERROR);
-    stmt->err = std::make_unique<ERR_INFO>("second", ERR_MEMORY_ALLOCATION_ERROR);
-    EXPECT_STREQ("second", stmt->err->error_msg);
-    EXPECT_STREQ("HY001", stmt->err->sqlstate);
+    stmt_->err = std::make_unique<ErrInfo>("first", ERR_GENERAL_ERROR);
+    stmt_->err = std::make_unique<ErrInfo>("second", ERR_MEMORY_ALLOCATION_ERROR);
+    EXPECT_STREQ("second", stmt_->err->error_msg);
+    EXPECT_STREQ("HY001", stmt_->err->sqlstate);
 }
 
 TEST_F(ErrorHandlingTest, UniquePtr_ResetCleansUp) {
-    stmt->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
-    stmt->err.reset();
-    EXPECT_FALSE(stmt->err);
+    stmt_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    stmt_->err.reset();
+    EXPECT_FALSE(stmt_->err);
 }
 
 // SQLGetDiagRec returns correct messages
 
 TEST_F(ErrorHandlingTest, DiagRec_ReturnsErrMessage) {
-    dbc->err = std::make_unique<ERR_INFO>("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
+    dbc_->err = std::make_unique<ErrInfo>("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
 
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = {0};
     SQLINTEGER native_error = 0;
@@ -223,7 +223,7 @@ TEST_F(ErrorHandlingTest, DiagRec_ReturnsErrMessage) {
     SQLSMALLINT text_length = 0;
 
     SQLRETURN ret = RDS_SQLGetDiagRec(
-        SQL_HANDLE_DBC, dbc, 1,
+        SQL_HANDLE_DBC, dbc_, 1,
         sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
 
     EXPECT_EQ(SQL_SUCCESS, ret);
@@ -235,7 +235,7 @@ TEST_F(ErrorHandlingTest, DiagRec_ReturnsErrMessage) {
 }
 
 TEST_F(ErrorHandlingTest, DiagRec_RecordTwoReturnsNoData) {
-    dbc->err = std::make_unique<ERR_INFO>("test", ERR_GENERAL_ERROR);
+    dbc_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
 
     SQLTCHAR sql_state[MAX_SQL_STATE_LEN] = {0};
     SQLINTEGER native_error = 0;
@@ -243,41 +243,41 @@ TEST_F(ErrorHandlingTest, DiagRec_RecordTwoReturnsNoData) {
     SQLSMALLINT text_length = 0;
 
     SQLRETURN ret = RDS_SQLGetDiagRec(
-        SQL_HANDLE_DBC, dbc, 2,
+        SQL_HANDLE_DBC, dbc_, 2,
         sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
 
     EXPECT_EQ(SQL_NO_DATA, ret);
 }
 
 TEST_F(ErrorHandlingTest, InitializeConnection_UnloadableDriverReturnsErrorDiagnostic) {
-    dbc->conn_attr[KEY_BASE_DRIVER] = "/nonexistent/path/no-such-driver.so";
+    dbc_->conn_attr[KEY_BASE_DRIVER] = "/nonexistent/path/no-such-driver.so";
 
-    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc_, ""));
 
-    ASSERT_TRUE(dbc->err);
-    EXPECT_STREQ("IM003", dbc->err->sqlstate);
-    const std::string message(dbc->err->error_msg);
+    ASSERT_TRUE(dbc_->err);
+    EXPECT_STREQ("IM003", dbc_->err->sqlstate);
+    const std::string message(dbc_->err->error_msg);
     EXPECT_NE(std::string::npos, message.find("/nonexistent/path/no-such-driver.so"));
-    EXPECT_FALSE(env->driver_lib_loader);
+    EXPECT_FALSE(env_->driver_lib_loader);
 }
 
 TEST_F(ErrorHandlingTest, InitializeConnection_UnregisteredDriverNameReturnsErrorDiagnostic) {
-    dbc->conn_attr[KEY_BASE_DRIVER] = "DefinitelyNotARegisteredOdbcDriver123";
+    dbc_->conn_attr[KEY_BASE_DRIVER] = "DefinitelyNotARegisteredOdbcDriver123";
 
-    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc_, ""));
 
-    ASSERT_TRUE(dbc->err);
-    EXPECT_STREQ("IM003", dbc->err->sqlstate);
-    const std::string message(dbc->err->error_msg);
+    ASSERT_TRUE(dbc_->err);
+    EXPECT_STREQ("IM003", dbc_->err->sqlstate);
+    const std::string message(dbc_->err->error_msg);
     EXPECT_NE(std::string::npos, message.find("DefinitelyNotARegisteredOdbcDriver123"));
-    EXPECT_FALSE(env->driver_lib_loader);
+    EXPECT_FALSE(env_->driver_lib_loader);
 }
 
 TEST_F(ErrorHandlingTest, InitializeConnection_NoDriverKeepsExistingDiagnostic) {
-    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc, ""));
+    EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc_, ""));
 
-    ASSERT_TRUE(dbc->err);
-    EXPECT_EQ(static_cast<SQLINTEGER>(ERR_NO_UNDER_LYING_DRIVER), dbc->err->native_err);
+    ASSERT_TRUE(dbc_->err);
+    EXPECT_EQ(static_cast<SQLINTEGER>(ERR_NO_UNDER_LYING_DRIVER), dbc_->err->native_err);
 }
 
 TEST_F(ErrorHandlingTest, DiagRec_InvalidHandleType) {
@@ -286,8 +286,8 @@ TEST_F(ErrorHandlingTest, DiagRec_InvalidHandleType) {
     SQLTCHAR message[MAX_MSG_LEN] = {0};
     SQLSMALLINT text_length = 0;
     
-    const SQLSMALLINT INVALID_HANDLE_TYPE = 999;
-    SQLRETURN ret = RDS_SQLGetDiagRec(INVALID_HANDLE_TYPE, dbc, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
+    const SQLSMALLINT invalid_handle_type = 999;
+    SQLRETURN ret = RDS_SQLGetDiagRec(invalid_handle_type, dbc_, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
 
     EXPECT_EQ(SQL_INVALID_HANDLE, ret);
 }

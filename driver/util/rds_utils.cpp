@@ -125,7 +125,7 @@ std::string RdsUtils::RemoveGreenInstancePrefix(const std::string& host) {
 }
 
 std::string RdsUtils::GetRdsClusterHostUrl(const std::string& host) {
-    auto f = [&host](const std::regex& pattern) {
+    const auto f = [&host](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 1) {
             const std::string gr1 = m.size() > 1 ? m.str(1) : std::string("");
@@ -153,7 +153,7 @@ std::string RdsUtils::GetRdsClusterHostUrl(const std::string& host) {
 }
 
 std::string RdsUtils::GetRdsClusterId(const std::string& host) {
-    auto f = [&host](const std::regex& pattern) {
+    const auto f = [&host](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 1 && !m.str(2).empty()) {
             return m.str(1);
@@ -170,7 +170,7 @@ std::string RdsUtils::GetRdsClusterId(const std::string& host) {
 }
 
 std::string RdsUtils::GetRdsInstanceId(const std::string& host) {
-    auto f = [&host](const std::regex& pattern) {
+    const auto f = [&host](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 1 && m.str(2).empty()) {
             return m.str(1);
@@ -187,7 +187,7 @@ std::string RdsUtils::GetRdsInstanceId(const std::string& host) {
 }
 
 std::string RdsUtils::GetRdsInstanceHostPattern(const std::string& host) {
-    auto f = [&host](const std::regex& pattern) {
+    const auto f = [&host](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 4 && !m.str(3).empty()) {
             std::string result("?.");
@@ -207,7 +207,7 @@ std::string RdsUtils::GetRdsInstanceHostPattern(const std::string& host) {
 }
 
 std::string RdsUtils::GetRdsRegion(const std::string& host) {
-    auto f = [&host](const std::regex& pattern) {
+    const auto f = [&host](const std::regex& pattern) {
         std::smatch m;
         if (std::regex_search(host, m, pattern) && m.size() > 4 && !m.str(4).empty()) {
             return m.str(4);

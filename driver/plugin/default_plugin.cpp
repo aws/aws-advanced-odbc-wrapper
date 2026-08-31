@@ -25,7 +25,8 @@
 
 DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
-DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : plugin_name("DefaultPlugin") {
+DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) {
+    this->plugin_name_ = "DefaultPlugin";
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
 }
 
@@ -50,7 +51,7 @@ SQLRETURN DefaultPlugin::Connect(
         if (!env->wrapped_env) {
             LOG(ERROR) << "Unable to allocate underlying DBC, underlying ENV nulled";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying DBC, underlying ENV nulled", ERR_UNDERLYING_HANDLE_NULL);
+            dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying DBC, underlying ENV nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
         res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
@@ -59,7 +60,7 @@ SQLRETURN DefaultPlugin::Connect(
         if (!SQL_SUCCEEDED(res.fn_result) || !dbc->wrapped_dbc) {
             LOG(ERROR) << "Unable to allocate underlying DBC";
             ClearError(dbc);
-            dbc->err = std::make_unique<ERR_INFO>("Unable to allocate underlying DBC", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_DBC_FAILED);
+            dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying DBC", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_DBC_FAILED);
             return SQL_ERROR;
         }
     }
@@ -181,12 +182,12 @@ SQLRETURN DefaultPlugin::Execute(
             if (!SQL_SUCCEEDED(res.fn_result) || !stmt->wrapped_stmt) {
                 LOG(ERROR) << "Unable to allocate underlying STMT";
                 ClearError(stmt);
-                stmt->err = std::make_unique<ERR_INFO>("Unable to allocate underlying STMT", ERR_UNDERLYING_HANDLE_NULL);
+                stmt->err = std::make_unique<ErrInfo>("Unable to allocate underlying STMT", ERR_UNDERLYING_HANDLE_NULL);
                 return SQL_ERROR;
             }
         } else {
             LOG(ERROR) << "Unable to use STMT, underlying DBC nulled";
-            stmt->err = std::make_unique<ERR_INFO>("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
+            stmt->err = std::make_unique<ErrInfo>("Unable to use STMT, underlying DBC nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
         // Set statement settings

@@ -40,17 +40,29 @@ InheritParentConfig: false
 SystemHeaders: false
 
 CheckOptions:
-  - { key: readability-identifier-naming.NamespaceCase,                 value: lower_case }
+  - { key: readability-identifier-naming.NamespaceCase,                 value: CamelCase  }
   - { key: readability-identifier-naming.ClassCase,                     value: CamelCase  }
   - { key: readability-identifier-naming.StructCase,                    value: CamelCase  }
   - { key: readability-identifier-naming.TemplateParameterCase,         value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,                  value: CamelCase  }
+  - { key: readability-identifier-naming.FunctionIgnoredRegexp,         value: "RDS_.*"   }
   - { key: readability-identifier-naming.VariableCase,                  value: lower_case }
   - { key: readability-identifier-naming.ClassMemberCase,               value: lower_case }
+  - { key: readability-identifier-naming.ClassMemberSuffix,             value: _          }
+  - { key: readability-identifier-naming.ClassMemberIgnoredRegexp,      value: "[A-Z0-9_]+" }
+  - { key: readability-identifier-naming.PrivateMemberCase,             value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,           value: _          }
+  - { key: readability-identifier-naming.PrivateMemberIgnoredRegexp,    value: "[A-Z0-9_]+" }
+  - { key: readability-identifier-naming.ProtectedMemberCase,           value: lower_case }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,         value: _          }
+  - { key: readability-identifier-naming.ProtectedMemberIgnoredRegexp,  value: "[A-Z0-9_]+" }
   - { key: readability-identifier-naming.EnumConstantCase,              value: UPPER_CASE }
   - { key: readability-identifier-naming.ConstexprVariableCase,         value: UPPER_CASE }
   - { key: readability-identifier-naming.GlobalConstantCase,            value: UPPER_CASE }
   - { key: readability-identifier-naming.MemberConstantCase,            value: UPPER_CASE }
   - { key: readability-identifier-naming.StaticConstantCase,            value: UPPER_CASE }
+  # Exported ODBC entry points and their RDS_* helpers mirror the sql.h prototypes
+  - { key: misc-const-correctness.AnalyzeParameters,                    value: false      }
   - { key: readability-implicit-bool-conversion.AllowIntegerConditions, value: 1          }
   - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: 1          }
+  - { key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic, value: true }

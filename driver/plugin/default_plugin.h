@@ -15,32 +15,30 @@
 #ifndef DEFAULT_PLUGIN_H_
 #define DEFAULT_PLUGIN_H_
 
-#include "base_plugin.h"
-#include "../util/odbc_helper.h"
-
 #include <memory>
+
+#include "../util/odbc_helper.h"
+#include "base_plugin.h"
 
 class DefaultPlugin : public BasePlugin {
 public:
     DefaultPlugin() = default;
-    DefaultPlugin(DBC* dbc);
+    explicit DefaultPlugin(DBC* dbc);
     DefaultPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
-    virtual SQLRETURN Connect(
+    SQLRETURN Connect(
         SQLHDBC        ConnectionHandle,
         SQLHWND        WindowHandle,
         SQLTCHAR *     OutConnectionString,
         SQLSMALLINT    BufferLength,
         SQLSMALLINT *  StringLengthPtr,
-        SQLUSMALLINT   DriverCompletion);
+        SQLUSMALLINT   DriverCompletion) override;
 
-    virtual SQLRETURN Execute(
+    SQLRETURN Execute(
         SQLHSTMT       StatementHandle,
-        SQLTCHAR *     StatementText = 0,
-        SQLINTEGER     TextLength = -1);
+        SQLTCHAR *     StatementText = nullptr,
+        SQLINTEGER     TextLength = -1) override;
 
-protected:
-    std::string plugin_name;
 private:
     std::shared_ptr<OdbcHelper>odbc_helper_;
 };

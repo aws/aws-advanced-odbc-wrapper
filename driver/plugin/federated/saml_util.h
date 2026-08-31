@@ -28,7 +28,7 @@
 class SamlUtil {
 public:
     SamlUtil() = default;
-    SamlUtil(std::map<std::string, std::string> connection_attributes);
+    explicit SamlUtil(std::map<std::string, std::string> connection_attributes);
     SamlUtil(std::map<std::string, std::string> connection_attributes, const std::shared_ptr<Aws::Http::HttpClient>& http_client, const std::shared_ptr<Aws::STS::STSClient>& sts_client);
     virtual ~SamlUtil();
 
@@ -39,23 +39,30 @@ public:
     void InvalidateCachedCredentials();
     static void ClearCredentialsCache();
 
-    const int DEFAULT_SOCKET_TIMEOUT_MS = 3000;
-    const int DEFAULT_CONNECT_TIMEOUT_MS = 1000;
-
 protected:
-    std::string idp_endpoint;
-    std::string idp_port;
-    std::string idp_username;
-    std::string idp_password;
-    std::string idp_role_arn;
-    std::string idp_saml_arn;
-    bool browser_mode = false;
+    // Only read when building the HTTP client config in this class' constructor.
+    static constexpr int DEFAULT_SOCKET_TIMEOUT_MS = 3000;
+    static constexpr int DEFAULT_CONNECT_TIMEOUT_MS = 1000;
 
-    std::shared_ptr<Aws::Http::HttpClient> http_client;
-    std::shared_ptr<Aws::STS::STSClient> sts_client;
+    // IdP configuration and clients the concrete ADFS/Okta utils read directly
+    // while driving their own SAML flow.
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+    std::string idp_endpoint_;
+    std::string idp_port_;
+    std::string idp_username_;
+    std::string idp_password_;
+    bool browser_mode_ = false;
+
+    std::shared_ptr<Aws::Http::HttpClient> http_client_;
+    std::shared_ptr<Aws::STS::STSClient> sts_client_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
 private:
     void ParseIdpConfig(const std::map<std::string, std::string> &connection_attributes);
+
+    // Only consumed by GetAwsCredentials/the credential cache in this class.
+    std::string idp_role_arn_;
+    std::string idp_saml_arn_;
 
     // Process-wide cache of assumed-role credentials, keyed by role ARN. Guards the
     // interactive browser SAML exchange from re-running on repeated plugin construction.

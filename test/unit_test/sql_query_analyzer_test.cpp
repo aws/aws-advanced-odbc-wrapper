@@ -24,21 +24,21 @@
 
 class SqlQueryAnalyzerTest : public testing::Test {
 protected:
-    DBC* dbc_manual_commit;
-    DBC* dbc_auto_commit;
+    DBC* dbc_manual_commit_;
+    DBC* dbc_auto_commit_;
     // Runs once per suite
     static void SetUpTestSuite() {}
     static void TearDownTestSuite() {}
 
     void SetUp() override {
-        dbc_manual_commit = new DBC();
-        dbc_manual_commit->auto_commit = false;
-        dbc_auto_commit = new DBC();
-        dbc_auto_commit->auto_commit = true;
+        dbc_manual_commit_ = new DBC();
+        dbc_manual_commit_->auto_commit = false;
+        dbc_auto_commit_ = new DBC();
+        dbc_auto_commit_->auto_commit = true;
     }
     void TearDown() override {
-        if (dbc_manual_commit) delete dbc_manual_commit;
-        if (dbc_auto_commit) delete dbc_auto_commit;
+        if (dbc_manual_commit_) delete dbc_manual_commit_;
+        if (dbc_auto_commit_) delete dbc_auto_commit_;
     }
 };
 
@@ -66,33 +66,33 @@ TEST_F(SqlQueryAnalyzerTest, DoesOpenTransaction) {
 
 TEST_F(SqlQueryAnalyzerTest, DoesCloseTransaction) {
     // True
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "rollback"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "commit"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "end"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "abort"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "rollback"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "commit"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "end"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "abort"));
     // False
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "select 1"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit, "SELECT 1234"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "select 1"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_auto_commit_, "SELECT 1234"));
 
     // True | w/o Autocommit
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = 1"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "     set autocommit = 1     "));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "  set autocommit=1  "));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = true"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = on"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit to on"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit TO on"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit tO true"));
-    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit To on"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = 1"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "     set autocommit = 1     "));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "  set autocommit=1  "));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = true"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = on"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit to on"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit TO on"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit tO true"));
+    EXPECT_TRUE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit To on"));
     // False | w/o Autocommit
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = false"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = 0"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = off"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit = garbage"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit to false"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit TO 0"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit tO off"));
-    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit, "set autocommit To garbage"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = false"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = 0"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = off"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit = garbage"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit to false"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit TO 0"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit tO off"));
+    EXPECT_FALSE(SqlQueryAnalyzer::DoesCloseTransaction(dbc_manual_commit_, "set autocommit To garbage"));
 }
 
 TEST_F(SqlQueryAnalyzerTest, IsStatementSettingAutoCommit) {

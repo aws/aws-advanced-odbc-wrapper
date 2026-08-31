@@ -33,7 +33,7 @@ std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> BlueGreenPlugin::st
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc) : BlueGreenPlugin(dbc, nullptr) {}
 
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {
-    this->plugin_name = "BLUE_GREEN";
+    this->plugin_name_ = "BLUE_GREEN";
     this->conn_attr_ = dbc->conn_attr;
     this->plugin_service_ = dbc->plugin_service;
     this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
@@ -164,7 +164,7 @@ SQLRETURN BlueGreenPlugin::Connect(
         ClearError(dbc);
         std::string error_message("Blue/Green Connect route failed: ");
         error_message += ex.what();
-        dbc->err = std::make_unique<ERR_INFO>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         LOG(ERROR) << "[CATCH] " << error_message << ", host: " << conn_host << ", phase: " << this->blue_green_status_.GetCurrentPhase().ToString();
         rc = SQL_ERROR;
     }
@@ -250,7 +250,7 @@ SQLRETURN BlueGreenPlugin::Execute(
         ClearError(stmt);
         std::string error_message("Blue/Green Execute route failed: ");
         error_message += ex.what();
-        stmt->err = std::make_unique<ERR_INFO>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        stmt->err = std::make_unique<ErrInfo>(error_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         rc = SQL_ERROR;
         LOG(ERROR) << error_message;
     }
@@ -300,7 +300,7 @@ void BlueGreenPlugin::InitProvider() {
 std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() {
     const std::lock_guard<std::recursive_mutex> lock_guard(provider_lock_);
     std::shared_ptr<BlueGreenStatusProvider> provider;
-    if (auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
+    if (const auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
         std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>& pair = itr->second;
         pair.first++;
         provider = pair.second;
@@ -335,7 +335,7 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
 void BlueGreenPlugin::CleanUpStatusProvider() {
     if (this->status_provider_) {
         const std::lock_guard<std::recursive_mutex> lock_guard(provider_lock_);
-        if (auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
+        if (const auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
             std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>& pair = itr->second;
             if (pair.first == 1) {
                 status_providers_map_.erase(this->blue_green_id_);

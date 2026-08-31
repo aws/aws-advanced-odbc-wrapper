@@ -14,6 +14,8 @@
 
 #include "plugin_chain_builder.h"
 
+#include <utility>
+
 #include "../driver.h"
 
 #include "../plugin/base_plugin.h"
@@ -35,23 +37,23 @@ std::shared_ptr<BasePlugin> PluginChainBuilder::MonitoringBuild(DBC* dbc, std::s
         switch (type) {
                 case AuthType::IAM:
                     next_plugin = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
-                    plugin_head = next_plugin;
+                    plugin_head = std::move(next_plugin);
                     break;
                 case AuthType::SECRETS_MANAGER:
                     next_plugin = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
-                    plugin_head = next_plugin;
+                    plugin_head = std::move(next_plugin);
                     break;
                 case AuthType::ADFS:
                     next_plugin = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
-                    plugin_head = next_plugin;
+                    plugin_head = std::move(next_plugin);
                     break;
                 case AuthType::OKTA:
                     next_plugin = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
-                    plugin_head = next_plugin;
+                    plugin_head = std::move(next_plugin);
                     break;
                 case AuthType::AWS_SSO:
                     next_plugin = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
-                    plugin_head = next_plugin;
+                    plugin_head = std::move(next_plugin);
                     break;
                 case AuthType::DATABASE:
                 case AuthType::INVALID:

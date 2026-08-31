@@ -323,11 +323,7 @@ SQLRETURN RDS_SQLProcedures(
     SQLTCHAR *     ProcName,
     SQLSMALLINT    NameLength3);
 
-SQLRETURN RDS_SQLSetConnectAttr(
-    SQLHDBC        ConnectionHandle,
-    SQLINTEGER     Attribute,
-    SQLPOINTER     ValuePtr,
-    SQLINTEGER     StringLength);
+
 
 SQLRETURN RDS_SQLSetConnectOption(
     SQLHDBC        ConnectionHandle,

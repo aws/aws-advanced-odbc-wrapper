@@ -25,45 +25,45 @@ BaseSamlAuthPlugin::BaseSamlAuthPlugin(
     std::shared_ptr<OdbcHelper> odbc_helper)
     : BaseTokenAuthPlugin(dbc, next_plugin, auth_provider, dialect, odbc_helper)
 {
-    this->saml_util = saml_util;
+    this->saml_util_ = saml_util;
 }
 
 BaseSamlAuthPlugin::~BaseSamlAuthPlugin()
 {
-    if (saml_util) {
-        saml_util.reset();
+    if (saml_util_) {
+        saml_util_.reset();
     }
 }
 
 bool BaseSamlAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error)
 {
-    if (!auth_provider) {
-        out_error = "No AWS credential provider is available for " + plugin_name + " authentication";
+    if (!auth_provider_) {
+        out_error = "No AWS credential provider is available for " + plugin_name_ + " authentication";
         return false;
     }
-    if (auth_provider->HasResolvedCredentials()) {
+    if (auth_provider_->HasResolvedCredentials()) {
         return true;
     }
 
-    const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
+    const Aws::Auth::AWSCredentials credentials = saml_util_->GetCredentials();
     if (credentials.IsEmpty()) {
-        out_error = "Unable to resolve AWS credentials for " + plugin_name + " authentication";
+        out_error = "Unable to resolve AWS credentials for " + plugin_name_ + " authentication";
         return false;
     }
-    auth_provider->UpdateAwsCredential(credentials);
+    auth_provider_->UpdateAwsCredential(credentials);
     return true;
 }
 
 bool BaseSamlAuthPlugin::RefreshCredentials(DBC* dbc, const std::string& region)
 {
     // Refresh SAML credentials before generating a new token
-    saml_util->InvalidateCachedCredentials();
-    const Aws::Auth::AWSCredentials credentials = saml_util->GetCredentials();
+    saml_util_->InvalidateCachedCredentials();
+    const Aws::Auth::AWSCredentials credentials = saml_util_->GetCredentials();
     if (credentials.IsEmpty()) {
         // Do not generate a token from empty credentials will return garbage token
-        LOG(ERROR) << "[" << plugin_name << "] Unable to refresh SAML credentials; skipping token retry";
+        LOG(ERROR) << "[" << plugin_name_ << "] Unable to refresh SAML credentials; skipping token retry";
         return false;
     }
-    auth_provider->UpdateAwsCredential(credentials);
+    auth_provider_->UpdateAwsCredential(credentials);
     return true;
 }

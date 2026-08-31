@@ -16,20 +16,21 @@
 #define HOST_INFO_H_
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <ostream>
 #include <string>
 
-typedef enum {
+enum HOST_STATE : std::uint8_t {
     UP,
-    DOWN
-} HOST_STATE;
+    DOWN,
+};
 
-typedef enum {
+enum HOST_ROLE : std::uint8_t {
     READER,
     WRITER,
-    UNKNOWN
-} HOST_ROLE;
+    UNKNOWN,
+};
 
 class HostInfo {
 public:
@@ -39,7 +40,7 @@ public:
 
     HostInfo() = default;
 
-    HostInfo(
+    explicit HostInfo(
         std::string host,
         int port = NO_PORT,
         HOST_STATE state = DOWN,
@@ -50,20 +51,20 @@ public:
 
     ~HostInfo() = default;
 
-    std::string GetHost() const;
-    int GetPort() const;
-    std::string GetHostId() const;
-    std::string GetHostPortPair() const;
-    uint64_t GetWeight() const;
-    HOST_STATE GetHostState() const;
-    HOST_ROLE GetHostRole() const;
-    std::chrono::steady_clock::time_point GetLastUpdate() const;
+    [[nodiscard]] std::string GetHost() const;
+    [[nodiscard]] int GetPort() const;
+    [[nodiscard]] std::string GetHostId() const;
+    [[nodiscard]] std::string GetHostPortPair() const;
+    [[nodiscard]] uint64_t GetWeight() const;
+    [[nodiscard]] HOST_STATE GetHostState() const;
+    [[nodiscard]] HOST_ROLE GetHostRole() const;
+    [[nodiscard]] std::chrono::steady_clock::time_point GetLastUpdate() const;
 
     void SetHostState(HOST_STATE state);
     void SetHostRole(HOST_ROLE state);
 
-    bool IsHostWriter() const;
-    bool IsHostUp() const;
+    [[nodiscard]] bool IsHostWriter() const;
+    [[nodiscard]] bool IsHostUp() const;
 
     bool operator==(const HostInfo& other) const {
         return this->host_ == other.GetHost()
@@ -75,8 +76,8 @@ public:
 
 private:
     static constexpr char HOST_PORT_SEPARATOR = ':';
-    std::string host_ = "";
-    std::string host_id_ = "";
+    std::string host_;
+    std::string host_id_;
     int port_ = NO_PORT;
     uint64_t weight_ = DEFAULT_WEIGHT;
 

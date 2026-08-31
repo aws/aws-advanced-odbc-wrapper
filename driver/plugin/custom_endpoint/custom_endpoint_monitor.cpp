@@ -27,7 +27,7 @@
 
 #include <chrono>
 
-SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache;
+SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache_;
 
 CustomEndpointMonitor::CustomEndpointMonitor(
     const std::weak_ptr<PluginService>& plugin_service,
@@ -114,13 +114,13 @@ void CustomEndpointMonitor::Run() {
                 }
                 filter.endpoint_type = endpoint_info.GetEndpointType();
 
-                const HostFilter cached_filter = endpoint_cache.Get(endpoint_identifier_);
+                const HostFilter cached_filter = endpoint_cache_.Get(endpoint_identifier_);
                 if (cached_filter != filter) {
                     LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_identifier_;
                     if (const std::shared_ptr<PluginService> service = this->plugin_service_.lock()) {
                         service->SetHostFilter(filter);
                     }
-                    endpoint_cache.Put(this->endpoint_identifier_, filter);
+                    endpoint_cache_.Put(this->endpoint_identifier_, filter);
                     DecreaseDelay();
                 }
             } else {
@@ -148,7 +148,7 @@ void CustomEndpointMonitor::Run() {
 }
 
 bool CustomEndpointMonitor::HasInfo() {
-    return endpoint_cache.Get(endpoint_identifier_) != HostFilter{};
+    return endpoint_cache_.Get(endpoint_identifier_) != HostFilter{};
 }
 
 void CustomEndpointMonitor::IncreaseDelay() {

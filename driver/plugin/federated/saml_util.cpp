@@ -34,7 +34,7 @@ SamlUtil::SamlUtil(
     ParseIdpConfig(connection_attributes);
     AwsSdkHelper::Init();
     if (http_client) {
-        this->http_client = http_client;
+        this->http_client_ = http_client;
     } else {
         Aws::Client::ClientConfiguration http_client_config;
         if (connection_attributes.contains(KEY_HTTP_SOCKET_TIMEOUT)) {
@@ -48,11 +48,11 @@ SamlUtil::SamlUtil(
             http_client_config.connectTimeoutMs = connect_timeout > 0 ? connect_timeout : DEFAULT_CONNECT_TIMEOUT_MS;
         }
         http_client_config.followRedirects = Aws::Client::FollowRedirectsPolicy::ALWAYS;
-        this->http_client = Aws::Http::CreateHttpClient(http_client_config);
+        this->http_client_ = Aws::Http::CreateHttpClient(http_client_config);
     }
 
     if (sts_client) {
-        this->sts_client = sts_client;
+        this->sts_client_ = sts_client;
     } else {
         std::string region = MapUtils::GetStringValue(connection_attributes, KEY_REGION, "");
         if (region.empty()) {
@@ -68,17 +68,17 @@ SamlUtil::SamlUtil(
         if (!sts_endpoint.empty()) {
             sts_client_config.endpointOverride = sts_endpoint;
         }
-        this->sts_client = std::make_shared<Aws::STS::STSClient>(sts_client_config);
+        this->sts_client_ = std::make_shared<Aws::STS::STSClient>(sts_client_config);
     }
 }
 
 SamlUtil::~SamlUtil()
 {
-    if (http_client) {
-        http_client = nullptr;
+    if (http_client_) {
+        http_client_ = nullptr;
     }
-    if (sts_client) {
-        sts_client = nullptr;
+    if (sts_client_) {
+        sts_client_ = nullptr;
     }
     AwsSdkHelper::Shutdown();
 }
@@ -86,12 +86,12 @@ SamlUtil::~SamlUtil()
 Aws::Auth::AWSCredentials SamlUtil::GetAwsCredentials(const std::string &assertion)
 {
     Aws::STS::Model::AssumeRoleWithSAMLRequest sts_req;
-    sts_req.SetRoleArn(idp_role_arn);
-    sts_req.SetPrincipalArn(idp_saml_arn);
+    sts_req.SetRoleArn(idp_role_arn_);
+    sts_req.SetPrincipalArn(idp_saml_arn_);
     sts_req.SetSAMLAssertion(assertion);
 
     const Aws::Utils::Outcome<Aws::STS::Model::AssumeRoleWithSAMLResult, Aws::STS::STSError> outcome =
-        sts_client->AssumeRoleWithSAML(sts_req);
+        sts_client_->AssumeRoleWithSAML(sts_req);
 
     if (!outcome.IsSuccess()) {
         LOG(ERROR) << "STS failed to assume role: " << outcome.GetError().GetMessage();
@@ -112,10 +112,10 @@ Aws::Auth::AWSCredentials SamlUtil::GetCredentials()
     const std::lock_guard<std::mutex> lock(cred_cache_mutex_);
 
     const auto now = std::chrono::system_clock::now();
-    const auto it = cred_cache_.find(idp_role_arn);
+    const auto it = cred_cache_.find(idp_role_arn_);
     if (it != cred_cache_.end() && (now - it->second.fetched_at) < CRED_CACHE_TTL
         && !it->second.creds.IsExpiredOrEmpty()) {
-        LOG(INFO) << "Reusing cached SAML credentials for role " << idp_role_arn;
+        LOG(INFO) << "Reusing cached SAML credentials for role " << idp_role_arn_;
         return it->second.creds;
     }
 
@@ -123,7 +123,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetCredentials()
     const std::string assertion = GetSamlAssertion();
     Aws::Auth::AWSCredentials creds = GetAwsCredentials(assertion);
     if (!creds.IsEmpty()) {
-        cred_cache_[idp_role_arn] = {.creds = creds, .fetched_at = now};
+        cred_cache_[idp_role_arn_] = {.creds = creds, .fetched_at = now};
     }
     return creds;
 }
@@ -131,7 +131,7 @@ Aws::Auth::AWSCredentials SamlUtil::GetCredentials()
 void SamlUtil::InvalidateCachedCredentials()
 {
     const std::lock_guard<std::mutex> lock(cred_cache_mutex_);
-    cred_cache_.erase(idp_role_arn);
+    cred_cache_.erase(idp_role_arn_);
 }
 
 void SamlUtil::ClearCredentialsCache()
@@ -142,26 +142,26 @@ void SamlUtil::ClearCredentialsCache()
 
 void SamlUtil::ParseIdpConfig(const std::map<std::string, std::string> &connection_attributes)
 {
-    idp_endpoint = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ENDPOINT, "");
-    idp_port = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PORT, "443");
-    idp_username = MapUtils::GetStringValue(connection_attributes, KEY_IDP_USERNAME, "");
-    idp_password = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PASSWORD, "");
-    idp_role_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ROLE_ARN, "");
-    idp_saml_arn = MapUtils::GetStringValue(connection_attributes, KEY_IDP_SAML_ARN, "");
+    idp_endpoint_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ENDPOINT, "");
+    idp_port_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PORT, "443");
+    idp_username_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_USERNAME, "");
+    idp_password_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_PASSWORD, "");
+    idp_role_arn_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_ROLE_ARN, "");
+    idp_saml_arn_ = MapUtils::GetStringValue(connection_attributes, KEY_IDP_SAML_ARN, "");
 
     // Browser mode only requires the login URL, role ARN, and provider ARN.
-    browser_mode = !MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "").empty();
+    browser_mode_ = !MapUtils::GetStringValue(connection_attributes, KEY_LOGIN_URL, "").empty();
 
     std::string err_keys;
-    if (idp_role_arn.empty() || idp_saml_arn.empty()) {
-        err_keys += idp_role_arn.empty() ? std::string("\n\t") + KEY_IDP_ROLE_ARN : "";
-        err_keys += idp_saml_arn.empty() ? std::string("\n\t") + KEY_IDP_SAML_ARN : "";
+    if (idp_role_arn_.empty() || idp_saml_arn_.empty()) {
+        err_keys += idp_role_arn_.empty() ? std::string("\n\t") + KEY_IDP_ROLE_ARN : "";
+        err_keys += idp_saml_arn_.empty() ? std::string("\n\t") + KEY_IDP_SAML_ARN : "";
     }
 
-    if (!browser_mode && (idp_endpoint.empty() || idp_username.empty() || idp_password.empty())) {
-        err_keys += idp_endpoint.empty() ? std::string("\n\t") + KEY_IDP_ENDPOINT : "";
-        err_keys += idp_username.empty() ? std::string("\n\t") + KEY_IDP_USERNAME : "";
-        err_keys += idp_password.empty() ? std::string("\n\t") + KEY_IDP_PASSWORD : "";
+    if (!browser_mode_ && (idp_endpoint_.empty() || idp_username_.empty() || idp_password_.empty())) {
+        err_keys += idp_endpoint_.empty() ? std::string("\n\t") + KEY_IDP_ENDPOINT : "";
+        err_keys += idp_username_.empty() ? std::string("\n\t") + KEY_IDP_USERNAME : "";
+        err_keys += idp_password_.empty() ? std::string("\n\t") + KEY_IDP_PASSWORD : "";
     }
 
     if (!err_keys.empty()) {

@@ -16,18 +16,15 @@
 #define RDS_HOST_LIST_PROVIDER_H_
 
 #include <chrono>
+#include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
-
-#include "host_list_provider.h"
-
-#include "cluster_topology_monitor.h"
 
 #include "../host_info.h"
-
-#include "../util/sliding_cache_map.h"
 #include "../util/plugin_service.h"
+#include "../util/sliding_cache_map.h"
+#include "cluster_topology_monitor.h"
+#include "host_list_provider.h"
 
 class RdsHostListProvider : public HostListProvider {
 public:
@@ -38,14 +35,14 @@ public:
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id);
     ~RdsHostListProvider();
-    virtual std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) override;
-    virtual std::vector<HostInfo> Refresh() override;
-    virtual std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) override;
-    virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;
-    virtual HostInfo GetConnectionInfo(SQLHDBC hdbc) override;
-    virtual std::string GetClusterId() override;
-    virtual void UpdateDialect() override;
-    virtual void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) override;
+    std::vector<HostInfo> GetCurrentTopology(SQLHDBC hdbc, const HostInfo& initial_host) override;
+    std::vector<HostInfo> Refresh() override;
+    std::vector<HostInfo> ForceRefresh(bool verify_writer, std::chrono::milliseconds timeout_ms) override;
+    HOST_ROLE GetConnectionRole(SQLHDBC hdbc) override;
+    HostInfo GetConnectionInfo(SQLHDBC hdbc) override;
+    std::string GetClusterId() override;
+    void UpdateDialect() override;
+    void UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) override;
 
 private:
     std::shared_ptr<ClusterTopologyMonitor> GetOrCreateMonitor();

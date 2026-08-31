@@ -17,25 +17,25 @@
 
 std::mutex LoggerWrapper::logger_mutex_;
 
-LoggerWrapper::LoggerWrapper() : LoggerWrapper(logger_config::DEFAULT_LOG_LOCATION, logger_config::DEFAULT_LOG_THRESHOLD) {}
+LoggerWrapper::LoggerWrapper() : LoggerWrapper(LoggerConfig::DEFAULT_LOG_LOCATION, LoggerConfig::DEFAULT_LOG_THRESHOLD) {}
 
-LoggerWrapper::LoggerWrapper(const int threshold) : LoggerWrapper(logger_config::DEFAULT_LOG_LOCATION, threshold) {}
+LoggerWrapper::LoggerWrapper(const int threshold) : LoggerWrapper(LoggerConfig::DEFAULT_LOG_LOCATION, threshold) {}
 
-LoggerWrapper::LoggerWrapper(const std::string &log_location) : LoggerWrapper(log_location, logger_config::DEFAULT_LOG_THRESHOLD) {}
+LoggerWrapper::LoggerWrapper(const std::string &log_location) : LoggerWrapper(log_location, LoggerConfig::DEFAULT_LOG_THRESHOLD) {}
 
 LoggerWrapper::LoggerWrapper(std::string log_location, int threshold) {
     if (++logger_init_count_ == 1) {
         const std::lock_guard<std::mutex> lock(logger_mutex_);
         // Set to 4 to disable console output
-        threshold = threshold >= 0 ? threshold : logger_config::DEFAULT_LOG_THRESHOLD;
+        threshold = threshold >= 0 ? threshold : LoggerConfig::DEFAULT_LOG_THRESHOLD;
         FLAGS_stderrthreshold = threshold;
         // Also adds PID to file, needed for multi-process safety
         FLAGS_timestamp_in_logfile_name = true;
         if (log_location.empty()) {
-            log_location = logger_config::DEFAULT_LOG_LOCATION;
+            log_location = LoggerConfig::DEFAULT_LOG_LOCATION;
         }
         SetLogDirectory(log_location);
-        nglog::InitializeLogging(logger_config::PROGRAM_NAME.c_str());
+        nglog::InitializeLogging(LoggerConfig::PROGRAM_NAME.c_str());
     }
 }
 

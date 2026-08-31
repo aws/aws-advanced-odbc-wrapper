@@ -20,7 +20,7 @@
 
 class ReadWriteSplittingPlugin : public AbstractReadWriteSplittingPlugin {
 public:
-    ReadWriteSplittingPlugin(DBC* dbc);
+    explicit ReadWriteSplittingPlugin(DBC* dbc);
     ReadWriteSplittingPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin);
 
     SQLRETURN InitializeReaderConnection() override;

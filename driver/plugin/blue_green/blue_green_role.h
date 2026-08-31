@@ -15,34 +15,36 @@
 #ifndef BLUE_GREEN_ROLE_H_
 #define BLUE_GREEN_ROLE_H_
 
+#include <cstdint>
 #include <map>
 #include <string>
 
 class BlueGreenRole {
 public:
-    typedef enum {
+    enum Role : std::uint8_t {
         SOURCE,
         TARGET,
-        UNKNOWN
-    } Role;
+        UNKNOWN,
+    };
 
     static inline std::string VERSION_1_0 = "1.0";
 
     static inline std::map<std::string, Role> const ROLE_MAPPING_V1_0 = {
         {"BLUE_GREEN_DEPLOYMENT_SOURCE",    Role::SOURCE},
-        {"BLUE_GREEN_DEPLOYMENT_TARGET",    Role::TARGET}
+        {"BLUE_GREEN_DEPLOYMENT_TARGET",    Role::TARGET},
     };
 
     static inline std::map<Role, std::string> const ROLE_TO_STRING = {
         {Role::SOURCE, "SOURCE"},
-        {Role::TARGET, "TARGET"}
+        {Role::TARGET, "TARGET"},
     };
 
     BlueGreenRole();
-    BlueGreenRole(Role role);
+    // BlueGreenRole is a value wrapper around the enum and is passed, compared, and used as a map key directly as Role constants
+    BlueGreenRole(Role role); // NOLINT(google-explicit-constructor, misc-explicit-constructor)
 
-    Role GetRole() const;
-    std::string ToString() const;
+    [[nodiscard]] Role GetRole() const;
+    [[nodiscard]] std::string ToString() const;
 
     bool operator==(const BlueGreenRole& other) const { return role_ == other.role_; }
 

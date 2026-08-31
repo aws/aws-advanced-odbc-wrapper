@@ -15,6 +15,7 @@
 #ifndef DIALECT_H
 #define DIALECT_H
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -25,21 +26,21 @@
 struct DBC;
 class OdbcHelper;
 
-typedef enum {
+enum DatabaseDialectType : std::uint8_t {
     AURORA_POSTGRESQL,
     AURORA_POSTGRESQL_LIMITLESS,
     AURORA_MYSQL,
     MULTI_AZ_MYSQL,
     MULTI_AZ_PG,
-    UNKNOWN_DIALECT
-} DatabaseDialectType;
+    UNKNOWN_DIALECT,
+};
 
-static std::map<std::string, DatabaseDialectType> const database_dialect_table = {
+static std::map<std::string, DatabaseDialectType> const DATABASE_DIALECT_TABLE = {
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL,            DatabaseDialectType::AURORA_POSTGRESQL},
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,  DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS},
     {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL},
     {VALUE_DB_DIALECT_MULTI_AZ_MYSQL,               DatabaseDialectType::MULTI_AZ_MYSQL},
-    {VALUE_DB_DIALECT_MULTI_AZ_PG,                  DatabaseDialectType::MULTI_AZ_PG}
+    {VALUE_DB_DIALECT_MULTI_AZ_PG,                  DatabaseDialectType::MULTI_AZ_PG},
 };
 
 class Dialect {
@@ -67,10 +68,9 @@ public:
     virtual std::optional<bool> DoesStatementSetReadOnly(std::string statement) { return {}; };
 
     static DatabaseDialectType DatabaseDialectFromString(const std::string &database_dialect) {
-        std::string local_str = database_dialect;
-        std::string upper_local_str = RDS_STR_UPPER(local_str);
-        if (database_dialect_table.contains(upper_local_str)) {
-            return database_dialect_table.at(upper_local_str);
+        const std::string upper_local_str = RDS_STR_UPPER(database_dialect);
+        if (DATABASE_DIALECT_TABLE.contains(upper_local_str)) {
+            return DATABASE_DIALECT_TABLE.at(upper_local_str);
         }
         return DatabaseDialectType::UNKNOWN_DIALECT;
     }
@@ -91,7 +91,7 @@ public:
 
 class DialectMultiAzCluster : virtual public Dialect {
 public:
-    virtual std::string GetWriterIdColumnName() { return ""; };
+    std::string GetWriterIdColumnName() override { return ""; };
 };
 
 #endif // DIALECT_H

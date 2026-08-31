@@ -19,8 +19,6 @@
 #define ODBCVER 0x0380
 #endif
 
-#define ODBCVER_BITS 256
-
 #define DRIVER_VERSION "1.0.0"
 
 #if WIN32
@@ -54,6 +52,7 @@
 #include <sql.h>
 
 #include <atomic>
+#include <cstdint>
 #include <list>
 #include <map>
 #include <memory>
@@ -79,15 +78,19 @@ class PluginService;
 
 /* Const Lengths */
 #define NO_DATA_SQL_STATE "00000"
-#define NO_DATA_NATIVE_ERR 0
-#define MAX_SQL_STATE_LEN 6
-#define ODBC_VER_SiZE 16
-#define MAX_MSG_LEN 1024
+
+enum DriverLengths : std::uint16_t {
+    NO_DATA_NATIVE_ERR = 0,
+    MAX_SQL_STATE_LEN = 6,
+    ODBC_VER_SIZE = 16,
+    ODBCVER_BITS = 256,
+    MAX_MSG_LEN = 1024,
+};
 
 /* Struct Declarations */
-typedef enum { CONN_NOT_CONNECTED, CONN_CONNECTED, CONN_DOWN, CONN_EXECUTING } CONN_STATUS;
+enum CONN_STATUS : std::uint8_t { CONN_NOT_CONNECTED, CONN_CONNECTED, CONN_DOWN, CONN_EXECUTING };
 
-typedef enum { TRANSACTION_CLOSED, TRANSACTION_OPEN, TRANSACTION_ERROR } TRANSACTION_STATUS;
+enum TRANSACTION_STATUS : std::uint8_t { TRANSACTION_CLOSED, TRANSACTION_OPEN, TRANSACTION_ERROR };
 
 /* Structures */
 struct ENV {
@@ -95,7 +98,7 @@ struct ENV {
     std::list<DBC*> dbc_list;
     // TODO - May need to change SQLPOINTER to an actual object
     std::map<SQLINTEGER, std::pair<SQLPOINTER, SQLINTEGER>> attr_map;  // Key, <Value, Length>
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
 
@@ -126,7 +129,7 @@ struct DBC {
     bool allow_interactive_auth = false;
     BasePlugin* plugin_head = nullptr;
     std::shared_ptr<PluginService> plugin_service;
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~DBC();
@@ -180,7 +183,7 @@ struct STMT {
     std::vector<BoundParamBuffer> bound_param_buffers;  // Intercepted WCHAR param bindings
     bool put_data_char_conversion = false;
 
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~STMT();
@@ -192,35 +195,11 @@ struct DESC {
     // TODO - What to put here
     DBC* dbc;
     SQLHDESC wrapped_desc = SQL_NULL_HDESC;
-    std::unique_ptr<ERR_INFO> err;
+    std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
     ~DESC();
 };  // DESC
-
-/* Function Declarations */
-SQLRETURN RDS_AllocEnv(SQLHENV* EnvironmentHandlePointer);
-
-SQLRETURN RDS_AllocDbc(SQLHENV EnvironmentHandle, SQLHDBC* ConnectionHandlePointer);
-
-SQLRETURN RDS_AllocStmt(SQLHDBC ConnectionHandle, SQLHSTMT* StatementHandlePointer);
-
-SQLRETURN RDS_AllocDesc(SQLHDBC ConnectionHandle, SQLHANDLE* DescriptorHandlePointer);
-
-SQLRETURN RDS_SQLEndTran(SQLSMALLINT HandleType, SQLHANDLE Handle, SQLSMALLINT CompletionType);
-
-SQLRETURN RDS_FreeConnect(SQLHDBC ConnectionHandle);
-
-SQLRETURN RDS_FreeDesc(SQLHDESC DescriptorHandle);
-
-SQLRETURN RDS_FreeEnv(SQLHENV EnvironmentHandle);
-
-SQLRETURN RDS_FreeStmt(SQLHSTMT StatementHandle, SQLUSMALLINT Option);
-
-SQLRETURN RDS_GetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER BufferLength,
-                             SQLINTEGER* StringLengthPtr);
-
-SQLRETURN RDS_SQLSetConnectAttr(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength);
 
 /* Simple Macros */
 #define RDS_NOT_IMPLEMENTED return SQL_ERROR

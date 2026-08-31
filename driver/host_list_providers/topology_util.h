@@ -15,11 +15,10 @@
 #ifndef TOPOLOGY_UTILS_H_
 #define TOPOLOGY_UTILS_H_
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "../dialect/dialect.h"
-
 #include "../host_info.h"
 #include "../util/odbc_helper.h"
 
@@ -33,13 +32,16 @@ public:
     virtual std::vector<HostInfo> VerifyWriter(const std::vector<HostInfo>& all_hosts);
     virtual HOST_ROLE GetConnectionRole(SQLHDBC hdbc);
     virtual std::vector<HostInfo> GetHosts(SQLHDBC hdbc, const HostInfo &initial_host, const HostInfo &host_template) = 0;
-    virtual HostInfo CreateHost(std::string host, int port, HOST_STATE state, HOST_ROLE, uint64_t weight, std::chrono::steady_clock::time_point last_update);
+    virtual HostInfo CreateHost(std::string host, int port, HOST_STATE state, HOST_ROLE /*role*/, uint64_t weight, std::chrono::steady_clock::time_point last_update);
     virtual HostInfo GetWriter(const std::vector<HostInfo>& hosts);
     static void LogTopology(const std::vector<HostInfo>& hosts);
 
 protected:
+    // Collaborators subclasses query topology with
+    // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<Dialect> dialect_;
+    // NOLINTEND(misc-non-private-member-variables-in-classes)
 
     static constexpr int BUFFER_SIZE = 1024;
     static constexpr int IS_READER_COL = 1;

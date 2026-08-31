@@ -16,15 +16,14 @@
 #define DIALECT_AURORA_MYSQL_H
 
 #include <algorithm>
-
-#include "dialect.h"
-
 #include <vector>
 
-#include "../util/rds_strings.h"
 #include "../util/odbc_helper.h"
+#include "../util/rds_strings.h"
+#include "dialect.h"
 
-class DialectAuroraMySql : virtual public Dialect, DialectBlueGreen {
+// codechecker_suppress [misc-multiple-inheritance]
+class DialectAuroraMySql : public DialectBlueGreen {
 public:
     int GetDefaultPort() override { return DEFAULT_MYSQL_PORT; };
     std::string GetTopologyQuery() override { return TOPOLOGY_QUERY; };
@@ -40,20 +39,19 @@ public:
     bool IsSqlStateAccessError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(ACCESS_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
     bool IsSqlStateNetworkError(const char* sql_state) override {
         std::string state(sql_state);
         return std::ranges::any_of(NETWORK_ERRORS, [&state](const std::string &prefix) {
-            return state.rfind(prefix, 0) == 0;
+            return state.starts_with(prefix);
         });
     };
 
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::AURORA_MYSQL; };
 
-protected:
     std::optional<bool> DoesStatementSetReadOnly(std::string statement) override {
         if (statement.starts_with(SET_READ_ONLY_QUERY)) {
             return true;
@@ -93,7 +91,7 @@ private:
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
-        "28000"   // PAM authentication errors
+        "28000",  // PAM authentication errors
     };
 
     const std::vector<std::string> NETWORK_ERRORS = {
@@ -107,10 +105,11 @@ private:
         "F0",       // configuration file error (backend)
         "XX",       // internal error (backend)
         "HYT00",    // connection/login timeout expired
-        "HY000"     // generic error class used for can't-connect / unknown-host failures
+        "HY000",    // generic error class used for can't-connect / unknown-host failures
     };
 };
 
+// codechecker_suppress [misc-multiple-inheritance]
 class DialectMultiAzClusterMySql : public DialectMultiAzCluster, public DialectAuroraMySql {
 public:
     DatabaseDialectType GetDialectType() override { return DatabaseDialectType::MULTI_AZ_MYSQL; };

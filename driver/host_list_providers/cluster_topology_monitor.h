@@ -15,6 +15,11 @@
 #ifndef CLUSTER_TOPOLOGY_MONITOR_H
 #define CLUSTER_TOPOLOGY_MONITOR_H
 
+#include "../util/windows_headers.h"
+
+#include <sql.h>
+#include <sqltypes.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -25,23 +30,16 @@
 #include <thread>
 #include <vector>
 
-#include "../util/windows_headers.h"
-#include <sql.h>
-#include <sqltypes.h>
-
-#include "topology_util.h"
-
-#include "../plugin/default_plugin.h"
+#include "../dialect/dialect.h"
 #include "../driver.h"
 #include "../host_info.h"
-
-#include "../dialect/dialect.h"
-
+#include "../plugin/default_plugin.h"
 #include "../util/logger_wrapper.h"
 #include "../util/odbc_helper.h"
 #include "../util/plugin_service.h"
 #include "../util/rds_strings.h"
 #include "../util/sliding_cache_map.h"
+#include "topology_util.h"
 
 struct DBC;
 struct ENV;
@@ -110,13 +108,18 @@ private:
     const std::chrono::milliseconds TOPOLOGY_UPDATE_WAIT_MS = std::chrono::milliseconds(1000);
     std::atomic<uint64_t> topology_version_{0};
 
+    static constexpr std::chrono::seconds DEFAULT_IGNORE_TOPOLOGY_REQUEST_S = std::chrono::seconds(30);
+    static constexpr std::chrono::milliseconds DEFAULT_HIGH_REFRESH_RATE_MS = std::chrono::milliseconds(100);
+    static constexpr std::chrono::seconds DEFAULT_HIGH_REFRESH_AFTER_PANIC_S = std::chrono::seconds(30);
+    static constexpr std::chrono::seconds DEFAULT_REFRESH_RATE_S = std::chrono::seconds(30);
+
     std::atomic<std::chrono::steady_clock::time_point> ignore_topology_request_end_ms_;
-    std::chrono::milliseconds ignore_topology_request_ms_ = std::chrono::seconds(30);
+    std::chrono::milliseconds ignore_topology_request_ms_ = DEFAULT_IGNORE_TOPOLOGY_REQUEST_S;
     std::chrono::steady_clock::time_point high_refresh_end_time_;
-    std::chrono::milliseconds high_refresh_rate_ms_ = std::chrono::milliseconds(100);
-    const std::chrono::seconds high_refresh_rate_after_panic_ = std::chrono::seconds(30);
-    std::chrono::milliseconds refresh_rate_ms_ = std::chrono::seconds(30);
-    std::chrono::steady_clock::time_point epoch_ = std::chrono::steady_clock::time_point{};
+    std::chrono::milliseconds high_refresh_rate_ms_ = DEFAULT_HIGH_REFRESH_RATE_MS;
+    const std::chrono::seconds high_refresh_rate_after_panic_ = DEFAULT_HIGH_REFRESH_AFTER_PANIC_S;
+    std::chrono::milliseconds refresh_rate_ms_ = DEFAULT_REFRESH_RATE_S;
+    std::chrono::steady_clock::time_point epoch_;
 
     // Main Thread
     std::shared_ptr<std::thread> monitoring_thread_;
