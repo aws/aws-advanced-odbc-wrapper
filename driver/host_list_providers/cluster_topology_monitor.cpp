@@ -527,7 +527,7 @@ ClusterTopologyMonitor::NodeMonitoringThread::~NodeMonitoringThread() {
 
 void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     const std::string thread_host = host_info_->GetHost();
-    auto updated_conn_str = main_monitor_->ConnForHost(thread_host);
+    const auto updated_conn_str = main_monitor_->ConnForHost(thread_host);
     DBC* local_dbc = static_cast<DBC*>(hdbc_);
     ConnectionStringHelper::ParseConnectionString(updated_conn_str, conn_info_);
     local_dbc->conn_attr = conn_info_;

@@ -15,6 +15,7 @@
 #include "abstract_read_write_splitting_plugin.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/map_utils.h"
@@ -22,7 +23,7 @@
 #include "../../util/sql_query_analyzer.h"
 
 const std::vector<std::string> FAILOVER_ERRORS = {
-    "08S01", "08S02", "08007"
+    "08S01", "08S02", "08007",
 };
 
 AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc) : AbstractReadWriteSplittingPlugin(dbc, nullptr) {}
@@ -34,7 +35,7 @@ AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc, std
         this->odbc_helper_ = service->GetOdbcHelper();
         this->connection_attributes_ = service->GetOriginalConnAttr();
     }
-    this->next_plugin_ = next_plugin;
+    this->next_plugin_ = std::move(next_plugin);
     this->dbc_ = dbc;
 
     henv_ = dbc_->env;
@@ -395,26 +396,22 @@ void AbstractReadWriteSplittingPlugin::CloseIdleConnections() {
 void AbstractReadWriteSplittingPlugin::CloseReaderConnectionIfIdle() {
     DBC* reader_conn = GetCurrentReaderConn();
     if (reader_conn != nullptr && reader_conn->wrapped_dbc != current_connection_
-        && reader_conn->wrapped_dbc != dbc_->wrapped_dbc) {
-        if (!odbc_helper_->IsClosed(reader_conn)) {
-            // reader_conn is open but is not currently in use, so we close it.
-            this->reader_cache_item_ = CacheEntry<DBC*>();
-            this->reader_host_info_ = HostInfo{};
-            DisconnectAndFreeDBC(reader_conn);
-        }
+        && reader_conn->wrapped_dbc != dbc_->wrapped_dbc && !odbc_helper_->IsClosed(reader_conn)) {
+        // reader_conn is open but is not currently in use, so we close it.
+        this->reader_cache_item_ = CacheEntry<DBC*>();
+        this->reader_host_info_ = HostInfo{};
+        DisconnectAndFreeDBC(reader_conn);
     }
 }
 
 void AbstractReadWriteSplittingPlugin::CloseWriterConnectionIfIdle() {
     DBC* writer_conn = writer_connection_;
     if (writer_conn != nullptr && writer_conn->wrapped_dbc != current_connection_
-        && writer_conn->wrapped_dbc != dbc_->wrapped_dbc) {
-        if (!odbc_helper_->IsClosed(writer_conn)) {
-            // writer_conn is open but is not currently in use, so we close it.
-            this->writer_connection_ = nullptr;
-            this->writer_host_info_ = HostInfo{};
-            DisconnectAndFreeDBC(writer_conn);
-        }
+        && writer_conn->wrapped_dbc != dbc_->wrapped_dbc && !odbc_helper_->IsClosed(writer_conn)) {
+        // writer_conn is open but is not currently in use, so we close it.
+        this->writer_connection_ = nullptr;
+        this->writer_host_info_ = HostInfo{};
+        DisconnectAndFreeDBC(writer_conn);
     }
 }
 

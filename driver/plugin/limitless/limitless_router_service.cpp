@@ -48,7 +48,7 @@ LimitlessRouterService::LimitlessRouterService(
 
 LimitlessRouterService::~LimitlessRouterService() {
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+    if (const auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
         if (pair.first == 1) {
             limitless_router_monitors_.erase(router_monitor_key_);
@@ -241,7 +241,7 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
-    const std::string host = conn_attr.at(KEY_SERVER);
+    const std::string& host = conn_attr.at(KEY_SERVER);
     router_monitor_key_ = host;
     if (RdsUtils::IsRdsDns(host)) {
         router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
@@ -249,7 +249,7 @@ void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<Dia
     LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
     const std::lock_guard<std::mutex> lock_guard(limitless_router_monitors_mutex_);
-    if (auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
+    if (const auto itr = limitless_router_monitors_.find(this->router_monitor_key_); itr != limitless_router_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<LimitlessRouterMonitor>>& pair = itr->second;
         // If the monitor exists, increment the reference count.
         pair.first++;

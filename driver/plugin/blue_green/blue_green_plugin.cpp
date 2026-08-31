@@ -300,7 +300,7 @@ void BlueGreenPlugin::InitProvider() {
 std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() {
     const std::lock_guard<std::recursive_mutex> lock_guard(provider_lock_);
     std::shared_ptr<BlueGreenStatusProvider> provider;
-    if (auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
+    if (const auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
         std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>& pair = itr->second;
         pair.first++;
         provider = pair.second;
@@ -335,7 +335,7 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
 void BlueGreenPlugin::CleanUpStatusProvider() {
     if (this->status_provider_) {
         const std::lock_guard<std::recursive_mutex> lock_guard(provider_lock_);
-        if (auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
+        if (const auto itr = status_providers_map_.find(this->blue_green_id_); itr != status_providers_map_.end()) {
             std::pair<unsigned int, std::shared_ptr<BlueGreenStatusProvider>>& pair = itr->second;
             if (pair.first == 1) {
                 status_providers_map_.erase(this->blue_green_id_);

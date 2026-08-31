@@ -28,10 +28,10 @@ void RoundRobinHostSelector::SetRoundRobinWeight(const std::vector<HostInfo> &ho
     std::string host_weight_str;
     for (int i = 0; i < hosts.size(); i++) {
         host_weight_str += hosts.at(i).GetHost();
-        host_weight_str += ":";
+        host_weight_str += ':';
         host_weight_str += std::to_string(hosts.at(i).GetWeight());
         if (i < hosts.size() - 1) {
-            host_weight_str += ",";
+            host_weight_str += ',';
         }
     }
     properties[RoundRobinProperty::HOST_WEIGHT_KEY] = host_weight_str;
@@ -199,7 +199,7 @@ void RoundRobinHostSelector::UpdatePropsHostWeight(
     const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& info,
     const std::unordered_map<std::string, std::string>& props) {
 
-    if (auto itr = props.find(RoundRobinProperty::HOST_WEIGHT_KEY); itr != props.end()) {
+    if (const auto itr = props.find(RoundRobinProperty::HOST_WEIGHT_KEY); itr != props.end()) {
         const std::string host_weights_str = itr->second;
         if (host_weights_str.empty()) {
             info->cluster_weight_map.clear();

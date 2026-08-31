@@ -26,13 +26,13 @@
 enum MfaType : std::uint8_t {
     NONE,
     TOTP,
-    PUSH
+    PUSH,
 };
 
 static std::map<std::string, MfaType> const MFA_TYPE_TABLE = {
     {"", MfaType::NONE},
     {VALUE_MFA_TOTP, MfaType::TOTP},
-    {VALUE_MFA_PUSH, MfaType::PUSH}
+    {VALUE_MFA_PUSH, MfaType::PUSH},
 };
 
 // codechecker_suppress [misc-multiple-inheritance]

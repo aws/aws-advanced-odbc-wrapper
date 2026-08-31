@@ -47,7 +47,7 @@ public:
 
     bool TryEmplace(const Key& key, const Value& value) {
         const std::lock_guard<std::mutex> lock(mutex_);
-        auto itr_pair = map_.try_emplace(key, value);
+        const auto itr_pair = map_.try_emplace(key, value);
         return itr_pair.second;
     };
 
@@ -58,7 +58,7 @@ public:
 
     Value Get(const Key& key) const {
         const std::lock_guard<std::mutex> lock(mutex_);
-        if (auto itr = map_.find(key); itr != map_.end()) {
+        if (const auto itr = map_.find(key); itr != map_.end()) {
             return itr->second;
         }
         return {};

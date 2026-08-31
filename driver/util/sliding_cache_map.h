@@ -68,7 +68,7 @@ public:
     V Get(const K& key) {
         const std::lock_guard<std::mutex> lock(cache_lock_);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        if (auto itr = cache_.find(key); itr != cache_.end()) {
+        if (const auto itr = cache_.find(key); itr != cache_.end()) {
             CacheEntry<V> & entry = itr->second;
             if (entry.expiry > now) {
                 // Update TTL & Return value
@@ -84,7 +84,7 @@ public:
     bool Find(const K& key) {
         const std::lock_guard<std::mutex> lock(cache_lock_);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        if (auto itr = cache_.find(key); itr != cache_.end()) {
+        if (const auto itr = cache_.find(key); itr != cache_.end()) {
             CacheEntry<V> & entry = itr->second;
             if (entry.expiry > now) {
                 // Update TTL & Return found

@@ -91,7 +91,7 @@ private:
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
-        "28000"   // PAM authentication errors
+        "28000",  // PAM authentication errors
     };
 
     const std::vector<std::string> NETWORK_ERRORS = {
@@ -105,7 +105,7 @@ private:
         "F0",       // configuration file error (backend)
         "XX",       // internal error (backend)
         "HYT00",    // connection/login timeout expired
-        "HY000"     // generic error class used for can't-connect / unknown-host failures
+        "HY000",    // generic error class used for can't-connect / unknown-host failures
     };
 };
 

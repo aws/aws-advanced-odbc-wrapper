@@ -27,13 +27,13 @@ enum HostSelectorStrategies : std::uint8_t {
     HIGHEST_WEIGHT,
     RANDOM_HOST,
     ROUND_ROBIN,
-    UNKNOWN_STRATEGY
+    UNKNOWN_STRATEGY,
 };
 
 static std::unordered_map<std::string, HostSelectorStrategies> const HOST_SELECTOR_TABLE = {
     {VALUE_HIGHEST_WEIGHT_HOST_SELECTOR,    HostSelectorStrategies::HIGHEST_WEIGHT},
     {VALUE_RANDOM_HOST_SELECTOR,            HostSelectorStrategies::RANDOM_HOST},
-    {VALUE_ROUND_ROBIN_HOST_SELECTOR,       HostSelectorStrategies::ROUND_ROBIN}
+    {VALUE_ROUND_ROBIN_HOST_SELECTOR,       HostSelectorStrategies::ROUND_ROBIN},
 };
 
 class HostSelector {

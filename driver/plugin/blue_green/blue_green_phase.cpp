@@ -38,7 +38,7 @@ BlueGreenPhase BlueGreenPhase::ParsePhase(std::string value, std::string version
     BlueGreenPhase::Phase phase = BlueGreenPhase::Phase::UNKNOWN;
 
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return std::toupper(c); });
-    auto itr = BlueGreenPhase::STR_TO_PHASE_MAPPING.find(value);
+    const auto itr = BlueGreenPhase::STR_TO_PHASE_MAPPING.find(value);
     if (itr != BlueGreenPhase::STR_TO_PHASE_MAPPING.end()) {
         phase = itr->second;
     }
@@ -50,7 +50,7 @@ BlueGreenPhase BlueGreenPhase::ParsePhase(std::string value, std::string version
 }
 
 std::string BlueGreenPhase::ToString() {
-    auto itr = BlueGreenPhase::PHASE_TO_STR_MAPPING.find(this->phase_);
+    const auto itr = BlueGreenPhase::PHASE_TO_STR_MAPPING.find(this->phase_);
     if (itr != BlueGreenPhase::PHASE_TO_STR_MAPPING.end()) {
         return itr->second;
     }

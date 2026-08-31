@@ -47,7 +47,7 @@
 enum BlueGreenIntervalRate : std::uint8_t {
     BASELINE,
     INCREASED,
-    HIGH
+    HIGH,
 };
 
 class BlueGreenMonitor {

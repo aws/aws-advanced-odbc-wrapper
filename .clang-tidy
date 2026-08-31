@@ -61,6 +61,8 @@ CheckOptions:
   - { key: readability-identifier-naming.GlobalConstantCase,            value: UPPER_CASE }
   - { key: readability-identifier-naming.MemberConstantCase,            value: UPPER_CASE }
   - { key: readability-identifier-naming.StaticConstantCase,            value: UPPER_CASE }
+  # Exported ODBC entry points and their RDS_* helpers mirror the sql.h prototypes
+  - { key: misc-const-correctness.AnalyzeParameters,                    value: false      }
   - { key: readability-implicit-bool-conversion.AllowIntegerConditions, value: 1          }
   - { key: readability-implicit-bool-conversion.AllowPointerConditions, value: 1          }
   - { key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic, value: true }

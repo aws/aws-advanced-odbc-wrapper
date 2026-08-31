@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <string>
@@ -163,7 +164,7 @@ enum SQL_STATE_CODE : std::uint8_t {
     ERR_RW_TX_SWITCH_FAILED,
 
     /* End Error, used for sizing */
-    INVALID_ERR
+    INVALID_ERR,
 };
 
 const std::string ODBC_STATE_MAP[] = {
@@ -187,7 +188,7 @@ const std::string ODBC_STATE_MAP[] = {
     /* RW Splitting Related */
     "08007", "08003", "08001", "08001", "25001",
     /* END */
-    "ERROR"
+    "ERROR",
 };
 
 const std::string ODBC_3_SUBCLASS[] = {
@@ -198,7 +199,7 @@ const std::string ODBC_3_SUBCLASS[] = {
     "HY100", "HY101", "HY105", "HY107", "HY109", "HY110",
     "HY111", "HYT00", "HYT01", "IM001", "IM002", "IM003",
     "IM004", "IM005", "IM006", "IM007", "IM008", "IM010",
-    "IM011", "IM012"
+    "IM011", "IM012",
 };
 
 struct ErrInfo {

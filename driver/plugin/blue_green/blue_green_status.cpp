@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <format>
 #include <sstream>
+#include <utility>
 
 BlueGreenStatus::BlueGreenStatus() : BlueGreenStatus("<NO-ID>", BlueGreenPhase(BlueGreenPhase::UNKNOWN, false)) {}
 
@@ -33,8 +34,8 @@ BlueGreenStatus::BlueGreenStatus(std::string id, BlueGreenPhase phase, std::vect
                                  std::shared_ptr<ConcurrentMap<std::string, std::pair<HostInfo, HostInfo>>> corresponding_nodes) {
     this->blue_green_id_ = id;
     this->current_phase_ = phase;
-    this->connect_routes_ = connect_routes;
-    this->execute_routes_ = execute_routes;
+    this->connect_routes_ = std::move(connect_routes);
+    this->execute_routes_ = std::move(execute_routes);
     this->role_by_host_map_ = role_by_host_map->GetMapCopy();
     this->corresponding_nodes_ = corresponding_nodes->GetMapCopy();
 }
@@ -79,10 +80,10 @@ std::string BlueGreenStatus::ToString() {
         role_by_host_map_str << key << ", " << value.ToString() << "\n";
     }
 
-    for (auto& route : connect_routes_) {
+    for (const auto& route : connect_routes_) {
         connect_routes_str << route->ToString() << "\n";
     }
-    for (auto& route : execute_routes_) {
+    for (const auto& route : execute_routes_) {
         execute_routes_str << route->ToString() << "\n";
     }
 

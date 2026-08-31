@@ -32,7 +32,7 @@ enum DatabaseDialectType : std::uint8_t {
     AURORA_MYSQL,
     MULTI_AZ_MYSQL,
     MULTI_AZ_PG,
-    UNKNOWN_DIALECT
+    UNKNOWN_DIALECT,
 };
 
 static std::map<std::string, DatabaseDialectType> const DATABASE_DIALECT_TABLE = {
@@ -40,7 +40,7 @@ static std::map<std::string, DatabaseDialectType> const DATABASE_DIALECT_TABLE =
     {VALUE_DB_DIALECT_AURORA_POSTGRESQL_LIMITLESS,  DatabaseDialectType::AURORA_POSTGRESQL_LIMITLESS},
     {VALUE_DB_DIALECT_AURORA_MYSQL,                 DatabaseDialectType::AURORA_MYSQL},
     {VALUE_DB_DIALECT_MULTI_AZ_MYSQL,               DatabaseDialectType::MULTI_AZ_MYSQL},
-    {VALUE_DB_DIALECT_MULTI_AZ_PG,                  DatabaseDialectType::MULTI_AZ_PG}
+    {VALUE_DB_DIALECT_MULTI_AZ_PG,                  DatabaseDialectType::MULTI_AZ_PG},
 };
 
 class Dialect {

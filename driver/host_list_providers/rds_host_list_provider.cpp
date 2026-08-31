@@ -44,7 +44,7 @@ RdsHostListProvider::RdsHostListProvider(
 
 RdsHostListProvider::~RdsHostListProvider() {
     const std::lock_guard<std::mutex> lock_guard(monitor_map_mutex_);
-    if (auto itr = monitor_map_.find(this->cluster_id_); itr != monitor_map_.end()) {
+    if (const auto itr = monitor_map_.find(this->cluster_id_); itr != monitor_map_.end()) {
         std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>& pair = itr->second;
         if (pair.first == 1) {
             monitor_map_.erase(this->cluster_id_);
@@ -105,7 +105,7 @@ std::string RdsHostListProvider::GetClusterId() {
 std::shared_ptr<ClusterTopologyMonitor> RdsHostListProvider::GetOrCreateMonitor() {
     const std::lock_guard<std::mutex> lock_guard(monitor_map_mutex_);
     std::shared_ptr<ClusterTopologyMonitor> monitor;
-    if (auto itr = monitor_map_.find(this->cluster_id_); itr != monitor_map_.end()) {
+    if (const auto itr = monitor_map_.find(this->cluster_id_); itr != monitor_map_.end()) {
         std::pair<unsigned int, std::shared_ptr<ClusterTopologyMonitor>>& pair = itr->second;
         pair.first++;
         monitor = pair.second;

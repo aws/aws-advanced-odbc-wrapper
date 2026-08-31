@@ -31,13 +31,13 @@ enum FailoverMode : std::uint8_t {
     STRICT_READER,
     STRICT_WRITER,
     READER_OR_WRITER,
-    UNKNOWN_FAILOVER_MODE
+    UNKNOWN_FAILOVER_MODE,
 };
 
 static std::map<std::string, FailoverMode> const FAILOVER_MODE_TABLE = {
     {VALUE_FAILOVER_MODE_STRICT_READER,     FailoverMode::STRICT_READER},
     {VALUE_FAILOVER_MODE_STRICT_WRITER,     FailoverMode::STRICT_WRITER},
-    {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER}
+    {VALUE_FAILOVER_MODE_READER_OR_WRITER,  FailoverMode::READER_OR_WRITER},
 };
 
 class FailoverPlugin : public BasePlugin {

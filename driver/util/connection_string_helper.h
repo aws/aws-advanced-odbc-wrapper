@@ -24,13 +24,13 @@
 
 static std::unordered_set<std::string> const SENSITIVE_KEY_SET = {
     KEY_DB_PASSWORD,
-    KEY_IDP_PASSWORD
+    KEY_IDP_PASSWORD,
 };
 
 static std::unordered_set<std::string> const INTERNAL_WRAPPER_KEY_SET = {
     KEY_RDS_TEST_CONN,
     KEY_MONITORING_CONN_UUID,
-    KEY_SRW_SKIP
+    KEY_SRW_SKIP,
 };
 
 static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
@@ -107,7 +107,7 @@ static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
     KEY_SRW_CONN_TIMEOUT_MS,
     KEY_SRW_CONN_INTERVAL_MS,
     KEY_SRW_VERIFY_INITIAL_CONN_TYPE,
-    KEY_SRW_SKIP
+    KEY_SRW_SKIP,
 };
 
 static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {

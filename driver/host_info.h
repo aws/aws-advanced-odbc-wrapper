@@ -23,13 +23,13 @@
 
 enum HOST_STATE : std::uint8_t {
     UP,
-    DOWN
+    DOWN,
 };
 
 enum HOST_ROLE : std::uint8_t {
     READER,
     WRITER,
-    UNKNOWN
+    UNKNOWN,
 };
 
 class HostInfo {

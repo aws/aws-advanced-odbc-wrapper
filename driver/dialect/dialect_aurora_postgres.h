@@ -107,7 +107,7 @@ private:
 
     const std::vector<std::string> ACCESS_ERRORS = {
         "28P01",
-        "28000"   // PAM authentication errors
+        "28000",  // PAM authentication errors
     };
 
     const std::vector<std::string> NETWORK_ERRORS = {
@@ -119,7 +119,7 @@ private:
         "08",       // connection error
         "99",       // unexpected error
         "F0",       // configuration file error (backend)
-        "XX"        // internal error (backend)
+        "XX",       // internal error (backend)
     };
 };
 

@@ -31,7 +31,7 @@ AdfsAuthPlugin::AdfsAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
 
 namespace {
     std::shared_ptr<SamlUtil> CreateAdfsSamlUtil(
-        DBC* dbc,
+        const DBC* dbc,
         const std::shared_ptr<SamlUtil>& saml_util)
     {
         if (saml_util) {
@@ -117,7 +117,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
     if (!action.empty() && action[0]=='/') {
         url = "https://";
         url += idp_endpoint_;
-        url += ":";
+        url += ':';
         url += idp_port_;
         url += action;
     }
@@ -136,7 +136,7 @@ std::string AdfsSamlUtil::GetSamlAssertion()
 std::map<std::string, std::string> AdfsSamlUtil::GetParameterFromBody(std::string &body)
 {
     std::map<std::string, std::string> parameters;
-    for (auto& input_tag : GetInputTagsFromBody(body)) {
+    for (const auto& input_tag : GetInputTagsFromBody(body)) {
         const std::string name = GetValueByKey(input_tag, std::string("name"));
         const std::string value = GetValueByKey(input_tag, std::string("value"));
         DLOG(INFO) << "Input Tag [" << input_tag << "], Name [" << name << "], Value [" << value << "]";
@@ -178,9 +178,9 @@ std::string AdfsSamlUtil::GetFormActionBody(const std::string &url, const std::m
     std::string body;
     for (const auto&[key, value] : params) {
         body += key;
-        body += "=";
+        body += '=';
         body += value;
-        body += "&";
+        body += '&';
     }
     if (!body.empty()) {
         body.pop_back();

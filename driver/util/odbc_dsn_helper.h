@@ -22,7 +22,7 @@
 
 enum DsnBufferSizes : std::uint16_t {
     MAX_KEY_SIZE = 8192,
-    MAX_VAL_SIZE = 8192
+    MAX_VAL_SIZE = 8192,
 };
 
 #define ODBC_INI "ODBC.INI"

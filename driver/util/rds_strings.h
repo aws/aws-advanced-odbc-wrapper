@@ -36,7 +36,7 @@
 
 #include "logger_wrapper.h"
 
-static constexpr int SQLTCHAR_HALF_BITS = 16;
+static constexpr uint32_t SQLTCHAR_HALF_BITS = 16;
 
 inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_bytes) {
     if (buffer_len > 0) {
@@ -48,8 +48,8 @@ inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_
         std::vector<UChar32> utf32_buf(num_codepoints);
         for (int32_t i = 0; i < num_codepoints; i++) {
             const ptrdiff_t offset = static_cast<ptrdiff_t>(i) * 2;
-            utf32_buf[i] = static_cast<UChar32>(in[offset])
-                         | (static_cast<UChar32>(in[offset + 1]) << SQLTCHAR_HALF_BITS);
+            utf32_buf[i] = static_cast<UChar32>(static_cast<uint32_t>(in[offset])
+                         | (static_cast<uint32_t>(in[offset + 1]) << SQLTCHAR_HALF_BITS));
         }
 
         UErrorCode err = U_ZERO_ERROR;
@@ -74,8 +74,8 @@ inline size_t GetLenOfSqltcharArray(SQLTCHAR *in, SQLLEN buffer_len, bool use_4_
         std::vector<UChar32> utf32_buf;
         size_t num_codepoints = 0;
         while (true) {
-            const UChar32 cp = static_cast<UChar32>(in[num_codepoints * 2])
-                       | (static_cast<UChar32>(in[(num_codepoints * 2) + 1]) << SQLTCHAR_HALF_BITS);
+            const UChar32 cp = static_cast<UChar32>(static_cast<uint32_t>(in[num_codepoints * 2])
+                       | (static_cast<uint32_t>(in[(num_codepoints * 2) + 1]) << SQLTCHAR_HALF_BITS));
             if (cp == 0) {
                 break;
             }
@@ -219,8 +219,8 @@ inline std::string Convert4ByteSqlWChar(
         if (BufferLength > 0 && (i / 2) >= BufferLength) {
             break;
         }
-        const UChar32 cp = static_cast<UChar32>(InputStr[i])
-                   | (static_cast<UChar32>(InputStr[i + 1]) << SQLTCHAR_HALF_BITS);
+        const UChar32 cp = static_cast<UChar32>(static_cast<uint32_t>(InputStr[i])
+                   | (static_cast<uint32_t>(InputStr[i + 1]) << SQLTCHAR_HALF_BITS));
         if (cp == 0) {
             break;
         }
@@ -398,8 +398,8 @@ inline void Convert4To2ByteString(bool use_4_bytes, SQLTCHAR *in, SQLTCHAR *out,
     int32_t num_codepoints = 0;
     for (int32_t i = 0; i < max_src_codepoints; i++) {
         const ptrdiff_t offset = static_cast<ptrdiff_t>(i) * 2;
-        utf32_buf[i] = static_cast<UChar32>(in[offset])
-                     | (static_cast<UChar32>(in[offset + 1]) << SQLTCHAR_HALF_BITS);
+        utf32_buf[i] = static_cast<UChar32>(static_cast<uint32_t>(in[offset])
+                     | (static_cast<uint32_t>(in[offset + 1]) << SQLTCHAR_HALF_BITS));
         if (utf32_buf[i] == 0) {
             break;
         }

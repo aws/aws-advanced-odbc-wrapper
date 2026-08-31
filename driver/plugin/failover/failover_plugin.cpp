@@ -158,7 +158,7 @@ void FailoverPlugin::RemoveHostCandidate(const std::string& host, std::vector<Ho
 bool FailoverPlugin::FailoverReader(DBC* dbc)
 {
     auto curr_time = std::chrono::steady_clock::now();
-    auto end = curr_time + failover_timeout_ms_;
+    const auto end = curr_time + failover_timeout_ms_;
 
     LOG(INFO) << "Starting reader failover procedure";
     // The roles in this list might not be accurate, depending on whether the new topology has become available yet.

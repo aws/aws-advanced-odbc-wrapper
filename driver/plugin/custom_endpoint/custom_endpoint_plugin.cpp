@@ -77,7 +77,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(
 CustomEndpointPlugin::~CustomEndpointPlugin()
 {
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         if (pair.first == 1) {
             endpoint_monitors_.erase(this->cluster_id_);
@@ -145,7 +145,7 @@ SQLRETURN CustomEndpointPlugin::Execute(
 std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor() {
     std::shared_ptr<CustomEndpointMonitor> monitor;
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         pair.first++;
         monitor = pair.second;

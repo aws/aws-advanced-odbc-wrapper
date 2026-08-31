@@ -84,7 +84,7 @@ enum DriverLengths : std::uint16_t {
     MAX_SQL_STATE_LEN = 6,
     ODBC_VER_SIZE = 16,
     ODBCVER_BITS = 256,
-    MAX_MSG_LEN = 1024
+    MAX_MSG_LEN = 1024,
 };
 
 /* Struct Declarations */

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <thread>
+#include <utility>
 
 #include "../../host_selector/host_selector.h"
 #include "../../host_selector/round_robin_host_selector.h"
@@ -45,9 +46,9 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     const std::map<std::string, std::string> conn_info = dbc->conn_attr;
 
     this->plugin_service_ = plugin_service;
-    this->dialect_ = dialect;
-    this->host_selector_ = host_selector;
-    this->odbc_helper_ = odbc_helper;
+    this->dialect_ = std::move(dialect);
+    this->host_selector_ = std::move(host_selector);
+    this->odbc_helper_ = std::move(odbc_helper);
 
     this->retry_delay_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_INTERVAL_MS, DEFAULT_INITIAL_CONNECTION_RETRY_INTERVAL_MS);
     this->retry_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_INITIAL_CONNECTION_RETRY_TIMEOUT_MS, DEFAULT_INITIAL_CONNECTION_RETRY_TIMEOUT_MS);
@@ -274,7 +275,7 @@ HostInfo AuroraInitialConnectionStrategyPlugin::GetReader(const std::string& reg
     std::vector<HostInfo> filtered_hosts;
 
     if (region.empty()) {
-        filtered_hosts = hosts;
+        filtered_hosts = std::move(hosts);
     } else {
         std::ranges::copy_if(hosts, std::back_inserter(filtered_hosts), [&](const HostInfo& host) {
             return RdsUtils::GetRdsRegion(host.GetHost()) == region && host.GetHostRole() == READER;

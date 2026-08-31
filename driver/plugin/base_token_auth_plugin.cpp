@@ -15,6 +15,7 @@
 #include "base_token_auth_plugin.h"
 
 #include <cstdlib>
+#include <utility>
 #include <vector>
 
 #include "../util/connection_string_keys.h"
@@ -34,13 +35,13 @@ BaseTokenAuthPlugin::BaseTokenAuthPlugin(
     this->auth_provider_ = auth_provider;
 
     if (dialect) {
-        this->dialect_ = dialect;
+        this->dialect_ = std::move(dialect);
     } else if (dbc->plugin_service) {
         this->dialect_ = dbc->plugin_service->GetDialect();
     }
 
     if (odbc_helper) {
-        this->odbc_helper_ = odbc_helper;
+        this->odbc_helper_ = std::move(odbc_helper);
     } else if (dbc->plugin_service) {
         this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
     }

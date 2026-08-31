@@ -24,24 +24,24 @@ public:
     enum Role : std::uint8_t {
         SOURCE,
         TARGET,
-        UNKNOWN
+        UNKNOWN,
     };
 
     static inline std::string VERSION_1_0 = "1.0";
 
     static inline std::map<std::string, Role> const ROLE_MAPPING_V1_0 = {
         {"BLUE_GREEN_DEPLOYMENT_SOURCE",    Role::SOURCE},
-        {"BLUE_GREEN_DEPLOYMENT_TARGET",    Role::TARGET}
+        {"BLUE_GREEN_DEPLOYMENT_TARGET",    Role::TARGET},
     };
 
     static inline std::map<Role, std::string> const ROLE_TO_STRING = {
         {Role::SOURCE, "SOURCE"},
-        {Role::TARGET, "TARGET"}
+        {Role::TARGET, "TARGET"},
     };
 
     BlueGreenRole();
     // BlueGreenRole is a value wrapper around the enum and is passed, compared, and used as a map key directly as Role constants
-    BlueGreenRole(Role role); // NOLINT(google-explicit-constructor)
+    BlueGreenRole(Role role); // NOLINT(google-explicit-constructor, misc-explicit-constructor)
 
     [[nodiscard]] Role GetRole() const;
     [[nodiscard]] std::string ToString() const;

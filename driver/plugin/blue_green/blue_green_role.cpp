@@ -31,7 +31,7 @@ BlueGreenRole::Role BlueGreenRole::GetRole() const {
 }
 
 std::string BlueGreenRole::ToString() const {
-    auto itr = BlueGreenRole::ROLE_TO_STRING.find(role_);
+    const auto itr = BlueGreenRole::ROLE_TO_STRING.find(role_);
     if (itr != BlueGreenRole::ROLE_TO_STRING.end()) {
         return itr->second;
     }
@@ -43,7 +43,7 @@ BlueGreenRole BlueGreenRole::ParseRole(std::string value, std::string version) {
 
     std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return std::toupper(c); });
     if (version == BlueGreenRole::VERSION_1_0) {
-        auto itr = BlueGreenRole::ROLE_MAPPING_V1_0.find(value);
+        const auto itr = BlueGreenRole::ROLE_MAPPING_V1_0.find(value);
         if (itr != BlueGreenRole::ROLE_MAPPING_V1_0.end()) {
             role = itr->second;
         }

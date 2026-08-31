@@ -184,13 +184,13 @@ Secret SecretsManagerPlugin::ParseSecret(const std::string &secret_string, const
         return Secret{
             .username = view.GetString(username_key),
             .password = view.GetString(password_key),
-            .expiration_point = curr_time + expiration
+            .expiration_point = curr_time + expiration,
         };
     }
     return Secret{
         .username = "",
         .password = "",
-        .expiration_point = curr_time + expiration
+        .expiration_point = curr_time + expiration,
     };
 }
 

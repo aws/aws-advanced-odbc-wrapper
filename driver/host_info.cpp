@@ -22,7 +22,7 @@ HostInfo::HostInfo(std::string host, int port, HOST_STATE state, HOST_ROLE role,
     weight_ { weight },
     last_update_ {last_update}
 {
-    auto idx = host_.find('.');
+    const auto idx = host_.find('.');
     if (idx != std::string::npos) {
         host_id_ = host_.substr(0, idx);
     }

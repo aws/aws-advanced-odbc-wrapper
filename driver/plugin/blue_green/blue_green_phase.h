@@ -28,7 +28,7 @@ public:
         PREPARATION,
         IN_PROGRESS,
         POST,
-        COMPLETED
+        COMPLETED,
     };
 
     static inline std::map<Phase, bool> const PHASE_STATE_MAPPING = {
@@ -38,7 +38,7 @@ public:
         {Phase::IN_PROGRESS,    true},
         {Phase::POST,           true},
         {Phase::COMPLETED,      true},
-        {Phase::UNKNOWN,        false}
+        {Phase::UNKNOWN,        false},
     };
 
     static inline std::map<Phase, std::string> const PHASE_TO_STR_MAPPING = {
@@ -48,7 +48,7 @@ public:
         {Phase::IN_PROGRESS,   "IN_PROGRESS"},
         {Phase::POST,          "POST"},
         {Phase::COMPLETED,     "COMPLETED"},
-        {Phase::UNKNOWN,       "UNKNOWN"}
+        {Phase::UNKNOWN,       "UNKNOWN"},
     };
 
     static inline std::map<std::string, Phase> const STR_TO_PHASE_MAPPING = {
@@ -56,11 +56,11 @@ public:
         {"SWITCHOVER_INITIATED",            Phase::PREPARATION},
         {"SWITCHOVER_IN_PROGRESS",          Phase::IN_PROGRESS},
         {"SWITCHOVER_IN_POST_PROCESSING",   Phase::POST},
-        {"SWITCHOVER_COMPLETED",            Phase::COMPLETED}
+        {"SWITCHOVER_COMPLETED",            Phase::COMPLETED},
     };
     BlueGreenPhase();
     // BlueGreenPhase is a value wrapper around the enum and is compared and assigned against Phase constants
-    BlueGreenPhase(Phase phase); // NOLINT(google-explicit-constructor)
+    BlueGreenPhase(Phase phase); // NOLINT(google-explicit-constructor, misc-explicit-constructor)
     BlueGreenPhase(Phase phase, bool switchover_or_completed);
 
     [[nodiscard]] Phase GetPhase() const;

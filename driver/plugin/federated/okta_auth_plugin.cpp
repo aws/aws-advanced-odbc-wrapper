@@ -36,7 +36,7 @@ OktaAuthPlugin::OktaAuthPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin
 
 namespace {
     std::shared_ptr<SamlUtil> CreateOktaSamlUtil(
-        DBC* dbc,
+        const DBC* dbc,
         const std::shared_ptr<SamlUtil>& saml_util)
     {
         if (saml_util) {

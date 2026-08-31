@@ -111,7 +111,7 @@ RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... ar
     return {
         .fn_load_success = fn_load,
         .fn_result = fn_ret,
-        .fn_name = func_name
+        .fn_name = func_name,
     };
 }
 

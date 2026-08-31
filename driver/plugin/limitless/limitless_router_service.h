@@ -30,7 +30,7 @@
 
 enum LimitlessDefault : std::uint16_t {
     MONITOR_INTERVAL_MS = 7500,
-    CONNECT_RETRY_ATTEMPTS = 5
+    CONNECT_RETRY_ATTEMPTS = 5,
 };
 
 class LimitlessRouterService {

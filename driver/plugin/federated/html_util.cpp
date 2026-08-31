@@ -26,7 +26,7 @@ const std::unordered_map<std::string, char> HtmlUtil::HTML_DECODE_MAP = {
     {"&gt;",    '>' },
     {"&amp;",   '&' },
     {"&apos;",  '\''},
-    {"&quot;",  '"' }
+    {"&quot;",  '"' },
 };
 
 std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
@@ -46,7 +46,7 @@ std::string HtmlUtil::EscapeHtmlEntity(const std::string& html) {
         if (semicolon_idx != std::string::npos) {
             const std::string html_code = html.substr(i, semicolon_idx - i + 1);
             char next = c;
-            if (auto itr = HtmlUtil::HTML_DECODE_MAP.find(html_code); itr != HtmlUtil::HTML_DECODE_MAP.end()) {
+            if (const auto itr = HtmlUtil::HTML_DECODE_MAP.find(html_code); itr != HtmlUtil::HTML_DECODE_MAP.end()) {
                 i = semicolon_idx + 1;
                 next = itr->second;
             } else {
