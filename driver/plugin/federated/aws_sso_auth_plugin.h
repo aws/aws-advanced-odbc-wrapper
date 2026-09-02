@@ -36,7 +36,6 @@ public:
     ~AwsSsoAuthPlugin() override;
 
 protected:
-    std::string ResolveRegion(DBC* dbc) override;
     bool EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error) override;
     bool RefreshCredentials(DBC* dbc, const std::string& region) override;
 

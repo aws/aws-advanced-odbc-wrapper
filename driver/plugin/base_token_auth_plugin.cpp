@@ -108,6 +108,8 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
         return SQL_ERROR;
     }
 
+    LOG(INFO) << "Generating an RDS authentication token for " << iam_host << ":" << port << " in region " << region;
+
     if (std::string credential_error; !EnsureCredentials(dbc, region, credential_error)) {
         LOG(ERROR) << credential_error;
         ClearError(dbc);
