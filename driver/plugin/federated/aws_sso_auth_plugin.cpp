@@ -14,11 +14,6 @@
 
 #include "aws_sso_auth_plugin.h"
 
-#include "../../util/connection_string_keys.h"
-#include "../../util/logger_wrapper.h"
-#include "../../util/map_utils.h"
-#include "../../util/rds_utils.h"
-
 AwsSsoAuthPlugin::AwsSsoAuthPlugin(DBC* dbc) : AwsSsoAuthPlugin(dbc, nullptr) {}
 
 AwsSsoAuthPlugin::AwsSsoAuthPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin)
@@ -42,20 +37,6 @@ AwsSsoAuthPlugin::~AwsSsoAuthPlugin()
     if (login_util_) {
         login_util_.reset();
     }
-}
-
-std::string AwsSsoAuthPlugin::ResolveRegion(DBC* dbc)
-{
-    std::string region = MapUtils::GetStringValue(dbc->conn_attr, KEY_SSO_REGION, "");
-    if (region.empty()) {
-        region = MapUtils::GetStringValue(dbc->conn_attr, KEY_REGION, "");
-    }
-    if (region.empty()) {
-        region = dbc->conn_attr.contains(KEY_SERVER) ?
-            RdsUtils::GetRdsRegion(dbc->conn_attr.at(KEY_SERVER))
-            : Aws::Region::US_EAST_1;
-    }
-    return region;
 }
 
 bool AwsSsoAuthPlugin::EnsureCredentials(DBC* dbc, const std::string& region, std::string& out_error)
