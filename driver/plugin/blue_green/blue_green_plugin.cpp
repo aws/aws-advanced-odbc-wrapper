@@ -65,7 +65,7 @@ SQLRETURN BlueGreenPlugin::Connect(
     // Get provider lock to check if there is an existing status
     //  This is to allow the plugin to increment the provider if it hasn't already
     std::unique_lock<std::recursive_mutex> lock_guard(provider_lock_);
-    this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+    this->blue_green_status_ = status_map_->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
     if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
         LOG(INFO) << "[FALLBACK-A] Default connection, no status found: " << this->blue_green_id_;
         LOG(INFO) << "Default connection, no status found: " << this->blue_green_id_;
@@ -120,7 +120,7 @@ SQLRETURN BlueGreenPlugin::Connect(
             rc = (*route_itr)->Connect(dbc, HostInfo(conn_host), this->odbc_helper_, BlueGreenPlugin::status_map_);
             LOG(INFO) << "[ROUTE-LOOP] iteration=" << loop_iteration << ", returned rc=" << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
-                this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+                this->blue_green_status_ = status_map_->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
                 BlueGreenPhase refetched_phase = this->blue_green_status_.GetCurrentPhase();
                 if (refetched_phase.GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::steady_clock::now();
@@ -182,7 +182,7 @@ SQLRETURN BlueGreenPlugin::Execute(
     this->ResetRoutingTiming();
     this->InitProvider();
 
-    this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+    this->blue_green_status_ = status_map_->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
     if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
         LOG(INFO) << "Default execution, no status found: " << this->blue_green_id_;
         return ExecuteNext(StatementHandle, StatementText, TextLength);
@@ -220,7 +220,7 @@ SQLRETURN BlueGreenPlugin::Execute(
             rc = (*route_itr)->Execute(stmt, this->odbc_helper_, BlueGreenPlugin::status_map_);
             LOG(INFO) << "Execute route returned: " << std::to_string(rc);
             if (!SQL_SUCCEEDED(rc)) {
-                this->blue_green_status_ = status_map_->Get(this->blue_green_id_);
+                this->blue_green_status_ = status_map_->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
                 if (this->blue_green_status_.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
                     this->end_time_ = std::chrono::steady_clock::now();
                     LOG(WARNING) << "Default execution, statuses reset, routes cleared for role: " << host_role.ToString() << ", host: " << conn_host;

@@ -18,6 +18,7 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <optional>
 
 template <typename V>
 struct CacheEntry {
@@ -65,7 +66,7 @@ public:
         cache_[key] = CacheEntry{value, expiry_time, ms_ttl};
     }
 
-    V Get(const K& key) {
+    std::optional<V> Get(const K& key) {
         const std::lock_guard<std::mutex> lock(cache_lock_);
         const std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         if (const auto itr = cache_.find(key); itr != cache_.end()) {
@@ -78,7 +79,7 @@ public:
             // Expired, remove from cache
             cache_.erase(itr);
         }
-        return {};
+        return std::nullopt;
     }
 
     bool Find(const K& key) {
