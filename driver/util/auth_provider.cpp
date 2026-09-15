@@ -154,7 +154,6 @@ void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credenti
 
 std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
     LOG(INFO) << "Original Token Length: " << url_str.length();
-    DLOG(INFO) << "Original Token: " << url_str;
     std::string result = url_str;
     size_t pos = 0;
     const std::string replacement = "%25";
@@ -164,7 +163,6 @@ std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
         pos += replacement.length();
     }
     LOG(INFO) << "URL Encoded Token Length: " << result.length();
-    DLOG(INFO) << "URL Encoded: " << result;
     return result;
 }
 
