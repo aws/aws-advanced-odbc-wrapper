@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-09-08
+
+### Fixed
+
+- Resolution of logical driver names in `odbcinst.ini`, preventing failures to load the underlying driver [(PR #160)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/160)
+- Validation of numeric connection attribute parsing [(PR #162)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/162)
+- IAM token generation now signs with the database region instead of the SSO region for cross-region AWS IAM Identity Center (SSO) authentication [(PR #168)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/168)
+
 ## [1.3.0] - 2026-07-30
 
 ### Added
@@ -63,6 +71,7 @@ The Amazon Web Services (AWS) Advanced ODBC Wrapper allows an application to tak
 - Limitless Connection Plugin
 - Failover Connection Plugin
 
+[1.3.1]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/aws/aws-advanced-odbc-wrapper/compare/1.0.0...1.1.0
