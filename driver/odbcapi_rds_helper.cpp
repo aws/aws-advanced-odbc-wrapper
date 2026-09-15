@@ -1044,7 +1044,13 @@ SQLRETURN RDS_SQLDriverConnect(
     const bool use_4_bytes_user_app = dbc->env->use_4_bytes_user_app.load();
 #endif
 
-    if (DriverCompletion && WindowHandle) {
+#if _WIN32
+    const bool use_setup_dialog = (DriverCompletion != SQL_DRIVER_NOPROMPT) && WindowHandle;
+#else
+    constexpr bool use_setup_dialog = false;
+#endif
+
+    if (use_setup_dialog) {
 #if _WIN32
         bool complete_required = true;
         std::tuple<std::string, std::string, bool> dialog_result; // conn_str, out_conn_str, dialog_box_cancelled
