@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# Fail the script (and therefore the CI step) as soon as any command fails,
+# otherwise a broken SDK build is only reported much later as a missing SDK.
+set -e
 
 CONFIGURATION=$1    # Debug/Release
 
@@ -29,7 +34,9 @@ export INSTALL_DIR="${AWS_SDK_PATH}/install"
 mkdir -p ${SRC_DIR} ${BUILD_DIR} ${INSTALL_DIR}
 pushd $BUILD_DIR
 
-git clone --recurse-submodules -b "$AWS_SDK_CPP_TAG" "https://github.com/aws/aws-sdk-cpp.git" ${SRC_DIR}
+if [ ! -d "${SRC_DIR}/.git" ]; then
+    git clone --recurse-submodules -b "$AWS_SDK_CPP_TAG" "https://github.com/aws/aws-sdk-cpp.git" ${SRC_DIR}
+fi
 
 ACTUAL_COMMIT=$(git -C ${SRC_DIR} rev-parse HEAD)
 if [ "$ACTUAL_COMMIT" != "$AWS_SDK_CPP_COMMIT" ]; then
@@ -40,8 +47,23 @@ if [ "$ACTUAL_COMMIT" != "$AWS_SDK_CPP_COMMIT" ]; then
     exit 1
 fi
 
+# Homebrew now links OpenSSL 4, which the s2n revision pinned by this SDK tag
+# cannot compile against. Pin the build to openssl@3 when it is available.
+EXTRA_CMAKE_ARGS=()
+if [ "$(uname -s)" = "Darwin" ]; then
+    OPENSSL_PREFIX=$(brew --prefix openssl@3 2>/dev/null || true)
+    if [ -n "${OPENSSL_PREFIX}" ] && [ -d "${OPENSSL_PREFIX}" ]; then
+        echo "Pinning AWS SDK build to OpenSSL at ${OPENSSL_PREFIX}"
+        EXTRA_CMAKE_ARGS+=(-D "OPENSSL_ROOT_DIR=${OPENSSL_PREFIX}")
+        EXTRA_CMAKE_ARGS+=(-D "CMAKE_PREFIX_PATH=${OPENSSL_PREFIX}")
+    else
+        echo "WARNING: openssl@3 not found via Homebrew; using default OpenSSL." >&2
+    fi
+fi
+
 cmake -S ${SRC_DIR} \
     -B $BUILD_DIR \
+    "${EXTRA_CMAKE_ARGS[@]}" \
     -D CMAKE_BUILD_TYPE="${CONFIGURATION}" \
     -D CMAKE_INSTALL_PREFIX="${INSTALL_DIR}" \
     -D BUILD_ONLY="rds;secretsmanager;sts;sso;sso-oidc" \

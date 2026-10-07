@@ -45,6 +45,7 @@
 **/build**/
 aws_sdk/*
 *.def
+driver/driver_version.h
 **report**
 
 # Test Files
