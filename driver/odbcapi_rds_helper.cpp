@@ -1047,7 +1047,7 @@ SQLRETURN RDS_SQLDriverConnect(
 #if _WIN32
     const bool use_setup_dialog = (DriverCompletion != SQL_DRIVER_NOPROMPT) && WindowHandle;
 #else
-    constexpr bool use_setup_dialog = false;
+    const bool use_setup_dialog = false;
 #endif
 
     if (use_setup_dialog) {
