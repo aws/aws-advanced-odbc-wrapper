@@ -26,6 +26,7 @@
 #include "../../util/rds_utils.h"
 
 #include <chrono>
+#include <optional>
 
 SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache_;
 
@@ -114,7 +115,7 @@ void CustomEndpointMonitor::Run() {
                 }
                 filter.endpoint_type = endpoint_info.GetEndpointType();
 
-                const HostFilter cached_filter = endpoint_cache_.Get(endpoint_identifier_);
+                const std::optional<HostFilter> cached_filter = endpoint_cache_.Get(endpoint_identifier_);
                 if (cached_filter != filter) {
                     LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_identifier_;
                     if (const std::shared_ptr<PluginService> service = this->plugin_service_.lock()) {
@@ -148,7 +149,7 @@ void CustomEndpointMonitor::Run() {
 }
 
 bool CustomEndpointMonitor::HasInfo() {
-    return endpoint_cache_.Get(endpoint_identifier_) != HostFilter{};
+    return endpoint_cache_.Get(endpoint_identifier_).has_value();
 }
 
 void CustomEndpointMonitor::IncreaseDelay() {

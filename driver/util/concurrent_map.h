@@ -17,6 +17,7 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
 
 template <typename Key, typename Value>
 class ConcurrentMap {
@@ -56,12 +57,12 @@ public:
         map_.insert(other.begin(), other.end());
     };
 
-    Value Get(const Key& key) const {
+    std::optional<Value> Get(const Key& key) const {
         const std::lock_guard<std::mutex> lock(mutex_);
         if (const auto itr = map_.find(key); itr != map_.end()) {
             return itr->second;
         }
-        return {};
+        return std::nullopt;
     };
 
     std::map<Key, Value> GetMapCopy() const {

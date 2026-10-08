@@ -34,14 +34,14 @@ void BaseRouting::Delay(
     const std::chrono::steady_clock::time_point end = start + delay_ms;
     const std::chrono::milliseconds min_delay = delay_ms < MIN_SLEEP_MS ? delay_ms : MIN_SLEEP_MS;
 
-    BlueGreenStatus cached_status = status_cache->Get(id);
+    BlueGreenStatus cached_status = status_cache->Get(id).value_or(BlueGreenStatus{});
 
     if (cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::UNKNOWN) {
         std::this_thread::sleep_for(delay_ms);
     } else {
         do {
             std::this_thread::sleep_for(min_delay);
-        } while ((cached_status = status_cache->Get(id)) == status && GetCurrTime() < end);
+        } while ((cached_status = status_cache->Get(id).value_or(BlueGreenStatus{})) == status && GetCurrTime() < end);
     }
 }
 

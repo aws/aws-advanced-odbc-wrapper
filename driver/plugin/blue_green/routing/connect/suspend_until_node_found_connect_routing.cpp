@@ -24,7 +24,7 @@ SQLRETURN SuspendUntilNodeFoundConnectRouting::Connect(
     std::shared_ptr<OdbcHelper> odbc_helper,
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
-    BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_);
+    BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
     const std::string host = info.GetHost();
     const std::map<std::string, std::pair<HostInfo, HostInfo>> nodes = cached_status.GetCorrespondingNodes();
 
@@ -34,7 +34,7 @@ SQLRETURN SuspendUntilNodeFoundConnectRouting::Connect(
 
     while (GetCurrTime() <= end_time && cached_status.GetCurrentPhase().GetPhase() != BlueGreenPhase::COMPLETED && !nodes.contains(host)) {
         this->Delay(SLEEP_DURATION_MS, cached_status, status_cache, this->blue_green_id_);
-        cached_status = status_cache->Get(this->blue_green_id_);
+        cached_status = status_cache->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
     };
 
     if (cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::COMPLETED) {

@@ -32,11 +32,11 @@ SQLRETURN SuspendExecuteRouting::Execute(
     const std::chrono::steady_clock::time_point start_time = GetCurrTime();
     const std::chrono::steady_clock::time_point end_time = start_time + timeout;
 
-    BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_);
+    BlueGreenStatus cached_status = status_cache->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
 
     while (GetCurrTime() <= end_time && cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::IN_PROGRESS) {
         this->Delay(SLEEP_DURATION_MS, cached_status, status_cache, this->blue_green_id_);
-        cached_status = status_cache->Get(this->blue_green_id_);
+        cached_status = status_cache->Get(this->blue_green_id_).value_or(BlueGreenStatus{});
     };
 
     if (cached_status.GetCurrentPhase().GetPhase() == BlueGreenPhase::IN_PROGRESS) {

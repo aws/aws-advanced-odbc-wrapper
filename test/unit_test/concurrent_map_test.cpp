@@ -14,6 +14,7 @@
 
 #include "../../driver/util/concurrent_map.h"
 
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -52,6 +53,12 @@ TEST_F(ConcurrentMapTest, sync_basic_operations) {
     // Erase
     cache.Erase(CACHE_KEY_A);
     EXPECT_FALSE(cache.Contains(CACHE_KEY_A));
+    EXPECT_EQ(std::nullopt, cache.Get(CACHE_KEY_A));
+
+    // A stored default-constructed value is distinguishable from a miss
+    cache.InsertOrAssign(CACHE_KEY_A, 0);
+    EXPECT_EQ(0, cache.Get(CACHE_KEY_A));
+    cache.Erase(CACHE_KEY_A);
 
     // Size
     EXPECT_EQ(0, cache.Size());
