@@ -15,6 +15,7 @@
 #include "round_robin_host_selector.h"
 
 #include <algorithm>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -73,7 +74,12 @@ HostInfo RoundRobinHostSelector::GetHost(std::vector<HostInfo> hosts, bool is_wr
 
     CreateCacheEntries(selection, properties);
     const std::string cluster_id_key = selection.at(0).GetHost();
-    const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo> cluster_info = round_robin_cache_.Get(cluster_id_key).value();
+    const std::optional<std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>> cached_info =
+        round_robin_cache_.Get(cluster_id_key);
+    if (!cached_info.has_value() || !cached_info.value()) {
+        throw std::runtime_error("No round robin cluster info cached for host: " + cluster_id_key);
+    }
+    const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& cluster_info = cached_info.value();
 
     const std::shared_ptr<HostInfo> last_host = cluster_info->last_host;
     int last_host_idx = NO_HOST_IDX;
@@ -143,15 +149,20 @@ void RoundRobinHostSelector::CreateCacheEntries(const std::vector<HostInfo>& hos
         return RoundRobinHostSelector::round_robin_cache_.Find(host.GetHost());
     });
 
+    // An entry may expire between the Find above and the Get below, so treat a missing entry the same as having no cached entry at all.
+    std::optional<std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>> cached_info;
+    if (!hosts_with_cached_entry.empty()) {
+        cached_info = round_robin_cache_.Get(hosts_with_cached_entry.at(0).GetHost());
+    }
+
     // Update cache entries, else create new cache
-    if (hosts_with_cached_entry.empty()) {
+    if (!cached_info.has_value() || !cached_info.value()) {
         const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo> cluster_info = std::make_shared<RoundRobinProperty::RoundRobinClusterInfo>();
         UpdatePropsDefaultWeight(cluster_info, props);
         UpdatePropsHostWeight(cluster_info, props);
         UpdateCache(hosts, cluster_info);
     } else {
-        const std::string cluster_id_key = hosts_with_cached_entry.at(0).GetHost();
-        const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo> cluster_info = round_robin_cache_.Get(cluster_id_key).value();
+        const std::shared_ptr<RoundRobinProperty::RoundRobinClusterInfo>& cluster_info = cached_info.value();
         if (CheckPropChange(cluster_info->last_default_weight_str, RoundRobinProperty::DEFAULT_WEIGHT_KEY, props)) {
             cluster_info->default_weight = 1;
             UpdatePropsDefaultWeight(cluster_info, props);
