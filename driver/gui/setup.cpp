@@ -676,7 +676,7 @@ void TestConnection(HWND hwnd)
     }
 
     if (static_cast<ENV*>(henv)->driver_lib_loader && static_cast<DBC*>(hdbc)->wrapped_dbc) {
-        NULL_CHECK_CALL_LIB_FUNC(static_cast<ENV*>(henv)->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+        RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDisconnect>(static_cast<ENV*>(henv)->driver_lib_loader, RdsFuncNames::Disconnect,
             static_cast<DBC*>(hdbc)->wrapped_dbc
         );
     }

@@ -33,8 +33,8 @@ class RwMockRdsLibLoader : public RdsLibLoader {
 public:
     RwMockRdsLibLoader() : RdsLibLoader("") {}
 
-    FUNC_HANDLE GetFunction(const std::string& function_name) override {
-        return reinterpret_cast<FUNC_HANDLE>(&RwMockFunction);
+    RdsPlatform::FuncHandle GetFunction(const std::string& function_name) override {
+        return reinterpret_cast<RdsPlatform::FuncHandle>(&RwMockFunction);
     }
 };
 

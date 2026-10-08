@@ -52,7 +52,7 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
     if (SQL_SUCCEEDED(fetch_res.fn_result)) {
         // Returned something -> connected to a reader.
         SQLSMALLINT col_count = 0;
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLNumResultCols, RDS_STR_SQLNumResultCols,
+        RdsLibLoader::CallFunctionChecked<RDS_FP_SQLNumResultCols>(dbc->env->driver_lib_loader, RdsFuncNames::NumResultCols,
             stmt, &col_count
         );
         SQLSMALLINT writer_col = 0;
@@ -62,7 +62,7 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
         for (SQLSMALLINT i = 1; i <= col_count; i++) {
             SQLTCHAR col_name[BUFFER_SIZE] = {0};
             SQLSMALLINT name_len = 0;
-            NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLDescribeCol, RDS_STR_SQLDescribeCol,
+            RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDescribeCol>(dbc->env->driver_lib_loader, RdsFuncNames::DescribeCol,
                 stmt, i, col_name, BUFFER_SIZE, &name_len, nullptr, nullptr, nullptr, nullptr
             );
 #if UNICODE
@@ -76,7 +76,7 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
             }
         }
         if (writer_col != 0) {
-            NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+            RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetData>(dbc->env->driver_lib_loader, RdsFuncNames::GetData,
                 stmt, writer_col, SQL_C_TCHAR, writer_id_buf, BUFFER_SIZE, &writer_id_len
             );
         }

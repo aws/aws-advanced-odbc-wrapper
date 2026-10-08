@@ -34,8 +34,8 @@ class FailoverMockRdsLibLoader : public RdsLibLoader {
         // Pass a dummy path so the base constructor initializes function_cache.
         FailoverMockRdsLibLoader() : RdsLibLoader("") {}
 
-        FUNC_HANDLE GetFunction(const std::string& function_name) override {
-            return reinterpret_cast<FUNC_HANDLE>(&MockFunction);
+        RdsPlatform::FuncHandle GetFunction(const std::string& function_name) override {
+            return reinterpret_cast<RdsPlatform::FuncHandle>(&MockFunction);
         }
 };
 

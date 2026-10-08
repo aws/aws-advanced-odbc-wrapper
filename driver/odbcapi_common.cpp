@@ -145,8 +145,8 @@ void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
         *buffer.local_str_len = SQL_NTS;
 
         // Rebind parameter
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-            env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+        const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindParameter>(
+            env->driver_lib_loader, RdsFuncNames::BindParameter, stmt->wrapped_stmt,
             buffer.param_number, buffer.input_output_type, buffer.value_type, buffer.param_type, buffer.column_size,
             buffer.decimal_digits, buffer.local_buf.data(), buffer.app_buf_len, buffer.local_str_len.get()
         );
@@ -310,7 +310,7 @@ SQLRETURN SQL_API SQLBindCol(
             bindings.push_back(std::move(new_buffer));
 
             BoundColBuffer& ref = bindings.back();
-            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+            const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindCol>(env->driver_lib_loader, RdsFuncNames::BindCol,
                 stmt->wrapped_stmt, ColumnNumber, TargetType, ref.local_buf.data(),
                 BufferLength, ref.local_str_len.get()
             );
@@ -319,7 +319,7 @@ SQLRETURN SQL_API SQLBindCol(
     }
     #endif
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindCol>(env->driver_lib_loader, RdsFuncNames::BindCol,
         stmt->wrapped_stmt, ColumnNumber, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -406,8 +406,8 @@ SQLRETURN SQL_API SQLBindParameter(
                 *new_buffer.local_str_len = static_cast<SQLLEN>(str_len_bytes);
             } else if (!is_data_at_exec) {
                 // Pass null data to underlying if user did not pass data at exec
-                const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-                    env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+                const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindParameter>(
+                    env->driver_lib_loader, RdsFuncNames::BindParameter, stmt->wrapped_stmt,
                     ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize,
                     DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
                 );
@@ -429,8 +429,8 @@ SQLRETURN SQL_API SQLBindParameter(
                 ? StrLen_or_IndPtr
                 : ref.local_str_len.get();
 
-            const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-                env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter, stmt->wrapped_stmt,
+            const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindParameter>(
+                env->driver_lib_loader, RdsFuncNames::BindParameter, stmt->wrapped_stmt,
                 ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize,
                 DecimalDigits, bind_ptr, bind_len, bind_itr
             );
@@ -439,7 +439,7 @@ SQLRETURN SQL_API SQLBindParameter(
     }
     #endif
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBindParameter, RDS_STR_SQLBindParameter,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindParameter>(env->driver_lib_loader, RdsFuncNames::BindParameter,
         stmt->wrapped_stmt, ParameterNumber, InputOutputType, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, BufferLength, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -463,7 +463,7 @@ SQLRETURN SQL_API SQLBulkOperations(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLBulkOperations, RDS_STR_SQLBulkOperations,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBulkOperations>(env->driver_lib_loader, RdsFuncNames::BulkOperations,
         stmt->wrapped_stmt, Operation
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -485,7 +485,7 @@ SQLRETURN SQL_API SQLCancel(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCancel, RDS_STR_SQLCancel,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLCancel>(env->driver_lib_loader, RdsFuncNames::Cancel,
         stmt->wrapped_stmt
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -517,7 +517,7 @@ SQLRETURN SQL_API SQLCancelHandle(
                 if (!HasWrappedHandle(stmt)) {
                     return SQL_INVALID_HANDLE;
                 }
-                res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCancel, RDS_STR_SQLCancel,
+                res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLCancel>(env->driver_lib_loader, RdsFuncNames::Cancel,
                     stmt->wrapped_stmt
                 );
                 ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -584,7 +584,7 @@ SQLRETURN SQL_API SQLCloseCursor(
     ClearError(stmt);
 
     if (stmt->wrapped_stmt) {
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+        const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLCloseCursor>(env->driver_lib_loader, RdsFuncNames::CloseCursor,
             stmt->wrapped_stmt
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -657,7 +657,7 @@ SQLRETURN SQL_API SQLCopyDesc(
     const std::lock_guard<std::recursive_mutex> lock_guard_src(src_desc->lock);
     const std::lock_guard<std::recursive_mutex> lock_guard_dst(dst_desc->lock);
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(src_env->driver_lib_loader, RDS_FP_SQLCopyDesc, RDS_STR_SQLCopyDesc,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLCopyDesc>(src_env->driver_lib_loader, RdsFuncNames::CopyDesc,
         src_desc->wrapped_desc, dst_desc->wrapped_desc
     );
     const SQLRETURN ret = RDS_ProcessLibRes(SQL_HANDLE_DESC, dst_desc, res);
@@ -694,7 +694,7 @@ SQLRETURN SQL_API SQLDescribeParam(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDescribeParam, RDS_STR_SQLDescribeParam,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDescribeParam>(env->driver_lib_loader, RdsFuncNames::DescribeParam,
         stmt->wrapped_stmt, ParameterNumber, DataTypePtr, ParameterSizePtr, DecimalDigitsPtr, NullablePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -735,7 +735,7 @@ SQLRETURN SQL_API SQLDisconnect(
     if (!HasWrappedHandle(dbc)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDisconnect>(env->driver_lib_loader, RdsFuncNames::Disconnect,
         dbc->wrapped_dbc
     );
     ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -810,7 +810,7 @@ SQLRETURN SQL_API SQLExtendedFetch(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExtendedFetch, RDS_STR_SQLExtendedFetch,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLExtendedFetch>(env->driver_lib_loader, RdsFuncNames::ExtendedFetch,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset, RowCountPtr, RowStatusArray
     );
 
@@ -840,7 +840,7 @@ SQLRETURN SQL_API SQLFetch(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFetch>(env->driver_lib_loader, RdsFuncNames::Fetch,
         stmt->wrapped_stmt
     );
 
@@ -872,7 +872,7 @@ SQLRETURN SQL_API SQLFetchScroll(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFetchScroll, RDS_STR_SQLFetchScroll,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFetchScroll>(env->driver_lib_loader, RdsFuncNames::FetchScroll,
         stmt->wrapped_stmt, FetchOrientation, FetchOffset
     );
 
@@ -963,7 +963,7 @@ SQLRETURN SQL_API SQLGetData(
     if ((use_4_app || use_4_base) && TargetType == SQL_C_TCHAR) {
         std::vector<SQLTCHAR> buffer(static_cast<size_t>(BufferLength) * 2, 0);
 
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetData>(env->driver_lib_loader, RdsFuncNames::GetData,
             stmt->wrapped_stmt, Col_or_Param_Num, TargetType, buffer.data(), BufferLength, StrLen_or_IndPtr
         );
 
@@ -987,12 +987,12 @@ SQLRETURN SQL_API SQLGetData(
             }
         }
     } else {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetData>(env->driver_lib_loader, RdsFuncNames::GetData,
             stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
         );
     }
 #else
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetData, RDS_STR_SQLGetData,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetData>(env->driver_lib_loader, RdsFuncNames::GetData,
         stmt->wrapped_stmt, Col_or_Param_Num, TargetType, TargetValuePtr, BufferLength, StrLen_or_IndPtr
     );
 #endif
@@ -1056,7 +1056,7 @@ SQLRETURN SQL_API SQLGetFunctions(
     // Query underlying driver if connection is established
     if (dbc->wrapped_dbc) {
         const ENV* env = dbc->env;
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetFunctions, RDS_STR_SQLGetFunctions,
+        const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetFunctions>(env->driver_lib_loader, RdsFuncNames::GetFunctions,
             dbc->wrapped_dbc, FunctionId, SupportedPtr
         );
         ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
@@ -1089,7 +1089,7 @@ SQLRETURN SQL_API SQLGetStmtOption(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetStmtOption, RDS_STR_SQLGetStmtOption,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetStmtOption>(env->driver_lib_loader, RdsFuncNames::GetStmtOption,
         stmt->wrapped_stmt, Attribute, ValuePtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1112,7 +1112,7 @@ SQLRETURN SQL_API SQLMoreResults(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLMoreResults, RDS_STR_SQLMoreResults,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLMoreResults>(env->driver_lib_loader, RdsFuncNames::MoreResults,
         stmt->wrapped_stmt
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1136,7 +1136,7 @@ SQLRETURN SQL_API SQLNumParams(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumParams, RDS_STR_SQLNumParams,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLNumParams>(env->driver_lib_loader, RdsFuncNames::NumParams,
         stmt->wrapped_stmt, ParameterCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1160,7 +1160,7 @@ SQLRETURN SQL_API SQLNumResultCols(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLNumResultCols, RDS_STR_SQLNumResultCols,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLNumResultCols>(env->driver_lib_loader, RdsFuncNames::NumResultCols,
         stmt->wrapped_stmt, ColumnCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1184,7 +1184,7 @@ SQLRETURN SQL_API SQLParamData(
         return SQL_INVALID_HANDLE;
     }
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamData, RDS_STR_SQLParamData,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLParamData>(env->driver_lib_loader, RdsFuncNames::ParamData,
         stmt->wrapped_stmt, ValuePtrPtr
     );
 
@@ -1227,7 +1227,7 @@ SQLRETURN SQL_API SQLParamOptions(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLParamOptions, RDS_STR_SQLParamOptions,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLParamOptions>(env->driver_lib_loader, RdsFuncNames::ParamOptions,
         stmt->wrapped_stmt, Crow, FetchOffsetPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1279,13 +1279,13 @@ SQLRETURN SQL_API SQLPutData(
             ExpandUTF16ToUTF32InPlace(local_buf.data(), utf16_len, local_buf.size());
         }
 
-        const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(
-            env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData, stmt->wrapped_stmt, local_buf.data(), SQL_NTS);
+        const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLPutData>(
+            env->driver_lib_loader, RdsFuncNames::PutData, stmt->wrapped_stmt, local_buf.data(), SQL_NTS);
         return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
     }
 #endif
 
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLPutData, RDS_STR_SQLPutData,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLPutData>(env->driver_lib_loader, RdsFuncNames::PutData,
         stmt->wrapped_stmt, DataPtr, StrLen_or_Ind
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1309,7 +1309,7 @@ SQLRETURN SQL_API SQLRowCount(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLRowCount, RDS_STR_SQLRowCount,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLRowCount>(env->driver_lib_loader, RdsFuncNames::RowCount,
         stmt->wrapped_stmt, RowCountPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1340,7 +1340,7 @@ SQLRETURN SQL_API SQLSetDescRec(
     if (!HasWrappedHandle(desc)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetDescRec, RDS_STR_SQLSetDescRec,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetDescRec>(env->driver_lib_loader, RdsFuncNames::SetDescRec,
         desc->wrapped_desc, RecNumber, Type, SubType, Length, Precision, Scale, DataPtr, StringLengthPtr, IndicatorPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_DESC, desc, res);
@@ -1380,7 +1380,7 @@ SQLRETURN SQL_API SQLSetParam(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetParam, RDS_STR_SQLSetParam,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetParam>(env->driver_lib_loader, RdsFuncNames::SetParam,
         stmt->wrapped_stmt, ParameterNumber, ValueType, ParameterType, ColumnSize, DecimalDigits, ParameterValuePtr, StrLen_or_IndPtr
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1406,7 +1406,7 @@ SQLRETURN SQL_API SQLSetPos(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetPos, RDS_STR_SQLSetPos,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetPos>(env->driver_lib_loader, RdsFuncNames::SetPos,
         stmt->wrapped_stmt, RowNumber, Operation, LockType
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1431,7 +1431,7 @@ SQLRETURN SQL_API SQLSetScrollOptions(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetScrollOptions, RDS_STR_SQLSetScrollOptions,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetScrollOptions>(env->driver_lib_loader, RdsFuncNames::SetScrollOptions,
         stmt->wrapped_stmt, Concurrency, KeysetSize, RowsetSize
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
@@ -1455,7 +1455,7 @@ SQLRETURN SQL_API SQLSetStmtOption(
     if (!HasWrappedHandle(stmt)) {
         return SQL_INVALID_HANDLE;
     }
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtOption, RDS_STR_SQLSetStmtOption,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetStmtOption>(env->driver_lib_loader, RdsFuncNames::SetStmtOption,
         stmt->wrapped_stmt, Option, Param
     );
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);

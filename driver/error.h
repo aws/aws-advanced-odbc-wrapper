@@ -21,11 +21,11 @@
 #include <sqltypes.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <map>
 #include <string>
+#include <string_view>
 
 enum SQL_STATE_CODE : std::uint8_t {
     /* ODBC SQL States*/
@@ -167,7 +167,8 @@ enum SQL_STATE_CODE : std::uint8_t {
     INVALID_ERR,
 };
 
-const std::string ODBC_STATE_MAP[] = {
+// Indexed by SQL_STATE_CODE, so this must stay in lockstep with the enum above.
+inline constexpr auto ODBC_STATE_MAP = std::to_array<std::string_view>({
     /* ODBC SQL States*/
     "01000", "01001", "01002", "01003", "01004", "01006", "01007", "01S00", "01S01", "01S02", "01S06",
     "01S07", "01S08", "01S09", "07001", "07002", "07005", "07006", "07009", "07S01", "08001", "08002",
@@ -189,9 +190,11 @@ const std::string ODBC_STATE_MAP[] = {
     "08007", "08003", "08001", "08001", "25001",
     /* END */
     "ERROR",
-};
+});
+static_assert(ODBC_STATE_MAP.size() == INVALID_ERR + 1,
+    "ODBC_STATE_MAP must have exactly one entry per SQL_STATE_CODE");
 
-const std::string ODBC_3_SUBCLASS[] = {
+inline constexpr auto ODBC_3_SUBCLASS = std::to_array<std::string_view>({
     "01S00", "01S01", "01S02", "01S06", "01S07", "07S01",
     "08S01", "08S02", "08007", "21S01", "21S02", "25S01",
     "25S02", "25S03", "42S01", "42S02", "42S11", "42S12",
@@ -200,61 +203,35 @@ const std::string ODBC_3_SUBCLASS[] = {
     "HY111", "HYT00", "HYT01", "IM001", "IM002", "IM003",
     "IM004", "IM005", "IM006", "IM007", "IM008", "IM010",
     "IM011", "IM012",
-};
+});
 
 struct ErrInfo {
     SQLRETURN   ret_code            = SQL_SUCCESS;
-    char*       error_msg           = nullptr;
+    std::string error_msg;
     int         native_err          = 0;
-    char*       sqlstate            = nullptr;
+    std::string sqlstate;
     bool        is_odbc3_subclass   = false;
 
-    ErrInfo(const char *msg, SQL_STATE_CODE sql_state) {
-        if (msg) {
-            error_msg = strdup(msg);
-        }
+    ErrInfo(std::string_view msg, SQL_STATE_CODE sql_state)
+        : error_msg(msg), native_err(sql_state)
+    {
         if (sql_state <= INVALID_ERR) {
-            const std::string str_sql_state = ODBC_STATE_MAP[sql_state];
-            is_odbc3_subclass = IsOdbc3Subclass(str_sql_state);
-            sqlstate = strdup(str_sql_state.c_str());
+            sqlstate = ODBC_STATE_MAP[sql_state];
+            is_odbc3_subclass = IsOdbc3Subclass(sqlstate);
         }
-        native_err = sql_state;
-        ret_code = SQL_SUCCESS;
-        if (sqlstate) {
-            if (strncmp(sqlstate, "01", 2) == 0) {
-                ret_code = SQL_SUCCESS_WITH_INFO;
-            } else if (strncmp(sqlstate, "00", 2) != 0) {
-                ret_code = SQL_ERROR;
-            }
+        if (sqlstate.starts_with("01")) {
+            ret_code = SQL_SUCCESS_WITH_INFO;
+        } else if (!sqlstate.empty() && !sqlstate.starts_with("00")) {
+            ret_code = SQL_ERROR;
         }
     }
 
-    ErrInfo(const ErrInfo &source) {
-        if (source.error_msg) {
-            error_msg = strdup(source.error_msg);
-        }
-        if (source.sqlstate) {
-            sqlstate = strdup(source.sqlstate);
-        }
-        native_err = source.native_err;
-        ret_code = source.ret_code;
-    }
-
-    ~ErrInfo() {
-        if (error_msg != nullptr) {
-            free(error_msg);
-        }
-        if (sqlstate != nullptr) {
-            free(sqlstate);
-        }
-    }
-
-    static bool IsOdbc3Subclass(const std::string& str_sql_state) {
+    static bool IsOdbc3Subclass(std::string_view str_sql_state) {
         if (str_sql_state.empty()) {
             return false;
         }
 
-        return std::ranges::any_of(ODBC_3_SUBCLASS, [&str_sql_state](const std::string& subclass) {
+        return std::ranges::any_of(ODBC_3_SUBCLASS, [str_sql_state](std::string_view subclass) {
             return str_sql_state == subclass;
         });
     }

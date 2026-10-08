@@ -195,15 +195,15 @@ TEST_F(ErrorHandlingTest, UniquePtr_OwnershipTransfer) {
     auto err = std::make_unique<ErrInfo>("original", ERR_GENERAL_ERROR);
     stmt_->err = std::move(err);
     EXPECT_TRUE(stmt_->err);
-    EXPECT_STREQ("original", stmt_->err->error_msg);
-    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
+    EXPECT_EQ("original", stmt_->err->error_msg);
+    EXPECT_EQ("HY000", stmt_->err->sqlstate);
 }
 
 TEST_F(ErrorHandlingTest, UniquePtr_ReassignmentDeletesPrevious) {
     stmt_->err = std::make_unique<ErrInfo>("first", ERR_GENERAL_ERROR);
     stmt_->err = std::make_unique<ErrInfo>("second", ERR_MEMORY_ALLOCATION_ERROR);
-    EXPECT_STREQ("second", stmt_->err->error_msg);
-    EXPECT_STREQ("HY001", stmt_->err->sqlstate);
+    EXPECT_EQ("second", stmt_->err->error_msg);
+    EXPECT_EQ("HY001", stmt_->err->sqlstate);
 }
 
 TEST_F(ErrorHandlingTest, UniquePtr_ResetCleansUp) {
@@ -234,6 +234,51 @@ TEST_F(ErrorHandlingTest, DiagRec_ReturnsErrMessage) {
     EXPECT_EQ(static_cast<SQLINTEGER>(ERR_COMMUNICATION_LINK_FAILURE), native_error);
 }
 
+// SQLGetDiagField copies the handle's ErrInfo before reading it, so every field
+// has to survive a copy. is_odbc3_subclass used to be dropped by a hand-written
+// copy constructor, which made SQL_DIAG_SUBCLASS_ORIGIN always report ISO 9075.
+
+TEST_F(ErrorHandlingTest, ErrInfo_CopyPreservesOdbc3Subclass) {
+    const ErrInfo source("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
+    ASSERT_TRUE(source.is_odbc3_subclass);
+
+    const ErrInfo copy(source);
+
+    EXPECT_EQ(source.error_msg, copy.error_msg);
+    EXPECT_EQ(source.sqlstate, copy.sqlstate);
+    EXPECT_EQ(source.native_err, copy.native_err);
+    EXPECT_EQ(source.ret_code, copy.ret_code);
+    EXPECT_EQ(source.is_odbc3_subclass, copy.is_odbc3_subclass);
+}
+
+TEST_F(ErrorHandlingTest, DiagField_SubclassOriginReportsOdbc3ForSubclassState) {
+    // 08S01 is an ODBC 3 subclass.
+    dbc_->err = std::make_unique<ErrInfo>("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
+
+    char origin[MAX_SQL_STATE_LEN * sizeof(SQLTCHAR) * 4] = {0};
+    SQLSMALLINT length = 0;
+    const SQLRETURN ret = RDS_SQLGetDiagField(
+        SQL_HANDLE_DBC, dbc_, 1, SQL_DIAG_SUBCLASS_ORIGIN,
+        origin, sizeof(origin), &length);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ("ODBC 3.0", origin);
+}
+
+TEST_F(ErrorHandlingTest, DiagField_SubclassOriginReportsIsoForNonSubclassState) {
+    // HY000 is not an ODBC 3 subclass.
+    dbc_->err = std::make_unique<ErrInfo>("General error", ERR_GENERAL_ERROR);
+
+    char origin[MAX_SQL_STATE_LEN * sizeof(SQLTCHAR) * 4] = {0};
+    SQLSMALLINT length = 0;
+    const SQLRETURN ret = RDS_SQLGetDiagField(
+        SQL_HANDLE_DBC, dbc_, 1, SQL_DIAG_SUBCLASS_ORIGIN,
+        origin, sizeof(origin), &length);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ("ISO 9075", origin);
+}
+
 TEST_F(ErrorHandlingTest, DiagRec_RecordTwoReturnsNoData) {
     dbc_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
 
@@ -255,8 +300,8 @@ TEST_F(ErrorHandlingTest, InitializeConnection_UnloadableDriverReturnsErrorDiagn
     EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc_, ""));
 
     ASSERT_TRUE(dbc_->err);
-    EXPECT_STREQ("IM003", dbc_->err->sqlstate);
-    const std::string message(dbc_->err->error_msg);
+    EXPECT_EQ("IM003", dbc_->err->sqlstate);
+    const std::string& message = dbc_->err->error_msg;
     EXPECT_NE(std::string::npos, message.find("/nonexistent/path/no-such-driver.so"));
     EXPECT_FALSE(env_->driver_lib_loader);
 }
@@ -267,8 +312,8 @@ TEST_F(ErrorHandlingTest, InitializeConnection_UnregisteredDriverNameReturnsErro
     EXPECT_EQ(SQL_ERROR, RDS_InitializeConnection(dbc_, ""));
 
     ASSERT_TRUE(dbc_->err);
-    EXPECT_STREQ("IM003", dbc_->err->sqlstate);
-    const std::string message(dbc_->err->error_msg);
+    EXPECT_EQ("IM003", dbc_->err->sqlstate);
+    const std::string& message = dbc_->err->error_msg;
     EXPECT_NE(std::string::npos, message.find("DefinitelyNotARegisteredOdbcDriver123"));
     EXPECT_FALSE(env_->driver_lib_loader);
 }

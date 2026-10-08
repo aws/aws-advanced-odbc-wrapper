@@ -299,7 +299,7 @@ void AbstractReadWriteSplittingPlugin::SwitchCurrentConnectionTo(DBC* new_conn, 
             {
                 const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
                 if (stmt->wrapped_stmt) {
-                    NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(dbc_->env->driver_lib_loader, RdsFuncNames::FreeHandle,
                         SQL_HANDLE_STMT, stmt->wrapped_stmt);
                     stmt->wrapped_stmt = nullptr;
                 }
@@ -311,7 +311,7 @@ void AbstractReadWriteSplittingPlugin::SwitchCurrentConnectionTo(DBC* new_conn, 
         for (DESC* desc : dbc_->desc_list) {
             const std::lock_guard<std::recursive_mutex> lock_guard_desc(desc->lock);
             if (desc->wrapped_desc) {
-                NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(dbc_->env->driver_lib_loader, RdsFuncNames::FreeHandle,
                     SQL_HANDLE_DESC, desc->wrapped_desc);
                 desc->wrapped_desc = nullptr;
             }
@@ -323,9 +323,11 @@ void AbstractReadWriteSplittingPlugin::SwitchCurrentConnectionTo(DBC* new_conn, 
         DBC* writer_conn = writer_connection_;
         const ENV* env = dbc_->env;
         if (const SQLHDBC old_wrapped = dbc_->wrapped_dbc) {
-            const RdsLibResult disconnect_res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect, old_wrapped);
+            const RdsLibResult disconnect_res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDisconnect>(
+                env->driver_lib_loader, RdsFuncNames::Disconnect, old_wrapped);
             if (SQL_SUCCEEDED(disconnect_res.fn_result)) {
-                NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle, SQL_HANDLE_DBC, old_wrapped);
+                RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(
+                    env->driver_lib_loader, RdsFuncNames::FreeHandle, SQL_HANDLE_DBC, old_wrapped);
             }
             dbc_->wrapped_dbc = nullptr;
 
@@ -456,11 +458,11 @@ void AbstractReadWriteSplittingPlugin::SetStmtError(const std::string &msg, SQL_
     for (STMT* stmt : dbc_->stmt_list) {
         const std::lock_guard<std::recursive_mutex> lock_guard_stmt(stmt->lock);
         if (stmt->wrapped_stmt) {
-            NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+            RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(dbc_->env->driver_lib_loader, RdsFuncNames::FreeHandle,
                 SQL_HANDLE_STMT, stmt->wrapped_stmt);
         }
         stmt->wrapped_stmt = nullptr;
         ClearError(stmt);
-        stmt->err = std::make_unique<ErrInfo>(msg.c_str(), state);
+        stmt->err = std::make_unique<ErrInfo>(msg, state);
     }
 }

@@ -143,7 +143,7 @@ SQLRETURN SimpleReadWriteSplittingPlugin::GetVerifiedConnection(
                 // DefaultPlugin::Connect will reallocate wrapped_dbc on the next iteration.
                 this->odbc_helper_->Disconnect(conn);
                 if (conn->wrapped_dbc) {
-                    NULL_CHECK_CALL_LIB_FUNC(dbc_->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(dbc_->env->driver_lib_loader, RdsFuncNames::FreeHandle,
                         SQL_HANDLE_DBC, conn->wrapped_dbc);
                     conn->wrapped_dbc = nullptr;
                 }

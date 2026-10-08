@@ -155,7 +155,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
             const std::string fail_msg = "Secrets Manager did not return any database credentials, please verify the values set via SECRET_USERNAME_PROPERTY and SECRET_PASSWORD_PROPERTY and ensure they match the values in the Secret value.";
             LOG(ERROR) << fail_msg;
             ClearError(dbc);
-            dbc->err = std::make_unique<ErrInfo>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+            dbc->err = std::make_unique<ErrInfo>(fail_msg, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
             return SQL_ERROR;
         }
         {
@@ -170,7 +170,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
     LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
     ClearError(dbc);
     const std::string fail_msg = "Failed to obtain secrets with error: [" + request_outcome.GetError().GetMessage() + "]";
-    dbc->err = std::make_unique<ErrInfo>(fail_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    dbc->err = std::make_unique<ErrInfo>(fail_msg, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
     return SQL_ERROR;
 }
 
