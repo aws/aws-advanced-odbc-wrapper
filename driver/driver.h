@@ -204,11 +204,6 @@ struct DESC {
 /* Simple Macros */
 #define RDS_NOT_IMPLEMENTED return SQL_ERROR
 
-#define NULL_CHECK_CALL_LIB_FUNC(lib_loader, fn_type, fn_name, ...)                       \
-    lib_loader ? lib_loader->CallFunction<fn_type>(fn_name, __VA_ARGS__) : RdsLibResult { \
-        .fn_load_success = false, .fn_result = SQL_ERROR                                  \
-    }
-
 /* Handle Helpers */
 
 // Callers must return SQL_INVALID_HANDLE when this fails.
