@@ -776,7 +776,14 @@ jobs:
       - name: Setup Python virtual environment
         shell: bash
         run: |
-          python3 -m venv .venv
+          # Grab 3.13 rather than 3.14 due to OpenSSL3 requirements
+          PYTHON=$(command -v python3.13 || echo /opt/homebrew/opt/python@3.13/bin/python3.13)
+          if [ ! -x "$PYTHON" ]; then
+            echo "ERROR: python3.13 not found. Install it with: brew install python@3.13" >&2
+            exit 1
+          fi
+          echo "Using $("$PYTHON" -V) at ${PYTHON}"
+          "$PYTHON" -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/requirements.txt
           pip show botocore | grep Version
@@ -1624,7 +1631,14 @@ jobs:
       - name: Setup Python virtual environment
         shell: bash
         run: |
-          python3 -m venv .venv
+          # Grab 3.13 rather than 3.14 due to OpenSSL3 requirements
+          PYTHON=$(command -v python3.13 || echo /opt/homebrew/opt/python@3.13/bin/python3.13)
+          if [ ! -x "$PYTHON" ]; then
+            echo "ERROR: python3.13 not found. Install it with: brew install python@3.13" >&2
+            exit 1
+          fi
+          echo "Using $("$PYTHON" -V) at ${PYTHON}"
+          "$PYTHON" -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/requirements.txt
       - name: Create Aurora Limitless Resources
@@ -2205,7 +2219,14 @@ jobs:
       - name: Setup Python virtual environment
         shell: bash
         run: |
-          python3 -m venv .venv
+          # Grab 3.13 rather than 3.14 due to OpenSSL3 requirements
+          PYTHON=$(command -v python3.13 || echo /opt/homebrew/opt/python@3.13/bin/python3.13)
+          if [ ! -x "$PYTHON" ]; then
+            echo "ERROR: python3.13 not found. Install it with: brew install python@3.13" >&2
+            exit 1
+          fi
+          echo "Using $("$PYTHON" -V) at ${PYTHON}"
+          "$PYTHON" -m venv .venv
           source .venv/bin/activate
           pip install -r scripts/requirements.txt
       - name: Create Aurora Resources with Blue/Green Deployment

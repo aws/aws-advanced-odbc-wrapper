@@ -71,7 +71,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib icu4c
+          brew install cmake unixodbc postgresql curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash

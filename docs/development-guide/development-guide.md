@@ -70,7 +70,7 @@ You can also build the installer via the following:
 
 ```
 # In Repository Root
-cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
@@ -101,7 +101,7 @@ cpack
 
 ```
 # In Repository Root
-cmake -S driver -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
+cmake -S . -B build -DBUILD_UNICODE=<ON/OFF> -DBUILD_ANSI=<ON/OFF> -DBUILD_UNIT_TEST=<ON/OFF> -DCMAKE_BUILD_TYPE=<Release/Debug>
 cmake --build build
 ```
 
@@ -110,7 +110,7 @@ cmake --build build
 
 There are multiple types of test, each type will be in its own folder under `test`.
 
-The unit tests is built along side the driver by passing in the CMake flag `-DUNITTEST` and can be ran manually from the build folder
+The unit tests is built along side the driver by passing in the CMake flag `-DBUILD_UNIT_TEST=ON` and can be ran manually from the build folder
 e.g.
 Note: Windows will build binaries into a subfolder of the build config while Unix does not.
 
@@ -124,13 +124,12 @@ The following will go over how to build compatibility tests, in particular, how 
 
 ```
 cmake -S test/compatibility -B test_compatibility \
-    -DUNICODE=<ON/OFF> \
+    -DBUILD_UNICODE=<ON/OFF> \
     -DCMAKE_BUILD_TYPE=<Release/Debug> \
     -DTEST_SERVER="<Test Database Host>" \
-    -DTEST_PORT="<Test Database Port>" \
     -DTEST_DATABASE="<Test Database>" \
     -DTEST_DRIVER_PATH="<Path to AWS Advanced ODBC Wrapper>" \
-    -DBASE_PG_DRIVER_PATH="<Path to PostgreSQL Driver>"
+    -DPG_DRIVER_PATH="<Path to PostgreSQL Driver>"
 
 cmake --build test_compatibility
 ```

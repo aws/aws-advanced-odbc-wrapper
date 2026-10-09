@@ -19,9 +19,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Configuration ----------------------------------------------------------------------------------------------
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
-set(BUILD_FAILOVER OFF CACHE BOOL "Build Failover Tests")
-set(BUILD_LIMITLESS OFF CACHE BOOL "Build Limitless Tests")
-set(BUILD_BLUE_GREEN OFF CACHE BOOL "Build Blue Green Tests")
+set(BUILD_FAILOVER OFF CACHE BOOL "Toggle to build Failover Tests")
+set(BUILD_LIMITLESS OFF CACHE BOOL "Toggle to build Limitless Tests")
+set(BUILD_BLUE_GREEN OFF CACHE BOOL "Toggle to build Blue Green Tests")
 set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
@@ -154,7 +154,7 @@ target_include_directories(
 target_link_libraries(${PROJECT_NAME} PRIVATE ${EXTERNAL_LIBRARIES})
 
 # Copy External Dependencies --------------------------------------------------------------------------------
-IF(USES_AWS_SDK)
+if(USES_AWS_SDK)
     if(MSVC)
         set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     else()
@@ -162,15 +162,15 @@ IF(USES_AWS_SDK)
     endif()
     message("Copying Libraries to: ${OUTPUT_DIR}")
 
-    LIST(APPEND SERVICE_LIST rds secretsmanager sts)
+    list(APPEND SERVICE_LIST rds secretsmanager sts)
     AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})
-ENDIF()
+endif()
 
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
-SET(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
+set(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
 
 # DSN Settings
-SET(THREADING "0")
+set(THREADING "0")
 
 # To be set via flags
 # -D TEST_DRIVER_PATH
@@ -183,17 +183,17 @@ SET(THREADING "0")
 
 # SSLCA (RDS CA bundle) gives verified TLS so RDS IAM tokens are sent encrypted. Only added when provided.
 # -D BASE_DRIVER_SSL_CA=/path/to/rds-global-bundle.pem
-SET(BASE_DRIVER_EXTRA_DSN_LINES "")
-IF(BASE_DRIVER_SSL_CA)
-    SET(BASE_DRIVER_EXTRA_DSN_LINES "SSLCA = ${BASE_DRIVER_SSL_CA}")
-ENDIF()
+set(BASE_DRIVER_EXTRA_DSN_LINES "")
+if(BASE_DRIVER_SSL_CA)
+    set(BASE_DRIVER_EXTRA_DSN_LINES "SSLCA = ${BASE_DRIVER_SSL_CA}")
+endif()
 
-CONFIGURE_FILE(
+configure_file(
     ${ODBC_PATH}/odbcinst.ini.in
     ${ODBC_PATH}/odbcinst.ini
     @ONLY
 )
-CONFIGURE_FILE(
+configure_file(
     ${ODBC_PATH}/odbc.ini.in
     ${ODBC_PATH}/odbc.ini
     @ONLY

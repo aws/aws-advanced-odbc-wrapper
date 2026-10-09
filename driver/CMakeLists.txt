@@ -20,6 +20,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 list(APPEND CMAKE_BUILD_RPATH "@loader_path;$ORIGIN")
+set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
+set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode Wrapper")
+set(BUILD_UNIT_TEST OFF CACHE BOOL "Toggle to build Unit Tests")
 set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
 
 # Sources ----------------------------------------------------------------------------------------------------
@@ -248,6 +251,12 @@ if(WIN32)
 endif()
 
 # Configure Build Defines ------------------------------------------------------------------------------------
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/driver_version.h.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/driver_version.h
+    @ONLY
+)
+
 add_compile_definitions(
     ODBCVER=0x0380
 )
@@ -260,10 +269,10 @@ if(WIN32)
 endif()
 
 # Unicode
-IF(BUILD_UNICODE OR NOT BUILD_ANSI)
+if(BUILD_UNICODE OR NOT BUILD_ANSI)
     ## Configure
-    SET(COMPILE_FILE_NAME_UNICODE ${PROJECT_NAME}-w)
-    SET(COMPILE_FILE_NAME ${COMPILE_FILE_NAME_UNICODE})
+    set(COMPILE_FILE_NAME_UNICODE ${PROJECT_NAME}-w)
+    set(COMPILE_FILE_NAME ${COMPILE_FILE_NAME_UNICODE})
     message("Building for Unicode as: ${COMPILE_FILE_NAME_UNICODE}")
     list(APPEND COMPILE_DEFINITIONS_UNICODE
         UNICODE
@@ -300,10 +309,10 @@ IF(BUILD_UNICODE OR NOT BUILD_ANSI)
 endif()
 
 # Ansi
-IF(BUILD_ANSI OR NOT BUILD_UNICODE)
+if(BUILD_ANSI OR NOT BUILD_UNICODE)
     ## Configure
-    SET(COMPILE_FILE_NAME_ANSI ${PROJECT_NAME}-a)
-    SET(COMPILE_FILE_NAME ${COMPILE_FILE_NAME_ANSI})
+    set(COMPILE_FILE_NAME_ANSI ${PROJECT_NAME}-a)
+    set(COMPILE_FILE_NAME ${COMPILE_FILE_NAME_ANSI})
     message("Building for Ansi as: ${COMPILE_FILE_NAME_ANSI}")
     list(APPEND COMPILE_DEFINITIONS_ANSI
         SQL_NOUNICODEMAP
@@ -330,9 +339,9 @@ IF(BUILD_ANSI OR NOT BUILD_UNICODE)
             ${INC}
             ${SRC}
             ${CMAKE_CURRENT_SOURCE_DIR}/odbcapi_ansi.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/driver.def
+            ${CMAKE_CURRENT_SOURCE_DIR}/driver${CHAR_ENCODING}.def
         )
-        target_compile_definitions(${COMPILE_FILE_NAME_ANSI} PRIVATE
+        target_compile_definitions(${COMPILE_FILE_NAME_ANSI}-static PRIVATE
             ${COMPILE_DEFINITIONS_ANSI}
         )
     endif()
@@ -349,7 +358,7 @@ if(USE_ASAN)
 endif()
 
 # Link External Library ------------------------------------------------------------------------------------------
-LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
+list(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
 if(MSVC)
     set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
 else()
@@ -383,7 +392,7 @@ endif()
 
 # Copy External Dependencies -------------------------------------------------------------------------------------
 if(MSVC)
-    LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
+    list(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
     AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})
 else()
     set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
