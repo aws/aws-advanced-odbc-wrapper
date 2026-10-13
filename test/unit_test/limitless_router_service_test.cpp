@@ -63,7 +63,7 @@ TEST_F(LimitlessRouterServiceTest, EstablishConnectionWithNullNextPluginReturnsE
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, dbc_->err);
-    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
+    EXPECT_EQ("HY000", dbc_->err->sqlstate);
 }
 
 TEST_F(LimitlessRouterServiceTest, LimitlessRouterMonitorReferenceCountingTest) {

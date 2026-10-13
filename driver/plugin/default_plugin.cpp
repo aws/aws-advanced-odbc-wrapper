@@ -54,7 +54,7 @@ SQLRETURN DefaultPlugin::Connect(
             dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying DBC, underlying ENV nulled", ERR_UNDERLYING_HANDLE_NULL);
             return SQL_ERROR;
         }
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(env->driver_lib_loader, RdsFuncNames::AllocHandle,
             SQL_HANDLE_DBC, env->wrapped_env, &dbc->wrapped_dbc
         );
         if (!SQL_SUCCEEDED(res.fn_result) || !dbc->wrapped_dbc) {
@@ -69,7 +69,7 @@ SQLRETURN DefaultPlugin::Connect(
     // Attributes like SQL_ATTR_LOGIN_TIMEOUT must be set before connecting to take effect.
     for (auto const& [key, val] : dbc->attr_map) {
         if (key == SQL_ATTR_LOGIN_TIMEOUT || key == SQL_ATTR_CONNECTION_TIMEOUT) {
-            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+            RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetConnectAttr>(env->driver_lib_loader, RdsFuncNames::SetConnectAttr,
                 dbc->wrapped_dbc, key, val.first, val.second
             );
         }
@@ -88,7 +88,7 @@ SQLRETURN DefaultPlugin::Connect(
 #else
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
 #endif
-    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
+    res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
         dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
     );
 
@@ -102,7 +102,7 @@ SQLRETURN DefaultPlugin::Connect(
                 SQLTCHAR text[MAX_MSG_LEN * 2] = {0};
                 SQLSMALLINT len;
 
-                NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+                RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetDiagRec>(env->driver_lib_loader, RdsFuncNames::GetDiagRec,
                     SQL_HANDLE_DBC, dbc->wrapped_dbc, 1, state, &native_error, text, MAX_MSG_LEN, &len
                 );
 
@@ -116,7 +116,7 @@ SQLRETURN DefaultPlugin::Connect(
                     // Try connecting again with 4-byte characters
                     const std::wstring wide_conn = ConvertUTF8ToWString(conn_in);
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
-                    res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLDriverConnect, RDS_STR_SQLDriverConnect,
+                    res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
                         dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
                     );
                     ret = res.fn_result;
@@ -136,7 +136,7 @@ SQLRETURN DefaultPlugin::Connect(
         if (key == SQL_ATTR_LOGIN_TIMEOUT || key == SQL_ATTR_CONNECTION_TIMEOUT) {
             continue;
         }
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetConnectAttr>(env->driver_lib_loader, RdsFuncNames::SetConnectAttr,
             dbc->wrapped_dbc, key, val.first, val.second
         );
         if (!SQL_SUCCEEDED(res.fn_result)) {
@@ -176,7 +176,7 @@ SQLRETURN DefaultPlugin::Execute(
     // Allocate wrapped handle if NULL
     if (!stmt->wrapped_stmt) {
         if (dbc->wrapped_dbc) {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+            res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(env->driver_lib_loader, RdsFuncNames::AllocHandle,
                 SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt->wrapped_stmt
             );
             if (!SQL_SUCCEEDED(res.fn_result) || !stmt->wrapped_stmt) {
@@ -192,7 +192,7 @@ SQLRETURN DefaultPlugin::Execute(
         }
         // Set statement settings
         for (auto const& [key, val] : stmt->attr_map) {
-            res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetStmtAttr, RDS_STR_SQLSetStmtAttr,
+            res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetStmtAttr>(env->driver_lib_loader, RdsFuncNames::SetStmtAttr,
                 stmt->wrapped_stmt, key, val.first, val.second
             );
         }
@@ -201,18 +201,18 @@ SQLRETURN DefaultPlugin::Execute(
 #if UNICODE
         const std::vector<uint16_t> cursor_name_vector = ConvertUTF8ToUTF16(cursor_name);
         SQLTCHAR* cursor_name_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(cursor_name_vector.data()));
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetCursorName>(env->driver_lib_loader, RdsFuncNames::SetCursorName,
             stmt->wrapped_stmt, cursor_name_sqltchar, cursor_name.length()
         );
 #else
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetCursorName, RDS_STR_SQLSetCursorName,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetCursorName>(env->driver_lib_loader, RdsFuncNames::SetCursorName,
             stmt->wrapped_stmt, AS_SQLTCHAR(cursor_name), cursor_name.length()
         );
 #endif
     }
 
     if (query.empty()) {
-        res = NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLExecute, RDS_STR_SQLExecute,
+        res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLExecute>(env->driver_lib_loader, RdsFuncNames::Execute,
             stmt->wrapped_stmt
         );
     } else {
@@ -231,7 +231,7 @@ SQLRETURN DefaultPlugin::Execute(
 
         if (SqlQueryAnalyzer::IsStatementSettingAutoCommit(query)) {
             dbc->auto_commit = SqlQueryAnalyzer::GetAutoCommitValueFromSqlStatement(query);
-            NULL_CHECK_CALL_LIB_FUNC(env->driver_lib_loader, RDS_FP_SQLSetConnectAttr, RDS_STR_SQLSetConnectAttr,
+            RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetConnectAttr>(env->driver_lib_loader, RdsFuncNames::SetConnectAttr,
                 dbc->wrapped_dbc, SQL_ATTR_AUTOCOMMIT, reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0
             );
             dbc->attr_map.insert_or_assign(SQL_ATTR_AUTOCOMMIT, std::make_pair(reinterpret_cast<SQLPOINTER>(dbc->auto_commit), 0));

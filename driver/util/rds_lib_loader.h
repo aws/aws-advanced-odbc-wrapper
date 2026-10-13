@@ -15,8 +15,13 @@
 #ifndef RDS_LIB_LOADER_H
 #define RDS_LIB_LOADER_H
 
+#include <memory>
 #include <shared_mutex>
+#include <string>
+#include <string_view>
+#include <type_traits>
 #include <unordered_map>
+#include <vector>
 
 #include "concurrent_map.h"
 #include "rds_strings.h"
@@ -25,30 +30,51 @@
 
 #include "windows_headers.h"
 
-#ifdef _WIN32
-    #define MODULE_HANDLE HINSTANCE
-    #define FUNC_HANDLE FARPROC
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE(module_name, LOAD_WITH_ALTERED_SEARCH_PATH)
-    #ifdef UNICODE
-inline HMODULE RDS_LOAD_MODULE(std::string module_name, DWORD load_flag) {
-    std::vector<uint16_t> mod_name_vec = ConvertUTF8ToUTF16(module_name);
-    uint16_t* mod_name_ushort = mod_name_vec.data();
-    return LoadLibraryEx(reinterpret_cast<SQLWCHAR*>(mod_name_ushort), NULL, load_flag);
-}
-    #else
-        #define RDS_LOAD_MODULE(module_name, load_flag) LoadLibraryEx((module_name).c_str(), NULL, load_flag)
-    #endif // UNICODE
-    #define RDS_FREE_MODULE(handle) FreeLibrary(handle)
-    #define RDS_GET_FUNC(handle, fn_name) GetProcAddress(handle, fn_name)
-#else // Unix (Linux / MacOS)
+#ifndef _WIN32 // Unix (Linux / MacOS)
     #include <dlfcn.h>
-    #define MODULE_HANDLE void*
-    #define FUNC_HANDLE void*
-    #define RDS_LOAD_MODULE_DEFAULTS(module_name) RDS_LOAD_MODULE((module_name).c_str(), RTLD_LAZY | RTLD_LOCAL)
-    #define RDS_LOAD_MODULE(module_name, load_flag) dlopen(module_name, load_flag)
-    #define RDS_FREE_MODULE(handle) dlclose(handle)
-    #define RDS_GET_FUNC(handle, fn_name) dlsym(handle, fn_name)
 #endif
+
+namespace RdsPlatform {
+#ifdef _WIN32
+using ModuleHandle = HMODULE;
+using FuncHandle = FARPROC;
+#else
+using ModuleHandle = void*;
+using FuncHandle = void*;
+#endif
+
+inline ModuleHandle OpenLibrary(const std::string& library_path)
+{
+#ifdef _WIN32
+    #ifdef UNICODE
+    std::vector<uint16_t> path_utf16 = ConvertUTF8ToUTF16(library_path);
+    return LoadLibraryEx(reinterpret_cast<SQLWCHAR*>(path_utf16.data()), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    #else
+    return LoadLibraryEx(library_path.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+    #endif // UNICODE
+#else
+    return dlopen(library_path.c_str(), RTLD_LAZY | RTLD_LOCAL);
+#endif
+}
+
+inline bool CloseLibrary(ModuleHandle handle)
+{
+#ifdef _WIN32
+    return FreeLibrary(handle) != 0;
+#else
+    return dlclose(handle) == 0;
+#endif
+}
+
+inline FuncHandle FindSymbol(ModuleHandle handle, const char* symbol_name)
+{
+#ifdef _WIN32
+    return GetProcAddress(handle, symbol_name);
+#else
+    return dlsym(handle, symbol_name);
+#endif
+}
+} // namespace RdsPlatform
 
 struct RdsLibResult {
     bool fn_load_success;
@@ -63,8 +89,13 @@ public:
     ~RdsLibLoader();
 
     template<typename RdsFunc, typename... Args>
-    RdsLibResult CallFunction(const std::string& func_name, Args... args);
-    virtual FUNC_HANDLE GetFunction(const std::string& function_name);
+    RdsLibResult CallFunction(std::string_view func_name, Args... args);
+
+    template<typename RdsFunc, typename... Args>
+    static RdsLibResult CallFunctionChecked(
+        const std::shared_ptr<RdsLibLoader>& lib_loader, std::string_view func_name, Args... args);
+
+    virtual RdsPlatform::FuncHandle GetFunction(const std::string& function_name);
     std::string GetDriverPath();
     [[nodiscard]] bool IsLoaded() const;
     std::string GetLoadError();
@@ -74,29 +105,24 @@ private:
     std::string driver_path_;
     std::string load_error_;
 
-    MODULE_HANDLE driver_handle_ = nullptr;
+    RdsPlatform::ModuleHandle driver_handle_ = nullptr;
 
-    std::shared_ptr<ConcurrentMap<std::string, FUNC_HANDLE>> function_cache_ = std::make_shared<ConcurrentMap<std::string, FUNC_HANDLE>>();
+    std::shared_ptr<ConcurrentMap<std::string, RdsPlatform::FuncHandle>> function_cache_ =
+        std::make_shared<ConcurrentMap<std::string, RdsPlatform::FuncHandle>>();
 };
 
 template <typename RdsFunc, typename... Args>
-RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... args)
+RdsLibResult RdsLibLoader::CallFunction(std::string_view func_name, Args... args)
 {
-    FUNC_HANDLE driver_function = nullptr;
+    static_assert(std::is_invocable_r_v<SQLRETURN, RdsFunc, Args...>,
+        "arguments do not match the signature of the ODBC function named by RdsFunc");
+
+    const std::string func_key(func_name);
     // Try retrieving from cache
-    {
-        if (function_cache_->Contains(func_name)) {
-            try {
-                driver_function = function_cache_->Get(func_name);
-            } catch (const std::out_of_range&) {
-                // Should not happen but done to satisfy clang-tidy
-                driver_function = nullptr;
-            }
-        }
-    }
+    RdsPlatform::FuncHandle driver_function = function_cache_->Get(func_key);
     // Cache miss
     if (!driver_function) {
-        driver_function = GetFunction(func_name);
+        driver_function = GetFunction(func_key);
     }
 
     // Verify before function call
@@ -111,8 +137,22 @@ RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... ar
     return {
         .fn_load_success = fn_load,
         .fn_result = fn_ret,
-        .fn_name = func_name,
+        .fn_name = func_key,
     };
+}
+
+template <typename RdsFunc, typename... Args>
+RdsLibResult RdsLibLoader::CallFunctionChecked(
+    const std::shared_ptr<RdsLibLoader>& lib_loader, std::string_view func_name, Args... args)
+{
+    if (!lib_loader) {
+        return {
+            .fn_load_success = false,
+            .fn_result = SQL_ERROR,
+            .fn_name = std::string(func_name),
+        };
+    }
+    return lib_loader->CallFunction<RdsFunc>(func_name, args...);
 }
 
 #endif // RDS_LIB_LOADER_H

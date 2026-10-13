@@ -26,131 +26,135 @@
 #include <sqltypes.h>
 
 #include <map>
+#include <string_view>
 
 #include "util/rds_strings.h"
 
-/* Function Name */
+// NOLINTBEGIN(readability-identifier-naming)
+namespace RdsFuncNames {
 /* Common */
-#define RDS_STR_SQLAllocConnect "SQLAllocConnect"
-#define RDS_STR_SQLAllocEnv "SQLAllocEnv"
-#define RDS_STR_SQLAllocHandle "SQLAllocHandle"
-#define RDS_STR_SQLAllocStmt "SQLAllocStmt"
-#define RDS_STR_SQLBindCol "SQLBindCol"
-#define RDS_STR_SQLBindParameter "SQLBindParameter"
-#define RDS_STR_SQLBulkOperations "SQLBulkOperations"
-#define RDS_STR_SQLCancel "SQLCancel"
-#define RDS_STR_SQLCancelHandle "SQLCancelHandle"
-#define RDS_STR_SQLCloseCursor "SQLCloseCursor"
-#define RDS_STR_SQLCompleteAsync "SQLCompleteAsync"
-#define RDS_STR_SQLCopyDesc "SQLCopyDesc"
-#define RDS_STR_SQLDescribeParam "SQLDescribeParam"
-#define RDS_STR_SQLDisconnect "SQLDisconnect"
-#define RDS_STR_SQLEndTran "SQLEndTran"
-#define RDS_STR_SQLExecute "SQLExecute"
-#define RDS_STR_SQLExtendedFetch "SQLExtendedFetch"
-#define RDS_STR_SQLFetch "SQLFetch"
-#define RDS_STR_SQLFetchScroll "SQLFetchScroll"
-#define RDS_STR_SQLFreeConnect "SQLFreeConnect"
-#define RDS_STR_SQLFreeEnv "SQLFreeEnv"
-#define RDS_STR_SQLFreeHandle "SQLFreeHandle"
-#define RDS_STR_SQLFreeStmt "SQLFreeStmt"
-#define RDS_STR_SQLGetData "SQLGetData"
-#define RDS_STR_SQLGetEnvAttr "SQLGetEnvAttr"
-#define RDS_STR_SQLGetFunctions "SQLGetFunctions"
-#define RDS_STR_SQLGetStmtOption "SQLGetStmtOption"
-#define RDS_STR_SQLMoreResults "SQLMoreResults"
-#define RDS_STR_SQLNumParams "SQLNumParams"
-#define RDS_STR_SQLNumResultCols "SQLNumResultCols"
-#define RDS_STR_SQLParamData "SQLParamData"
-#define RDS_STR_SQLParamOptions "SQLParamOptions"
-#define RDS_STR_SQLPutData "SQLPutData"
-#define RDS_STR_SQLRowCount "SQLRowCount"
-#define RDS_STR_SQLSetDescRec "SQLSetDescRec"
-#define RDS_STR_SQLSetEnvAttr "SQLSetEnvAttr"
-#define RDS_STR_SQLSetParam "SQLSetParam"
-#define RDS_STR_SQLSetPos "SQLSetPos"
-#define RDS_STR_SQLSetScrollOptions "SQLSetScrollOptions"
-#define RDS_STR_SQLSetStmtOption "SQLSetStmtOption"
-#define RDS_STR_SQLTransact "SQLTransact"
+constexpr std::string_view AllocConnect = "SQLAllocConnect";
+constexpr std::string_view AllocEnv = "SQLAllocEnv";
+constexpr std::string_view AllocHandle = "SQLAllocHandle";
+constexpr std::string_view AllocStmt = "SQLAllocStmt";
+constexpr std::string_view BindCol = "SQLBindCol";
+constexpr std::string_view BindParameter = "SQLBindParameter";
+constexpr std::string_view BulkOperations = "SQLBulkOperations";
+constexpr std::string_view Cancel = "SQLCancel";
+constexpr std::string_view CancelHandle = "SQLCancelHandle";
+constexpr std::string_view CloseCursor = "SQLCloseCursor";
+constexpr std::string_view CompleteAsync = "SQLCompleteAsync";
+constexpr std::string_view CopyDesc = "SQLCopyDesc";
+constexpr std::string_view DescribeParam = "SQLDescribeParam";
+constexpr std::string_view Disconnect = "SQLDisconnect";
+constexpr std::string_view EndTran = "SQLEndTran";
+constexpr std::string_view Execute = "SQLExecute";
+constexpr std::string_view ExtendedFetch = "SQLExtendedFetch";
+constexpr std::string_view Fetch = "SQLFetch";
+constexpr std::string_view FetchScroll = "SQLFetchScroll";
+constexpr std::string_view FreeConnect = "SQLFreeConnect";
+constexpr std::string_view FreeEnv = "SQLFreeEnv";
+constexpr std::string_view FreeHandle = "SQLFreeHandle";
+constexpr std::string_view FreeStmt = "SQLFreeStmt";
+constexpr std::string_view GetData = "SQLGetData";
+constexpr std::string_view GetEnvAttr = "SQLGetEnvAttr";
+constexpr std::string_view GetFunctions = "SQLGetFunctions";
+constexpr std::string_view GetStmtOption = "SQLGetStmtOption";
+constexpr std::string_view MoreResults = "SQLMoreResults";
+constexpr std::string_view NumParams = "SQLNumParams";
+constexpr std::string_view NumResultCols = "SQLNumResultCols";
+constexpr std::string_view ParamData = "SQLParamData";
+constexpr std::string_view ParamOptions = "SQLParamOptions";
+constexpr std::string_view PutData = "SQLPutData";
+constexpr std::string_view RowCount = "SQLRowCount";
+constexpr std::string_view SetDescRec = "SQLSetDescRec";
+constexpr std::string_view SetEnvAttr = "SQLSetEnvAttr";
+constexpr std::string_view SetParam = "SQLSetParam";
+constexpr std::string_view SetPos = "SQLSetPos";
+constexpr std::string_view SetScrollOptions = "SQLSetScrollOptions";
+constexpr std::string_view SetStmtOption = "SQLSetStmtOption";
+constexpr std::string_view Transact = "SQLTransact";
 
 /* Unicode */
 #ifdef UNICODE
-#define RDS_STR_SQLBrowseConnect "SQLBrowseConnectW"
-#define RDS_STR_SQLColAttribute "SQLColAttributeW"
-#define RDS_STR_SQLColAttributes "SQLColAttributesW"
-#define RDS_STR_SQLColumnPrivileges "SQLColumnPrivilegesW"
-#define RDS_STR_SQLColumns "SQLColumnsW"
-#define RDS_STR_SQLConnect "SQLConnectW"
-#define RDS_STR_SQLDataSources "SQLDataSourcesW"
-#define RDS_STR_SQLDescribeCol "SQLDescribeColW"
-#define RDS_STR_SQLDriverConnect "SQLDriverConnectW"
-#define RDS_STR_SQLDrivers "SQLDriversW"
-#define RDS_STR_SQLError "SQLErrorW"
-#define RDS_STR_SQLExecDirect "SQLExecDirectW"
-#define RDS_STR_SQLForeignKeys "SQLForeignKeysW"
-#define RDS_STR_SQLGetConnectAttr "SQLGetConnectAttrW"
-#define RDS_STR_SQLGetConnectOption "SQLGetConnectOptionW"
-#define RDS_STR_SQLGetCursorName "SQLGetCursorNameW"
-#define RDS_STR_SQLGetDescField "SQLGetDescFieldW"
-#define RDS_STR_SQLGetDescRec "SQLGetDescRecW"
-#define RDS_STR_SQLGetDiagField "SQLGetDiagFieldW"
-#define RDS_STR_SQLGetDiagRec "SQLGetDiagRecW"
-#define RDS_STR_SQLGetInfo "SQLGetInfoW"
-#define RDS_STR_SQLGetStmtAttr "SQLGetStmtAttrW"
-#define RDS_STR_SQLGetTypeInfo "SQLGetTypeInfoW"
-#define RDS_STR_SQLNativeSql "SQLNativeSqlW"
-#define RDS_STR_SQLPrepare "SQLPrepareW"
-#define RDS_STR_SQLPrimaryKeys "SQLPrimaryKeysW"
-#define RDS_STR_SQLProcedureColumns "SQLProcedureColumnsW"
-#define RDS_STR_SQLProcedures "SQLProceduresW"
-#define RDS_STR_SQLSetConnectAttr "SQLSetConnectAttrW"
-#define RDS_STR_SQLSetConnectOption "SQLSetConnectOptionW"
-#define RDS_STR_SQLSetCursorName "SQLSetCursorNameW"
-#define RDS_STR_SQLSetDescField "SQLSetDescFieldW"
-#define RDS_STR_SQLSetStmtAttr "SQLSetStmtAttrW"
-#define RDS_STR_SQLSpecialColumns "SQLSpecialColumnsW"
-#define RDS_STR_SQLStatistics "SQLStatisticsW"
-#define RDS_STR_SQLTablePrivileges "SQLTablePrivilegesW"
-#define RDS_STR_SQLTables "SQLTablesW"
+constexpr std::string_view BrowseConnect = "SQLBrowseConnectW";
+constexpr std::string_view ColAttribute = "SQLColAttributeW";
+constexpr std::string_view ColAttributes = "SQLColAttributesW";
+constexpr std::string_view ColumnPrivileges = "SQLColumnPrivilegesW";
+constexpr std::string_view Columns = "SQLColumnsW";
+constexpr std::string_view Connect = "SQLConnectW";
+constexpr std::string_view DataSources = "SQLDataSourcesW";
+constexpr std::string_view DescribeCol = "SQLDescribeColW";
+constexpr std::string_view DriverConnect = "SQLDriverConnectW";
+constexpr std::string_view Drivers = "SQLDriversW";
+constexpr std::string_view Error = "SQLErrorW";
+constexpr std::string_view ExecDirect = "SQLExecDirectW";
+constexpr std::string_view ForeignKeys = "SQLForeignKeysW";
+constexpr std::string_view GetConnectAttr = "SQLGetConnectAttrW";
+constexpr std::string_view GetConnectOption = "SQLGetConnectOptionW";
+constexpr std::string_view GetCursorName = "SQLGetCursorNameW";
+constexpr std::string_view GetDescField = "SQLGetDescFieldW";
+constexpr std::string_view GetDescRec = "SQLGetDescRecW";
+constexpr std::string_view GetDiagField = "SQLGetDiagFieldW";
+constexpr std::string_view GetDiagRec = "SQLGetDiagRecW";
+constexpr std::string_view GetInfo = "SQLGetInfoW";
+constexpr std::string_view GetStmtAttr = "SQLGetStmtAttrW";
+constexpr std::string_view GetTypeInfo = "SQLGetTypeInfoW";
+constexpr std::string_view NativeSql = "SQLNativeSqlW";
+constexpr std::string_view Prepare = "SQLPrepareW";
+constexpr std::string_view PrimaryKeys = "SQLPrimaryKeysW";
+constexpr std::string_view ProcedureColumns = "SQLProcedureColumnsW";
+constexpr std::string_view Procedures = "SQLProceduresW";
+constexpr std::string_view SetConnectAttr = "SQLSetConnectAttrW";
+constexpr std::string_view SetConnectOption = "SQLSetConnectOptionW";
+constexpr std::string_view SetCursorName = "SQLSetCursorNameW";
+constexpr std::string_view SetDescField = "SQLSetDescFieldW";
+constexpr std::string_view SetStmtAttr = "SQLSetStmtAttrW";
+constexpr std::string_view SpecialColumns = "SQLSpecialColumnsW";
+constexpr std::string_view Statistics = "SQLStatisticsW";
+constexpr std::string_view TablePrivileges = "SQLTablePrivilegesW";
+constexpr std::string_view Tables = "SQLTablesW";
 #else /* Ansi */
-#define RDS_STR_SQLBrowseConnect "SQLBrowseConnect"
-#define RDS_STR_SQLColAttribute "SQLColAttribute"
-#define RDS_STR_SQLColAttributes "SQLColAttributes"
-#define RDS_STR_SQLColumnPrivileges "SQLColumnPrivileges"
-#define RDS_STR_SQLColumns "SQLColumns"
-#define RDS_STR_SQLConnect "SQLConnect"
-#define RDS_STR_SQLDataSources "SQLDataSources"
-#define RDS_STR_SQLDescribeCol "SQLDescribeCol"
-#define RDS_STR_SQLDriverConnect "SQLDriverConnect"
-#define RDS_STR_SQLDrivers "SQLDrivers"
-#define RDS_STR_SQLError "SQLError"
-#define RDS_STR_SQLExecDirect "SQLExecDirect"
-#define RDS_STR_SQLForeignKeys "SQLForeignKeys"
-#define RDS_STR_SQLGetConnectAttr "SQLGetConnectAttr"
-#define RDS_STR_SQLGetConnectOption "SQLGetConnectOption"
-#define RDS_STR_SQLGetCursorName "SQLGetCursorName"
-#define RDS_STR_SQLGetDescField "SQLGetDescField"
-#define RDS_STR_SQLGetDescRec "SQLGetDescRec"
-#define RDS_STR_SQLGetDiagField "SQLGetDiagField"
-#define RDS_STR_SQLGetDiagRec "SQLGetDiagRec"
-#define RDS_STR_SQLGetInfo "SQLGetInfo"
-#define RDS_STR_SQLGetStmtAttr "SQLGetStmtAttr"
-#define RDS_STR_SQLGetTypeInfo "SQLGetTypeInfo"
-#define RDS_STR_SQLNativeSql "SQLNativeSql"
-#define RDS_STR_SQLPrepare "SQLPrepare"
-#define RDS_STR_SQLPrimaryKeys "SQLPrimaryKeys"
-#define RDS_STR_SQLProcedureColumns "SQLProcedureColumns"
-#define RDS_STR_SQLProcedures "SQLProcedures"
-#define RDS_STR_SQLSetConnectAttr "SQLSetConnectAttr"
-#define RDS_STR_SQLSetConnectOption "SQLSetConnectOption"
-#define RDS_STR_SQLSetCursorName "SQLSetCursorName"
-#define RDS_STR_SQLSetDescField "SQLSetDescField"
-#define RDS_STR_SQLSetStmtAttr "SQLSetStmtAttr"
-#define RDS_STR_SQLSpecialColumns "SQLSpecialColumns"
-#define RDS_STR_SQLStatistics "SQLStatistics"
-#define RDS_STR_SQLTablePrivileges "SQLTablePrivileges"
-#define RDS_STR_SQLTables "SQLTables"
+constexpr std::string_view BrowseConnect = "SQLBrowseConnect";
+constexpr std::string_view ColAttribute = "SQLColAttribute";
+constexpr std::string_view ColAttributes = "SQLColAttributes";
+constexpr std::string_view ColumnPrivileges = "SQLColumnPrivileges";
+constexpr std::string_view Columns = "SQLColumns";
+constexpr std::string_view Connect = "SQLConnect";
+constexpr std::string_view DataSources = "SQLDataSources";
+constexpr std::string_view DescribeCol = "SQLDescribeCol";
+constexpr std::string_view DriverConnect = "SQLDriverConnect";
+constexpr std::string_view Drivers = "SQLDrivers";
+constexpr std::string_view Error = "SQLError";
+constexpr std::string_view ExecDirect = "SQLExecDirect";
+constexpr std::string_view ForeignKeys = "SQLForeignKeys";
+constexpr std::string_view GetConnectAttr = "SQLGetConnectAttr";
+constexpr std::string_view GetConnectOption = "SQLGetConnectOption";
+constexpr std::string_view GetCursorName = "SQLGetCursorName";
+constexpr std::string_view GetDescField = "SQLGetDescField";
+constexpr std::string_view GetDescRec = "SQLGetDescRec";
+constexpr std::string_view GetDiagField = "SQLGetDiagField";
+constexpr std::string_view GetDiagRec = "SQLGetDiagRec";
+constexpr std::string_view GetInfo = "SQLGetInfo";
+constexpr std::string_view GetStmtAttr = "SQLGetStmtAttr";
+constexpr std::string_view GetTypeInfo = "SQLGetTypeInfo";
+constexpr std::string_view NativeSql = "SQLNativeSql";
+constexpr std::string_view Prepare = "SQLPrepare";
+constexpr std::string_view PrimaryKeys = "SQLPrimaryKeys";
+constexpr std::string_view ProcedureColumns = "SQLProcedureColumns";
+constexpr std::string_view Procedures = "SQLProcedures";
+constexpr std::string_view SetConnectAttr = "SQLSetConnectAttr";
+constexpr std::string_view SetConnectOption = "SQLSetConnectOption";
+constexpr std::string_view SetCursorName = "SQLSetCursorName";
+constexpr std::string_view SetDescField = "SQLSetDescField";
+constexpr std::string_view SetStmtAttr = "SQLSetStmtAttr";
+constexpr std::string_view SpecialColumns = "SQLSpecialColumns";
+constexpr std::string_view Statistics = "SQLStatistics";
+constexpr std::string_view TablePrivileges = "SQLTablePrivileges";
+constexpr std::string_view Tables = "SQLTables";
 #endif
+}  // namespace RdsFuncNames
+// NOLINTEND(readability-identifier-naming)
 
 /* Function Pointer Headers */
 using RDS_FP_SQLAllocConnect = SQLRETURN (*)(
