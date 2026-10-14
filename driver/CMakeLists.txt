@@ -251,8 +251,10 @@ if(WIN32)
 endif()
 
 # Configure Build Defines ------------------------------------------------------------------------------------
-if(NOT WRAPPER_VERSION)
-    message(FATAL_ERROR "WRAPPER_VERSION is not set")
+# WRAPPER_VERSION is defined by the repository root CMakeLists.txt. Fail loudly rather than
+# baking an empty DRIVER_VERSION into the driver (reported through SQLGetInfo).
+if(NOT DEFINED WRAPPER_VERSION OR WRAPPER_VERSION STREQUAL "")
+    message(FATAL_ERROR "WRAPPER_VERSION is not set. Configure the build from the repository root CMakeLists.txt, which defines it.")
 endif()
 
 configure_file(
