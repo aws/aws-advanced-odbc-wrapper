@@ -18,11 +18,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Options ----------------------------------------------------------------------------------------------------
+set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode tests, else Ansi")
 
+# When ON, the tests are also run against the base drivers and
 # writes their output to disk so it can be used as a reference.
 # When OFF (default), only the wrapper DSN is exercised and results are
 # compared against the checked-in expected_output/ folder.
-option(TEST_BASE_OUTPUT "Run tests against base drivers and store their output" OFF)
+set(TEST_BASE_OUTPUT OFF CACHE BOOL "Toggle to run tests against base drivers and store their output")
 
 # Sources ----------------------------------------------------------------------------------------------------
 set(TEST_UTILITIES
@@ -83,7 +85,7 @@ add_executable(
 )
 include(GoogleTest)
 
-if(UNICODE)
+if(BUILD_UNICODE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         UNICODE
         _UNICODE
@@ -109,12 +111,15 @@ if(TEST_BASE_OUTPUT)
 endif()
 
 # ODBC Unix DSN ---------------------------------------------------------------------------------------------
-SET(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
+set(ODBC_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../resources/)
 
 # DSN Settings
-SET(THREADING "0")
+set(THREADING "0")
 
 # To be set via flags
+# -D TEST_SERVER
+# -D TEST_DATABASE
+# -D TEST_DRIVER_NAME
 # -D TEST_DRIVER_PATH
 # -D PG_DRIVER_PATH
 # -D PG_SERVER
@@ -122,12 +127,12 @@ SET(THREADING "0")
 # -D MYSQL_DRIVER_PATH
 # -D MYSQL_SERVER
 # -D MYSQL_DATABASE
-CONFIGURE_FILE(
+configure_file(
     ${ODBC_PATH}/odbcinst.ini.in
     ${ODBC_PATH}/odbcinst.ini
     @ONLY
 )
-CONFIGURE_FILE(
+configure_file(
     ${ODBC_PATH}/odbc.ini.in
     ${ODBC_PATH}/odbc.ini
     @ONLY

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Debug builds no longer log the generated IAM authentication token [(PR #167)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/167)
+- `SQLGetInfo(SQL_DRIVER_VER)` now reports the real wrapper version instead of a hardcoded `1.0.0`
+- Discovery of the `odbcinst`/`iodbcinst` library on macOS and Linux, which ignored the configured `ODBC_ROOT`
+- The ANSI static library is now compiled with `SQL_NOUNICODEMAP`, matching the ANSI shared library
+
 ## [1.3.1] - 2026-09-08
 
 ### Fixed

@@ -459,7 +459,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib icu4c
+          brew install cmake unixodbc postgresql curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
@@ -865,7 +865,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Error "Failed to initialize local MySQL database."; exit 1 }
       - name: Build Compatibility Tests (Unicode)
         run: |
-          cmake -S test/compatibility -B build_test_w -DUNICODE=ON -DTEST_BASE_OUTPUT=ON
+          cmake -S test/compatibility -B build_test_w -DBUILD_UNICODE=ON -DTEST_BASE_OUTPUT=ON
           cmake --build build_test_w --config ${{env.BUILD_CONFIG}}
       - name: Install PostgreSQL Unicode DSNs
         shell: pwsh
@@ -960,7 +960,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl zlib icu4c
+          brew install cmake unixodbc postgresql curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
@@ -1039,7 +1039,7 @@ jobs:
       - name: Build Compatibility Tests (Unicode)
         run: |
           cmake -S test/compatibility -B test-compatibility-w \
-            -D UNICODE=ON \
+            -D BUILD_UNICODE=ON \
             -D TEST_BASE_OUTPUT=ON \
             -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.dylib" \
             -D PG_DRIVER_PATH="${{ steps.psqlodbc-path.outputs.PSQLODBC_UNICODE_DRIVER_PATH }}" \
@@ -1087,7 +1087,7 @@ jobs:
           echo "Using iODBC headers: $IODBC_INCLUDE_DIR"
           echo "Using iODBC library: $IODBC_LIBRARY"
           cmake -S test/compatibility -B test-compatibility-w-mysql \
-            -D UNICODE=ON \
+            -D BUILD_UNICODE=ON \
             -D TEST_BASE_OUTPUT=ON \
             -D ODBC_INCLUDE_DIR="$IODBC_INCLUDE_DIR" \
             -D ODBC_LIBRARY="$IODBC_LIBRARY" \
@@ -1197,7 +1197,7 @@ jobs:
       - name: Build Compatibility Tests (Unicode)
         run: |
           cmake -S test/compatibility -B test-compatibility-w \
-            -D UNICODE=ON \
+            -D BUILD_UNICODE=ON \
             -D TEST_BASE_OUTPUT=ON \
             -D TEST_DRIVER_PATH="${{ github.workspace }}/build/driver/aws-advanced-odbc-wrapper-w.so" \
             -D PG_DRIVER_PATH="${{ github.workspace }}/psqlodbc/.libs/psqlodbcw.so" \

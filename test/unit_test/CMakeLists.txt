@@ -74,9 +74,9 @@ set(TEST_RUNNER
 
 # Configure Build Defines ------------------------------------------------------------------------------------
 if(BUILD_UNICODE)
-    SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-w")
+    set(WRAPPER_NAME "aws-advanced-odbc-wrapper-w")
 else()
-    SET(WRAPPER_NAME "aws-advanced-odbc-wrapper-a")
+    set(WRAPPER_NAME "aws-advanced-odbc-wrapper-a")
 endif()
 
 # Fetch External Libraries ----------------------------------------------------------------------------------
@@ -194,5 +194,5 @@ else()
 endif()
 message("Copying Libraries to: ${OUTPUT_DIR}")
 
-LIST(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
+list(APPEND SERVICE_LIST rds secretsmanager sts sso sso-oidc)
 AWSSDK_CPY_DYN_LIBS(SERVICE_LIST "" ${OUTPUT_DIR})

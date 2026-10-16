@@ -23,7 +23,8 @@ set(WRAPPER_VERSION "1.3.1")
 set(BUILD_ANSI OFF CACHE BOOL "Toggle to build with Ansi Wrapper")
 set(BUILD_UNICODE OFF CACHE BOOL "Toggle to build with Unicode Wrapper")
 set(BUILD_UNIT_TEST OFF CACHE BOOL "Toggle to build Unit Tests")
-set(WITH_IODBC OFF CACHE BOOL "Build with iODBC")
+set(USE_ASAN OFF CACHE BOOL "Toggle to use Address Sanitizer")
+set(WITH_IODBC OFF CACHE BOOL "Toggle to build with iODBC, else unixODBC")
 
 # External Tools ---------------------------------------------------------------------------------------------
 include(FetchContent)
@@ -70,7 +71,9 @@ else(WIN32)
             NAME
                 iodbcinst
             HINTS
-                ODBC_ROOT
+                ${ODBC_ROOT}
+            PATH_SUFFIXES
+                lib
             REQUIRED
         )
     else() # unixODBC
@@ -78,7 +81,9 @@ else(WIN32)
             NAME
                 odbcinst
             HINTS
-                ODBC_ROOT
+                ${ODBC_ROOT}
+            PATH_SUFFIXES
+                lib
             REQUIRED
         )
     endif()
@@ -129,40 +134,40 @@ if(BUILD_UNIT_TEST)
 endif()
 
 # CPACK ------------------------------------------------------------------------------------------------------
-SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AWS Advanced ODBC Wrapper")
-SET(CPACK_PACKAGE_NAME "aws-advanced-odbc-wrapper")
-SET(CPACK_PACKAGE_VENDOR "Amazon")
-SET(CPACK_PACKAGE_VERSION "${WRAPPER_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AWS Advanced ODBC Wrapper")
+set(CPACK_PACKAGE_NAME "aws-advanced-odbc-wrapper")
+set(CPACK_PACKAGE_VENDOR "Amazon")
+set(CPACK_PACKAGE_VERSION "${WRAPPER_VERSION}")
 
-SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
-SET(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.txt")
-SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-src")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_SOURCE_DIR}/README.txt")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-src")
 
-IF(APPLE)
-    SET(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-macos")
-    SET(CPACK_GENERATOR "productbuild")
-    SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY}")
-    SET(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local/${CPACK_PACKAGE_FILE_NAME}")
+if(APPLE)
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CPACK_PACKAGE_NAME}-${WRAPPER_VERSION}-macos")
+    set(CPACK_GENERATOR "productbuild")
+    set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_INSTALL_DIRECTORY}")
+    set(CPACK_PACKAGING_INSTALL_PREFIX "/usr/local/${CPACK_PACKAGE_FILE_NAME}")
 
-    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html @ONLY)
-    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html @ONLY)
-    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh.in ${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh @ONLY)
-    SET(CPACK_RESOURCE_FILE_WELCOME "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macOS/Welcome.html")
-    SET(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html")
-    SET(CPACK_POSTFLIGHT_WRAPPER_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh")
+    configure_file(${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/Welcome.html @ONLY)
+    configure_file(${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html.in ${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html @ONLY)
+    configure_file(${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh.in ${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh @ONLY)
+    set(CPACK_RESOURCE_FILE_WELCOME "${CMAKE_CURRENT_SOURCE_DIR}/scripts/macOS/Welcome.html")
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/scripts/macOS/ReadMe.html")
+    set(CPACK_POSTFLIGHT_WRAPPER_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/macOS/postflight.sh")
 
-    CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/scripts/macOS/Info.plist.in ${CMAKE_BINARY_DIR}/Info.plist @ONLY)
-    SET(CPACK_PRODUCTBUILD_IDENTIFIER "com.amazon.AwsAdvancedOdbcWrapper")
-ENDIF()
+    configure_file(${CMAKE_SOURCE_DIR}/scripts/macOS/Info.plist.in ${CMAKE_BINARY_DIR}/Info.plist @ONLY)
+    set(CPACK_PRODUCTBUILD_IDENTIFIER "com.amazon.AwsAdvancedOdbcWrapper")
+endif()
 
 set(CPACK_COMPONENTS_ALL "Wrapper")
 
-INSTALL(FILES LICENSE.txt COMPONENT Wrapper DESTINATION .)
-INSTALL(FILES README.txt COMPONENT Wrapper DESTINATION .)
-IF(APPLE)
-    INSTALL(FILES "${CMAKE_BINARY_DIR}/Info.plist" COMPONENT Wrapper DESTINATION .)
-ENDIF()
-INSTALL(
+install(FILES LICENSE.txt COMPONENT Wrapper DESTINATION .)
+install(FILES README.txt COMPONENT Wrapper DESTINATION .)
+if(APPLE)
+    install(FILES "${CMAKE_BINARY_DIR}/Info.plist" COMPONENT Wrapper DESTINATION .)
+endif()
+install(
     DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build/driver/"
     DESTINATION "./lib"
     COMPONENT Wrapper
@@ -170,4 +175,4 @@ INSTALL(
     PATTERN "CMakeFiles" EXCLUDE
 )
 
-include (CPack)
+include(CPack)
