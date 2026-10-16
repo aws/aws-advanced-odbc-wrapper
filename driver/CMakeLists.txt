@@ -251,6 +251,10 @@ if(WIN32)
 endif()
 
 # Configure Build Defines ------------------------------------------------------------------------------------
+if(NOT WRAPPER_VERSION)
+    message(FATAL_ERROR "WRAPPER_VERSION is not set")
+endif()
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/driver_version.h.cmake
     ${CMAKE_CURRENT_SOURCE_DIR}/driver_version.h

@@ -59,7 +59,7 @@ You can also build the installer via the following:
     ```
 2. Install build dependencies
     ```
-    brew install cmake curl openssl unixodbc zlib icu4c
+    brew install cmake curl openssl@3 unixodbc zlib icu4c
     ```
 3. Build AWS SDK for C++
     ```
