@@ -91,7 +91,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc curl openssl zlib icu4c
+          brew install cmake unixodbc curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
@@ -109,7 +109,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DUNIT_TEST=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DBUILD_UNIT_TEST=OFF
           cmake --build build
           ls ./build/driver/
       - name: Check Artifacts
@@ -179,7 +179,7 @@ jobs:
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
       - name: Build aws-advanced-odbc-wrapper
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DUNIT_TEST=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}} -DBUILD_UNIT_TEST=OFF
           cmake --build build
           ls ./build/driver/
       - name: Get Ansi Driver Hash
