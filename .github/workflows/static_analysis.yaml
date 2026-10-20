@@ -37,7 +37,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc curl openssl@3 zlib cppcheck llvm icu4c\
+          brew install cmake unixodbc curl openssl@3 zlib cppcheck llvm icu4c
           "${{ steps.setup-python.outputs.python-path }}" -m venv ./venv
           source ./venv/bin/activate
           python3 -c 'import sys; print("CodeChecker will run on Python", sys.version)'
