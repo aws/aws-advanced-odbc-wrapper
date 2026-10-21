@@ -39,6 +39,7 @@
 #include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
+#include "util/core_service.h"
 #include "util/logger_wrapper.h"
 #include "util/map_utils.h"
 #include "util/odbc_dsn_helper.h"
@@ -164,6 +165,8 @@ SQLRETURN RDS_AllocEnv(
 
     env = new ENV();
     env->logger_wrapper = std::make_shared<LoggerWrapper>();
+    // After the logger, so the core services can log while being created
+    CoreService::Acquire();
     *EnvironmentHandlePointer = env;
 
     return SQL_SUCCESS;
@@ -480,6 +483,9 @@ SQLRETURN RDS_FreeEnv(
     }
 
     ClearError(env);
+    // After the child handles (and the internal ENVs of their monitors) are freed,
+    // but before deleting the ENV, which may drop the last logger reference
+    CoreService::Release();
     delete env;
     EnvironmentHandle = nullptr;
     return SQL_SUCCESS;
