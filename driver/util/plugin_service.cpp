@@ -183,7 +183,7 @@ void PluginService::ForceRefreshHosts(bool verify_writer, std::chrono::milliseco
 }
 
 std::vector<HostInfo> PluginService::GetHosts() {
-    return topology_map_->Get(this->cluster_id_);
+    return topology_map_->Get(this->cluster_id_).value_or(std::vector<HostInfo>{});
 }
 
 void PluginService::SetHosts(const std::vector<HostInfo>& hosts) {
@@ -191,8 +191,8 @@ void PluginService::SetHosts(const std::vector<HostInfo>& hosts) {
 }
 
 std::vector<HostInfo> PluginService::GetFilteredHosts() {
-    std::vector<HostInfo> hosts = topology_map_->Get(this->cluster_id_);
-    HostFilter host_filter = host_filter_map_->Get(this->cluster_id_);
+    std::vector<HostInfo> hosts = topology_map_->Get(this->cluster_id_).value_or(std::vector<HostInfo>{});
+    HostFilter host_filter = host_filter_map_->Get(this->cluster_id_).value_or(HostFilter{});
 
     if (host_filter.allowed_host_ids.empty() && host_filter.blocked_host_ids.empty()) {
         return hosts;

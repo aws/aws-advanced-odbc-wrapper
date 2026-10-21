@@ -82,18 +82,8 @@ private:
 template <typename RdsFunc, typename... Args>
 RdsLibResult RdsLibLoader::CallFunction(const std::string& func_name, Args... args)
 {
-    FUNC_HANDLE driver_function = nullptr;
     // Try retrieving from cache
-    {
-        if (function_cache_->Contains(func_name)) {
-            try {
-                driver_function = function_cache_->Get(func_name);
-            } catch (const std::out_of_range&) {
-                // Should not happen but done to satisfy clang-tidy
-                driver_function = nullptr;
-            }
-        }
-    }
+    FUNC_HANDLE driver_function = function_cache_->Get(func_name).value_or(nullptr);
     // Cache miss
     if (!driver_function) {
         driver_function = GetFunction(func_name);
