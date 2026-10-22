@@ -41,22 +41,22 @@ std::string GetNodeId(SQLHDBC hdbc, const std::shared_ptr<Dialect>& dialect, con
         return "";
     }
 
-    res = NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(dbc->env->driver_lib_loader, RdsFuncNames::AllocHandle,
         SQL_HANDLE_STMT, dbc->wrapped_dbc, &stmt
     );
 
     if (SQL_SUCCEEDED(res.fn_result)) {
         odbc_helper->ExecDirect(&stmt, node_id_query);
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+        RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindCol>(dbc->env->driver_lib_loader, RdsFuncNames::BindCol,
             stmt, 1, SQL_C_TCHAR, &node_id, MAX_HOST_SIZE, &rt
         );
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+        RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFetch>(dbc->env->driver_lib_loader, RdsFuncNames::Fetch,
             stmt
         );
 
-        NULL_CHECK_CALL_LIB_FUNC(dbc->env->driver_lib_loader, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+        RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(dbc->env->driver_lib_loader, RdsFuncNames::FreeHandle,
             SQL_HANDLE_STMT, stmt
         );
     }

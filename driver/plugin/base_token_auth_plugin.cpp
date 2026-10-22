@@ -113,7 +113,7 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     if (std::string credential_error; !EnsureCredentials(dbc, region, credential_error)) {
         LOG(ERROR) << credential_error;
         ClearError(dbc);
-        dbc->err = std::make_unique<ErrInfo>(credential_error.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(credential_error, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return SQL_ERROR;
     }
 
@@ -188,7 +188,7 @@ bool BaseTokenAuthPlugin::ValidateRequiredParams(DBC* dbc, const std::string& ia
         }
         LOG(ERROR) << error_msg;
         ClearError(dbc);
-        dbc->err = std::make_unique<ErrInfo>(error_msg.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        dbc->err = std::make_unique<ErrInfo>(error_msg, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
         return false;
     }
 
