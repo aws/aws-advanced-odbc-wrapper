@@ -17,6 +17,7 @@
 #include "util/auth_provider.h"
 
 #include <optional>
+#include <string_view>
 #include <unordered_set>
 
 #include "error.h"
@@ -1669,7 +1670,7 @@ SQLRETURN RDS_SQLGetDiagField(
         if (RecNumber > 1) {
             ret = SQL_NO_DATA_FOUND;
         } else {
-            const char* char_value = nullptr;
+            std::optional<std::string_view> char_value;
             ret = SQL_SUCCESS;
             switch (DiagIdentifier) {
                 // Header Fields
@@ -1723,7 +1724,9 @@ SQLRETURN RDS_SQLGetDiagField(
                         ret = SQL_ERROR;
                     }
                     if (dbc != nullptr && dbc->conn_attr.contains(KEY_DSN)) {
-                        char_value = dbc->conn_attr.at(KEY_DSN).c_str();
+                        char_value = dbc->conn_attr.at(KEY_DSN);
+                    } else {
+                        char_value = "";
                     }
                     break;
                 }
@@ -1732,9 +1735,7 @@ SQLRETURN RDS_SQLGetDiagField(
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
                     }
-                    if (!err->error_msg.empty()) {
-                        char_value = err->error_msg.c_str();
-                    }
+                    char_value = err->error_msg;
                     break;
                 }
                 case SQL_DIAG_NATIVE:
@@ -1754,7 +1755,9 @@ SQLRETURN RDS_SQLGetDiagField(
                 case SQL_DIAG_SERVER_NAME:
                 {
                     if (dbc != nullptr && dbc->conn_attr.contains(KEY_SERVER)) {
-                        char_value = dbc->conn_attr.at(KEY_SERVER).c_str();
+                        char_value = dbc->conn_attr.at(KEY_SERVER);
+                    } else {
+                        char_value = "";
                     }
                     break;
                 }
@@ -1762,8 +1765,8 @@ SQLRETURN RDS_SQLGetDiagField(
                 {
                     if (RecNumber <= 0) {
                         ret = SQL_ERROR;
-                    } else if (!err->sqlstate.empty()) {
-                        char_value = err->sqlstate.c_str();
+                    } else {
+                        char_value = err->sqlstate;
                     }
                     break;
                 }
@@ -1785,9 +1788,10 @@ SQLRETURN RDS_SQLGetDiagField(
 
             // Pass info back to caller
             if (char_value) {
-                len = strlen(char_value);
+                len = char_value->size();
                 if (DiagInfoPtr) {
-                    snprintf(static_cast<char*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", char_value);
+                    snprintf(static_cast<char*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR),
+                        "%.*s", static_cast<int>(len), char_value->data());
                     if (len >= BufferLength) {
                         ret = SQL_SUCCESS_WITH_INFO;
                     }

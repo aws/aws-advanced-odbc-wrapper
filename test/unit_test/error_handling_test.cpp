@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "../../driver/driver.h"
 #include "../../driver/odbcapi_rds_helper.h"
 #include "../../driver/error.h"
@@ -306,6 +308,53 @@ TEST_F(ErrorHandlingTest, DiagRec_EmptyMessageStillReportsSqlState) {
     EXPECT_STREQ("08S01", reinterpret_cast<const char*>(sql_state));
 #endif
     EXPECT_EQ(static_cast<SQLINTEGER>(ERR_COMMUNICATION_LINK_FAILURE), native_error);
+}
+
+TEST_F(ErrorHandlingTest, DiagField_EmptyMessageTextWritesEmptyString) {
+    dbc_->err = std::make_unique<ErrInfo>("", ERR_COMMUNICATION_LINK_FAILURE);
+
+    char message[MAX_MSG_LEN];
+    std::fill_n(message, sizeof(message), 'X');
+    SQLSMALLINT length = -1;
+
+    const SQLRETURN ret = RDS_SQLGetDiagField(
+        SQL_HANDLE_DBC, dbc_, 1, SQL_DIAG_MESSAGE_TEXT,
+        message, sizeof(message), &length);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ("", message);
+    EXPECT_EQ(0, length);
+}
+
+TEST_F(ErrorHandlingTest, DiagField_ConnectionNameWithoutDsnWritesEmptyString) {
+    dbc_->err = std::make_unique<ErrInfo>("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
+    ASSERT_FALSE(dbc_->conn_attr.contains(KEY_DSN));
+
+    char conn_name[MAX_MSG_LEN];
+    std::fill_n(conn_name, sizeof(conn_name), 'X');
+    SQLSMALLINT length = -1;
+
+    const SQLRETURN ret = RDS_SQLGetDiagField(
+        SQL_HANDLE_DBC, dbc_, 1, SQL_DIAG_CONNECTION_NAME,
+        conn_name, sizeof(conn_name), &length);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ("", conn_name);
+    EXPECT_EQ(0, length);
+}
+
+TEST_F(ErrorHandlingTest, DiagField_MessageTextIsReturnedInFull) {
+    dbc_->err = std::make_unique<ErrInfo>("Connection failed", ERR_COMMUNICATION_LINK_FAILURE);
+
+    char message[MAX_MSG_LEN] = {0};
+    SQLSMALLINT length = 0;
+
+    const SQLRETURN ret = RDS_SQLGetDiagField(
+        SQL_HANDLE_DBC, dbc_, 1, SQL_DIAG_MESSAGE_TEXT,
+        message, sizeof(message), &length);
+
+    EXPECT_EQ(SQL_SUCCESS, ret);
+    EXPECT_STREQ("Connection failed", message);
 }
 
 TEST_F(ErrorHandlingTest, DiagRec_RecordTwoReturnsNoData) {
