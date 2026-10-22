@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <format>
 #include <functional>
+#include <optional>
 #include <ranges>
 
 static constexpr int HASH_MULTIPLIER = 31;
@@ -447,12 +448,12 @@ std::vector<std::shared_ptr<BaseConnectRouting>> BlueGreenStatusProvider::AddSub
     for (const auto& itr : this->role_by_host_map_->GetMapCopy()) {
         const std::string host = itr.first;
         const BlueGreenRole role = itr.second;
-        const std::pair<HostInfo, HostInfo> host_pair = this->corresponding_nodes_->Get(host);
-        if (role != BlueGreenRole::SOURCE || host_pair.first.GetHost().empty()) {
+        const std::optional<std::pair<HostInfo, HostInfo>> host_pair = this->corresponding_nodes_->Get(host);
+        if (role != BlueGreenRole::SOURCE || !host_pair.has_value() || host_pair->first.GetHost().empty()) {
             continue;
         }
-        const HostInfo blue_host = host_pair.first;
-        const std::string blue_ip = this->host_ip_map_->Get(blue_host.GetHost());
+        const HostInfo blue_host = host_pair->first;
+        const std::string blue_ip = this->host_ip_map_->Get(blue_host.GetHost()).value_or("");
         const HostInfo blue_ip_host = blue_ip.empty() ?
             blue_host
             : HostInfo(blue_ip, blue_host.GetPort(), blue_host.GetHostState(), blue_host.GetHostRole());
@@ -590,13 +591,14 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfPost() {  // NOLINT(misc-no-
 void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<BaseConnectRouting>>& connect_routing) {
     if (!this->blue_dns_update_completed_ || !this->all_green_nodes_changed_) {
         for (const auto& [host, role] : this->role_by_host_map_->GetMapCopy()) {
-            if (role != BlueGreenRole::SOURCE || !this->corresponding_nodes_->Contains(host)) {
+            const std::optional<std::pair<HostInfo, HostInfo>> node_pair = this->corresponding_nodes_->Get(host);
+            if (role != BlueGreenRole::SOURCE || !node_pair.has_value()) {
                 continue;
             }
             const std::string blue_host = host;
             const bool is_blue_host_instance = RdsUtils::IsRdsInstance(blue_host);
 
-            const auto [blue_host_info, green_host_info] = this->corresponding_nodes_->Get(blue_host);
+            const auto& [blue_host_info, green_host_info] = *node_pair;
 
             if (green_host_info.GetHost().empty()) {
                 connect_routing.push_back(std::make_shared<SuspendUntilNodeFoundConnectRouting>(blue_host, role, this->blue_green_id_));
@@ -607,7 +609,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
                 }
             } else {
                 const std::string green_host = green_host_info.GetHost();
-                const std::string green_host_ip = this->host_ip_map_->Get(green_host);
+                const std::string green_host_ip = this->host_ip_map_->Get(green_host).value_or("");
                 const HostInfo green_ip_host_info = HostInfo(green_host_ip, green_host_info.GetPort(), green_host_info.GetHostState(), green_host_info.GetHostRole());
 
                 // Check if green ghost connected with blue (non-prefixed) IAM host name
@@ -653,7 +655,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
 
             const HostInfo green_host_info = HostInfo(green_host, interim_status.port_);
             const HostInfo blue_host_info = HostInfo(blue_host, interim_status.port_);
-            const HostInfo green_ip_host_info = HostInfo(this->host_ip_map_->Get(green_host), interim_status.port_);
+            const HostInfo green_ip_host_info = HostInfo(this->host_ip_map_->Get(green_host).value_or(""), interim_status.port_);
 
             std::vector<HostInfo> iam_hosts;
             if (this->IsAlreadySuccessfullyConnected(green_host, blue_host)) {
@@ -715,7 +717,7 @@ void BlueGreenStatusProvider::RegisterIamHost(const std::string& connect_host, c
     }
     {
         const std::lock_guard<std::mutex> lock_guard(this->iam_mutex_);
-        std::set<std::string> iam_success_connects = this->iam_host_success_connects_map_->Get(connect_host);
+        std::set<std::string> iam_success_connects = this->iam_host_success_connects_map_->Get(connect_host).value_or(std::set<std::string>{});
         iam_success_connects.insert(iam_host);
         this->iam_host_success_connects_map_->InsertOrAssign(connect_host, iam_success_connects);
     }
@@ -743,7 +745,8 @@ bool BlueGreenStatusProvider::IsAlreadySuccessfullyConnected(std::string connect
     if (!this->iam_host_success_connects_map_) {
         return false;
     }
-    return this->iam_host_success_connects_map_->Get(connect_host).contains(iam_host);
+    const std::optional<std::set<std::string>> iam_success_connects = this->iam_host_success_connects_map_->Get(connect_host);
+    return iam_success_connects.has_value() && iam_success_connects->contains(iam_host);
 }
 
 void BlueGreenStatusProvider::StorePhaseTime(BlueGreenPhase phase) {

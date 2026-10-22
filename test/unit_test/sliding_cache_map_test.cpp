@@ -17,6 +17,7 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <optional>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -46,8 +47,8 @@ TEST_F(SlidingCacheMapTest, put_cache) {
     SlidingCacheMap<std::string, std::string> cache;
     cache.Put(CACHE_KEY_A, CACHE_VAL_A);
     cache.Put(CACHE_KEY_B, CACHE_VAL_B, CACHE_EXP_LONG);
-    EXPECT_STREQ(CACHE_VAL_A.c_str(), cache.Get(CACHE_KEY_A).c_str());
-    EXPECT_STREQ(CACHE_VAL_B.c_str(), cache.Get(CACHE_KEY_B).c_str());
+    EXPECT_EQ(CACHE_VAL_A, cache.Get(CACHE_KEY_A));
+    EXPECT_EQ(CACHE_VAL_B, cache.Get(CACHE_KEY_B));
 }
 
 TEST_F(SlidingCacheMapTest, put_cache_update) {
@@ -56,30 +57,38 @@ TEST_F(SlidingCacheMapTest, put_cache_update) {
     cache.Put(CACHE_KEY_A, CACHE_VAL_A);
     cache.Put(CACHE_KEY_B, CACHE_VAL_B, CACHE_EXP_SHORT);
     EXPECT_EQ(2, cache.Size());
-    EXPECT_STREQ(CACHE_VAL_B.c_str(), cache.Get(CACHE_KEY_B).c_str());
+    EXPECT_EQ(CACHE_VAL_B, cache.Get(CACHE_KEY_B));
 
     cache.Put(CACHE_KEY_B, CACHE_VAL_B, CACHE_EXP_LONG);
     std::this_thread::sleep_for(CACHE_EXP_MID);
     EXPECT_EQ(2, cache.Size());
-    EXPECT_STREQ(CACHE_VAL_B.c_str(), cache.Get(CACHE_KEY_B).c_str());
+    EXPECT_EQ(CACHE_VAL_B, cache.Get(CACHE_KEY_B));
 }
 
 TEST_F(SlidingCacheMapTest, get_cache_hit) {
     SlidingCacheMap<std::string, std::string> cache;
     cache.Put(CACHE_KEY_A, CACHE_VAL_A);
-    EXPECT_STREQ(CACHE_VAL_A.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(CACHE_VAL_A, cache.Get(CACHE_KEY_A));
 }
 
 TEST_F(SlidingCacheMapTest, get_cache_miss) {
     SlidingCacheMap<std::string, std::string> cache;
-    EXPECT_STREQ(CACHE_EMPTY.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(std::nullopt, cache.Get(CACHE_KEY_A));
+}
+
+TEST_F(SlidingCacheMapTest, get_stored_default_value_is_a_hit) {
+    SlidingCacheMap<std::string, std::string> cache;
+    cache.Put(CACHE_KEY_A, CACHE_EMPTY);
+    // A stored default-constructed value is distinguishable from a miss
+    EXPECT_EQ(CACHE_EMPTY, cache.Get(CACHE_KEY_A));
+    EXPECT_EQ(std::nullopt, cache.Get(CACHE_KEY_B));
 }
 
 TEST_F(SlidingCacheMapTest, get_cache_expire) {
     SlidingCacheMap<std::string, std::string> cache;
     cache.Put(CACHE_KEY_A, CACHE_VAL_A, CACHE_EXP_SHORT);
     std::this_thread::sleep_for(CACHE_EXP_MID);
-    EXPECT_STREQ(CACHE_EMPTY.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(std::nullopt, cache.Get(CACHE_KEY_A));
 }
 
 TEST_F(SlidingCacheMapTest, find_cache_miss) {
@@ -136,7 +145,7 @@ TEST_F(SlidingCacheMapTest, ttl_update_find) {
 
     // Should be valid due to earlier `find()` updates TTL
     EXPECT_EQ(1, cache.Size());
-    EXPECT_STREQ(CACHE_VAL_A.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(CACHE_VAL_A, cache.Get(CACHE_KEY_A));
 }
 
 TEST_F(SlidingCacheMapTest, ttl_update_get) {
@@ -148,12 +157,12 @@ TEST_F(SlidingCacheMapTest, ttl_update_get) {
     std::this_thread::sleep_for(CACHE_EXP_SHORT);
 
     // Touch to refresh TTL
-    EXPECT_STREQ(CACHE_VAL_A.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(CACHE_VAL_A, cache.Get(CACHE_KEY_A));
 
     // Sleep again combined with previous to expire original put
     std::this_thread::sleep_for(CACHE_EXP_SHORT);
 
     // Should be valid due to earlier `get()` updates TTL
     EXPECT_EQ(1, cache.Size());
-    EXPECT_STREQ(CACHE_VAL_A.c_str(), cache.Get(CACHE_KEY_A).c_str());
+    EXPECT_EQ(CACHE_VAL_A, cache.Get(CACHE_KEY_A));
 }
