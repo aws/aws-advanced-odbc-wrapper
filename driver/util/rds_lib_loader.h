@@ -119,7 +119,7 @@ RdsLibResult RdsLibLoader::CallFunction(std::string_view func_name, Args... args
 
     const std::string func_key(func_name);
     // Try retrieving from cache
-    RdsPlatform::FuncHandle driver_function = function_cache_->Get(func_key);
+    RdsPlatform::FuncHandle driver_function = function_cache_->Get(func_key).value_or(nullptr);
     // Cache miss
     if (!driver_function) {
         driver_function = GetFunction(func_key);
