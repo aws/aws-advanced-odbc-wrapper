@@ -15,8 +15,10 @@
 #ifndef STORAGE_SERVICE_H_
 #define STORAGE_SERVICE_H_
 
-// Process-wide store for data shared across connections, e.g. cluster topology.
-// Owned by CoreService. Stub until the storage service is implemented.
+// Data shared across connections, e.g. cluster topology. Kept while no ENV is allocated, for the next connection.
+// Owned by CoreService and never destroyed, so its destructor never runs. Any heap memory it comes to hold must be
+// freed explicitly when the DLL is unloaded, or it leaks each time the Driver Manager reloads the DLL.
+// TODO - Empty until the storage is implemented
 class StorageService {
 public:
     StorageService() = default;

@@ -15,11 +15,20 @@
 #ifndef MONITOR_SERVICE_H_
 #define MONITOR_SERVICE_H_
 
-// Process-wide owner of the background monitors shared across connections.
-// Owned by CoreService. Stub until the monitor service is implemented.
+// Owns the background monitors shared across connections. Owned by CoreService and never destroyed.
+// TODO - Empty until the monitors move here
 class MonitorService {
 public:
     MonitorService() = default;
+
+    // Stops and joins every monitor, then frees the ENVs they used. Called by CoreService when the last ENV of the
+    // app or Driver Manager is freed, so:
+    // - Runs under CoreService's lock. Monitors must use ENVs that are not counted, see RDS_AllocInternalEnv,
+    //   or this would deadlock
+    // - Nothing may keep running afterwards, the DLL may be unloaded
+    // - Must leave the service usable, the next connect creates monitors again
+    // codechecker_suppress [readability-convert-member-functions-to-static]
+    void ReleaseResources() {}
 };
 
 #endif // MONITOR_SERVICE_H_

@@ -14,65 +14,65 @@
 
 #include "core_service.h"
 
-#include "logger_wrapper.h"
-#include "monitoring/monitor_service.h"
-#include "storage/storage_service.h"
+#include <array>
+#include <cstddef>
+#include <new>
 
-uint32_t CoreService::env_count_ = 0;
-std::atomic<CoreService*> CoreService::instance_{nullptr};
+#include "logger_wrapper.h"
 
 CoreService::CoreService()
-    : storage_service_{ std::make_unique<StorageService>() },
-      monitor_service_{ std::make_unique<MonitorService>() } {}
-
-CoreService::~CoreService() = default;
-
-std::mutex& CoreService::LifecycleMutex()
 {
-    // Deliberately never destroyed. If an app exits without freeing its handles, static destructors in
-    // other files (e.g. a monitor registry) can still reach RDS_FreeEnv after this file's statics are gone
-    static auto* const MUTEX = new std::mutex();
-    return *MUTEX;
+    LOG(INFO) << "Created Core Service";
 }
 
-void CoreService::Acquire()
+CoreService& CoreService::Instance()
 {
-    const std::lock_guard<std::mutex> lock(LifecycleMutex());
-    if (env_count_ == 0) {
-        // Count only moves after a successful construction, so a throw leaves the state unchanged
-        instance_.store(new CoreService());
-        LOG(INFO) << "Created Core Service";
-    }
+    // Not "static CoreService instance;", the compiler would destroy that at exit or DLL unload, while code running
+    // later, e.g. an app's own static destructors, can still free an ENV. Here the compiler only owns raw memory,
+    // which has nothing to destroy, and the instance built in it is never destroyed.
+    //
+    // Static storage rather than the heap, so nothing is left behind each time the Driver Manager unloads the DLL.
+    // Aligned for CoreService, as a byte array alone may start at any address.
+    alignas(CoreService) static std::array<std::byte, sizeof(CoreService)> storage;
+    // Placement new, building the instance inside storage. As a function local static it runs once, on the first
+    // call, and is thread safe. If the constructor throws, the next call tries again
+    static CoreService* const INSTANCE = new (storage.data()) CoreService();
+    return *INSTANCE;
+}
+
+StorageService& CoreService::GetStorageService()
+{
+    return storage_service_;
+}
+
+MonitorService& CoreService::GetMonitorService()
+{
+    return monitor_service_;
+}
+
+uint32_t CoreService::GetEnvCount()
+{
+    const std::lock_guard<std::mutex> lock(env_count_mutex_);
+    return env_count_;
+}
+
+void CoreService::OnEnvAllocated()
+{
+    const std::lock_guard<std::mutex> lock(env_count_mutex_);
     ++env_count_;
 }
 
-void CoreService::Release()
+void CoreService::OnEnvFreed()
 {
-    const std::lock_guard<std::mutex> lock(LifecycleMutex());
+    const std::lock_guard<std::mutex> lock(env_count_mutex_);
     if (env_count_ == 0) {
-        LOG(WARNING) << "Core Service released more times than acquired, ignoring";
+        // Each counted ENV is freed once, so this is a bug in the driver
+        LOG(ERROR) << "More environment handles freed than allocated, ignoring";
         return;
     }
-    // Only the transitions log. Releases can run from static destructors at exit, where logging is not
-    // safe, but the count never reaches 0 there as the app's own SQLHENV is still allocated
     if (--env_count_ == 0) {
-        // Unpublish first so GetInstance() never hands out an instance being destroyed
-        delete instance_.exchange(nullptr);
-        LOG(INFO) << "Shut down Core Service";
+        // Under the lock, so an ENV allocated meanwhile waits until the monitors are released
+        LOG(INFO) << "Last environment handle freed, releasing monitors";
+        monitor_service_.ReleaseResources();
     }
-}
-
-CoreService* CoreService::GetInstance()
-{
-    return instance_.load();
-}
-
-StorageService* CoreService::GetStorageService() const
-{
-    return storage_service_.get();
-}
-
-MonitorService* CoreService::GetMonitorService() const
-{
-    return monitor_service_.get();
 }

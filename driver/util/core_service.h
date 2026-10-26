@@ -15,34 +15,37 @@
 #ifndef CORE_SERVICE_H_
 #define CORE_SERVICE_H_
 
-#include <atomic>
 #include <cstdint>
-#include <memory>
 #include <mutex>
 
-class MonitorService;
-class StorageService;
+#include "monitoring/monitor_service.h"
+#include "storage/storage_service.h"
 
-// Process-wide singleton owning the services shared by all connections.
+// Owns the services shared by all connections. One instance per loaded driver library, so the ANSI and the
+// Unicode drivers each have their own.
 //
-// Like LoggerWrapper, its lifetime follows the allocated SQLHENVs rather than DLL load / unload hooks:
-// RDS_AllocEnv calls Acquire() and RDS_FreeEnv calls Release(). The instance and its services are
-// created when the count goes from 0 to 1, and destroyed when it drops back to 0.
+// Created by the first Instance() call and never destroyed. It lives in static storage, so nothing is left on the
+// heap when the DLL is unloaded, and static destructors running late at exit can still reach it.
 //
-// TODO - Move LoggerWrapper in here, logging is only initialized once and its level / location never change
+// Counts the ENVs allocated by the app or Driver Manager. The driver's own ENVs, e.g. a monitor's, are not counted,
+// otherwise the count could never reach 0 while monitors run. The Driver Manager may unload the DLL right after
+// the last ENV is freed, so the monitors are released then. The stored data is kept, and an ENV allocated
+// afterwards reuses the same instance.
 class CoreService {
 public:
-    // Both run under LifecycleMutex(), so the core services must not allocate or free an SQLHENV
-    // from their constructors / destructors, it would deadlock
-    static void Acquire();
-    static void Release();
+    [[nodiscard]] static CoreService& Instance();
 
-    // nullptr while no SQLHENV is allocated. Only valid while the caller keeps an SQLHENV allocated,
-    // directly or through one of its DBC / STMT / DESC handles.
-    [[nodiscard]] static CoreService* GetInstance();
+    [[nodiscard]] StorageService& GetStorageService();
+    [[nodiscard]] MonitorService& GetMonitorService();
 
-    [[nodiscard]] StorageService* GetStorageService() const;
-    [[nodiscard]] MonitorService* GetMonitorService() const;
+    // Only called by RDS_AllocEnv / RDS_FreeEnv, for ENVs with counted_by_core_service set.
+    // The last OnEnvFreed() releases the monitors, which must not allocate or free a counted ENV
+    void OnEnvAllocated();
+    void OnEnvFreed();
+    [[nodiscard]] uint32_t GetEnvCount();
+
+    // Never destroyed, see Instance()
+    ~CoreService() = delete;
 
     // Prevent copy constructors
     CoreService(const CoreService&) = delete;
@@ -51,21 +54,15 @@ public:
     CoreService& operator=(CoreService&&) = delete;
 
 private:
-    // Only created and destroyed by Acquire() / Release()
     CoreService();
-    ~CoreService();
 
-    // Never destroyed, so Acquire() / Release() keep working when reached from static destructors at exit
-    static std::mutex& LifecycleMutex();
+    std::mutex env_count_mutex_;
+    // Counted ENVs, guarded by env_count_mutex_
+    uint32_t env_count_ = 0;
 
-    // Members are destroyed in reverse order, so monitors go before the storage they may use
-    std::unique_ptr<StorageService> storage_service_;
-    std::unique_ptr<MonitorService> monitor_service_;
-
-    // Number of allocated SQLHENVs, guarded by LifecycleMutex()
-    static uint32_t env_count_;
-    // Set and cleared under LifecycleMutex(), read lock-free by GetInstance()
-    static std::atomic<CoreService*> instance_;
+    // Constructed in this order, as monitors may use the storage
+    StorageService storage_service_;
+    MonitorService monitor_service_;
 };
 
 #endif // CORE_SERVICE_H_

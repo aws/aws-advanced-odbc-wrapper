@@ -158,18 +158,38 @@ SQLRETURN RDS_ProcessLibRes(
     return LibResult.fn_result;
 }
 
+namespace {
+    SQLRETURN AllocEnv(SQLHENV* EnvironmentHandlePointer, const bool count_in_core_service)
+    {
+        try {
+            std::unique_ptr<ENV> env = std::make_unique<ENV>();
+            env->logger_wrapper = std::make_shared<LoggerWrapper>();
+            if (count_in_core_service) {
+                // After the logger, so the core services can log while being created. Last step that can throw,
+                // so a failure here leaves nothing to undo
+                CoreService::Instance().OnEnvAllocated();
+                env->counted_by_core_service = true;
+            }
+            *EnvironmentHandlePointer = env.release();
+            return SQL_SUCCESS;
+        } catch (const std::exception& ex) {
+            // Must not escape into the Driver Manager. There is no handle yet to record a diagnostic on
+            LOG(ERROR) << "Unable to allocate environment handle: " << ex.what();
+            return SQL_ERROR;
+        }
+    }
+}  // namespace
+
 SQLRETURN RDS_AllocEnv(
     SQLHENV *      EnvironmentHandlePointer)
 {
-    ENV* env;
+    return AllocEnv(EnvironmentHandlePointer, true);
+}
 
-    env = new ENV();
-    env->logger_wrapper = std::make_shared<LoggerWrapper>();
-    // After the logger, so the core services can log while being created
-    CoreService::Acquire();
-    *EnvironmentHandlePointer = env;
-
-    return SQL_SUCCESS;
+SQLRETURN RDS_AllocInternalEnv(
+    SQLHENV *      EnvironmentHandlePointer)
+{
+    return AllocEnv(EnvironmentHandlePointer, false);
 }
 
 SQLRETURN RDS_AllocDbc(
@@ -483,9 +503,10 @@ SQLRETURN RDS_FreeEnv(
     }
 
     ClearError(env);
-    // After the child handles (and the internal ENVs of their monitors) are freed,
-    // but before deleting the ENV, which may drop the last logger reference
-    CoreService::Release();
+    if (env->counted_by_core_service) {
+        // After the child handles, but before deleting the ENV, which may drop the last logger reference
+        CoreService::Instance().OnEnvFreed();
+    }
     delete env;
     EnvironmentHandle = nullptr;
     return SQL_SUCCESS;
