@@ -35,7 +35,7 @@ void OdbcHelper::Disconnect(DBC* dbc) {
             const std::lock_guard<std::recursive_mutex> stmt_lock(stmt->lock);
             try {
                 if (stmt->wrapped_stmt) {
-                    NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(this->lib_loader_, RdsFuncNames::FreeHandle,
                         SQL_HANDLE_STMT, stmt->wrapped_stmt
                     );
                     stmt->wrapped_stmt = SQL_NULL_HSTMT;
@@ -51,7 +51,7 @@ void OdbcHelper::Disconnect(DBC* dbc) {
             const std::lock_guard<std::recursive_mutex> desc_lock(desc->lock);
             try {
                 if (desc->wrapped_desc) {
-                    NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+                    RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(this->lib_loader_, RdsFuncNames::FreeHandle,
                         SQL_HANDLE_DESC, desc->wrapped_desc
                     );
                     desc->wrapped_desc = SQL_NULL_HDESC;
@@ -62,7 +62,7 @@ void OdbcHelper::Disconnect(DBC* dbc) {
         }
         if (dbc->wrapped_dbc) {
             try {
-                NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLDisconnect, RDS_STR_SQLDisconnect,
+                RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDisconnect>(this->lib_loader_, RdsFuncNames::Disconnect,
                     dbc->wrapped_dbc
                 );
                 dbc->wrapped_dbc = SQL_NULL_HDBC;
@@ -100,7 +100,7 @@ bool OdbcHelper::IsClosed(SQLHDBC hdbc) {
         return true;
     }
     SQLUINTEGER connection_state = SQL_CD_FALSE;
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLGetConnectAttr, RDS_STR_SQLGetConnectAttr,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetConnectAttr>(this->lib_loader_, RdsFuncNames::GetConnectAttr,
         local_dbc->wrapped_dbc, SQL_ATTR_CONNECTION_DEAD, &connection_state, sizeof(SQLUINTEGER), nullptr
     );
 
@@ -135,14 +135,14 @@ RdsLibResult OdbcHelper::SetEnvAttr(
         // A NULL wrapped_env would crash the base driver.
         return RdsLibResult { .fn_load_success = false, .fn_result = SQL_ERROR };
     }
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLSetEnvAttr, RDS_STR_SQLSetEnvAttr,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetEnvAttr>(this->lib_loader_, RdsFuncNames::SetEnvAttr,
         henv->wrapped_env, attribute, pointer, length
     );
 }
 
 RdsLibResult OdbcHelper::Fetch(SQLHSTMT* stmt)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFetch, RDS_STR_SQLFetch,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFetch>(this->lib_loader_, RdsFuncNames::Fetch,
         *stmt
     );
 }
@@ -155,7 +155,7 @@ RdsLibResult OdbcHelper::BindCol(
     const size_t size,
     SQLLEN* len)
 {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLBindCol, RDS_STR_SQLBindCol,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLBindCol>(this->lib_loader_, RdsFuncNames::BindCol,
         *stmt, column, type, value, size, len
     );
 }
@@ -165,42 +165,42 @@ RdsLibResult OdbcHelper::ExecDirect(const SQLHSTMT* stmt, const std::string &que
     if (this->GetUse4BytesBaseDriver()) {
         const std::wstring wide_conn = ConvertUTF8ToWString(query);
         SQLTCHAR* conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
-        return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+        return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLExecDirect>(this->lib_loader_, RdsFuncNames::ExecDirect,
             *stmt, conn_in_sqltchar, SQL_NTS
         );
     }
     const std::vector<uint16_t> query_vector = ConvertUTF8ToUTF16(query);
     SQLTCHAR* query_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(query_vector.data()));
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLExecDirect>(this->lib_loader_, RdsFuncNames::ExecDirect,
         *stmt, query_sqltchar, SQL_NTS
     );
 #else
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_ , RDS_FP_SQLExecDirect, RDS_STR_SQLExecDirect,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLExecDirect>(this->lib_loader_, RdsFuncNames::ExecDirect,
         *stmt, AS_SQLTCHAR(query), SQL_NTS
     );
 #endif
 }
 
 RdsLibResult OdbcHelper::CloseCursor(SQLHSTMT stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLCloseCursor, RDS_STR_SQLCloseCursor,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLCloseCursor>(this->lib_loader_, RdsFuncNames::CloseCursor,
         stmt
     );
 }
 
 RdsLibResult OdbcHelper::BaseAllocEnv(ENV* env) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(this->lib_loader_, RdsFuncNames::AllocHandle,
         SQL_HANDLE_ENV, nullptr, &env->wrapped_env
     );
 }
 
 RdsLibResult OdbcHelper::BaseAllocStmt(const SQLHDBC* wrapped_dbc, SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLAllocHandle, RDS_STR_SQLAllocHandle,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(this->lib_loader_, RdsFuncNames::AllocHandle,
         SQL_HANDLE_STMT, *wrapped_dbc, stmt
     );
 }
 
 RdsLibResult OdbcHelper::BaseFreeStmt(SQLHSTMT* stmt) {
-    return NULL_CHECK_CALL_LIB_FUNC(this->lib_loader_, RDS_FP_SQLFreeHandle, RDS_STR_SQLFreeHandle,
+    return RdsLibLoader::CallFunctionChecked<RDS_FP_SQLFreeHandle>(this->lib_loader_, RdsFuncNames::FreeHandle,
         SQL_HANDLE_STMT, *stmt
     );
 }
@@ -272,7 +272,7 @@ std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
     SQLTCHAR message[MAX_MSG_LEN * 2] = { 0 };
     SQLINTEGER native_error = 0;
     SQLSMALLINT text_length = 0;
-    const RdsLibResult res = NULL_CHECK_CALL_LIB_FUNC(lib_loader_, RDS_FP_SQLGetDiagRec, RDS_STR_SQLGetDiagRec,
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetDiagRec>(lib_loader_, RdsFuncNames::GetDiagRec,
         SQL_HANDLE_STMT, stmt, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length);
     if (SQL_SUCCEEDED(res.fn_result)) {
 #if UNICODE

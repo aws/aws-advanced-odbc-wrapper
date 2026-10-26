@@ -112,11 +112,11 @@ TEST_F(BasePluginTest, ConnectWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, dbc_->err);
-    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
+    EXPECT_EQ("HY000", dbc_->err->sqlstate);
     EXPECT_EQ(SQL_ERROR, dbc_->err->ret_code);
-    ASSERT_NE(nullptr, dbc_->err->error_msg);
-    EXPECT_NE(nullptr, strstr(dbc_->err->error_msg, "BasePlugin"));
-    EXPECT_NE(nullptr, strstr(dbc_->err->error_msg, "Connect"));
+    ASSERT_FALSE(dbc_->err->error_msg.empty());
+    EXPECT_NE(std::string::npos, dbc_->err->error_msg.find("BasePlugin"));
+    EXPECT_NE(std::string::npos, dbc_->err->error_msg.find("Connect"));
 }
 
 TEST_F(BasePluginTest, ExecuteWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
@@ -126,11 +126,11 @@ TEST_F(BasePluginTest, ExecuteWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, stmt_->err);
-    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
+    EXPECT_EQ("HY000", stmt_->err->sqlstate);
     EXPECT_EQ(SQL_ERROR, stmt_->err->ret_code);
-    ASSERT_NE(nullptr, stmt_->err->error_msg);
-    EXPECT_NE(nullptr, strstr(stmt_->err->error_msg, "BasePlugin"));
-    EXPECT_NE(nullptr, strstr(stmt_->err->error_msg, "Execute"));
+    ASSERT_FALSE(stmt_->err->error_msg.empty());
+    EXPECT_NE(std::string::npos, stmt_->err->error_msg.find("BasePlugin"));
+    EXPECT_NE(std::string::npos, stmt_->err->error_msg.find("Execute"));
 }
 
 TEST_F(BasePluginTest, ConnectWithNullNextPluginReplacesExistingDiagnostic) {
@@ -140,8 +140,8 @@ TEST_F(BasePluginTest, ConnectWithNullNextPluginReplacesExistingDiagnostic) {
     EXPECT_EQ(SQL_ERROR, plugin.Connect(dbc_, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 
     ASSERT_NE(nullptr, dbc_->err);
-    ASSERT_NE(nullptr, dbc_->err->error_msg);
-    EXPECT_EQ(nullptr, strstr(dbc_->err->error_msg, "Stale error"));
+    ASSERT_FALSE(dbc_->err->error_msg.empty());
+    EXPECT_EQ(std::string::npos, dbc_->err->error_msg.find("Stale error"));
 }
 
 TEST_F(BasePluginTest, ConnectWithNullNextPluginAndNullHandleReturnsInvalidHandle) {
@@ -186,7 +186,7 @@ TEST_F(BasePluginTest, ConnectWithSelfReferencingNextPluginReturnsErrorInsteadOf
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, dbc_->err);
-    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
+    EXPECT_EQ("HY000", dbc_->err->sqlstate);
 
     plugin->SetNextPlugin(nullptr); // Break the self-reference cycle so the plugin is freed.
 }
@@ -199,7 +199,7 @@ TEST_F(BasePluginTest, ExecuteWithSelfReferencingNextPluginReturnsErrorInsteadOf
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, stmt_->err);
-    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
+    EXPECT_EQ("HY000", stmt_->err->sqlstate);
 
     plugin->SetNextPlugin(nullptr); // Break the self-reference cycle so the plugin is freed.
 }
@@ -211,7 +211,7 @@ TEST_F(BasePluginTest, SubclassConnectWithNullNextPluginReturnsErrorAndSetsDiagn
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, dbc_->err);
-    EXPECT_STREQ("HY000", dbc_->err->sqlstate);
+    EXPECT_EQ("HY000", dbc_->err->sqlstate);
 }
 
 TEST_F(BasePluginTest, SubclassExecuteWithNullNextPluginReturnsErrorAndSetsDiagnostic) {
@@ -221,7 +221,7 @@ TEST_F(BasePluginTest, SubclassExecuteWithNullNextPluginReturnsErrorAndSetsDiagn
 
     EXPECT_EQ(SQL_ERROR, ret);
     ASSERT_NE(nullptr, stmt_->err);
-    EXPECT_STREQ("HY000", stmt_->err->sqlstate);
+    EXPECT_EQ("HY000", stmt_->err->sqlstate);
 }
 
 TEST_F(BasePluginTest, SubclassDelegatesThroughChainToTerminalPlugin) {
