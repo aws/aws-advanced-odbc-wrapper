@@ -16,6 +16,7 @@
 
 #include "util/auth_provider.h"
 
+#include <algorithm>
 #include <optional>
 #include <string_view>
 #include <unordered_set>
@@ -1790,8 +1791,13 @@ SQLRETURN RDS_SQLGetDiagField(
             if (char_value) {
                 len = char_value->size();
                 if (DiagInfoPtr) {
-                    snprintf(static_cast<char*>(DiagInfoPtr), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR),
-                        "%.*s", static_cast<int>(len), char_value->data());
+                    const size_t capacity = static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR);
+                    if (capacity > 0) {
+                        const size_t copy_len = std::min(len, capacity - 1);
+                        auto* const out_buf = static_cast<char*>(DiagInfoPtr);
+                        std::copy_n(char_value->begin(), copy_len, out_buf);
+                        out_buf[copy_len] = '\0';
+                    }
                     if (len >= BufferLength) {
                         ret = SQL_SUCCESS_WITH_INFO;
                     }
@@ -2010,7 +2016,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         ret = SQL_SUCCESS;
         if (SQLState) {
 #ifdef UNICODE
-            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate.c_str());
+            CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(SQLState), MAX_SQL_STATE_LEN, err->sqlstate);
             OdbcHelper::ConvertWrapperOutputToTarget(user_4_byte, WrapperCall, SQLState, MAX_SQL_STATE_LEN - 1, static_cast<size_t>(MAX_SQL_STATE_LEN) * 2 * sizeof(SQLTCHAR));
 #else
             snprintf(reinterpret_cast<char*>(SQLState), MAX_SQL_STATE_LEN, "%s", err->sqlstate.c_str());
@@ -2025,7 +2031,7 @@ SQLRETURN RDS_SQLGetDiagRec(
         }
         if (MessageText && (BufferLength > 0) && !err->error_msg.empty()) {
 #ifdef UNICODE
-            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength), err->error_msg.c_str());
+            const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(MessageText), static_cast<size_t>(BufferLength), err->error_msg);
             OdbcHelper::ConvertWrapperOutputToTarget(user_4_byte, WrapperCall, MessageText, written, app_msg_bytes);
 #else
             const SQLLEN written = snprintf(reinterpret_cast<char*>(MessageText), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", err->error_msg.c_str());
