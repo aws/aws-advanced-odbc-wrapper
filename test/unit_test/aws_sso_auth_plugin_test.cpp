@@ -79,7 +79,7 @@ TEST_F(AwsSsoAuthPluginTest, Connect_Success_WithInjectedProvider) {
     std::pair<std::string, bool> token_info("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
@@ -147,7 +147,7 @@ TEST_F(AwsSsoAuthPluginTest, Connect_Success_CacheExpireRetry) {
     std::pair<std::string, bool> fresh_token("fresh_token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillOnce(testing::Return(cached_token))
         .WillOnce(testing::Return(fresh_token));
@@ -179,7 +179,7 @@ TEST_F(AwsSsoAuthPluginTest, Connect_TokenSignedWithDatabaseRegion_NotSsoRegion)
     std::pair<std::string, bool> token_info("token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(SERVER, REGION, PORT, USERNAME, testing::_, testing::_, testing::_))
+        GetToken(SERVER, REGION, PORT, USERNAME, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(token_info));
     EXPECT_CALL(
@@ -201,7 +201,7 @@ TEST_F(AwsSsoAuthPluginTest, Connect_TokenRegionDerivedFromServer_WhenOnlySsoReg
     std::pair<std::string, bool> token_info("token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(RDS_SERVER, RDS_SERVER_REGION, PORT, USERNAME, testing::_, testing::_, testing::_))
+        GetToken(RDS_SERVER, RDS_SERVER_REGION, PORT, USERNAME, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(token_info));
     EXPECT_CALL(
@@ -219,7 +219,7 @@ TEST_F(AwsSsoAuthPluginTest, Connect_Fail_CacheHit_NonAccessError_NoRetry) {
     std::pair<std::string, bool> cached_token("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(cached_token));
     EXPECT_CALL(

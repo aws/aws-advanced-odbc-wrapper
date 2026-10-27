@@ -864,6 +864,32 @@ SQLRETURN RDS_SQLColumns(
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
+static SQLRETURN WarnDeprecatedConnAttributes(DBC* dbc, const SQLRETURN ret)
+{
+    if (!SQL_SUCCEEDED(ret)) {
+        return ret;
+    }
+
+    const std::vector<std::string> deprecated_keys = ConnectionStringHelper::GetDeprecatedKeysInUse(dbc->conn_attr);
+    if (deprecated_keys.empty()) {
+        return ret;
+    }
+
+    std::string deprecation_msg("Deprecated connection string attributes are ignored and should be removed"
+                                " from the connection string or DSN:");
+    for (const std::string& key : deprecated_keys) {
+        deprecation_msg += " '" + key + "'";
+    }
+    deprecation_msg += ". See the AWS Advanced ODBC Wrapper changelog for the behavior that replaces them.";
+
+    LOG(WARNING) << deprecation_msg;
+    if (!dbc->err) {
+        dbc->err = std::make_unique<ErrInfo>(deprecation_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+    }
+
+    return SQL_SUCCESS_WITH_INFO;
+}
+
 SQLRETURN RDS_SQLConnect(
     SQLHDBC        ConnectionHandle,
     SQLTCHAR *     ServerName,
@@ -942,7 +968,7 @@ SQLRETURN RDS_SQLConnect(
         current_utf8 = reinterpret_cast<const char *>(Authentication);
 #endif
         load_len = NameLength3 == SQL_NTS ? current_utf8.length() : NameLength3;
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, current_utf8.substr(0, load_len));
+        ConnectionStringHelper::SetGeneratedPassword(dbc->conn_attr, current_utf8.substr(0, load_len));
         conn_str_utf8 += "PWD=" + current_utf8 + ";";
     }
 
@@ -953,7 +979,7 @@ SQLRETURN RDS_SQLConnect(
         ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
-    return ret;
+    return WarnDeprecatedConnAttributes(dbc, ret);
 }
 
 // TODO Maybe - Impl SQLDataSources
@@ -1133,6 +1159,8 @@ SQLRETURN RDS_SQLDriverConnect(
     if (SQL_SUCCEEDED(ret)) {
         dbc->plugin_service->SetCurrentHostInfo(dbc->plugin_service->GetHostListProvider()->GetConnectionInfo(dbc));
     }
+
+    ret = WarnDeprecatedConnAttributes(dbc, ret);
 
     conn_out_str_utf8 = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_out_str_utf8);
 
