@@ -22,6 +22,7 @@
 #include "../../driver/dialect/dialect_aurora_postgres.h"
 #include "../../driver/plugin/limitless/limitless_router_service.h"
 #include "../../driver/util/connection_string_keys.h"
+#include "../../driver/util/plugin_manager.h"
 #include "../../driver/util/plugin_service.h"
 
 class LimitlessRouterServiceTest : public testing::Test {
@@ -38,9 +39,8 @@ protected:
     void SetUp() override {
         mock_base_plugin_ = std::make_shared<MockBasePlugin>();
         dbc_ = new DBC();
-        dbc_->plugin_head = mock_base_plugin_.get();
-        dbc_->plugin_service = std::make_shared<PluginService>();
-        dbc_->plugin_service->SetPluginChain(mock_base_plugin_);
+        dbc_->service_container->SetPluginManager(std::make_shared<PluginManager>(mock_base_plugin_));
+        dbc_->service_container->SetPluginService(std::make_shared<PluginService>());
         odbc_helper_ = std::make_shared<OdbcHelper>(nullptr, nullptr);
     }
     void TearDown() override {

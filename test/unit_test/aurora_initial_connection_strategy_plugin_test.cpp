@@ -62,7 +62,7 @@ protected:
         ON_CALL(*mock_plugin_service_, GetTopologyUtil).WillByDefault(testing::Return(mock_topology_util_));
 
         dbc_ = new DBC();
-        dbc_->plugin_service = mock_plugin_service_;
+        dbc_->service_container->SetPluginService(mock_plugin_service_);
 
         all_hosts_.push_back(*writer_host_);
         all_hosts_.push_back(*reader_host_a_);

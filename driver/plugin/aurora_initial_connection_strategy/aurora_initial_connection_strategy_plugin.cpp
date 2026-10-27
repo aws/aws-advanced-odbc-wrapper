@@ -29,10 +29,10 @@ AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : AuroraInitialConnectionStrategyPlugin(
     dbc,
     next_plugin,
-    dbc->plugin_service,
-    dbc->plugin_service->GetHostSelector(),
-    dbc->plugin_service->GetDialect(),
-    dbc->plugin_service->GetOdbcHelper()) {}
+    dbc->service_container->GetPluginService(),
+    dbc->service_container->GetPluginService()->GetHostSelector(),
+    dbc->service_container->GetPluginService()->GetDialect(),
+    dbc->service_container->GetPluginService()->GetOdbcHelper()) {}
 
 AuroraInitialConnectionStrategyPlugin::AuroraInitialConnectionStrategyPlugin(
     DBC* dbc,

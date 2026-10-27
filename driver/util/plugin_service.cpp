@@ -27,9 +27,9 @@
 #include "../host_selector/highest_weight_host_selector.h"
 #include "../host_selector/random_host_selector.h"
 #include "../host_selector/round_robin_host_selector.h"
+#include "full_service_container.h"
 #include "map_utils.h"
 #include "number_utils.h"
-#include "plugin_chain_builder.h"
 #include "rds_utils.h"
 
 PluginService::PluginService(const std::shared_ptr<RdsLibLoader>& lib_loader, std::map<std::string, std::string> original_conn_attr)
@@ -88,7 +88,6 @@ PluginService::~PluginService()
     odbc_helper_ = nullptr;
     dialect_ = nullptr;
     host_selector_ = nullptr;
-    plugin_chain_ = nullptr;
     delete monitor_dbc_;
 }
 
@@ -219,14 +218,6 @@ void PluginService::SetHostFilter(const HostFilter& filter) {
     host_filter_map_->Put(this->cluster_id_, filter);
 }
 
-std::shared_ptr<BasePlugin> PluginService::GetPluginChain() {
-    return this->plugin_chain_;
-}
-
-void PluginService::SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain) {
-    this->plugin_chain_ = std::move(plugin_chain);
-}
-
 void PluginService::InitHostListProvider() {
     if (this->host_list_provider_) {
         return;
@@ -247,12 +238,10 @@ void PluginService::InitHostListProvider() {
             delete monitor_dbc_;
             monitor_dbc_ = new DBC();
             monitor_dbc_->conn_attr = monitoring_map;
-            const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
-            const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
-            monitor_plugin_service->SetPluginChain(plugin_head);
+            FullServiceContainer::InitMonitoringServices(monitor_dbc_, this->odbc_helper_->GetLibLoader());
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
                 this->topology_util_,
-                monitor_plugin_service
+                monitor_dbc_->service_container
             );
             break;
         }

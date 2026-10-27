@@ -25,34 +25,35 @@
 #include "../util/logger_wrapper.h"
 #include "../util/map_utils.h"
 #include "../util/odbc_helper.h"
+#include "../util/plugin_manager.h"
 #include "../util/rds_utils.h"
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    const std::shared_ptr<PluginService>& plugin_service,
+    const std::shared_ptr<FullServiceContainer>& service_container,
     const std::shared_ptr<TopologyUtil>& topology_util)
     : ClusterTopologyMonitor(
-        plugin_service,
+        service_container,
         topology_util,
-        plugin_service->GetOriginalConnAttr(),
-        plugin_service->GetClusterId(),
-        plugin_service->GetInitialHostInfo(),
-        plugin_service->GetTemplateHostInfo()) {}
+        service_container->GetPluginService()->GetOriginalConnAttr(),
+        service_container->GetPluginService()->GetClusterId(),
+        service_container->GetPluginService()->GetInitialHostInfo(),
+        service_container->GetPluginService()->GetTemplateHostInfo()) {}
 
 ClusterTopologyMonitor::ClusterTopologyMonitor(
-    const std::shared_ptr<PluginService>& plugin_service,
+    const std::shared_ptr<FullServiceContainer>& service_container,
     const std::shared_ptr<TopologyUtil>& topology_util,
     std::map<std::string, std::string> conn_attr,
     std::string cluster_id,
     const HostInfo& initial_host,
     const HostInfo& template_host)
-    : plugin_service_{ plugin_service },
+    : service_container_{ service_container },
       topology_util_{ topology_util },
       connection_attributes_{ std::move(conn_attr) },
       cluster_id_{ std::move(cluster_id) },
       initial_host_{ initial_host },
       template_host_{ template_host },
-      dialect_{ plugin_service->GetDialect() },
-      odbc_helper_{ plugin_service->GetOdbcHelper() }
+      dialect_{ service_container->GetPluginService()->GetDialect() },
+      odbc_helper_{ service_container->GetPluginService()->GetOdbcHelper() }
 {
     ignore_topology_request_ms_ = MapUtils::GetMillisecondsValue(
         connection_attributes_, KEY_IGNORE_TOPOLOGY_REQUEST, ignore_topology_request_ms_);
@@ -112,7 +113,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
     const std::chrono::steady_clock::time_point ignore_topology = ignore_topology_request_end_ms_.load();
     if (ignore_topology != epoch_ && now > ignore_topology) {
         // Previous failover has just completed. We can use results of it without triggering a new topology update.
-        if (std::vector<HostInfo> hosts = plugin_service_->GetHosts(); !hosts.empty()) {
+        if (std::vector<HostInfo> hosts = service_container_->GetPluginService()->GetHosts(); !hosts.empty()) {
             return hosts;
         }
     }
@@ -141,7 +142,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(const bool verify_wri
 
     std::vector<HostInfo> hosts = WaitForTopologyUpdate(timeout_ms);
     if (!hosts.empty()) {
-        plugin_service_->SetHosts(hosts);
+        service_container_->GetPluginService()->SetHosts(hosts);
     }
     return hosts;
 }
@@ -159,7 +160,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::ForceRefresh(SQLHDBC hdbc, const s
 void ClusterTopologyMonitor::StartMonitor() {
     bool expected = false;
     if (is_running_.compare_exchange_strong(expected, true)) {
-        plugin_head_ = this->plugin_service_->GetPluginChain();
+        plugin_head_ = this->service_container_->GetPluginManager()->GetPluginChain();
         is_running_.store(true);
         this->monitoring_thread_ = std::make_shared<std::thread>(&ClusterTopologyMonitor::Run, this);
     }
@@ -197,7 +198,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(std::chrono:
     request_update_topology_cv_.notify_all();
 
     if (timeout_ms.count() <= 0) {
-        std::vector<HostInfo> curr_hosts = plugin_service_->GetHosts();
+        std::vector<HostInfo> curr_hosts = service_container_->GetPluginService()->GetHosts();
         LOG(INFO) << "A topology refresh was requested, but the given timeout for the request was 0ms. Returning cached hosts";
         TopologyUtil::LogTopology(curr_hosts);
         return curr_hosts;
@@ -217,7 +218,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::WaitForTopologyUpdate(std::chrono:
         LOG(ERROR) << "Cluster Monitor topology did not update within the maximum time: " << std::to_string(timeout_ms.count()) << "ms for cluster ID: " << cluster_id_;
     }
 
-    return plugin_service_->GetHosts();
+    return service_container_->GetPluginService()->GetHosts();
 }
 
 void ClusterTopologyMonitor::DelayMainThread(bool use_high_refresh_rate) {
@@ -269,7 +270,7 @@ void ClusterTopologyMonitor::UpdateTopologyCache(const std::vector<HostInfo>& ho
     const std::unique_lock<std::mutex> update_lock(topology_updated_mutex_);
 
     // Update topology and notify threads
-    plugin_service_->SetHosts(hosts);
+    service_container_->GetPluginService()->SetHosts(hosts);
     request_update_topology_.store(false);
     topology_version_.fetch_add(1);
     topology_updated_.notify_all();
@@ -299,7 +300,7 @@ std::vector<HostInfo> ClusterTopologyMonitor::OpenAnyConnGetHosts() {
         odbc_helper_->AllocDbc(henv_, local_hdbc);
         DBC *local_dbc = static_cast<DBC*>(local_hdbc);
         local_dbc->conn_attr = connection_attributes_;
-        local_dbc->plugin_service = this->plugin_service_;
+        local_dbc->service_container->SetPluginService(this->service_container_->GetPluginService());
         local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
         local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
 
@@ -426,7 +427,7 @@ void ClusterTopologyMonitor::InitNodeMonitors() {
     node_threads_writer_host_info_ = nullptr;
     node_threads_latest_topology_ = nullptr;
 
-    std::vector<HostInfo> hosts = plugin_service_->GetHosts();
+    std::vector<HostInfo> hosts = service_container_->GetPluginService()->GetHosts();
     if (hosts.empty()) {
         hosts = OpenAnyConnGetHosts();
     }
@@ -531,7 +532,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::Run() {
     DBC* local_dbc = static_cast<DBC*>(hdbc_);
     ConnectionStringHelper::ParseConnectionString(updated_conn_str, conn_info_);
     local_dbc->conn_attr = conn_info_;
-    local_dbc->plugin_service = main_monitor_->plugin_service_;
+    local_dbc->service_container->SetPluginService(main_monitor_->service_container_->GetPluginService());
     try {
         while (!main_monitor_->node_threads_stop_.load()) {
             std::shared_ptr<Dialect> local_dialect;
@@ -578,7 +579,7 @@ void ClusterTopologyMonitor::NodeMonitoringThread::HandleReconnect() {
     odbc_helper_->AllocDbc(main_monitor_->henv_, hdbc_);
     DBC *local_dbc = static_cast<DBC*>(hdbc_);
     local_dbc->conn_attr = conn_info_;
-    local_dbc->plugin_service = main_monitor_->plugin_service_;
+    local_dbc->service_container->SetPluginService(main_monitor_->service_container_->GetPluginService());
     local_dbc->conn_attr.insert_or_assign(KEY_SRW_SKIP, VALUE_BOOL_TRUE);
     local_dbc->attr_map.insert_or_assign(SQL_ATTR_LOGIN_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));
     local_dbc->attr_map.insert_or_assign(SQL_ATTR_CONNECTION_TIMEOUT, std::make_pair(reinterpret_cast<SQLPOINTER>(static_cast<intptr_t>(DEFAULT_TIMEOUT_SECONDS)), 0));

@@ -26,6 +26,7 @@
 #include "../../host_info.h"
 
 #include "../../util/concurrent_map.h"
+#include "../../util/full_service_container.h"
 #include "../../util/plugin_service.h"
 
 #include <atomic>
@@ -43,7 +44,7 @@ public:
     };
 
     BlueGreenStatusProvider(
-        std::shared_ptr<PluginService> plugin_service,
+        std::shared_ptr<FullServiceContainer> service_container,
         std::map<std::string, std::string> conn_attr,
         std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
         std::string blue_green_id,
@@ -92,7 +93,7 @@ protected:
 
 private:
     std::mutex process_lock_guard_;
-    std::shared_ptr<PluginService> plugin_service_;
+    std::shared_ptr<FullServiceContainer> service_container_;
     std::map<std::string, std::string> conn_attr_;
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache_;
     std::string blue_green_id_;
