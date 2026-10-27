@@ -22,8 +22,8 @@
 
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
+#include "../../util/full_service_container.h"
 #include "../../util/map_utils.h"
-#include "../../util/plugin_chain_builder.h"
 #include "../../util/plugin_service.h"
 
 std::recursive_mutex BlueGreenPlugin::provider_lock_;
@@ -35,10 +35,10 @@ BlueGreenPlugin::BlueGreenPlugin(DBC* dbc) : BlueGreenPlugin(dbc, nullptr) {}
 BlueGreenPlugin::BlueGreenPlugin(DBC* dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {
     this->plugin_name_ = "BLUE_GREEN";
     this->conn_attr_ = dbc->conn_attr;
-    this->plugin_service_ = dbc->plugin_service;
-    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
+    this->plugin_service_ = dbc->service_container->GetPluginService();
+    this->odbc_helper_ = dbc->service_container->GetPluginService()->GetOdbcHelper();
     this->blue_green_id_ = MapUtils::GetStringValue(this->conn_attr_, KEY_BG_ID, "BG-1");
-    this->cluster_id_ = dbc->plugin_service->GetClusterId();
+    this->cluster_id_ = dbc->service_container->GetPluginService()->GetClusterId();
 }
 
 BlueGreenPlugin::~BlueGreenPlugin() {
@@ -316,11 +316,9 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
         delete monitor_dbc_;
         monitor_dbc_ = new DBC();
         monitor_dbc_->conn_attr = monitoring_map;
-        const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(this->odbc_helper_->GetLibLoader(), monitoring_map);
-        const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
-        monitor_plugin_service->SetPluginChain(plugin_head);
+        FullServiceContainer::InitMonitoringServices(monitor_dbc_, this->odbc_helper_->GetLibLoader());
         provider = std::make_shared<BlueGreenStatusProvider>(
-            monitor_plugin_service,
+            monitor_dbc_->service_container,
             this->conn_attr_,
             BlueGreenPlugin::status_map_,
             this->blue_green_id_,

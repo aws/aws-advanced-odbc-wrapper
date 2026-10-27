@@ -43,7 +43,7 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     const std::shared_ptr<CustomEndpointMonitor>& endpoint_monitor) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name_ = "CUSTOM_ENDPOINT";
-    this->plugin_service_ = plugin_service ? plugin_service : dbc->plugin_service;
+    this->plugin_service_ = plugin_service ? plugin_service : dbc->service_container->GetPluginService();
 
     this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
     this->host_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");

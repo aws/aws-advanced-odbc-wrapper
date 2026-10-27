@@ -36,14 +36,14 @@ BaseTokenAuthPlugin::BaseTokenAuthPlugin(
 
     if (dialect) {
         this->dialect_ = std::move(dialect);
-    } else if (dbc->plugin_service) {
-        this->dialect_ = dbc->plugin_service->GetDialect();
+    } else if (dbc->service_container->GetPluginService()) {
+        this->dialect_ = dbc->service_container->GetPluginService()->GetDialect();
     }
 
     if (odbc_helper) {
         this->odbc_helper_ = std::move(odbc_helper);
-    } else if (dbc->plugin_service) {
-        this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
+    } else if (dbc->service_container->GetPluginService()) {
+        this->odbc_helper_ = dbc->service_container->GetPluginService()->GetOdbcHelper();
     }
 }
 
