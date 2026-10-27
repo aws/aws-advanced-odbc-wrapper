@@ -80,13 +80,8 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
                 std::map<std::string, std::string> base_conn_map;
                 ConnectionStringHelper::ParseConnectionString(val, base_conn_map);
                 for (const auto& pair : base_conn_map) {
-                    std::string base_conn_val = pair.second;
-                    if (base_conn_val.back() == ';') {
-                        base_conn_val.pop_back();
-                    }
-                    if (!base_conn_val.empty()) {
-                        conn_map.try_emplace(pair.first, base_conn_val);
-                    }
+                    // Insert if absent, connection string keys take precedence
+                    conn_map.try_emplace(pair.first, pair.second);
                 }
             }
             else {

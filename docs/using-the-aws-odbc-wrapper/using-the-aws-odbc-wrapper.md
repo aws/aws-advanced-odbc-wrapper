@@ -63,6 +63,24 @@ These parameters are applicable to any instance of the AWS Advanced ODBC Wrapper
 | `BASE_CONN` / `nil` | `String` | No                                    | A connection string to specify underlying driver specific options and additional settings.                                                                                                                                                                                              | `nil`         |
 | `DSN_ONLY_OUTPUT`   | `Boolean`| No                                    | When enabled (`1`), `SQLDriverConnect` returns only the DSN name (`DSN=<name>`) in the output connection string instead of the expanded connection attributes. The connection is still authenticated and validated internally; this prevents credentials from being exposed in the returned connection string. Requires a `DSN` to be specified. | `0`           |
 
+### Connection String Values Containing Special Characters
+
+Connection string attributes are separated by `;`, so a value that contains a semicolon (for example a password) must be enclosed in curly braces, as described in the [ODBC connection string grammar](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqldriverconnect-function):
+
+```
+DRIVER={AWS Advanced ODBC Wrapper Unicode};SERVER=db.cluster-xyz.us-east-2.rds.amazonaws.com;UID=jane_doe;PWD={pa;ss=word}
+```
+
+Everything between the braces is taken literally, including `;` and `=`. To include a literal closing brace in a braced value, double it (`}}`):
+
+```
+PWD={pa}}ssword}
+```
+
+A value that is not enclosed in braces ends at the next `;`. A value that starts with `{` is always treated as a braced value, so such a value must be enclosed in braces as well: `{{literal-braces}}}`.
+
+The output connection string returned by `SQLDriverConnect` uses the same rules, and encloses a value in braces only when the value requires it.
+
 ## Sample DSN Configuration
 
 There are several ways to configure the DSN when connecting to a PostgreSQL database using the AWS Advanced ODBC Wrapper and the [psqlodbc PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc), you can use either the BASE_DSN or the BASE_DRIVER

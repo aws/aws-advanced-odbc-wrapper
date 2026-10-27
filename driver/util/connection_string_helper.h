@@ -18,6 +18,7 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "connection_string_keys.h"
 #include "rds_strings.h"
@@ -27,10 +28,16 @@ static std::unordered_set<std::string> const SENSITIVE_KEY_SET = {
     KEY_IDP_PASSWORD,
 };
 
+// Accepted for compatibility but no longer honoured, reported back to the application
+static std::unordered_set<std::string> const DEPRECATED_KEY_SET = {
+    KEY_EXTRA_URL_ENCODE,
+};
+
 static std::unordered_set<std::string> const INTERNAL_WRAPPER_KEY_SET = {
     KEY_RDS_TEST_CONN,
     KEY_MONITORING_CONN_UUID,
     KEY_SRW_SKIP,
+    KEY_LITERAL_CREDENTIALS,
 };
 
 static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
@@ -108,6 +115,7 @@ static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
     KEY_SRW_CONN_INTERVAL_MS,
     KEY_SRW_VERIFY_INITIAL_CONN_TYPE,
     KEY_SRW_SKIP,
+    KEY_LITERAL_CREDENTIALS,
 };
 
 static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {
@@ -123,12 +131,14 @@ static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {
 };
 
 namespace ConnectionStringHelper {
-    void ParseConnectionString(std::string conn_str, std::map<std::string, std::string> &conn_map);
+    void ParseConnectionString(const std::string &conn_str, std::map<std::string, std::string> &conn_map);
+    void SetGeneratedPassword(std::map<std::string, std::string> &conn_map, const std::string &password);
     std::string BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string BuildFullConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string MaskSensitiveInformation(const std::string &conn_str);
     std::string RemoveInternalWrapperKeys(const std::string &conn_str);
     std::string BuildDsnOnlyConnectionString(const std::map<std::string, std::string> &conn_map, const std::string &full_conn_str);
+    std::vector<std::string> GetDeprecatedKeysInUse(const std::map<std::string, std::string> &conn_map);
     bool IsAwsOdbcKey(const std::string &aws_odbc_key);
     bool IsSensitiveData(const std::string &sensitive_key);
     std::string GetRealKeyName(const std::string &alias_key);

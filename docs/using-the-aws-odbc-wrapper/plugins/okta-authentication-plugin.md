@@ -127,7 +127,7 @@ console access if you have one):
 | Role ARN              | `IDP_ROLE_ARN`         | The ARN of the IAM Role that is to be assumed for database access.                                                                                                                                                  | nil           | `arn:aws:iam::123412341234:role/OKTA-SAML-Assume`      |
 | IdP SAML Provider ARN | `IDP_SAML_ARN`         | The ARN of the Identity Provider.                                                                                                                                                                                   | nil           | `arn:aws:iam::123412341234:saml-provider/OKTA-AWS-IAM` |
 | STS Endpoint          | `STS_ENDPOINT`         | STS endpoint override for `AssumeRoleWithSAML`. Required for non-commercial partitions (e.g. GovCloud), where the SDK does not reliably resolve the regional STS endpoint from the region alone.                    | nil           | `https://sts.us-gov-west-1.amazonaws.com`              |
-| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Some ODBC drivers (e.g., psqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                                    |
+| ~~Extra URL Encode~~ | `EXTRA_URL_ENCODE`    | **Deprecated as of 2.0.0 and ignored.** The wrapper now encloses the generated authentication token in curly braces, so every underlying driver passes it through verbatim and the token no longer needs to be pre-encoded. Still accepted, but enabling it makes a successful connection return `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00`. | `0`           | `1`                                                    |
 
 #### Headless-Mode Keys (`LOGIN_URL` not set)
 
@@ -158,8 +158,8 @@ Setting `LOGIN_URL` is what activates browser mode; the other keys tune the loca
 > [!WARNING]\
 > When using Okta authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
-> [!WARNING]\
-> When using psqlODBC as the underlying driver, `EXTRA_URL_ENCODE=1` is required. psqlODBC URL-decodes the password before sending it to the database, which corrupts the `%` escapes in the IAM authentication token and results in a `PAM authentication failed` error.
+> [!NOTE]\
+> `EXTRA_URL_ENCODE` is deprecated as of 2.0.0 and is ignored. The wrapper encloses the generated authentication token in curly braces, which stops psqlODBC from URL-decoding it, so the token no longer has to be pre-encoded. Connecting with the attribute enabled still succeeds, but returns `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00` and a diagnostic message naming the attribute, so remove it from the connection string or DSN.
 
 ### Sample Code
 
