@@ -46,13 +46,13 @@ When a user wants access to a resource, it authenticates with the IdP. From this
 | HTTP Socket Timeout   | `HTTP_SOCKET_TIMEOUT`  | The socket timeout value in milliseconds for the HttpClient reading.                                                                                                          | 3000                     | 3000                                                   |
 | HTTP Connect Timeout  | `HTTP_CONNECT_TIMEOUT` | The connect timeout value in milliseconds for the HttpClient.                                                                                                                 | 5000                     | 5000                                                   |
 | Relaying Party ID     | `RELAY_PARTY_ID`       | The relaying party identifier.                                                                                                                                                | `urn:amazon:webservices` | `urn:amazon:webservices`                               |
-| Extra URL Encode      | `EXTRA_URL_ENCODE`     | Some ODBC drivers (e.g., psqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`                      | `1`                                                    |
+| ~~Extra URL Encode~~ | `EXTRA_URL_ENCODE`    | **Deprecated as of 2.0.0 and ignored.** The wrapper now encloses the generated authentication token in curly braces, so every underlying driver passes it through verbatim and the token no longer needs to be pre-encoded. Still accepted, but enabling it makes a successful connection return `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00`. | `0`                      | `1`                                                    |
 
 > [!WARNING]\
 > When using ADFS Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
-> [!WARNING]\
-> When using psqlODBC as the underlying driver, `EXTRA_URL_ENCODE=1` is required. psqlODBC URL-decodes the password before sending it to the database, which corrupts the `%` escapes in the IAM authentication token and results in a `PAM authentication failed` error.
+> [!NOTE]\
+> `EXTRA_URL_ENCODE` is deprecated as of 2.0.0 and is ignored. The wrapper encloses the generated authentication token in curly braces, which stops psqlODBC from URL-decoding it, so the token no longer has to be pre-encoded. Connecting with the attribute enabled still succeeds, but returns `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00` and a diagnostic message naming the attribute, so remove it from the connection string or DSN.
 
 ### Sample Code
 

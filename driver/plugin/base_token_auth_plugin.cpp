@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "../util/connection_string_helper.h"
 #include "../util/connection_string_keys.h"
 #include "../util/logger_wrapper.h"
 #include "../util/map_utils.h"
@@ -102,7 +103,6 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     const std::chrono::milliseconds token_expiration = MapUtils::GetSecondsValue(
         dbc->conn_attr, KEY_TOKEN_EXPIRATION,
         std::chrono::duration_cast<std::chrono::seconds>(AuthProvider::DEFAULT_EXPIRATION_MS));
-    const bool extra_url_encode = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_EXTRA_URL_ENCODE, false);
 
     if (!ValidateRequiredParams(dbc, iam_host, region, port, username)) {
         return SQL_ERROR;
@@ -118,10 +118,10 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     }
 
     std::pair<std::string, bool> token = auth_provider_->GetToken(
-        iam_host, region, port, username, true, extra_url_encode, token_expiration);
+        iam_host, region, port, username, true, token_expiration);
     const bool is_cached_token = token.second;
 
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
+    ConnectionStringHelper::SetGeneratedPassword(dbc->conn_attr, token.first);
     SQLRETURN ret = ConnectNext(
         ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 
@@ -152,8 +152,8 @@ SQLRETURN BaseTokenAuthPlugin::Connect(
     }
 
     token = auth_provider_->GetToken(
-        iam_host, region, port, username, false, extra_url_encode, token_expiration);
-    dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, token.first);
+        iam_host, region, port, username, false, token_expiration);
+    ConnectionStringHelper::SetGeneratedPassword(dbc->conn_attr, token.first);
     ret = ConnectNext(
         ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
 

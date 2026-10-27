@@ -35,10 +35,6 @@ protected:
     std::string test_iam_user = TEST_UTILS::GetEnvVar("TEST_IAM_USER", "");
     // Set TEST_SKIP_IAM=1 for drivers that can't do IAM (e.g. MySQL Connector/ODBC).
     std::string test_skip_iam = TEST_UTILS::GetEnvVar("TEST_SKIP_IAM", "");
-    // psqlODBC needs the token's '%' double-encoded to survive its connection-string parse, but
-    // MySQL/MariaDB ODBC consume the password verbatim, so double-encoding corrupts the token and
-    // the server rejects it (28000). Only apply extra URL encoding for non-MySQL dialects.
-    bool extra_url_encode = (test_dialect != "AURORA_MYSQL");
 
     static void SetUpTestSuite() {
         BaseConnectionTest::SetUpTestSuite();
@@ -69,7 +65,6 @@ TEST_F(IamAuthenticationIntegrationTest, SimpleIamConnection) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("SimpleIamConnection")
         .getString();
@@ -92,7 +87,6 @@ TEST_F(IamAuthenticationIntegrationTest, ConnectToIpAddress) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withIamHost(test_server)
         .withClusterId("ConnectToIpAddress");
@@ -119,7 +113,6 @@ TEST_F(IamAuthenticationIntegrationTest, WrongPassword) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("WrongPassword")
         .getString();
@@ -139,7 +132,6 @@ TEST_F(IamAuthenticationIntegrationTest, WrongUser) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("WrongUser")
         .getString();
@@ -169,7 +161,6 @@ TEST_F(IamAuthenticationIntegrationTest, EmptyUser) {
         .withAuthMode(auth_type)
         .withAuthRegion(test_region)
         .withAuthExpiration(900)
-        .withExtraUrlEncode(extra_url_encode)
         .withSslMode("allow")
         .withClusterId("EmptyUser")
         .getString();

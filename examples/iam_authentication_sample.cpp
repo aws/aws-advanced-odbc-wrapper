@@ -68,7 +68,6 @@ int main() {
         // Optional Flags
         "REGION=us-west-2;"             // Region of the database to generate RDS IAM Token for
         "TOKEN_EXPIRATION=10000;"       // Token cache expiration in milliseconds
-        "EXTRA_URL_ENCODE=1;"           // Encodes % into %25, for underlying drivers which convert automatically
     );
 
     // Setup

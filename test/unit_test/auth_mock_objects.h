@@ -47,7 +47,7 @@ public:
     MockAuthProvider() : AuthProvider() { AwsSdkHelper::Init(); };
 
     MOCK_METHOD((std::pair<std::string, bool>), GetToken, (const std::string &server, const std::string &region,
-        const std::string &port, const std::string &username, bool use_cache, bool extra_url_encode,
+        const std::string &port, const std::string &username, bool use_cache,
         std::chrono::milliseconds time_to_expire_ms), ());
 
     MOCK_METHOD(void, UpdateAwsCredential, (const Aws::Auth::AWSCredentials &credentials, const std::string &region), ());

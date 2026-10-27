@@ -193,11 +193,6 @@ public:
         return *this;
     }
 
-    ConnectionStringBuilder& withExtraUrlEncode(const bool& with_encode) {
-        conn_str_ += "EXTRA_URL_ENCODE=" + std::to_string(with_encode ? 1 : 0) + ";";
-        return *this;
-    }
-
     ConnectionStringBuilder& withSslMode(const std::string& ssl_mode) {
         conn_str_ += "SSLMODE=" + ssl_mode + ";";
         return *this;

@@ -133,7 +133,7 @@ TEST_F(AuthProviderTest, GetToken_Expired) {
         .WillOnce(testing::Return("token-2"));
 
     AuthProvider auth_provider(mock_rds_client_);
-    std::pair<std::string, bool> token_info_first = auth_provider.GetToken(server, region, port, username, true, false, std::chrono::milliseconds(-99999));
+    std::pair<std::string, bool> token_info_first = auth_provider.GetToken(server, region, port, username, true, std::chrono::milliseconds(-99999));
     EXPECT_FALSE(token_info_first.second);
     std::pair<std::string, bool> token_info_second = auth_provider.GetToken(server, region, port, username);
     EXPECT_FALSE(token_info_second.second);
