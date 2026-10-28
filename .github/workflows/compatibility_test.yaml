@@ -396,7 +396,7 @@ jobs:
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Install MySQL Ansi DSNs
         shell: pwsh
@@ -436,7 +436,7 @@ jobs:
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -589,7 +589,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
@@ -609,7 +609,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -726,7 +726,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL
         run: |
@@ -746,7 +746,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -901,7 +901,7 @@ jobs:
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python test/compatibility/compare_results.py wrapper-pg-dsn-w --expected pg-dsn-w
       - name: Install MySQL Unicode DSNs
         shell: pwsh
@@ -937,7 +937,7 @@ jobs:
         run: |
           python3 -m venv venv
           .\venv\Scripts\Activate.ps1
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python test/compatibility/compare_results.py wrapper-mysql-dsn-w --expected mysql-dsn-w
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -1067,7 +1067,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Setup iODBC and rebuild MySQL Unicode test binary
         run: |
@@ -1121,7 +1121,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -1225,7 +1225,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-pg-dsn --expected pg-dsn
       - name: Run Compatibility Tests for MySQL (Unicode)
         run: |
@@ -1246,7 +1246,7 @@ jobs:
         run: |
           python3 -m venv venv
           source venv/bin/activate
-          pip3 install deepdiff
+          pip3 install -r test/compatibility/requirements.txt
           python3 test/compatibility/compare_results.py wrapper-mysql-dsn --expected mysql-dsn
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
