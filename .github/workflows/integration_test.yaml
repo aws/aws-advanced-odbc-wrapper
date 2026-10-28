@@ -2007,7 +2007,7 @@ jobs:
             --num-instances 1 \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
             --blue-green \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --parameter-group odbc-wrapper-bg
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -2141,8 +2141,7 @@ jobs:
             --num-instances 1 \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
             --blue-green \
-            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}"
       # Make sure IP is always deleted
       - name: Get Github Action IP
         if: always()
@@ -2245,7 +2244,7 @@ jobs:
             --num-instances 1 \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
             --blue-green \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --parameter-group odbc-wrapper-bg
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -2315,8 +2314,7 @@ jobs:
             --num-instances 1 \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
             --blue-green \
-            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}"
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -2391,7 +2389,7 @@ jobs:
             --num-instances 1 \
             --iam-user ${{ secrets.TEST_IAM_USER }} \
             --blue-green \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --parameter-group odbc-wrapper-bg
       - name: Setup Base Driver Variables
         id: base_driver_info
         shell: bash
@@ -2466,8 +2464,7 @@ jobs:
             --num-instances 1 \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
             --blue-green \
-            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}" \
-            --parameter-group parameter-${{ env.AURORA_CLUSTER_ID }}
+            --bg-deployment-id "${{ env.BG_RESOURCE_ID }}"
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
