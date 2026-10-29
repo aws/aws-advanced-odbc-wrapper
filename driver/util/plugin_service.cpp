@@ -15,6 +15,7 @@
 #include "plugin_service.h"
 
 #include <optional>
+#include <utility>
 
 #include "../dialect/dialect.h"
 #include "../dialect/dialect_aurora_mysql.h"
@@ -237,7 +238,7 @@ void PluginService::InitHostListProvider() {
 
             delete monitor_dbc_;
             monitor_dbc_ = new DBC();
-            monitor_dbc_->conn_attr = monitoring_map;
+            monitor_dbc_->conn_attr = std::move(monitoring_map);
             FullServiceContainer::InitMonitoringServices(monitor_dbc_, this->odbc_helper_->GetLibLoader());
             this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
                 this->topology_util_,
