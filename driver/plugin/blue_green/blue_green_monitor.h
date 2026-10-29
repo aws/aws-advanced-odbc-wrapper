@@ -29,6 +29,7 @@
 #include "../../plugin/base_plugin.h"
 
 #include "../../util/concurrent_map.h"
+#include "../../util/full_service_container.h"
 #include "../../util/odbc_helper.h"
 #include "../../util/plugin_service.h"
 
@@ -53,7 +54,7 @@ enum BlueGreenIntervalRate : std::uint8_t {
 class BlueGreenMonitor {
 public:
     BlueGreenMonitor(
-        const std::shared_ptr<PluginService>& plugin_service,
+        const std::shared_ptr<FullServiceContainer>& service_container,
         BlueGreenRole role,
         std::string blue_green_id,
         const HostInfo& initial_host_info,
@@ -92,7 +93,7 @@ private:
         BlueGreenRole role;
     };
 
-    std::shared_ptr<PluginService> plugin_service_;
+    std::shared_ptr<FullServiceContainer> service_container_;
     std::shared_ptr<BasePlugin> plugin_head_;
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<DialectBlueGreen> dialect_blue_green_;

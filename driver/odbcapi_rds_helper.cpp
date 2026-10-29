@@ -14,35 +14,21 @@
 
 #include "odbcapi_rds_helper.h"
 
-#include "util/auth_provider.h"
-
 #include <algorithm>
 #include <optional>
 #include <string_view>
 #include <unordered_set>
 
 #include "error.h"
-#include "plugin/aurora_initial_connection_strategy/aurora_initial_connection_strategy_plugin.h"
-#include "plugin/base_plugin.h"
-#include "plugin/blue_green/blue_green_plugin.h"
-#include "plugin/custom_endpoint/custom_endpoint_plugin.h"
-#include "plugin/default_plugin.h"
-#include "plugin/failover/failover_plugin.h"
-#include "plugin/federated/adfs_auth_plugin.h"
-#include "plugin/federated/aws_sso_auth_plugin.h"
-#include "plugin/federated/okta_auth_plugin.h"
-#include "plugin/iam/iam_auth_plugin.h"
-#include "plugin/limitless/limitless_plugin.h"
-#include "plugin/read_write_splitting/read_write_splitting_plugin.h"
-#include "plugin/read_write_splitting/simple_read_write_splitting_plugin.h"
-#include "plugin/secrets_manager/secrets_manager_plugin.h"
 #include "util/attribute_validator.h"
 #include "util/connection_string_helper.h"
 #include "util/connection_string_keys.h"
 #include "util/core_service.h"
+#include "util/full_service_container.h"
 #include "util/logger_wrapper.h"
 #include "util/map_utils.h"
 #include "util/odbc_dsn_helper.h"
+#include "util/plugin_manager.h"
 #include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
 #include "util/rds_strings.h"
@@ -78,13 +64,13 @@ ENV* RDS_GetEnvFromHandle(SQLSMALLINT HandleType, SQLHANDLE InputHandle) {
 #if UNICODE
 // codechecker_suppress [readability-identifier-naming]
 std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(const DBC* dbc, const ENV* env) {
-    if (dbc && dbc->plugin_service) {
-        return dbc->plugin_service->GetOdbcHelper();
+    if (dbc && dbc->service_container->GetPluginService()) {
+        return dbc->service_container->GetPluginService()->GetOdbcHelper();
     }
     if (env && !env->dbc_list.empty()) {
         const DBC* env_dbc = env->dbc_list.front();
-        if (env_dbc && env_dbc->plugin_service) {
-            return env_dbc->plugin_service->GetOdbcHelper();
+        if (env_dbc && env_dbc->service_container->GetPluginService()) {
+            return env_dbc->service_container->GetPluginService()->GetOdbcHelper();
         }
     }
     return nullptr;
@@ -101,9 +87,9 @@ std::shared_ptr<OdbcHelper> RDS_GetOdbcHelper(
         case SQL_HANDLE_DBC:
             return RDS_GetOdbcHelper(static_cast<DBC*>(InputHandle), nullptr);
         case SQL_HANDLE_STMT:
-            return (static_cast<STMT*>(InputHandle))->dbc->plugin_service->GetOdbcHelper();
+            return (static_cast<STMT*>(InputHandle))->dbc->service_container->GetPluginService()->GetOdbcHelper();
         case SQL_HANDLE_DESC:
-            return (static_cast<DESC*>(InputHandle))->dbc->plugin_service->GetOdbcHelper();
+            return (static_cast<DESC*>(InputHandle))->dbc->service_container->GetPluginService()->GetOdbcHelper();
         default:
             break;
     }
@@ -410,12 +396,12 @@ SQLRETURN RDS_FreeConnect(
         env->dbc_list.remove(dbc); // TODO - Make this into a function within ENV to make use of locks
     }
 
-    if (dbc->plugin_head) {
-        dbc->plugin_head->ReleaseResources();
+    if (const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager()) {
+        plugin_manager->ReleaseResources();
     }
 
-    if (dbc->plugin_service) {
-        dbc->plugin_service->ReleaseHostListProvider();
+    if (const std::shared_ptr<PluginService> plugin_service = dbc->service_container->GetPluginService()) {
+        plugin_service->ReleaseHostListProvider();
     }
 
     // Cleanup tracked statements
@@ -604,7 +590,7 @@ SQLRETURN RDS_GetConnectAttr(
     // If already connected, query value from underlying DBC
     if (dbc->wrapped_dbc) {
 #if UNICODE
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion() && ValuePtr && BufferLength > 0
             && OdbcHelper::IsStringConnectAttr(Attribute)) {
             auto attr_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -661,7 +647,7 @@ SQLRETURN RDS_SQLSetConnectAttr(
     // If already connected, apply value to underlying DBC, otherwise track and apply on connect
     if (dbc->wrapped_dbc) {
 #if UNICODE
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion() && ValuePtr
             && OdbcHelper::IsStringConnectAttr(Attribute)
             && (StringLength == SQL_NTS || StringLength > 0)) {
@@ -732,7 +718,7 @@ SQLRETURN RDS_SQLColAttribute(
         return SQL_INVALID_HANDLE;
     }
 #if UNICODE
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
 
     if (odbc_helper->NeedsConversion() && CharacterAttributePtr && BufferLength > 0) {
         auto attr_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -776,7 +762,7 @@ SQLRETURN RDS_SQLColAttributes(
         return SQL_INVALID_HANDLE;
     }
 #if UNICODE
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
 
     if (odbc_helper->NeedsConversion() && CharacterAttributePtr && BufferLength > 0) {
         auto attr_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -825,7 +811,7 @@ SQLRETURN RDS_SQLColumnPrivileges(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -870,7 +856,7 @@ SQLRETURN RDS_SQLColumns(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -978,7 +964,7 @@ SQLRETURN RDS_SQLConnect(
 
     // Connect if initialization successful
     if (SQL_SUCCEEDED(RDS_InitializeConnection(dbc, conn_str_utf8))) {
-        ret = dbc->plugin_head->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        ret = dbc->service_container->GetPluginManager()->Connect(ConnectionHandle, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     }
 
     return ret;
@@ -1033,7 +1019,7 @@ SQLRETURN RDS_SQLDescribeCol(
     }
 #if UNICODE
     {
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion()) {
             // Bufferlength is in char count not bytes for SQLDescribeCol
             const size_t buf_bytes = static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR);
@@ -1155,11 +1141,12 @@ SQLRETURN RDS_SQLDriverConnect(
     // Connect if initialization successful
     if (SQL_SUCCEEDED(ret)) {
         // Pass SQL_DRIVER_NOPROMPT to base driver, otherwise base driver may show its own dialog box when it's not needed.
-        ret = dbc->plugin_head->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
+        ret = dbc->service_container->GetPluginManager()->Connect(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLength2Ptr, SQL_DRIVER_NOPROMPT);
     }
 
     if (SQL_SUCCEEDED(ret)) {
-        dbc->plugin_service->SetCurrentHostInfo(dbc->plugin_service->GetHostListProvider()->GetConnectionInfo(dbc));
+        const std::shared_ptr<PluginService> plugin_service = dbc->service_container->GetPluginService();
+        plugin_service->SetCurrentHostInfo(plugin_service->GetHostListProvider()->GetConnectionInfo(dbc));
     }
 
     conn_out_str_utf8 = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_out_str_utf8);
@@ -1172,8 +1159,8 @@ SQLRETURN RDS_SQLDriverConnect(
         const SQLULEN len = conn_out_str_utf8.length();
 #ifdef UNICODE
     const SQLULEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(OutConnectionString), BufferLength, conn_out_str_utf8);
-    if (dbc->plugin_service) {
-        dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(OutConnectionString, written, BufferLength);
+    if (dbc->service_container->GetPluginService()) {
+        dbc->service_container->GetPluginService()->GetOdbcHelper()->ConvertWrapperOutputToTarget(OutConnectionString, written, BufferLength);
     }
 #else
         const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), BufferLength, "%s", conn_out_str_utf8.c_str());
@@ -1265,7 +1252,7 @@ SQLRETURN RDS_SQLExecDirect(
 
     SQLTCHAR* stmt_text = StatementText;
 #if UNICODE
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     std::vector<uint16_t> stmt_utf16;
     if (StatementText) {
         const std::string utf8 = ConvertUserAppToUTF8(
@@ -1276,8 +1263,8 @@ SQLRETURN RDS_SQLExecDirect(
     }
 #endif
 
-    if (dbc->plugin_head) {
-        return dbc->plugin_head->Execute(StatementHandle, stmt_text, TextLength);
+    if (const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager()) {
+        return plugin_manager->Execute(StatementHandle, stmt_text, TextLength);
     }
 
     LOG(ERROR) << "Cannot execute without an open connection";
@@ -1314,7 +1301,7 @@ SQLRETURN RDS_SQLForeignKeys(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto pk_catalog_converted = odbc_helper->ConvertInput(PKCatalogName, NameLength1);
     const auto pk_schema_converted  = odbc_helper->ConvertInput(PKSchemaName,  NameLength2);
     const auto pk_table_converted   = odbc_helper->ConvertInput(PKTableName,   NameLength3);
@@ -1383,7 +1370,7 @@ SQLRETURN RDS_SQLGetCursorName(
 
     if (stmt->wrapped_stmt) {
 #if UNICODE
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion()) {
             // Bufferlength is in char count not bytes for SQLGetCursorName
             const size_t buf_bytes = static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR);
@@ -1411,9 +1398,9 @@ SQLRETURN RDS_SQLGetCursorName(
         if (CursorName) {
 #ifdef UNICODE
             const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(CursorName), static_cast<size_t>(BufferLength), name);
-            if (dbc->plugin_service) {
+            if (dbc->service_container->GetPluginService()) {
                 const size_t buf_bytes = static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR);
-                dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(CursorName, written, buf_bytes);
+                dbc->service_container->GetPluginService()->GetOdbcHelper()->ConvertWrapperOutputToTarget(CursorName, written, buf_bytes);
             }
 #else
             snprintf(reinterpret_cast<char*>(CursorName), static_cast<size_t>(BufferLength) / sizeof(SQLTCHAR), "%s", name.c_str());
@@ -1452,7 +1439,7 @@ SQLRETURN RDS_SQLGetDescField(
     }
 #if UNICODE
     {
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion() && ValuePtr && BufferLength > 0
             && OdbcHelper::IsStringDescField(FieldIdentifier)) {
             auto field_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -1498,7 +1485,7 @@ SQLRETURN RDS_SQLGetDescRec(
     }
 #if UNICODE
     {
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion()) {
             // Bufferlength is in char count not bytes for SQLGetDescRec
             const size_t buf_bytes = static_cast<size_t>(BufferLength) * sizeof(SQLTCHAR);
@@ -1584,7 +1571,7 @@ SQLRETURN RDS_SQLGetDiagField(
                 const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                 if (dbc->wrapped_dbc) {
 #if UNICODE
-                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
                     if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
                         && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
                         auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -1622,7 +1609,7 @@ SQLRETURN RDS_SQLGetDiagField(
                 const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
                 if (stmt->wrapped_stmt) {
 #if UNICODE
-                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
                     if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
                         && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
                         auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -1662,7 +1649,7 @@ SQLRETURN RDS_SQLGetDiagField(
 
                 if (desc->wrapped_desc) {
 #if UNICODE
-                    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
                     if (odbc_helper->NeedsConversion() && DiagInfoPtr && BufferLength > 0
                         && OdbcHelper::IsStringDiagField(DiagIdentifier)) {
                         auto diag_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
@@ -2139,7 +2126,7 @@ SQLRETURN RDS_SQLGetInfo(
                 const ENV* env = dbc->env;
                 ClearError(dbc);
 #if UNICODE
-                const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+                const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
                 if (odbc_helper->NeedsConversion() && InfoValuePtr && BufferLength > 0) {
                     auto info_buf = odbc_helper->AllocateConversionBuffer(static_cast<size_t>(BufferLength));
                     const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetInfo>(env->driver_lib_loader, RdsFuncNames::GetInfo,
@@ -2195,8 +2182,8 @@ SQLRETURN RDS_SQLGetInfo(
         if (InfoValuePtr) {
 #ifdef UNICODE
             const SQLLEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(InfoValuePtr), static_cast<size_t>(BufferLength), char_value);
-            if (dbc->plugin_service) {
-                dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(
+            if (dbc->service_container->GetPluginService()) {
+                dbc->service_container->GetPluginService()->GetOdbcHelper()->ConvertWrapperOutputToTarget(
                     static_cast<SQLTCHAR*>(InfoValuePtr), written, static_cast<size_t>(BufferLength));
             }
 #else
@@ -2328,7 +2315,7 @@ SQLRETURN RDS_SQLNativeSql(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto stmt_converted = odbc_helper->ConvertInput(InStatementText, TextLength1);
 
 #if UNICODE
@@ -2379,7 +2366,7 @@ SQLRETURN RDS_SQLPrepare(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto stmt_converted = odbc_helper->ConvertInput(StatementText, TextLength);
 
     const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLPrepare>(env->driver_lib_loader, RdsFuncNames::Prepare,
@@ -2412,7 +2399,7 @@ SQLRETURN RDS_SQLPrimaryKeys(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -2454,7 +2441,7 @@ SQLRETURN RDS_SQLProcedureColumns(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
@@ -2497,7 +2484,7 @@ SQLRETURN RDS_SQLProcedures(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto proc_converted    = odbc_helper->ConvertInput(ProcName,    NameLength3);
@@ -2543,7 +2530,7 @@ SQLRETURN RDS_SQLSetCursorName(
     ClearError(stmt);
 
     if (stmt->wrapped_stmt) {
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         const auto cursor_converted = odbc_helper->ConvertInput(CursorName, NameLength);
 
         const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetCursorName>(env->driver_lib_loader, RdsFuncNames::SetCursorName,
@@ -2557,7 +2544,7 @@ SQLRETURN RDS_SQLSetCursorName(
     std::string conn_str_utf8;
 #ifdef UNICODE
     conn_str_utf8 = ConvertUserAppToUTF8(
-        dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp(),
+        dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp(),
         CursorName, NameLength);
 #else
     conn_str_utf8 = reinterpret_cast<const char *>(CursorName);
@@ -2588,7 +2575,7 @@ SQLRETURN RDS_SQLSetDescField(
     }
 #if UNICODE
     {
-        const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+        const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
         if (odbc_helper->NeedsConversion() && ValuePtr
             && OdbcHelper::IsStringDescField(FieldIdentifier)
             && (BufferLength == SQL_NTS || BufferLength > 0)) {
@@ -2671,7 +2658,7 @@ SQLRETURN RDS_SQLSpecialColumns(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -2716,7 +2703,7 @@ SQLRETURN RDS_SQLStatistics(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -2758,7 +2745,7 @@ SQLRETURN RDS_SQLTablePrivileges(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted  = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted   = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -2800,7 +2787,7 @@ SQLRETURN RDS_SQLTables(
         return SQL_INVALID_HANDLE;
     }
 
-    const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();
+    const auto odbc_helper = dbc->service_container->GetPluginService()->GetOdbcHelper();
     const auto catalog_converted  = odbc_helper->ConvertInput(CatalogName, NameLength1);
     const auto schema_converted   = odbc_helper->ConvertInput(SchemaName,  NameLength2);
     const auto table_converted    = odbc_helper->ConvertInput(TableName,   NameLength3);
@@ -2932,106 +2919,8 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
 
     // Initialize Plugins
     try {
-        if (!dbc->plugin_service) {
-            // Create Plugin Service
-            PluginService::InitClusterId(dbc->conn_attr);
-            dbc->plugin_service = std::make_shared<PluginService>(env->driver_lib_loader, env, dbc->conn_attr,
-                conn_str.empty()
-                ? ConnectionStringHelper::BuildFullConnectionString(dbc->conn_attr)
-                : conn_str
-            );
-        }
-        // Plugin Builder
-        if (!dbc->plugin_head) {
-            std::shared_ptr<BasePlugin> plugin_head = std::make_shared<DefaultPlugin>(dbc);
-
-            // Auth Plugins
-            if (dbc->conn_attr.contains(KEY_AUTH_TYPE)) {
-                const AuthType type = AuthProvider::AuthTypeFromString(dbc->conn_attr.at(KEY_AUTH_TYPE));
-                switch (type) {
-                        case AuthType::IAM:
-                            plugin_head = std::make_shared<IamAuthPlugin>(dbc, plugin_head);
-                            break;
-                        case AuthType::SECRETS_MANAGER:
-                            plugin_head = std::make_shared<SecretsManagerPlugin>(dbc, plugin_head);
-                            break;
-                        case AuthType::ADFS:
-                            plugin_head = std::make_shared<AdfsAuthPlugin>(dbc, plugin_head);
-                            break;
-                        case AuthType::OKTA:
-                            plugin_head = std::make_shared<OktaAuthPlugin>(dbc, plugin_head);
-                            break;
-                        case AuthType::AWS_SSO:
-                            plugin_head = std::make_shared<AwsSsoAuthPlugin>(dbc, plugin_head);
-                            break;
-                        case AuthType::DATABASE:
-                        case AuthType::INVALID:
-                        default:
-                            break;
-                }
-            }
-
-            // Limitless
-            if (dbc->conn_attr.contains(KEY_ENABLE_LIMITLESS)
-                && dbc->conn_attr.at(KEY_ENABLE_LIMITLESS) == VALUE_BOOL_TRUE)
-            {
-                plugin_head = std::make_shared<LimitlessPlugin>(dbc, plugin_head);
-            }
-
-            // Failover
-            if (dbc->conn_attr.contains(KEY_ENABLE_FAILOVER)
-                && dbc->conn_attr.at(KEY_ENABLE_FAILOVER) == VALUE_BOOL_TRUE)
-            {
-                plugin_head = std::make_shared<FailoverPlugin>(dbc, plugin_head);
-            }
-
-            // Aurora Initial Connection Strategy
-            if (dbc->conn_attr.contains(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY)
-                && dbc->conn_attr.at(KEY_ENABLE_AURORA_INITIAL_CONNECTION_STRATEGY) == VALUE_BOOL_TRUE) {
-                plugin_head = std::make_shared<AuroraInitialConnectionStrategyPlugin>(dbc, plugin_head);
-            }
-
-            // Read Write Splitting
-            bool srw_enabled = false;
-            if (dbc->conn_attr.contains(KEY_ENABLE_SRW_SPLIT)
-                && dbc->conn_attr.at(KEY_ENABLE_SRW_SPLIT) == VALUE_BOOL_TRUE)
-            {
-                plugin_head = std::make_shared<SimpleReadWriteSplittingPlugin>(dbc, plugin_head);
-                srw_enabled = true;
-            }
-
-            if (dbc->conn_attr.contains(KEY_ENABLE_RW_SPLIT)
-                && dbc->conn_attr.at(KEY_ENABLE_RW_SPLIT) == VALUE_BOOL_TRUE)
-            {
-                if (srw_enabled) {
-                    throw std::runtime_error("Only one of the Read Write Splitting and Simple Read Write Splitting plugins should be enabled at a time.");
-                }
-                plugin_head = std::make_shared<ReadWriteSplittingPlugin>(dbc, plugin_head);
-            }
-
-            // Custom Endpoint
-            if (dbc->conn_attr.contains(KEY_ENABLE_CUSTOM_ENDPOINT)
-                && dbc->conn_attr.at(KEY_ENABLE_CUSTOM_ENDPOINT) == VALUE_BOOL_TRUE)
-            {
-                plugin_head = std::make_shared<CustomEndpointPlugin>(dbc, plugin_head);
-            }
-
-            // Blue Green
-            if (dbc->conn_attr.contains(KEY_ENABLE_BLUE_GREEN)
-                && dbc->conn_attr.at(KEY_ENABLE_BLUE_GREEN) == VALUE_BOOL_TRUE)
-            {
-                plugin_head = std::make_shared<BlueGreenPlugin>(dbc, plugin_head);
-            }
-
-            // Finalize and track in DBC
-            if (!plugin_head) {
-                throw std::runtime_error("Plugin chain construction produced an empty chain.");
-            }
-            dbc->plugin_head = plugin_head.get();
-            dbc->plugin_service->SetPluginChain(plugin_head);
-        }
-
-        dbc->plugin_service->InitHostListProvider();
+        FullServiceContainer::InitConnectionServices(dbc, conn_str);
+        dbc->service_container->GetPluginService()->InitHostListProvider();
     } catch (const std::exception& ex) {
         const std::string err_msg = std::string("Error initializing plugins: ") + ex.what();
         LOG(ERROR) << err_msg;

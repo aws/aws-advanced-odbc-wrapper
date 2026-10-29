@@ -18,6 +18,7 @@
 #include "rw_splitting_mock_objects.h"
 
 #include "../../driver/plugin/read_write_splitting/simple_read_write_splitting_plugin.h"
+#include "../../driver/util/plugin_manager.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -65,10 +66,10 @@ protected:
         dbc_->env = &env_;
         dbc_->wrapped_dbc = nullptr;
         dbc_->transaction_status = TRANSACTION_CLOSED;
-        dbc_->plugin_service = mock_plugin_service_;
+        dbc_->service_container->SetPluginService(mock_plugin_service_);
 
         mock_next_plugin_ = std::make_shared<NiceMock<MockBasePlugin>>();
-        dbc_->plugin_head = mock_next_plugin_.get();
+        dbc_->service_container->SetPluginManager(std::make_shared<PluginManager>(mock_next_plugin_));
 
         dbc_->conn_attr[KEY_SRW_WRITE_ENDPOINT] = WRITE_ENDPOINT;
         dbc_->conn_attr[KEY_SRW_READ_ENDPOINT] = READ_ENDPOINT;
@@ -87,7 +88,7 @@ protected:
 
     void TearDown() override {
         if (dbc_) {
-            dbc_->plugin_head = nullptr;
+            dbc_->service_container->SetPluginManager(nullptr);
             delete dbc_;
         }
     }
@@ -134,7 +135,6 @@ TEST_F(SimpleReadWriteSplittingPluginTest, SwitchToReaderThenWriter) {
     DBC* reader_dbc = new DBC();
     reader_dbc->env = &env_;
     reader_dbc->wrapped_dbc = fake_reader_hdbc_;
-    reader_dbc->plugin_head = nullptr;
 
     ON_CALL(*mock_odbc_helper_, AllocDbc(_, _))
         .WillByDefault([reader_dbc](SQLHENV&, SQLHDBC& hdbc) -> SQLRETURN {
@@ -154,7 +154,6 @@ TEST_F(SimpleReadWriteSplittingPluginTest, SwitchToReaderThenWriter) {
     DBC* writer_dbc = new DBC();
     writer_dbc->env = &env_;
     writer_dbc->wrapped_dbc = fake_writer_hdbc_;
-    writer_dbc->plugin_head = nullptr;
 
     ON_CALL(*mock_odbc_helper_, AllocDbc(_, _))
         .WillByDefault([writer_dbc](SQLHENV&, SQLHDBC& hdbc) -> SQLRETURN {

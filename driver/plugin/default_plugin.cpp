@@ -27,7 +27,7 @@ DefaultPlugin::DefaultPlugin(DBC *dbc) : DefaultPlugin(dbc, nullptr) {}
 
 DefaultPlugin::DefaultPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) {
     this->plugin_name_ = "DefaultPlugin";
-    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
+    this->odbc_helper_ = dbc->service_container->GetPluginService()->GetOdbcHelper();
 }
 
 SQLRETURN DefaultPlugin::Connect(
@@ -155,7 +155,7 @@ SQLRETURN DefaultPlugin::Connect(
         }
 
         if (!dbc->conn_attr.contains(KEY_MONITORING_CONN_UUID)) {
-            dbc->plugin_service->UpdateDialect(dbc);
+            dbc->service_container->GetPluginService()->UpdateDialect(dbc);
         }
     }
     return ret;

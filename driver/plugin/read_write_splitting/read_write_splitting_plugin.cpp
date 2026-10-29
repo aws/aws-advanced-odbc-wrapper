@@ -86,7 +86,7 @@ SQLRETURN ReadWriteSplittingPlugin::InitializeWriterConnection() {
     }
     const HostInfo host_info = this->host_selector_->GetHost(hosts, true, properties);
     conn->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
-    conn->plugin_service = dbc_->plugin_service;
+    conn->service_container->SetPluginService(dbc_->service_container->GetPluginService());
     const SQLRETURN ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
     if (!SQL_SUCCEEDED(ret)) {
         odbc_helper_->DisconnectAndFree(&local_hdbc);
@@ -139,7 +139,7 @@ SQLRETURN ReadWriteSplittingPlugin::OpenNewReaderConnection() {
         conn = static_cast<DBC*>(local_hdbc);
         conn->conn_attr = connection_attributes_;
         conn->conn_attr.insert_or_assign(KEY_SERVER, host_info.GetHost());
-        conn->plugin_service = dbc_->plugin_service;
+        conn->service_container->SetPluginService(dbc_->service_container->GetPluginService());
         ret = plugin_head_->Connect(local_hdbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(ret)) {
             LOG(INFO) << "Failed to connect to reader host: '" << host_info.GetHost() << "'";

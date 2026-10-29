@@ -30,7 +30,7 @@ TEST_F(FailoverPluginTest, TopologyMonitorReferenceCountingTest) {
     DBC* dbc = new DBC();
     dbc->env = &env;
     dbc->conn_attr[KEY_CLUSTER_ID] = cluster_id;
-    dbc->plugin_service = mock_plugin_service;
+    dbc->service_container->SetPluginService(mock_plugin_service);
 
     {
         FailoverPlugin plugin1(dbc, nullptr);

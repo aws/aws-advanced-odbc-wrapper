@@ -18,7 +18,8 @@
 
 #include "../../host_list_providers/rds_host_list_provider.h"
 
-#include "../../util/plugin_chain_builder.h"
+#include "../../util/full_service_container.h"
+#include "../../util/plugin_manager.h"
 
 #include "../../driver.h"
 
@@ -40,15 +41,15 @@
 #endif
 
 BlueGreenMonitor::BlueGreenMonitor(
-    const std::shared_ptr<PluginService>& plugin_service,
+    const std::shared_ptr<FullServiceContainer>& service_container,
     BlueGreenRole initial_role,
     std::string blue_green_id,
     const HostInfo& initial_host_info,
     std::map<std::string, std::string> conn_attr,
     std::unordered_map<BlueGreenIntervalRate, std::chrono::milliseconds> check_interval_map,
     std::function<void(BlueGreenRole, BlueGreenInterimStatus)> on_status_change_function) :
-    plugin_service_{ plugin_service },
-    odbc_helper_{ plugin_service->GetOdbcHelper() },
+    service_container_{ service_container },
+    odbc_helper_{ service_container->GetPluginService()->GetOdbcHelper() },
     current_role_{ initial_role },
     blue_green_id_{ std::move(blue_green_id) },
     initial_host_info_{ initial_host_info },
@@ -56,7 +57,7 @@ BlueGreenMonitor::BlueGreenMonitor(
     check_interval_map_{ std::move(check_interval_map) },
     on_status_change_function_{ std::move(on_status_change_function) }
 {
-    dialect_blue_green_ = std::dynamic_pointer_cast<DialectBlueGreen>(plugin_service->GetDialect());
+    dialect_blue_green_ = std::dynamic_pointer_cast<DialectBlueGreen>(service_container->GetPluginService()->GetDialect());
     // Create ENV local to monitor
     odbc_helper_->AllocEnv(&henv_);
     ENV* henv = static_cast<ENV*>(henv_);
@@ -90,7 +91,7 @@ void BlueGreenMonitor::StartMonitoring() {
     if (thread_running_.compare_exchange_strong(expected, true)) {
         if (!this->monitoring_thread_) {
             class_running_.store(true);
-            plugin_head_ = this->plugin_service_->GetPluginChain();
+            plugin_head_ = this->service_container_->GetPluginManager()->GetPluginChain();
             this->monitoring_thread_ = std::make_shared<std::thread>(&BlueGreenMonitor::Run, this);
         }
     }
@@ -591,12 +592,10 @@ void BlueGreenMonitor::InitHostListProvider() {
     delete monitor_dbc_;
     monitor_dbc_ = new DBC();
     monitor_dbc_->conn_attr = host_list_provider_conn_attr;
-    const std::shared_ptr<PluginService> monitor_plugin_service = std::make_shared<PluginService>(odbc_helper_->GetLibLoader(), host_list_provider_conn_attr);
-    const std::shared_ptr<BasePlugin> plugin_head = PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
-    monitor_plugin_service->SetPluginChain(plugin_head);
+    FullServiceContainer::InitMonitoringServices(monitor_dbc_, odbc_helper_->GetLibLoader());
     this->host_list_provider_ = std::make_shared<RdsHostListProvider>(
-        monitor_plugin_service->GetTopologyUtil(),
-        monitor_plugin_service,
+        monitor_dbc_->service_container->GetPluginService()->GetTopologyUtil(),
+        monitor_dbc_->service_container,
         host_list_provider_conn_attr,
         custom_cluster_id
     );
