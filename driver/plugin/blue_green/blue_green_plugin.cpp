@@ -14,6 +14,8 @@
 
 #include "blue_green_plugin.h"
 
+#include <utility>
+
 #include "../../util/auth_provider.h"
 
 #include "blue_green_status_provider.h"
@@ -21,8 +23,8 @@
 #include "../../driver.h"
 
 #include "../../util/connection_string_keys.h"
-#include "../../util/logger_wrapper.h"
 #include "../../util/full_service_container.h"
+#include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
 #include "../../util/plugin_service.h"
 
@@ -315,7 +317,7 @@ std::shared_ptr<BlueGreenStatusProvider> BlueGreenPlugin::GetOrCreateProvider() 
         monitoring_map.insert_or_assign(KEY_CLUSTER_ID, monitoring_cluster_id);
         delete monitor_dbc_;
         monitor_dbc_ = new DBC();
-        monitor_dbc_->conn_attr = monitoring_map;
+        monitor_dbc_->conn_attr = std::move(monitoring_map);
         FullServiceContainer::InitMonitoringServices(monitor_dbc_, this->odbc_helper_->GetLibLoader());
         provider = std::make_shared<BlueGreenStatusProvider>(
             monitor_dbc_->service_container,
