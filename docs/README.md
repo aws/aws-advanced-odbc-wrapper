@@ -2,6 +2,7 @@
 
 - [Getting Started](./getting-started.md)
 - [Using the AWS Advanced ODBC Wrapper](./using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md)
+    - [Understanding the CLUSTER_ID Parameter](./using-the-aws-odbc-wrapper/cluster-id.md)
     - [Support for Amazon RDS Multi-AZ DB Cluster](./using-the-aws-odbc-wrapper/SupportForRDSMultiAzDBCluster.md)
     - [Plugins](./using-the-aws-odbc-wrapper/plugins/)
         - [ADFS Authentication Plugin](./using-the-aws-odbc-wrapper/plugins/adfs-authentication-plugin.md)
