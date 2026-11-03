@@ -17,7 +17,6 @@
 #include "error.h"
 #include "plugin/base_plugin.h"
 #include "util/logger_wrapper.h"
-#include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
 
 ENV::~ENV() {
@@ -25,7 +24,7 @@ ENV::~ENV() {
 }
 
 DBC::~DBC() {
-    plugin_service = nullptr;
+    service_container = nullptr;
 }
 
 STMT::~STMT() = default;

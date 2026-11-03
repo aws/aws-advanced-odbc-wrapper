@@ -34,6 +34,7 @@
 #include "../driver.h"
 #include "../host_info.h"
 #include "../plugin/default_plugin.h"
+#include "../util/full_service_container.h"
 #include "../util/logger_wrapper.h"
 #include "../util/odbc_helper.h"
 #include "../util/plugin_service.h"
@@ -46,9 +47,9 @@ struct ENV;
 
 class ClusterTopologyMonitor {
 public:
-    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
+    ClusterTopologyMonitor(const std::shared_ptr<FullServiceContainer>& service_container,
         const std::shared_ptr<TopologyUtil>& topology_util);
-    ClusterTopologyMonitor(const std::shared_ptr<PluginService>& plugin_service,
+    ClusterTopologyMonitor(const std::shared_ptr<FullServiceContainer>& service_container,
         const std::shared_ptr<TopologyUtil>& topology_util,
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id,
@@ -94,7 +95,7 @@ private:
     HostInfo template_host_;
     std::map<std::string, std::string> connection_attributes_;
 
-    std::shared_ptr<PluginService> plugin_service_;
+    std::shared_ptr<FullServiceContainer> service_container_;
 
     // Track Update Request
     std::atomic<bool> request_update_topology_;

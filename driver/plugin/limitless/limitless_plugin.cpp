@@ -26,7 +26,7 @@ LimitlessPlugin::LimitlessPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plug
     next_plugin,
     nullptr,
     nullptr,
-    dbc->plugin_service->GetOdbcHelper()) {}
+    dbc->service_container->GetPluginService()->GetOdbcHelper()) {}
 
 LimitlessPlugin::LimitlessPlugin(
     DBC *dbc,
@@ -39,8 +39,8 @@ LimitlessPlugin::LimitlessPlugin(
     this->plugin_name_ = "LIMITLESS";
     if (dialect) {
         this->dialect_ = dialect;
-    } else if (dbc->plugin_service) {
-        this->dialect_ = dbc->plugin_service->GetDialect();
+    } else if (dbc->service_container->GetPluginService()) {
+        this->dialect_ = dbc->service_container->GetPluginService()->GetDialect();
     } else {
         this->dialect_ = nullptr;
     }
