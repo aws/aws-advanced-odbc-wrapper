@@ -112,7 +112,8 @@ bool OdbcHelper::IsClosed(SQLHDBC hdbc) {
 }
 
 SQLRETURN OdbcHelper::AllocEnv(SQLHENV* henv) {
-    return RDS_AllocEnv(henv);
+    // Not counted toward CoreService, the monitors using it would otherwise keep the count above 0
+    return RDS_AllocInternalEnv(henv);
 }
 
 // codechecker_suppress [readability-convert-member-functions-to-static]

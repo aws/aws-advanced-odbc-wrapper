@@ -103,8 +103,10 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/concurrent_stack.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_keys.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/core_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/monitoring/monitor_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/number_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_dsn_helper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/odbc_helper.h
@@ -115,6 +117,7 @@ set(INC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/rds_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sliding_cache_map.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/sql_query_analyzer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/storage/storage_service.h
     ${CMAKE_CURRENT_SOURCE_DIR}/util/windows_headers.h
 
     # Dialects
@@ -211,6 +214,7 @@ set(SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/util/aws_sdk_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/cluster_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/connection_string_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/util/core_service.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/logger_wrapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/map_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/util/number_utils.cpp

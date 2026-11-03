@@ -102,6 +102,8 @@ struct ENV {
     std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
     std::shared_ptr<LoggerWrapper> logger_wrapper;
+    // Set for the ENVs of the app or Driver Manager, not the driver's own, see CoreService
+    bool counted_by_core_service = false;
 
     SQLHENV wrapped_env = SQL_NULL_HENV;
 
