@@ -144,7 +144,7 @@ int main() {
         "TOPOLOGY_HIGH_REFRESH_RATE_MS=100;"    // Specify how fast in milliseconds topology should be fetched when Failover occurs
         "TOPOLOGY_REFRESH_RATE_MS=10000;"       // Specify how fast in milliseconds topology should be fetched under normal operations
         "FAILOVER_TIMEOUT_MS=30000;"            // Specify how long in milliseconds Failover can reconnect to new connection
-        "CLUSTER_ID=my-cluster-id;"             // Sets a custom identifier to the cluster, only use if using same clusters on different connections
+        "CLUSTER_ID=my-cluster-id;"             // Identifies the cluster, required with a distinct value per cluster if the application connects to several clusters
     );
 
     // Setup

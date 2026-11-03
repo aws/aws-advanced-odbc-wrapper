@@ -24,6 +24,8 @@ The following DSN fields on a DSN window should be filled when using the Limitle
 | Limitless Router Max Retries  | `LIMITLESS_ROUTER_MAX_RETRIES`  | If there are no limitless routers detected by the limitless router monitor, a direct query will be made to determine the routers. This value determines how many times the query will be retried before the connection fails.                                                                                                                                              | `5`           | `3`          |
 | Limitless Max Retries         | `LIMITLESS_MAX_RETRIES`         | This value determines the maximum number of retries the Limitless Plugin will attempt to connect to the database.                                                                                                                                                                                                                                                          | `5`           | `3`          |
 
+Connections with the same [`CLUSTER_ID`](../cluster-id.md) share one limitless router monitor. `CLUSTER_ID` defaults to `1`, so an application that connects to more than one Limitless Database must set a distinct `CLUSTER_ID` for each.
+
 ### Use with Other Features
 
 > [!WARNING]\

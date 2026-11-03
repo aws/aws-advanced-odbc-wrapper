@@ -24,7 +24,6 @@
 class CustomEndpointMonitor {
 public:
     CustomEndpointMonitor(
-        const std::weak_ptr<PluginService>& plugin_service,
         const std::string& endpoint,
         std::string region,
         std::string profile,
@@ -50,7 +49,6 @@ private:
     std::atomic<bool> is_running_;
     bool sdk_initialized_ = true;
 
-    std::weak_ptr<PluginService> plugin_service_;
     std::string endpoint_;
     std::string endpoint_identifier_;
     std::string region_;
