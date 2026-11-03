@@ -1,0 +1,5 @@
+# Dependencies for compare_results.py, pinned so the CI runner's Python version doesn't matter.
+# deepdiff 9.1.0+ requires cachebox, a Rust extension whose 5.x wheels stop at Python 3.14;
+# on newer Pythons pip builds it from source and fails. Keep to a pure-Python release when bumping.
+deepdiff==9.0.0
+orderly-set==5.5.0
