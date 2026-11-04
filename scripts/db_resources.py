@@ -111,9 +111,22 @@ def get_instance_sg(rds_client, instance_id):
     return response["DBInstances"][0]["VpcSecurityGroups"][0]["VpcSecurityGroupId"]
 
 
-def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
-    sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
-    cidr = f"{ip}/32"
+# Tag on each cluster/instance recording the runner IP its job allowed on the security group.
+# Runners can share a public IP (the macOS CodeBuild fleets all egress through one NAT), and
+# all clusters share the default security group, so one job's teardown must not revoke a
+# rule that another live job still depends on.
+RUNNER_IP_TAG = "odbc-ci-runner-ip"
+
+
+def tag_runner_ip(rds_client, resource_id, ip, is_rds_instance=False):
+    if is_rds_instance:
+        arn = rds_client.describe_db_instances(DBInstanceIdentifier=resource_id)["DBInstances"][0]["DBInstanceArn"]
+    else:
+        arn = rds_client.describe_db_clusters(DBClusterIdentifier=resource_id)["DBClusters"][0]["DBClusterArn"]
+    rds_client.add_tags_to_resource(ResourceName=arn, Tags=[{"Key": RUNNER_IP_TAG, "Value": ip}])
+
+
+def authorize_ip(ec2_client, sg, cidr):
     try:
         ec2_client.authorize_security_group_ingress(
             GroupId=sg,
@@ -126,17 +139,69 @@ def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
         # Ignore duplicate rule errors
         if e.response["Error"]["Code"] != "InvalidPermission.Duplicate":
             print(f"  Warning: authorize-security-group-ingress failed: {e}")
+
+
+def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
+    sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
+    cidr = f"{ip}/32"
+    # Tag before authorizing, so a concurrent teardown that checks for other users of this IP sees this job.
+    try:
+        tag_runner_ip(rds_client, cluster_id, ip, is_rds_instance=is_rds_instance)
+    except ClientError as e:
+        print(f"  Warning: could not tag {cluster_id} with {RUNNER_IP_TAG}: {e}")
+    authorize_ip(ec2_client, sg, cidr)
     print(f"  Allowed {cidr} on SG {sg}, sleeping 60s for propagation...")
     time.sleep(60)
+    # A teardown that checked for other users just before this job's tag landed may have revoked the
+    # rule after the authorize above; re-authorize (a no-op if the rule is still there).
+    authorize_ip(ec2_client, sg, cidr)
 
 
-def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
+def is_job_resource(resource_id, owner_id):
+    """True if resource_id belongs to the job that created owner_id: the resource itself, its instances, or its
+    blue/green copies (<id>-green-xxxxxx, <id>-old1)."""
+    resource_id = resource_id.lower()
+    owner_id = owner_id.lower()
+    return resource_id == owner_id or resource_id.startswith(owner_id + "-")
+
+
+def other_jobs_using_ip(rds_client, ip, sg, owner_id):
+    """Return the IDs of live clusters/instances owned by other jobs that allowed ip on sg."""
+    users = []
+
+    def check(resource_id, resource):
+        if is_job_resource(resource_id, owner_id) or resource.get("Status", resource.get("DBInstanceStatus")) == "deleting":
+            return
+        if not any(g.get("VpcSecurityGroupId") == sg for g in resource.get("VpcSecurityGroups", [])):
+            return
+        if any(t["Key"] == RUNNER_IP_TAG and t["Value"] == ip for t in resource.get("TagList", [])):
+            users.append(resource_id)
+
+    for page in rds_client.get_paginator("describe_db_clusters").paginate():
+        for cluster in page["DBClusters"]:
+            check(cluster["DBClusterIdentifier"], cluster)
+    for page in rds_client.get_paginator("describe_db_instances").paginate():
+        for instance in page["DBInstances"]:
+            check(instance["DBInstanceIdentifier"], instance)
+    return users
+
+
+def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False, owner_id=None):
     try:
         sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
     except Exception:
         print("  Could not resolve SG — cluster may already be deleted")
         return
     cidr = f"{ip}/32"
+    try:
+        users = other_jobs_using_ip(rds_client, ip, sg, owner_id or cluster_id)
+    except Exception as e:
+        # Revoking a rule another job needs makes its tests time out; leaking one rule is the safer failure.
+        print(f"  Warning: could not check other users of {cidr}, keeping the rule: {e}")
+        return
+    if users:
+        print(f"  Keeping {cidr} on SG {sg}, still used by: {', '.join(users)}")
+        return
     # Check if the rule has a description — if so, it's a permanent rule and should not be removed.
     try:
         response = ec2_client.describe_security_group_rules(
@@ -524,72 +589,69 @@ def setup_mysql_iam_user(endpoint, database, username, password, iam_user,
 # Parameter group helpers
 # ---------------------------------------------------------------------------
 
-def create_parameter_group(rds_client, name, engine, engine_version):
-    """Create or reuse a DB cluster parameter group configured for blue/green."""
-    print(f"Checking for existing parameter group: {name}")
+def get_or_create_parameter_group(rds_client, name_prefix, engine, engine_version):
+    """Get or create the shared blue/green DB cluster parameter group. Returns its name.
 
-    try:
-        rds_client.describe_db_cluster_parameter_groups(
-            DBClusterParameterGroupName=name,
-        )
-        print(f"  Parameter group {name} already exists, reusing.")
-        return name
-    except ClientError as e:
-        if e.response["Error"]["Code"] != "DBParameterGroupNotFound":
-            raise
-
-    version = resolve_engine_version(rds_client, engine, engine_version)
-
+    Every run needs the same parameters, so a single group per parameter group family
+    (e.g. <prefix>-aurora-postgresql18) is reused across runs and never deleted. Deleting a
+    per-run group at teardown fails while the just-deleted clusters still reference it,
+    which leaked a group per run until the region's parameter group quota ran out.
+    """
     if "mysql" in engine:
-        param_family = f"aurora-mysql-{version}"
+        parameters = {"binlog_format": "ROW"}
     elif "postgresql" in engine:
-        major = version.split(".")[0]
-        param_family = f"aurora-postgresql{major}"
+        parameters = {
+            "rds.logical_replication": "1",
+            "max_wal_senders": "20",
+            "rds.allowed_extensions": "rds_tools",
+        }
     else:
         raise RuntimeError(f"Unsupported engine: {engine}")
 
-    print(f"Creating parameter group {name} with family {param_family}...")
-    rds_client.create_db_cluster_parameter_group(
-        DBClusterParameterGroupName=name,
-        DBParameterGroupFamily=param_family,
-        Description="Custom parameter group for Blue/Green Deployment testing",
-        Tags=[{"Key": "env", "Value": "test-runner"}],
-    )
+    version = resolve_engine_version(rds_client, engine, engine_version)
+    response = rds_client.describe_db_engine_versions(Engine=engine, EngineVersion=version)
+    param_family = response["DBEngineVersions"][0]["DBParameterGroupFamily"]
+    # Parameter group names only allow letters, digits and hyphens (family can be e.g. aurora-mysql8.0).
+    name = f"{name_prefix}-{param_family}".replace(".", "-")
 
-    if "mysql" in engine:
-        print("  Setting MySQL parameter: binlog_format=ROW")
-        rds_client.modify_db_cluster_parameter_group(
-            DBClusterParameterGroupName=name,
-            Parameters=[{
-                "ParameterName": "binlog_format",
-                "ParameterValue": "ROW",
-                "ApplyMethod": "pending-reboot",
-            }],
-        )
-    elif "postgresql" in engine:
-        print("  Setting PostgreSQL parameters: rds.logical_replication=1, max_wal_senders=20, rds.allowed_extensions=rds_tools")
-        rds_client.modify_db_cluster_parameter_group(
-            DBClusterParameterGroupName=name,
-            Parameters=[
-                {"ParameterName": "rds.logical_replication", "ParameterValue": "1", "ApplyMethod": "pending-reboot"},
-                {"ParameterName": "max_wal_senders", "ParameterValue": "20", "ApplyMethod": "pending-reboot"},
-                {"ParameterName": "rds.allowed_extensions", "ParameterValue": "rds_tools", "ApplyMethod": "pending-reboot"},
-            ],
-        )
-
-    print(f"  Parameter group {name} created and configured.")
-    return name
-
-
-def delete_parameter_group(rds_client, name):
-    """Delete a DB cluster parameter group."""
-    print(f"Deleting parameter group: {name}")
+    print(f"Getting or creating parameter group {name} with family {param_family}...")
     try:
-        rds_client.delete_db_cluster_parameter_group(
+        rds_client.create_db_cluster_parameter_group(
             DBClusterParameterGroupName=name,
+            DBParameterGroupFamily=param_family,
+            Description="Shared by Blue/Green Deployment test runs. Reused across runs, do not delete.",
+            Tags=[{"Key": "env", "Value": "test-runner"}],
         )
+        print(f"  Parameter group {name} created.")
     except ClientError as e:
-        print(f"  Warning: delete parameter group failed: {e}")
+        # Already created by an earlier or concurrent run.
+        if e.response["Error"]["Code"] != "DBParameterGroupAlreadyExists":
+            raise
+        print(f"  Parameter group {name} already exists, reusing.")
+
+    # Only modify values that differ: re-applying pending-reboot parameters to a group that live
+    # clusters use would flag them for reboot. This also completes a group whose creating run
+    # died before the modify call.
+    current = {}
+    paginator = rds_client.get_paginator("describe_db_cluster_parameters")
+    for page in paginator.paginate(DBClusterParameterGroupName=name, Source="user"):
+        for param in page["Parameters"]:
+            current[param["ParameterName"]] = param.get("ParameterValue")
+
+    changes = [
+        {"ParameterName": key, "ParameterValue": value, "ApplyMethod": "pending-reboot"}
+        for key, value in parameters.items()
+        if current.get(key) != value
+    ]
+    if changes:
+        print("  Setting parameters: " + ", ".join(f"{c['ParameterName']}={c['ParameterValue']}" for c in changes))
+        rds_client.modify_db_cluster_parameter_group(
+            DBClusterParameterGroupName=name,
+            Parameters=changes,
+        )
+
+    print(f"  Parameter group {name} configured.")
+    return name
 
 
 # ---------------------------------------------------------------------------
@@ -652,7 +714,7 @@ def wait_blue_green_deployment_ready(rds_client, deployment_id, max_retries=30, 
     raise RuntimeError(f"Timeout waiting for deployment after {max_retries} attempts")
 
 
-def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
+def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region, ip, owner_id):
     """Delete a blue/green deployment and clean up source/target clusters."""
     print(f"Deleting Blue/Green Deployment {deployment_id}...")
 
@@ -671,9 +733,8 @@ def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
     source_cluster_id = source_arn.split(":cluster:")[-1] if ":cluster:" in source_arn else ""
     target_cluster_id = target_arn.split(":cluster:")[-1] if ":cluster:" in target_arn else ""
 
-    ip = get_public_ip()
     if source_cluster_id:
-        remove_ip_from_sg(ec2_client, rds_client, ip, source_cluster_id)
+        remove_ip_from_sg(ec2_client, rds_client, ip, source_cluster_id, owner_id=owner_id)
 
     try:
         rds_client.delete_blue_green_deployment(
@@ -874,10 +935,11 @@ def cmd_create(args):
     is_rds_instance = args.rds_single_az or args.rds_multi_az
     is_multi_az_cluster = args.rds_multi_az_cluster
 
-    # 0. Parameter group (required for blue/green, optional otherwise)
+    # 0. Shared parameter group (blue/green only). Swap the prefix for the full name so the
+    #    cluster creation below attaches the group.
     if is_blue_green and args.parameter_group:
-        pg_name = create_parameter_group(rds_client, args.parameter_group, args.engine, args.engine_version)
-        set_github_env("PARAMETER_GROUP", pg_name)
+        args.parameter_group = get_or_create_parameter_group(rds_client, args.parameter_group, args.engine, args.engine_version)
+        set_github_env("PARAMETER_GROUP", args.parameter_group)
 
     # 1. Create cluster or instance
     if is_multi_az_cluster:
@@ -1051,7 +1113,7 @@ def cmd_destroy(args):
     # Blue/Green deployment
     if args.blue_green and args.bg_deployment_id:
         try:
-            delete_blue_green_deployment(rds_client, ec2_client, args.bg_deployment_id, args.region)
+            delete_blue_green_deployment(rds_client, ec2_client, args.bg_deployment_id, args.region, ip, args.cluster_id)
         except Exception as e:
             print(f"  WARNING: blue/green deployment cleanup failed: {e}")
 
@@ -1075,13 +1137,6 @@ def cmd_destroy(args):
                 delete_aurora_cluster(rds_client, args.cluster_id, args.num_instances)
         except Exception as e:
             print(f"  WARNING: cluster/instance cleanup failed: {e}")
-
-    # Parameter group
-    if args.parameter_group:
-        try:
-            delete_parameter_group(rds_client, args.parameter_group)
-        except Exception as e:
-            print(f"  WARNING: parameter group cleanup failed: {e}")
 
     # Secrets
     try:
@@ -1124,7 +1179,9 @@ def build_parser():
     c.add_argument("--extra-mysql-user", default=None, help="Additional MySQL user to create (macOS)")
     c.add_argument("--extra-mysql-password", default=None, help="Password for additional MySQL user")
     c.add_argument("--blue-green", action="store_true", help="Create a blue/green deployment after cluster setup")
-    c.add_argument("--parameter-group", default=None, help="Name for the custom parameter group (created/reused)")
+    c.add_argument("--parameter-group", default=None,
+                   help="Blue/green only: name prefix of the shared cluster parameter group, suffixed with its "
+                        "parameter group family (e.g. PREFIX-aurora-postgresql18). Created once, reused, never deleted")
     c.add_argument("--rds-single-az", action="store_true", help="Create a standalone RDS single-AZ instance instead of Aurora")
     c.add_argument("--rds-multi-az", action="store_true", help="Create a standalone RDS multi-AZ instance instead of Aurora")
     c.add_argument("--rds-multi-az-cluster", action="store_true", help="Create a Multi-AZ DB Cluster instead of Aurora")
@@ -1143,7 +1200,6 @@ def build_parser():
     d.add_argument("--shard-id", default=None, help="Required for limitless clusters")
     d.add_argument("--blue-green", action="store_true", help="Tear down blue/green deployment resources")
     d.add_argument("--bg-deployment-id", default=None, help="Blue/green deployment identifier to delete")
-    d.add_argument("--parameter-group", default=None, help="Parameter group name to delete")
     d.add_argument("--rds-single-az", action="store_true", help="Destroy a standalone RDS single-AZ instance")
     d.add_argument("--rds-multi-az", action="store_true", help="Destroy a standalone RDS multi-AZ instance")
     d.add_argument("--rds-multi-az-cluster", action="store_true", help="Destroy a Multi-AZ DB Cluster")
