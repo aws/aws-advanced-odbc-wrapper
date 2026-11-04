@@ -111,9 +111,22 @@ def get_instance_sg(rds_client, instance_id):
     return response["DBInstances"][0]["VpcSecurityGroups"][0]["VpcSecurityGroupId"]
 
 
-def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
-    sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
-    cidr = f"{ip}/32"
+# Tag on each cluster/instance recording the runner IP its job allowed on the security group.
+# Runners can share a public IP (the macOS CodeBuild fleets all egress through one NAT), and
+# all clusters share the default security group, so one job's teardown must not revoke a
+# rule that another live job still depends on.
+RUNNER_IP_TAG = "odbc-ci-runner-ip"
+
+
+def tag_runner_ip(rds_client, resource_id, ip, is_rds_instance=False):
+    if is_rds_instance:
+        arn = rds_client.describe_db_instances(DBInstanceIdentifier=resource_id)["DBInstances"][0]["DBInstanceArn"]
+    else:
+        arn = rds_client.describe_db_clusters(DBClusterIdentifier=resource_id)["DBClusters"][0]["DBClusterArn"]
+    rds_client.add_tags_to_resource(ResourceName=arn, Tags=[{"Key": RUNNER_IP_TAG, "Value": ip}])
+
+
+def authorize_ip(ec2_client, sg, cidr):
     try:
         ec2_client.authorize_security_group_ingress(
             GroupId=sg,
@@ -126,17 +139,69 @@ def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
         # Ignore duplicate rule errors
         if e.response["Error"]["Code"] != "InvalidPermission.Duplicate":
             print(f"  Warning: authorize-security-group-ingress failed: {e}")
+
+
+def add_ip_to_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
+    sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
+    cidr = f"{ip}/32"
+    # Tag before authorizing, so a concurrent teardown that checks for other users of this IP sees this job.
+    try:
+        tag_runner_ip(rds_client, cluster_id, ip, is_rds_instance=is_rds_instance)
+    except ClientError as e:
+        print(f"  Warning: could not tag {cluster_id} with {RUNNER_IP_TAG}: {e}")
+    authorize_ip(ec2_client, sg, cidr)
     print(f"  Allowed {cidr} on SG {sg}, sleeping 60s for propagation...")
     time.sleep(60)
+    # A teardown that checked for other users just before this job's tag landed may have revoked the
+    # rule after the authorize above; re-authorize (a no-op if the rule is still there).
+    authorize_ip(ec2_client, sg, cidr)
 
 
-def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False):
+def is_job_resource(resource_id, owner_id):
+    """True if resource_id belongs to the job that created owner_id: the resource itself, its instances, or its
+    blue/green copies (<id>-green-xxxxxx, <id>-old1)."""
+    resource_id = resource_id.lower()
+    owner_id = owner_id.lower()
+    return resource_id == owner_id or resource_id.startswith(owner_id + "-")
+
+
+def other_jobs_using_ip(rds_client, ip, sg, owner_id):
+    """Return the IDs of live clusters/instances owned by other jobs that allowed ip on sg."""
+    users = []
+
+    def check(resource_id, resource):
+        if is_job_resource(resource_id, owner_id) or resource.get("Status", resource.get("DBInstanceStatus")) == "deleting":
+            return
+        if not any(g.get("VpcSecurityGroupId") == sg for g in resource.get("VpcSecurityGroups", [])):
+            return
+        if any(t["Key"] == RUNNER_IP_TAG and t["Value"] == ip for t in resource.get("TagList", [])):
+            users.append(resource_id)
+
+    for page in rds_client.get_paginator("describe_db_clusters").paginate():
+        for cluster in page["DBClusters"]:
+            check(cluster["DBClusterIdentifier"], cluster)
+    for page in rds_client.get_paginator("describe_db_instances").paginate():
+        for instance in page["DBInstances"]:
+            check(instance["DBInstanceIdentifier"], instance)
+    return users
+
+
+def remove_ip_from_sg(ec2_client, rds_client, ip, cluster_id, is_rds_instance=False, owner_id=None):
     try:
         sg = get_instance_sg(rds_client, cluster_id) if is_rds_instance else get_cluster_sg(rds_client, cluster_id)
     except Exception:
         print("  Could not resolve SG — cluster may already be deleted")
         return
     cidr = f"{ip}/32"
+    try:
+        users = other_jobs_using_ip(rds_client, ip, sg, owner_id or cluster_id)
+    except Exception as e:
+        # Revoking a rule another job needs makes its tests time out; leaking one rule is the safer failure.
+        print(f"  Warning: could not check other users of {cidr}, keeping the rule: {e}")
+        return
+    if users:
+        print(f"  Keeping {cidr} on SG {sg}, still used by: {', '.join(users)}")
+        return
     # Check if the rule has a description — if so, it's a permanent rule and should not be removed.
     try:
         response = ec2_client.describe_security_group_rules(
@@ -649,7 +714,7 @@ def wait_blue_green_deployment_ready(rds_client, deployment_id, max_retries=30, 
     raise RuntimeError(f"Timeout waiting for deployment after {max_retries} attempts")
 
 
-def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
+def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region, ip, owner_id):
     """Delete a blue/green deployment and clean up source/target clusters."""
     print(f"Deleting Blue/Green Deployment {deployment_id}...")
 
@@ -668,9 +733,8 @@ def delete_blue_green_deployment(rds_client, ec2_client, deployment_id, region):
     source_cluster_id = source_arn.split(":cluster:")[-1] if ":cluster:" in source_arn else ""
     target_cluster_id = target_arn.split(":cluster:")[-1] if ":cluster:" in target_arn else ""
 
-    ip = get_public_ip()
     if source_cluster_id:
-        remove_ip_from_sg(ec2_client, rds_client, ip, source_cluster_id)
+        remove_ip_from_sg(ec2_client, rds_client, ip, source_cluster_id, owner_id=owner_id)
 
     try:
         rds_client.delete_blue_green_deployment(
@@ -1049,7 +1113,7 @@ def cmd_destroy(args):
     # Blue/Green deployment
     if args.blue_green and args.bg_deployment_id:
         try:
-            delete_blue_green_deployment(rds_client, ec2_client, args.bg_deployment_id, args.region)
+            delete_blue_green_deployment(rds_client, ec2_client, args.bg_deployment_id, args.region, ip, args.cluster_id)
         except Exception as e:
             print(f"  WARNING: blue/green deployment cleanup failed: {e}")
 
