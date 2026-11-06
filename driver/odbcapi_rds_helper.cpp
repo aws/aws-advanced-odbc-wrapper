@@ -1150,19 +1150,28 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
+    bool well_formed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 
 #if UNICODE && !defined(_WIN32)
     if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
         dbc->conn_attr.clear();
         const std::string conn_str_utf8_w = Convert4ByteSqlWChar(InConnectionString, StringLength1);
-        ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
+        well_formed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
         if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
             dbc->env->use_4_bytes_user_app.store(true);
         }
     }
 #endif
+
+    // Reject the string rather than guess where a value ends, as psqlODBC does
+    if (!well_formed) {
+        const std::string invalid_message("Invalid connection string: a value enclosed in curly braces is not closed,"
+            " or is followed by characters other than ';'. Escape a literal '}' inside braces by doubling it.");
+        LOG(ERROR) << invalid_message;
+        dbc->err = std::make_unique<ErrInfo>(invalid_message.c_str(), ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+        return SQL_ERROR;
+    }
 
     // Load DSN information into map
     if (dbc->conn_attr.contains(KEY_DSN)) {

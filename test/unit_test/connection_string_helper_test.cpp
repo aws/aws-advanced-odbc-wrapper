@@ -54,12 +54,16 @@ TEST_F(ConnectionStringHelperTest, ParseConnectionStringQuotedValue) {
     );
     std::map<std::string, std::string> conn_map;
 
-    ConnectionStringHelper::ParseConnectionString(conn_str, conn_map);
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString(conn_str, conn_map));
 
-    EXPECT_EQ(3, conn_map.size());
+    // The three attributes and the marker of the values that were enclosed in braces
+    EXPECT_EQ(4, conn_map.size());
     EXPECT_EQ("AWS Advanced ODBC Wrapper", conn_map.at(KEY_DRIVER));
     EXPECT_EQ("pa;ss=wo{rd", conn_map.at(KEY_DB_PASSWORD));
     EXPECT_EQ("jane_doe", conn_map.at(KEY_DB_USERNAME));
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(conn_map, KEY_DRIVER));
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(conn_map, KEY_DB_PASSWORD));
+    EXPECT_FALSE(ConnectionStringHelper::IsLiteralKey(conn_map, KEY_DB_USERNAME));
 }
 
 TEST_F(ConnectionStringHelperTest, ParseConnectionStringEscapedClosingBrace) {
@@ -69,9 +73,9 @@ TEST_F(ConnectionStringHelperTest, ParseConnectionStringEscapedClosingBrace) {
     );
     std::map<std::string, std::string> conn_map;
 
-    ConnectionStringHelper::ParseConnectionString(conn_str, conn_map);
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString(conn_str, conn_map));
 
-    EXPECT_EQ(2, conn_map.size());
+    EXPECT_EQ(3, conn_map.size());
     EXPECT_EQ("pa}ss", conn_map.at(KEY_DB_PASSWORD));
     EXPECT_EQ("jane_doe", conn_map.at(KEY_DB_USERNAME));
 }
@@ -97,7 +101,8 @@ TEST_F(ConnectionStringHelperTest, ParseConnectionStringUnterminatedQuoteKeepsFo
     );
     std::map<std::string, std::string> conn_map;
 
-    ConnectionStringHelper::ParseConnectionString(conn_str, conn_map);
+    // Reported as malformed, still parsed so the following attributes are kept
+    EXPECT_FALSE(ConnectionStringHelper::ParseConnectionString(conn_str, conn_map));
 
     EXPECT_EQ(2, conn_map.size());
     EXPECT_EQ("{password", conn_map.at(KEY_DB_PASSWORD));
@@ -129,6 +134,10 @@ TEST_F(ConnectionStringHelperTest, ConnectionStringRoundTripQuotesSpecialValues)
     std::map<std::string, std::string> result_map;
     ConnectionStringHelper::ParseConnectionString(conn_str, result_map);
 
+    // The values that had to be enclosed in braces stay enclosed when the string is built again
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(result_map, KEY_DB_PASSWORD));
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(result_map, KEY_SERVER));
+    result_map.erase(KEY_LITERAL_KEYS);
     EXPECT_EQ(conn_map, result_map);
 }
 
@@ -141,7 +150,7 @@ TEST_F(ConnectionStringHelperTest, MinimumConnectionStringRoundTripQuotesSpecial
     const std::string conn_str = ConnectionStringHelper::BuildMinimumConnectionString(conn_map);
     ConnectionStringHelper::ParseConnectionString(conn_str, result_map);
 
-    EXPECT_EQ(1, result_map.size());
+    EXPECT_FALSE(result_map.contains(KEY_AUTH_TYPE));
     EXPECT_EQ("pa;ss", result_map.at(KEY_DB_PASSWORD));
 }
 
@@ -155,7 +164,7 @@ TEST_F(ConnectionStringHelperTest, GeneratedPasswordIsAlwaysQuotedForUnderlyingD
 
     EXPECT_NE(std::string::npos, conn_str.find(std::string(KEY_DB_PASSWORD) + "={" + token + "}"));
     // The marker is internal and must not reach the underlying driver
-    EXPECT_EQ(std::string::npos, conn_str.find(KEY_LITERAL_CREDENTIALS));
+    EXPECT_EQ(std::string::npos, conn_str.find(KEY_LITERAL_KEYS));
 
     std::map<std::string, std::string> result_map;
     ConnectionStringHelper::ParseConnectionString(conn_str, result_map);
@@ -183,7 +192,7 @@ TEST_F(ConnectionStringHelperTest, GeneratedPasswordMarkerSurvivesRoundTrip) {
         ConnectionStringHelper::BuildMinimumConnectionString(result_map));
     // The marker must not be returned to the application either
     EXPECT_EQ(std::string::npos,
-        ConnectionStringHelper::RemoveInternalWrapperKeys(full).find(KEY_LITERAL_CREDENTIALS));
+        ConnectionStringHelper::RemoveInternalWrapperKeys(full).find(KEY_LITERAL_KEYS));
 }
 
 TEST_F(ConnectionStringHelperTest, MaskConnectionStringQuotedValue) {
@@ -314,6 +323,12 @@ TEST_F(ConnectionStringHelperTest, GetDeprecatedKeysInUse) {
     conn_map.insert_or_assign(KEY_EXTRA_URL_ENCODE, VALUE_BOOL_FALSE);
     EXPECT_TRUE(ConnectionStringHelper::GetDeprecatedKeysInUse(conn_map).empty());
 
+    // Values other than 1 never enabled the option
+    for (const std::string value : {"true", "false", "no", ""}) {
+        conn_map.insert_or_assign(KEY_EXTRA_URL_ENCODE, value);
+        EXPECT_TRUE(ConnectionStringHelper::GetDeprecatedKeysInUse(conn_map).empty()) << value;
+    }
+
     conn_map.insert_or_assign(KEY_EXTRA_URL_ENCODE, VALUE_BOOL_TRUE);
     EXPECT_EQ(std::vector<std::string>{KEY_EXTRA_URL_ENCODE}, ConnectionStringHelper::GetDeprecatedKeysInUse(conn_map));
 }
@@ -351,4 +366,138 @@ TEST_F(ConnectionStringHelperTest, GetRealKeyName) {
     EXPECT_EQ(std::string(KEY_SERVER), ConnectionStringHelper::GetRealKeyName(ALIAS_KEY_SERVER_1));
     // Default, no aliases
     EXPECT_EQ(std::string(KEY_AUTH_TYPE), ConnectionStringHelper::GetRealKeyName(KEY_AUTH_TYPE));
+}
+
+// A password the application encloses in braces reaches the underlying driver still enclosed. psqlODBC takes
+// a braced PWD literally and URL-decodes an unbraced one ('+' becomes a space, '%41' becomes 'A').
+TEST_F(ConnectionStringHelperTest, UserQuotedPasswordStaysQuotedForUnderlyingDriver) {
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD={Odbc+Pass%41word}", conn_map);
+
+    EXPECT_EQ("Odbc+Pass%41word", conn_map.at(KEY_DB_PASSWORD));
+    EXPECT_EQ(std::string(KEY_DB_PASSWORD) + "={Odbc+Pass%41word}",
+        ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// A password the application does not enclose in braces reaches the underlying driver unenclosed,
+// so psqlODBC decodes a password the application URL-encoded for it.
+TEST_F(ConnectionStringHelperTest, UserUnquotedPasswordStaysUnquotedForUnderlyingDriver) {
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD=Odbc%2BPass%2541word", conn_map);
+
+    EXPECT_EQ(std::string(KEY_DB_PASSWORD) + "=Odbc%2BPass%2541word",
+        ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// Masking a long braced value, such as an IAM token carrying a session token, does not throw. MSVC STL
+// before 14.51 throws regex_error(error_stack) when a regex repeats a group once per character.
+TEST_F(ConnectionStringHelperTest, MaskConnectionStringLongQuotedValue) {
+    for (const size_t length : {size_t{1452}, size_t{4096}, size_t{16384}}) {
+        const std::string conn_str(
+            std::string(KEY_DB_PASSWORD) + "={" + std::string(length, 'a') + "};" +
+            std::string(KEY_DB_USERNAME) + "=jane_doe"
+        );
+
+        std::string masked_str;
+        EXPECT_NO_THROW(masked_str = ConnectionStringHelper::MaskSensitiveInformation(conn_str)) << "length " << length;
+        EXPECT_EQ(std::string(KEY_DB_PASSWORD) + "=[REDACTED];" + std::string(KEY_DB_USERNAME) + "=jane_doe", masked_str)
+            << "length " << length;
+    }
+}
+
+// Values the application writes reach the underlying driver exactly as written, braces included,
+// so the driver applies its own rules. psqlODBC URL-decodes an unbraced PWD, ConnSettings and pqopt,
+// MySQL Connector/ODBC 8.0.30+ unescapes "}}" even outside braces.
+TEST_F(ConnectionStringHelperTest, UserValuesPassThroughAsWritten) {
+    const std::string conn_str(
+        "CONNSETTINGS={SET application_name TO 'a+b'};"
+        "PWD={a}}}}b+c};"
+        "SSLMODE=require;"
+        "UID=a}}b%41"
+    );
+    std::map<std::string, std::string> conn_map;
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString(conn_str, conn_map));
+
+    EXPECT_EQ("a}}b+c", conn_map.at(KEY_DB_PASSWORD));
+    EXPECT_EQ(conn_str, ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// A later connection string decides again whether a value is braced, e.g. on a reused connection handle
+TEST_F(ConnectionStringHelperTest, LaterUnquotedValueIsNotQuoted) {
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD={a+b}", conn_map);
+    ConnectionStringHelper::ParseConnectionString("PWD=c%2Bd", conn_map);
+
+    EXPECT_EQ("PWD=c%2Bd", ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// A SQLConnect password set after a braced or unbraced connection string value is always braced
+TEST_F(ConnectionStringHelperTest, GeneratedPasswordReplacesUnquotedPassword) {
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD=a%2Bb", conn_map);
+    ConnectionStringHelper::SetGeneratedPassword(conn_map, "x+y}z");
+
+    EXPECT_EQ("PWD={x+y}}z}", ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// An explicitly empty value is passed on
+TEST_F(ConnectionStringHelperTest, QuotedEmptyValueIsKept) {
+    std::map<std::string, std::string> conn_map;
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString("PWD={};UID=jane_doe", conn_map));
+
+    EXPECT_EQ("PWD={};UID=jane_doe", ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+TEST_F(ConnectionStringHelperTest, ParseConnectionStringReportsMalformedQuotedValue) {
+    std::map<std::string, std::string> conn_map;
+    // Text after the closing brace
+    EXPECT_FALSE(ConnectionStringHelper::ParseConnectionString("PWD={abc}def;UID=jane_doe", conn_map));
+    // Literal closing brace not doubled
+    EXPECT_FALSE(ConnectionStringHelper::ParseConnectionString("PWD={a}b};UID=jane_doe", conn_map));
+    // Not closed
+    EXPECT_FALSE(ConnectionStringHelper::ParseConnectionString("UID=jane_doe;PWD={abc", conn_map));
+    // Whitespace after the closing brace is accepted
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString("PWD={abc} ;UID=jane_doe", conn_map));
+    EXPECT_EQ("abc", conn_map.at(KEY_DB_PASSWORD));
+}
+
+// Monitoring threads rebuild a connection string from the attributes and parse it again
+TEST_F(ConnectionStringHelperTest, QuotedValuesSurviveFullConnectionStringRoundTrip) {
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD={a+b};SERVER=host;UID=jane_doe", conn_map);
+
+    const std::string full = ConnectionStringHelper::BuildFullConnectionString(conn_map);
+    std::map<std::string, std::string> result_map;
+    EXPECT_TRUE(ConnectionStringHelper::ParseConnectionString(full, result_map));
+
+    EXPECT_EQ(conn_map, result_map);
+    EXPECT_EQ("PWD={a+b};SERVER=host;UID=jane_doe", ConnectionStringHelper::BuildMinimumConnectionString(result_map));
+    // The output connection string returned to the application keeps the braces, not the marker
+    EXPECT_EQ("PWD={a+b};SERVER=host;UID=jane_doe", ConnectionStringHelper::RemoveInternalWrapperKeys(full));
+}
+
+TEST_F(ConnectionStringHelperTest, BaseConnectionStringKeepsBraces) {
+    std::map<std::string, std::string> base_conn_map;
+    ConnectionStringHelper::ParseConnectionString("PWD={a+b};UID=base_user;SSLMODE=require", base_conn_map);
+    std::map<std::string, std::string> conn_map;
+    ConnectionStringHelper::ParseConnectionString("UID=jane_doe", conn_map);
+
+    ConnectionStringHelper::MergeBaseConnectionString(base_conn_map, conn_map);
+
+    EXPECT_EQ("PWD={a+b};SSLMODE=require;UID=jane_doe", ConnectionStringHelper::BuildMinimumConnectionString(conn_map));
+}
+
+// Same MSVC STL limit as MaskConnectionStringLongQuotedValue, the pattern is shared
+TEST_F(ConnectionStringHelperTest, RemoveInternalWrapperKeysLongQuotedValue) {
+    const std::string conn_str(std::string(KEY_RDS_TEST_CONN) + "={" + std::string(4096, 'a') + "};UID=jane_doe");
+
+    std::string result;
+    EXPECT_NO_THROW(result = ConnectionStringHelper::RemoveInternalWrapperKeys(conn_str));
+    EXPECT_EQ("UID=jane_doe", result);
+}
+
+TEST_F(ConnectionStringHelperTest, MaskConnectionStringSeveralQuotedValues) {
+    const std::string conn_str("IDP_PASSWORD={c;d}}};PWD={a}}b};UID=jane_doe");
+
+    EXPECT_EQ("IDP_PASSWORD=[REDACTED];PWD=[REDACTED];UID=jane_doe", ConnectionStringHelper::MaskSensitiveInformation(conn_str));
 }

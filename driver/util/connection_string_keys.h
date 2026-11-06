@@ -65,8 +65,10 @@
 // so that the underlying driver passes them through literally
 #define KEY_EXTRA_URL_ENCODE "EXTRA_URL_ENCODE"
 
-// Internal marker for enclosing values in curly braces to pass as literals
-#define KEY_LITERAL_CREDENTIALS "7C1D9F0E-5A3B-4D2C-8E71-B4F6A2C3D9E5"
+// Internal marker listing, comma separated, the keys whose values are always
+// enclosed in curly braces when a connection string is built: values the application
+// enclosed in braces, and credentials the wrapper supplies to the underlying driver
+#define KEY_LITERAL_KEYS "7C1D9F0E-5A3B-4D2C-8E71-B4F6A2C3D9E5"
 
 /* IAM */
 #define KEY_IAM_HOST "IAM_HOST"

@@ -20,6 +20,7 @@
 
 #include "../../driver/plugin/iam/iam_auth_plugin.h"
 #include "../../driver/util/aws_sdk_helper.h"
+#include "../../driver/util/connection_string_helper.h"
 #include "../../driver/util/connection_string_keys.h"
 #include "../../driver/driver.h"
 
@@ -106,6 +107,8 @@ TEST_F(IamAuthPluginTest, Connect_Success) {
     SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_SUCCESS, ret);
     EXPECT_EQ(token_info.first, dbc_->conn_attr.at(KEY_DB_PASSWORD));
+    // The token is enclosed in braces so the underlying driver does not URL-decode it
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(dbc_->conn_attr, KEY_DB_PASSWORD));
 }
 
 TEST_F(IamAuthPluginTest, Connect_Success_Empty_Region) {

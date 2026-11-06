@@ -33,6 +33,7 @@
 #include <commdlg.h>
 
 #include "resource.h"
+#include "../util/connection_string_helper.h"
 #include "../util/connection_string_keys.h"
 #include "../util/odbc_dsn_helper.h"
 #include "../odbcapi_rds_helper.h"
@@ -69,7 +70,6 @@ enum RwSplitModeSelection {
     RW_SPLIT_SRW
 };
 
-static const std::regex SPECIAL_CHAR = std::regex(R"([\\\[\]\{\},;?\*=!@]+)");
 
 #if defined(_WIN32)
 
@@ -102,7 +102,6 @@ const std::map<std::string, std::pair<int, ControlType>> AUTH_KEYS = {
 };
 
 const std::map<std::string, std::pair<int, ControlType>> IAM_KEYS = {
-    {KEY_EXTRA_URL_ENCODE, {IDC_URL_ENCODE, CHECK}},
     {KEY_IAM_HOST, {IDC_IAM_HOST, EDIT_TEXT}},
     {KEY_IAM_PORT, {IDC_IAM_PORT, EDIT_TEXT}}
 };
@@ -161,7 +160,6 @@ const std::map<int, int> AUTH_CONTROL_LABELS = {
     {IDC_EXPIRE, IDC_EXPIRE_LABEL},
     {IDC_IAM_HOST, IDC_IAM_HOST_LABEL},
     {IDC_IAM_PORT, IDC_IAM_PORT_LABEL},
-    {IDC_URL_ENCODE, IDC_URL_ENCODE_LABEL},
     {IDC_SECRET, IDC_SECRET_ID_LABEL},
     {IDC_SECRET_REGION, IDC_SECRET_REGION_LABEL},
     {IDC_SECRET_END, IDC_SECRET_END_LABEL},
@@ -529,15 +527,8 @@ std::string AddKeyToConnectionString(std::string conn_str, std::string key, std:
             return conn_str;
         }
 
-        conn_str += key + "=";
-
-        // Some symbols must be enclosed in curly braces to form the out connection string.
-        std::smatch matches;
-        if (!test_conn && !value.starts_with("{") && !value.ends_with("}") && std::regex_search(value, matches, SPECIAL_CHAR) && matches.length() > 0) {
-            conn_str += "{" + value + "};";
-        } else {
-            conn_str += value + ";";
-        }
+        // Enclosed in braces when the value contains ';' or starts with '{', the same as a value read from the DSN
+        conn_str += key + "=" + ConnectionStringHelper::QuoteValue(value) + ";";
     }
 
     return conn_str;
@@ -772,6 +763,11 @@ bool SaveDsn()
             }
             for (const auto& keys : SRW_SPLITTING_KEYS) {
                 SaveKey(dsn.c_str(), keys.first.c_str(), GetControlValue(rw_splitting_tab, keys.second).c_str());
+            }
+
+            // Deprecated attributes are not offered by the dialog, remove those saved by an earlier version
+            for (const std::string& key : DEPRECATED_KEY_SET) {
+                SQLWritePrivateProfileString(RDS_TSTR(dsn).c_str(), RDS_TSTR(key).c_str(), nullptr, _T(ODBC_INI));
             }
         } catch (const std::runtime_error e) {
             MessageBox(main_win, _T("Failed to save DSN"), _T("Save DSN"), MB_OK);
@@ -1229,7 +1225,7 @@ namespace {
             case AWS_SSO_MODE:
                 return SSO_KEYS.contains(key)
                     || key == KEY_REGION || key == KEY_TOKEN_EXPIRATION
-                    || key == KEY_IAM_HOST || key == KEY_IAM_PORT || key == KEY_EXTRA_URL_ENCODE;
+                    || key == KEY_IAM_HOST || key == KEY_IAM_PORT;
             default:
                 return true;
         }

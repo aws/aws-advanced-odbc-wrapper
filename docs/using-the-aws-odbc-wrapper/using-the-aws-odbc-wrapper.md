@@ -71,15 +71,25 @@ Connection string attributes are separated by `;`, so a value that contains a se
 DRIVER={AWS Advanced ODBC Wrapper Unicode};SERVER=db.cluster-xyz.us-east-2.rds.amazonaws.com;UID=jane_doe;PWD={pa;ss=word}
 ```
 
-Everything between the braces is taken literally, including `;` and `=`. To include a literal closing brace in a braced value, double it (`}}`):
+Inside a braced value, a literal closing brace is written twice: `PWD={pa}}ssword}` is the password `pa}ssword`. A value that is not enclosed in braces ends at the next `;`. A connection string with an unclosed brace, or with text between a closing brace and the next `;`, is rejected.
 
-```
-PWD={pa}}ssword}
-```
+The wrapper passes each value to the underlying driver as it is written, braces included, so write a value the way the underlying driver expects it. The same applies to the value of `BASE_CONN`, which is a connection string:
 
-A value that is not enclosed in braces ends at the next `;`. A value that starts with `{` is always treated as a braced value, so such a value must be enclosed in braces as well: `{{literal-braces}}}`.
+| The password contains                  | psqlODBC                                                                  | MySQL Connector/ODBC                                        |
+|----------------------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------|
+| `+`, or `%` followed by two hex digits | Enclose it in braces (`PWD={a+b}`), otherwise psqlODBC URL-decodes it    | No change needed                                            |
+| `;`, or starts with `{`                | Enclose it in braces, writing each `}` twice                             | Enclose it in braces, writing each `}` twice                |
+| `}}`                                   | No change needed                                                          | 8.0.30 and later: enclose it in braces, writing each `}` twice |
 
-The output connection string returned by `SQLDriverConnect` uses the same rules, and encloses a value in braces only when the value requires it.
+The output connection string returned by `SQLDriverConnect` keeps the braces the application wrote, and encloses other values in braces when they contain `;` or start with `{`.
+
+#### Values Stored in a DSN
+
+A value stored in a DSN is passed to the underlying driver as it is stored, enclosed in braces only when it contains `;` or starts with `{`, so curly braces stored in a DSN are part of the value. psqlODBC URL-decodes such a password like a password that is not enclosed in braces in a connection string, so with psqlODBC write `+` as `%2B` and `%` as `%25` in a stored password.
+
+#### Credentials Supplied by the Wrapper
+
+Authentication tokens (IAM, ADFS, Okta and AWS IAM Identity Center), passwords retrieved from Secrets Manager and the password passed to `SQLConnect` are enclosed in curly braces, so the underlying driver uses them as they are. MySQL Connector/ODBC 8.0.29 and earlier end a braced value at the first `}`, so a Secrets Manager or `SQLConnect` password containing `}` requires MySQL Connector/ODBC 8.0.30 or later.
 
 ## Sample DSN Configuration
 
