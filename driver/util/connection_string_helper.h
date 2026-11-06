@@ -37,7 +37,7 @@ static std::unordered_set<std::string> const INTERNAL_WRAPPER_KEY_SET = {
     KEY_RDS_TEST_CONN,
     KEY_MONITORING_CONN_UUID,
     KEY_SRW_SKIP,
-    KEY_LITERAL_CREDENTIALS,
+    KEY_LITERAL_KEYS,
 };
 
 static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
@@ -115,7 +115,7 @@ static std::unordered_set<std::string> const AWS_ODBC_KEY_SET = {
     KEY_SRW_CONN_INTERVAL_MS,
     KEY_SRW_VERIFY_INITIAL_CONN_TYPE,
     KEY_SRW_SKIP,
-    KEY_LITERAL_CREDENTIALS,
+    KEY_LITERAL_KEYS,
 };
 
 static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {
@@ -131,8 +131,15 @@ static std::unordered_map<std::string, std::string> const ALIAS_TO_REAL_MAP = {
 };
 
 namespace ConnectionStringHelper {
-    void ParseConnectionString(const std::string &conn_str, std::map<std::string, std::string> &conn_map);
+    // Returns false if a value opened with a curly brace is not closed, or is followed by
+    // anything other than the attribute separator. Such a value is still parsed as a plain value.
+    bool ParseConnectionString(const std::string &conn_str, std::map<std::string, std::string> &conn_map);
     void SetGeneratedPassword(std::map<std::string, std::string> &conn_map, const std::string &password);
+    // Copies the attributes parsed from BASE_CONN that are not already set, keeping their braces.
+    void MergeBaseConnectionString(const std::map<std::string, std::string> &base_conn_map, std::map<std::string, std::string> &conn_map);
+    bool IsLiteralKey(const std::map<std::string, std::string> &conn_map, const std::string &key);
+    void SetLiteralKey(std::map<std::string, std::string> &conn_map, const std::string &key, bool literal);
+    std::string QuoteValue(const std::string &value, bool force = false);
     std::string BuildMinimumConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string BuildFullConnectionString(const std::map<std::string, std::string> &conn_map);
     std::string MaskSensitiveInformation(const std::string &conn_str);

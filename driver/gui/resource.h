@@ -68,7 +68,6 @@
 #define IDC_SECRET_REGION               1045
 #define IDC_FILE_SELECT                 1046
 #define IDC_SAVE                        1047
-#define IDC_URL_ENCODE                  1048
 #define IDC_ENABLE_LIMITLESS            1053
 #define IDC_COMBO1                      1054
 #define IDC_LIMITLESS_MODE              1054
@@ -146,7 +145,6 @@
 #define IDC_EXPIRE_LABEL                1127
 #define IDC_IAM_HOST_LABEL              1128
 #define IDC_IAM_PORT_LABEL              1129
-#define IDC_URL_ENCODE_LABEL            1130
 #define IDC_IDP_UID_LABEL               1131
 #define IDC_IDP_PWD_LABEL               1132
 #define IDC_IDP_END_LABEL               1133
