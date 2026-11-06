@@ -21,6 +21,7 @@
 
 #include "../../driver/plugin/secrets_manager/secrets_manager_plugin.h"
 #include "../../driver/util/aws_sdk_helper.h"
+#include "../../driver/util/connection_string_helper.h"
 #include "../../driver/util/connection_string_keys.h"
 
 #include "../../driver/util/windows_headers.h"
@@ -249,6 +250,8 @@ TEST_F(SecretsManagerPluginTest, UseCustomSecretUsernameKey) {
     EXPECT_EQ(1, plugin->GetSecretsCacheSize());
     EXPECT_EQ("foo", dbc_->conn_attr[KEY_DB_USERNAME]);
     EXPECT_EQ("bar", dbc_->conn_attr[KEY_DB_PASSWORD]);
+    // The secret is enclosed in braces so the underlying driver does not URL-decode it
+    EXPECT_TRUE(ConnectionStringHelper::IsLiteralKey(dbc_->conn_attr, KEY_DB_PASSWORD));
     plugin->ClearSecretsCache();
 
     delete plugin;

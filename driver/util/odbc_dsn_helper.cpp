@@ -78,16 +78,10 @@ void OdbcDsnHelper::LoadAll(const std::string &dsn_key, std::map<std::string, st
         if (!val.empty()) {
             if (key == KEY_BASE_CONN) {
                 std::map<std::string, std::string> base_conn_map;
-                ConnectionStringHelper::ParseConnectionString(val, base_conn_map);
-                for (const auto& pair : base_conn_map) {
-                    std::string base_conn_val = pair.second;
-                    if (base_conn_val.back() == ';') {
-                        base_conn_val.pop_back();
-                    }
-                    if (!base_conn_val.empty()) {
-                        conn_map.try_emplace(pair.first, base_conn_val);
-                    }
+                if (!ConnectionStringHelper::ParseConnectionString(val, base_conn_map)) {
+                    LOG(WARNING) << "BASE_CONN of DSN " << dsn_key << " has a value with an unbalanced curly brace";
                 }
+                ConnectionStringHelper::MergeBaseConnectionString(base_conn_map, conn_map);
             }
             else {
                 // Insert if absent, connection string keys take precedence
