@@ -152,7 +152,9 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    runs-on: ubuntu-latest
+    # Keep pinned: the released .so links the build OS's glibc, libstdc++ and ICU (libicuuc.so.NN),
+    # so this image decides which distros can load the driver. Don't switch to ubuntu-latest.
+    runs-on: ubuntu-24.04
     outputs:
       linux_x64_ansi: ${{ steps.linux-x64-ansi.outputs.hash }}
       linux_x64_unicode: ${{ steps.linux-x64-unicode.outputs.hash }}
@@ -216,7 +218,7 @@ jobs:
 
   draft-release:
     name: Create Draft Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [
       build-linux,
       build-macos,
