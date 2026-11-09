@@ -22,7 +22,12 @@ SQLRETURN RDS_ProcessLibRes(
     SQLHANDLE           InputHandle,
     const RdsLibResult& LibResult);
 
+// For the app or Driver Manager. Counted by CoreService
 SQLRETURN RDS_AllocEnv(
+    SQLHENV *      EnvironmentHandlePointer);
+
+// For the driver's own ENVs, e.g. a monitor's. Not counted toward CoreService. Freed with RDS_FreeEnv
+SQLRETURN RDS_AllocInternalEnv(
     SQLHENV *      EnvironmentHandlePointer);
 
 SQLRETURN RDS_AllocDbc(
