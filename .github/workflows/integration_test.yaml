@@ -142,7 +142,7 @@ jobs:
 
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
@@ -241,7 +241,7 @@ jobs:
 
   build-linux-mysql:
     name: Linux Ubuntu - Build MySQL Connector ODBC
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
@@ -1041,7 +1041,7 @@ jobs:
   linux-integration-tests:
     name: Linux Ubuntu - Integration Tests
     needs: [build-linux-psqlodbc, build-linux-mysql]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -1163,7 +1163,7 @@ jobs:
         if: (matrix.rds_engine == 'aurora-mysql')
         shell: bash
         run: |
-          # Pinned official .deb (ubuntu-latest == noble, amd64); avoids the unpinned Ubuntu 'odbc-mariadb'.
+          # Pinned official .deb (runner is ubuntu-24.04 == noble, amd64); avoids the unpinned Ubuntu 'odbc-mariadb'.
           DEB="mariadb-connector-odbc_${MARIADB_ODBC_VERSION}-1+maria~noble_amd64.deb"
           URL="https://dlm.mariadb.com/Connectors/odbc/connector-odbc-${MARIADB_ODBC_VERSION}/${DEB}"
           curl --fail --location --retry 3 --retry-delay 5 "$URL" --output "$RUNNER_TEMP/$DEB"
@@ -1765,7 +1765,7 @@ jobs:
   linux-limitless-integration-tests:
     name: Linux Ubuntu - Limitless Integration Tests
     needs: [build-linux-psqlodbc]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       LIMITLESS_CLUSTER_ID: ODBC-Limitless-Linux-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
       LIMITLESS_SHARD_ID: ODBC-Limitless-Linux-shard-${{ github.run_id }}${{ github.run_number }}${{ github.run_attempt }}
@@ -2329,7 +2329,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Linux Ubuntu - Blue/Green Integration Tests
     needs: [build-linux-psqlodbc]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

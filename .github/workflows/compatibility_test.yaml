@@ -136,7 +136,7 @@ jobs:
 
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
@@ -227,7 +227,7 @@ jobs:
 
   build-linux-mysql:
     name: Linux Ubuntu - Build MySQL Connector ODBC
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Retrieve mysql-connector Cache
         id: cache-mysql-connector
@@ -625,7 +625,7 @@ jobs:
   test-linux-compat:
     name: Linux Ubuntu - Compatibility Test
     needs: [build-linux-psqlodbc, build-linux-mysql]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -1137,7 +1137,7 @@ jobs:
   test-linux-compat-unicode:
     name: Linux Ubuntu - Compatibility Test (Unicode)
     needs: [build-linux-psqlodbc, build-linux-mysql]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout aws-advanced-odbc-wrapper
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
