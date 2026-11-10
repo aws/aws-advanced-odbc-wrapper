@@ -68,8 +68,12 @@ class PluginService {
 
     virtual std::vector<HostInfo> GetHosts();
     virtual void SetHosts(const std::vector<HostInfo>& hosts);
+    // Host filters are keyed by the connection's initial host, not the cluster ID. Connections to
+    // one cluster through different custom endpoints share the cluster ID and topology but each
+    // sees only the hosts of its own endpoint.
     virtual std::vector<HostInfo> GetFilteredHosts();
     virtual void SetHostFilter(const HostFilter& filter);
+    static void SetEndpointHostFilter(const std::string& endpoint, const HostFilter& filter);
 
     virtual std::shared_ptr<BasePlugin> GetPluginChain();
     virtual void SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain);

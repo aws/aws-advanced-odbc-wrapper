@@ -45,7 +45,8 @@ CustomEndpointPlugin::CustomEndpointPlugin(
     this->plugin_name_ = "CUSTOM_ENDPOINT";
     this->plugin_service_ = plugin_service ? plugin_service : dbc->plugin_service;
 
-    this->cluster_id_ = dbc->conn_attr.at(KEY_CLUSTER_ID);
+    // Monitors are keyed by the custom endpoint, not the cluster ID. Several custom endpoints
+    // of one cluster share the cluster ID but each has its own members.
     this->host_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_SERVER, "");
     this->region_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_CUSTOM_ENDPOINT_REGION, RdsUtils::GetRdsRegion(this->host_));
     this->profile_ = MapUtils::GetStringValue(dbc->conn_attr, KEY_AWS_PROFILE, "");
@@ -77,14 +78,14 @@ CustomEndpointPlugin::CustomEndpointPlugin(
 CustomEndpointPlugin::~CustomEndpointPlugin()
 {
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->host_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         if (pair.first == 1) {
-            endpoint_monitors_.erase(this->cluster_id_);
-            LOG(INFO) << "Shut down Endpoint Monitor for: " <<  this->cluster_id_;
+            endpoint_monitors_.erase(this->host_);
+            LOG(INFO) << "Shut down Endpoint Monitor for: " <<  this->host_;
         } else {
             pair.first--;
-            LOG(INFO) << "Decremented Endpoint Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
+            LOG(INFO) << "Decremented Endpoint Monitor usage count for: " << this->host_ << ", to: " << pair.first;
         }
     }
 }
@@ -145,14 +146,13 @@ SQLRETURN CustomEndpointPlugin::Execute(
 std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor() {
     std::shared_ptr<CustomEndpointMonitor> monitor;
     const std::lock_guard lock_guard(endpoint_monitors_mutex_);
-    if (const auto itr = endpoint_monitors_.find(this->cluster_id_); itr != endpoint_monitors_.end()) {
+    if (const auto itr = endpoint_monitors_.find(this->host_); itr != endpoint_monitors_.end()) {
         std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>>& pair = itr->second;
         pair.first++;
         monitor = pair.second;
-        LOG(INFO) << "Incremented Endpoint Monitor usage count for: " << this->cluster_id_ << ", to: " << pair.first;
+        LOG(INFO) << "Incremented Endpoint Monitor usage count for: " << this->host_ << ", to: " << pair.first;
     } else {
         monitor = std::make_shared<CustomEndpointMonitor>(
-            this->plugin_service_,
             this->host_,
             this->region_,
             this->profile_,
@@ -161,8 +161,8 @@ std::shared_ptr<CustomEndpointMonitor> CustomEndpointPlugin::InitEndpointMonitor
             this->exponential_backoff_rate_
         );
         const std::pair<unsigned int, std::shared_ptr<CustomEndpointMonitor>> pair = {1, monitor};
-        endpoint_monitors_.insert_or_assign(this->cluster_id_, pair);
-        LOG(INFO) << "Created Endpoint Monitor for: " << this->cluster_id_;
+        endpoint_monitors_.insert_or_assign(this->host_, pair);
+        LOG(INFO) << "Created Endpoint Monitor for: " << this->host_;
     }
     return monitor;
 }
@@ -173,7 +173,7 @@ bool CustomEndpointPlugin::WaitForInfo() {
         return true;
     }
 
-    LOG(INFO) << "Custom endpoint info for " << this->cluster_id_ << " not found. Waiting for " << this->wait_duration_ms_.count() << "ms for monitor to fetch info.";
+    LOG(INFO) << "Custom endpoint info for " << this->host_ << " not found. Waiting for " << this->wait_duration_ms_.count() << "ms for monitor to fetch info.";
 
     const auto wait_for_end = std::chrono::steady_clock::now() + this->wait_duration_ms_;
 
@@ -183,7 +183,7 @@ bool CustomEndpointPlugin::WaitForInfo() {
     }
 
     if (!has_info) {
-        LOG(WARNING) << "Custom endpoint timed out after " << this->wait_duration_ms_.count() << "ms while waiting for custom endpoint info for host " << this->cluster_id_;
+        LOG(WARNING) << "Custom endpoint timed out after " << this->wait_duration_ms_.count() << "ms while waiting for custom endpoint info for host " << this->host_;
     }
     return has_info;
 }

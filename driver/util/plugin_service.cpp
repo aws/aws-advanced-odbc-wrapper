@@ -192,7 +192,7 @@ void PluginService::SetHosts(const std::vector<HostInfo>& hosts) {
 
 std::vector<HostInfo> PluginService::GetFilteredHosts() {
     std::vector<HostInfo> hosts = topology_map_->Get(this->cluster_id_).value_or(std::vector<HostInfo>{});
-    HostFilter host_filter = host_filter_map_->Get(this->cluster_id_).value_or(HostFilter{});
+    HostFilter host_filter = host_filter_map_->Get(this->initial_host_.GetHost()).value_or(HostFilter{});
 
     if (host_filter.allowed_host_ids.empty() && host_filter.blocked_host_ids.empty()) {
         return hosts;
@@ -216,7 +216,11 @@ std::vector<HostInfo> PluginService::GetFilteredHosts() {
 }
 
 void PluginService::SetHostFilter(const HostFilter& filter) {
-    host_filter_map_->Put(this->cluster_id_, filter);
+    SetEndpointHostFilter(this->initial_host_.GetHost(), filter);
+}
+
+void PluginService::SetEndpointHostFilter(const std::string& endpoint, const HostFilter& filter) {
+    host_filter_map_->Put(endpoint, filter);
 }
 
 std::shared_ptr<BasePlugin> PluginService::GetPluginChain() {
@@ -286,18 +290,15 @@ std::shared_ptr<HostSelector> PluginService::InitHostSelector(const std::map<std
 }
 
 std::string PluginService::InitClusterId(std::map<std::string, std::string>& conn_info) {
-    std::string generated_id;
-    if (conn_info.contains(KEY_CLUSTER_ID)) {
-        generated_id = conn_info.at(KEY_CLUSTER_ID);
-    } else {
-        generated_id = RdsUtils::GetRdsClusterId(conn_info.contains(KEY_SERVER) ? conn_info.at(KEY_SERVER) : "");
-        if (generated_id.empty()) {
-            generated_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
-        }
-        LOG(INFO) << "ClusterId generated and set to: " << generated_id;
-        conn_info.insert_or_assign(KEY_CLUSTER_ID, generated_id);
+    // The cluster ID is not derived from the host. A host can be an IP address, a custom domain,
+    // a custom endpoint or a proxy, so it cannot reliably identify the cluster behind it.
+    // Applications connecting to more than one cluster must set a distinct CLUSTER_ID for each.
+    if (const auto itr = conn_info.find(KEY_CLUSTER_ID); itr != conn_info.end() && !itr->second.empty()) {
+        return itr->second;
     }
-    return generated_id;
+    LOG(INFO) << KEY_CLUSTER_ID << " not set, using the default cluster ID: " << DEFAULT_CLUSTER_ID;
+    conn_info.insert_or_assign(KEY_CLUSTER_ID, DEFAULT_CLUSTER_ID);
+    return DEFAULT_CLUSTER_ID;
 }
 
 std::shared_ptr<Dialect> PluginService::InitDialect(const std::map<std::string, std::string>& conn_info) {
