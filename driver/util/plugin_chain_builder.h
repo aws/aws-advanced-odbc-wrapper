@@ -15,18 +15,17 @@
 #ifndef PLUGIN_CHAIN_BUILDER_H_
 #define PLUGIN_CHAIN_BUILDER_H_
 
-#include "auth_provider.h"
-
-#include "plugin_service.h"
-
-#include "../plugin/base_plugin.h"
-
 #include <memory>
 
+class BasePlugin;
 struct DBC;
 
+// Used by PluginManager. The plugins read the DBC's PluginService while being constructed, so it must already be set
 namespace PluginChainBuilder {
-    std::shared_ptr<BasePlugin> MonitoringBuild(DBC* dbc, std::shared_ptr<PluginService> plugin_service);
+    // The plugins enabled in the connection attributes. Throws if the configuration is invalid
+    std::shared_ptr<BasePlugin> Build(DBC* dbc);
+    // The default plugin plus the auth plugin, for the connections monitors open
+    std::shared_ptr<BasePlugin> MonitoringBuild(DBC* dbc);
 }  // namespace PluginChainBuilder
 
 #endif // PLUGIN_CHAIN_BUILDER_H_

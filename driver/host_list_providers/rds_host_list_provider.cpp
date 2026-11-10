@@ -19,16 +19,16 @@
 #include "../util/map_utils.h"
 #include "../util/rds_utils.h"
 
-RdsHostListProvider::RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service) :
-    RdsHostListProvider(topology_util, plugin_service, plugin_service->GetOriginalConnAttr(), plugin_service->GetClusterId()) {}
+RdsHostListProvider::RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<FullServiceContainer>& service_container) :
+    RdsHostListProvider(topology_util, service_container, service_container->GetPluginService()->GetOriginalConnAttr(), service_container->GetPluginService()->GetClusterId()) {}
 
 RdsHostListProvider::RdsHostListProvider(
     const std::shared_ptr<TopologyUtil>& topology_util,
-    const std::shared_ptr<PluginService>& plugin_service,
+    const std::shared_ptr<FullServiceContainer>& service_container,
     std::map<std::string, std::string> conn_attr,
     std::string cluster_id)
     : topology_util_{ topology_util },
-      plugin_service_{ plugin_service },
+      service_container_{ service_container },
       conn_attr_{ std::move(conn_attr) },
     HostListProvider(std::move(cluster_id))
 {
@@ -36,10 +36,10 @@ RdsHostListProvider::RdsHostListProvider(
         MapUtils::GetStringValue(conn_attr_, KEY_SERVER, ""),
         MapUtils::GetIntValue(conn_attr_, KEY_PORT, HostInfo::NO_PORT)
     );
-    this->template_host_info_ = plugin_service->GetTemplateHostInfo();
+    this->template_host_info_ = service_container->GetPluginService()->GetTemplateHostInfo();
     this->conn_attr_.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
     this->monitor_ = GetOrCreateMonitor();
-    this->monitor_->UpdateDialect(this->topology_util_, this->plugin_service_->GetDialect());
+    this->monitor_->UpdateDialect(this->topology_util_, this->service_container_->GetPluginService()->GetDialect());
 }
 
 RdsHostListProvider::~RdsHostListProvider() {
@@ -57,7 +57,7 @@ RdsHostListProvider::~RdsHostListProvider() {
 }
 
 void RdsHostListProvider::UpdateDialect() {
-    monitor_->UpdateDialect(this->topology_util_, this->plugin_service_->GetDialect());
+    monitor_->UpdateDialect(this->topology_util_, this->service_container_->GetPluginService()->GetDialect());
 }
 
 void RdsHostListProvider::UpdateDialect(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<Dialect>& dialect) {
@@ -70,7 +70,7 @@ std::vector<HostInfo> RdsHostListProvider::GetCurrentTopology(SQLHDBC hdbc, cons
 }
 
 std::vector<HostInfo> RdsHostListProvider::Refresh() {
-    std::vector<HostInfo> hosts = this->plugin_service_->GetHosts();
+    std::vector<HostInfo> hosts = this->service_container_->GetPluginService()->GetHosts();
     if (hosts.empty()) {
         hosts = this->ForceRefresh(false, DEFAULT_TOPOLOGY_WAIT_MS);
     }
@@ -112,10 +112,10 @@ std::shared_ptr<ClusterTopologyMonitor> RdsHostListProvider::GetOrCreateMonitor(
         LOG(INFO) << "Incremented Cluster Topology Monitor count for: " << this->cluster_id_ << ", to: " << pair.first;
     } else {
         monitor = std::make_shared<ClusterTopologyMonitor>(
-            this->plugin_service_, this->topology_util_, this->conn_attr_, this->cluster_id_, this->initial_host_info_, this->template_host_info_
+            this->service_container_, this->topology_util_, this->conn_attr_, this->cluster_id_, this->initial_host_info_, this->template_host_info_
         );
         const std::pair pair = {1, monitor};
-        if (!this->plugin_service_->GetOriginalConnAttr().contains(KEY_RDS_TEST_CONN)) {
+        if (!this->service_container_->GetPluginService()->GetOriginalConnAttr().contains(KEY_RDS_TEST_CONN)) {
             monitor->StartMonitor();
         }
         monitor_map_.insert_or_assign(this->cluster_id_, pair);

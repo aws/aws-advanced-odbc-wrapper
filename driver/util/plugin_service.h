@@ -71,9 +71,6 @@ class PluginService {
     virtual std::vector<HostInfo> GetFilteredHosts();
     virtual void SetHostFilter(const HostFilter& filter);
 
-    virtual std::shared_ptr<BasePlugin> GetPluginChain();
-    virtual void SetPluginChain(std::shared_ptr<BasePlugin> plugin_chain);
-
     virtual void InitHostListProvider();
 
     virtual void ReleaseHostListProvider();
@@ -97,7 +94,6 @@ class PluginService {
     std::shared_ptr<OdbcHelper> odbc_helper_;
     std::shared_ptr<TopologyUtil> topology_util_;
     std::shared_ptr<HostListProvider> host_list_provider_;
-    std::shared_ptr<BasePlugin> plugin_chain_;
     DBC* monitor_dbc_ = nullptr;
 
     mutable std::mutex lock_;
