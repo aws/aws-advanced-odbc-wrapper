@@ -38,6 +38,8 @@ set(TEST_UTILITIES
 
 set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/connection_string_builder_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_escape_integration_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/deprecated_attribute_integration_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rds_strings_integration_test.cpp
 )
 

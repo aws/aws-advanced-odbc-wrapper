@@ -5,10 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - Unreleased
+
+### Deprecated
+
+- `EXTRA_URL_ENCODE` is deprecated and ignored. The wrapper now encloses the credentials it supplies to the underlying driver (authentication tokens, Secrets Manager passwords and the `SQLConnect` password) in curly braces, so psqlODBC no longer URL-decodes them and a token no longer needs to be pre-encoded. A connection with the attribute enabled (`EXTRA_URL_ENCODE=1`) still succeeds, but returns `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00` naming the attribute. The checkbox has been removed from the Windows DSN setup dialog, and saving a DSN in the dialog removes the attribute
+
+### Changed
+
+- **Breaking:** Connection strings are now parsed according to the ODBC connection string grammar: a value enclosed in curly braces may contain `;` and `=`, and a literal `}` inside it is written `}}`. Each value is passed to the underlying driver as the application wrote it, braces included, so the driver applies its own rules, for example psqlODBC URL-decodes a password that is not enclosed in braces. A connection string with an unclosed brace, or with text between a closing brace and the next `;`, is now rejected with SQLSTATE `08001`. See [Connection String Values Containing Special Characters](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/using-the-aws-odbc-wrapper.md#connection-string-values-containing-special-characters)
+- **Breaking:** A password passed to `SQLConnect` is used as is. A password URL-encoded to work around psqlODBC's URL-decoding must now be passed unencoded
+- **Breaking:** Curly braces stored in a DSN value are part of the value: the value is passed to the underlying driver as stored, enclosed in braces only when it contains `;` or starts with `{`. Previously the braces reached psqlODBC, which removed them
+- The output connection string of `SQLDriverConnect` keeps the curly braces the application wrote, and encloses other values in braces when they contain `;` or start with `{`
 
 ### Fixed
 
+- Passwords containing `%` or `+` are no longer corrupted by psqlODBC's URL-decoding when they are retrieved from Secrets Manager or passed to `SQLConnect`. Authentication tokens no longer need `EXTRA_URL_ENCODE`
+- Connection string values containing `;`, such as passwords enclosed in curly braces, are no longer truncated
+- Underlying driver names enclosed in curly braces in a connection string (`BASE_DRIVER={PostgreSQL Unicode}`) now resolve instead of failing to load
+- Sensitive values are now fully redacted in logs when the value is enclosed in curly braces
 - Debug builds no longer log the generated IAM authentication token [(PR #167)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/167)
 - `SQLGetInfo(SQL_DRIVER_VER)` now reports the real wrapper version instead of a hardcoded `1.0.0`
 - Discovery of the `odbcinst`/`iodbcinst` library on macOS and Linux, which ignored the configured `ODBC_ROOT`

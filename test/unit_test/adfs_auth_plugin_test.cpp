@@ -77,7 +77,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success) {
     std::pair<std::string, bool> token_info("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
@@ -97,7 +97,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_IAM_Host) {
     std::pair<std::string, bool> token_info("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(test_iam_host, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(test_iam_host, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
@@ -119,7 +119,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_Empty_Region) {
     std::pair<std::string, bool> token_info("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, "us-east-2", testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, "us-east-2", testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
@@ -139,7 +139,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Success_CacheExpire) {
     std::pair<std::string, bool> valid_token_info("fresh_token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillOnce(testing::Return(expired_token_info))
         .WillOnce(testing::Return(valid_token_info));
@@ -178,7 +178,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheMiss) {
     std::pair<std::string, bool> token_info("fresh_token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillRepeatedly(testing::Return(token_info));
     EXPECT_CALL(
@@ -197,7 +197,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheHit_AccessError) {
     std::pair<std::string, bool> fresh_token_info("fresh_token", false);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(2))
         .WillOnce(testing::Return(cached_token_info))
         .WillOnce(testing::Return(fresh_token_info));
@@ -234,7 +234,7 @@ TEST_F(AdfsAuthPluginTest, Connect_Fail_CacheHit_NonAccessError_NoRetry) {
     std::pair<std::string, bool> cached_token_info("cached_token", true);
     EXPECT_CALL(
         *mock_auth_provider_,
-        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        GetToken(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
         .Times(testing::Exactly(1))
         .WillOnce(testing::Return(cached_token_info));
     EXPECT_CALL(

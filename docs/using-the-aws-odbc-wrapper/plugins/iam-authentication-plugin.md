@@ -38,13 +38,13 @@ To enable AWS IAM authentication, the following steps should be completed first 
 | AWS Profile         | `AWS_PROFILE`         | Name of an AWS profile in `~/.aws/credentials` or `~/.aws/config` to source AWS credentials from. Supports any profile type resolvable by the AWS SDK default provider chain (static access keys, AWS IAM Identity Center (SSO), assume-role via `source_profile`/`role_arn`, and `credential_process`). When unset, the default AWS credential provider chain (including the `AWS_PROFILE` environment variable) is used. If `REGION` is not set, the profile's configured region is used when available. | nil           | `dev`                               |
 | Database            | `DATABASE`            | Default database that a user will work on.                                                                                                                                    | nil           | `my_database`                       |
 | Token Expiration    | `TOKEN_EXPIRATION`    | Token expiration in seconds, supported max value is 900.                                                                                                                      | 900           | 900                                 |
-| Extra URL Encode    | `EXTRA_URL_ENCODE`    | Some ODBC drivers (e.g., psqlODBC) automatically URL-decode the password before sending it to the database. Enable this option to double-encode the IAM token so it arrives correctly after the driver decodes it. | `0`           | `1`                                 |
+| ~~Extra URL Encode~~| `EXTRA_URL_ENCODE`   | **Deprecated as of 2.0.0 and ignored.** The wrapper now encloses the generated authentication token in curly braces, so every underlying driver passes it through verbatim and the token no longer needs to be pre-encoded. Still accepted, but enabling it makes a successful connection return `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00`. | `0`           | `1`                                 |
 
 > [!WARNING]\
 > When using IAM Authentication, connections to the database must have SSL enabled. Please refer to the underlying driver's specifications to enable this.
 
-> [!WARNING]\
-> When using psqlODBC as the underlying driver, `EXTRA_URL_ENCODE=1` is required. psqlODBC URL-decodes the password before sending it to the database, which corrupts the `%` escapes in the IAM authentication token and results in a `PAM authentication failed` error.
+> [!NOTE]\
+> `EXTRA_URL_ENCODE` is deprecated as of 2.0.0 and is ignored. The wrapper encloses the generated authentication token in curly braces, which stops psqlODBC from URL-decoding it, so the token no longer has to be pre-encoded. Connecting with the attribute enabled still succeeds, but returns `SQL_SUCCESS_WITH_INFO` with SQLSTATE `01S00` and a diagnostic message naming the attribute, so remove it from the connection string or DSN.
 
 > [!NOTE]\
 > `AWS_PROFILE` resolves credentials through the AWS SDK's default provider chain for the named profile, supporting profiles backed by static access keys (`~/.aws/credentials`), AWS IAM Identity Center (SSO), assume-role (`source_profile`/`role_arn`), and `credential_process` (`~/.aws/config`). When `AWS_PROFILE` is not set, the default AWS credential provider chain is used, which still honors the `AWS_PROFILE` environment variable.
