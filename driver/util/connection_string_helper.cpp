@@ -76,6 +76,16 @@ namespace {
         return value.find(ATTRIBUTE_SEPARATOR) != std::string::npos || value.starts_with(QUOTE_OPEN);
     }
 
+    // Pattern matching the attribute with the given key and its value, followed by the suffix
+    std::regex AttributePattern(const std::string& key, const char* suffix = "") {
+        std::string pattern("(");
+        pattern += key;
+        pattern += "=)";
+        pattern += VALUE_PATTERN;
+        pattern += suffix;
+        return std::regex(pattern);
+    }
+
     std::set<std::string> GetLiteralKeys(const std::map<std::string, std::string>& conn_map) {
         std::set<std::string> literal_keys;
         const auto itr = conn_map.find(KEY_LITERAL_KEYS);
@@ -280,7 +290,7 @@ std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &
 {
     std::string result(conn_str);
     for (const std::string& key : SENSITIVE_KEY_SET) {
-        const std::regex pattern("(" + key + "=)" + VALUE_PATTERN);
+        const std::regex pattern = AttributePattern(key);
         result = std::regex_replace(result, pattern, "$1[REDACTED]");
     }
     return result;
@@ -289,7 +299,7 @@ std::string ConnectionStringHelper::MaskSensitiveInformation(const std::string &
 std::string ConnectionStringHelper::RemoveInternalWrapperKeys(const std::string& conn_str) {
     std::string result(conn_str);
     for (const std::string& key : INTERNAL_WRAPPER_KEY_SET) {
-        const std::regex pattern("(" + key + "=)" + VALUE_PATTERN + ";?");
+        const std::regex pattern = AttributePattern(key, ";?");
         result = std::regex_replace(result, pattern, "");
     }
     return result;

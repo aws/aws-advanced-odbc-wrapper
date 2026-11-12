@@ -892,31 +892,33 @@ SQLRETURN RDS_SQLColumns(
     return RDS_ProcessLibRes(SQL_HANDLE_STMT, stmt, res);
 }
 
-static SQLRETURN WarnDeprecatedConnAttributes(DBC* dbc, const SQLRETURN ret)
-{
-    if (!SQL_SUCCEEDED(ret)) {
-        return ret;
-    }
+namespace {
+    SQLRETURN WarnDeprecatedConnAttributes(DBC* dbc, const SQLRETURN ret)
+    {
+        if (!SQL_SUCCEEDED(ret)) {
+            return ret;
+        }
 
-    const std::vector<std::string> deprecated_keys = ConnectionStringHelper::GetDeprecatedKeysInUse(dbc->conn_attr);
-    if (deprecated_keys.empty()) {
-        return ret;
-    }
+        const std::vector<std::string> deprecated_keys = ConnectionStringHelper::GetDeprecatedKeysInUse(dbc->conn_attr);
+        if (deprecated_keys.empty()) {
+            return ret;
+        }
 
-    std::string deprecation_msg("Deprecated connection string attributes are ignored and should be removed"
-                                " from the connection string or DSN:");
-    for (const std::string& key : deprecated_keys) {
-        deprecation_msg += " '" + key + "'";
-    }
-    deprecation_msg += ". See the AWS Advanced ODBC Wrapper changelog for the behavior that replaces them.";
+        std::string deprecation_msg("Deprecated connection string attributes are ignored and should be removed"
+                                    " from the connection string or DSN:");
+        for (const std::string& key : deprecated_keys) {
+            deprecation_msg += " '" + key + "'";
+        }
+        deprecation_msg += ". See the AWS Advanced ODBC Wrapper changelog for the behavior that replaces them.";
 
-    LOG(WARNING) << deprecation_msg;
-    if (!dbc->err) {
-        dbc->err = std::make_unique<ErrInfo>(deprecation_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
-    }
+        LOG(WARNING) << deprecation_msg;
+        if (!dbc->err) {
+            dbc->err = std::make_unique<ErrInfo>(deprecation_msg.c_str(), WARN_INVALID_CONNECTION_STRING_ATTRIBUTE);
+        }
 
-    return SQL_SUCCESS_WITH_INFO;
-}
+        return SQL_SUCCESS_WITH_INFO;
+    }
+}  // namespace
 
 SQLRETURN RDS_SQLConnect(
     SQLHDBC        ConnectionHandle,
@@ -1150,19 +1152,23 @@ SQLRETURN RDS_SQLDriverConnect(
     }
 
     // Parse connection string, load input DSN followed by Base DSN
-    bool well_formed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
-
+    // Whether the connection string that was finally parsed is well formed
+    const bool well_formed = [&]() {
+        const bool parsed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 #if UNICODE && !defined(_WIN32)
-    if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
-        dbc->conn_attr.clear();
-        const std::string conn_str_utf8_w = Convert4ByteSqlWChar(InConnectionString, StringLength1);
-        well_formed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
+        if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
+            dbc->conn_attr.clear();
+            const std::string conn_str_utf8_w = Convert4ByteSqlWChar(InConnectionString, StringLength1);
+            const bool parsed_4_bytes = ConnectionStringHelper::ParseConnectionString(conn_str_utf8_w, dbc->conn_attr);
 
-        if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
-            dbc->env->use_4_bytes_user_app.store(true);
+            if (dbc->conn_attr.contains(KEY_DRIVER) || dbc->conn_attr.contains(KEY_DSN)) {
+                dbc->env->use_4_bytes_user_app.store(true);
+            }
+            return parsed_4_bytes;
         }
-    }
 #endif
+        return parsed;
+    }();
 
     // Reject the string rather than guess where a value ends, as psqlODBC does
     if (!well_formed) {
