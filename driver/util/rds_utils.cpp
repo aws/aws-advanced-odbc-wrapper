@@ -34,6 +34,18 @@ namespace {
                                                    std::regex_constants::icase);
     const std::regex AURORA_CUSTOM_CLUSTER_PATTERN(R"#((.+)\.(cluster-custom-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.amazonaws\.com))#",
                                                    std::regex_constants::icase);
+    const std::regex AURORA_CLUSTER_GROUP_DNS_PATTERN(
+        R"#((.+)\.(rw-|ro-)([a-zA-Z0-9]+\.db-cluster-group\.([a-zA-Z0-9\-]+)\.rds\.amazonaws\.com))#",
+        std::regex_constants::icase);
+    const std::regex AURORA_CLUSTER_GROUP_WRITER_PATTERN(
+        R"#((.+)\.(rw-)([a-zA-Z0-9]+\.db-cluster-group\.([a-zA-Z0-9\-]+)\.rds\.amazonaws\.com))#",
+        std::regex_constants::icase);
+    const std::regex AURORA_CLUSTER_GROUP_READER_PATTERN(
+        R"#((.+)\.(ro-)([a-zA-Z0-9]+\.db-cluster-group\.([a-zA-Z0-9\-]+)\.rds\.amazonaws\.com))#",
+        std::regex_constants::icase);
+    const std::regex AURORA_DATA_GROUP_DNS_PATTERN(
+        R"#((.+)\.(ro-)?([a-zA-Z0-9]+\.data-group\.([a-zA-Z0-9\-]+)\.rds\.amazonaws\.com))#",
+        std::regex_constants::icase);
     const std::regex AURORA_LIMITLESS_CLUSTER_PATTERN(R"#((.+)\.(shardgrp-)+([a-zA-Z0-9]+\.[a-zA-Z0-9\-]+\.rds\.(amazonaws\.com|amazonaws\.com\.cn\.?|sc2s\.sgov\.gov\.?|c2s\.ic\.gov\.?)))#",
                                                    std::regex_constants::icase);
     const std::regex AURORA_CHINA_DNS_PATTERN(
@@ -65,11 +77,15 @@ bool RdsUtils::IsDnsPatternValid(const std::string& host) {
 }
 
 bool RdsUtils::IsRdsDns(const std::string& host) {
-    return std::regex_match(host, AURORA_DNS_PATTERN) || std::regex_match(host, AURORA_CHINA_DNS_PATTERN);
+    return std::regex_match(host, AURORA_CLUSTER_GROUP_DNS_PATTERN)
+        || std::regex_match(host, AURORA_DATA_GROUP_DNS_PATTERN)
+        || std::regex_match(host, AURORA_DNS_PATTERN)
+        || std::regex_match(host, AURORA_CHINA_DNS_PATTERN);
 }
 
 bool RdsUtils::IsRdsInstance(const std::string& host) {
-    return !IsRdsClusterDns(host) && IsRdsDns(host);
+    return !IsRdsClusterDns(host) && !IsClusterGroupWriterDns(host) && !IsClusterGroupReaderDns(host)
+        && !IsDataGroupWriterDns(host) && !IsDataGroupReaderDns(host) && IsRdsDns(host);
 }
 
 bool RdsUtils::IsRdsClusterDns(const std::string& host) {
@@ -94,6 +110,24 @@ bool RdsUtils::IsRdsCustomClusterDns(const std::string& host) {
 
 bool RdsUtils::IsLimitlessDbShardGroupDns(const std::string& host) {
     return std::regex_match(host, AURORA_LIMITLESS_CLUSTER_PATTERN);
+}
+
+bool RdsUtils::IsClusterGroupWriterDns(const std::string& host) {
+    return std::regex_match(host, AURORA_CLUSTER_GROUP_WRITER_PATTERN);
+}
+
+bool RdsUtils::IsClusterGroupReaderDns(const std::string& host) {
+    return std::regex_match(host, AURORA_CLUSTER_GROUP_READER_PATTERN);
+}
+
+bool RdsUtils::IsDataGroupWriterDns(const std::string& host) {
+    std::smatch m;
+    return std::regex_match(host, m, AURORA_DATA_GROUP_DNS_PATTERN) && m.str(2).empty();
+}
+
+bool RdsUtils::IsDataGroupReaderDns(const std::string& host) {
+    std::smatch m;
+    return std::regex_match(host, m, AURORA_DATA_GROUP_DNS_PATTERN) && !m.str(2).empty();
 }
 
 bool RdsUtils::IsNotOldInstance(const std::string& host) {
@@ -161,7 +195,17 @@ std::string RdsUtils::GetRdsClusterId(const std::string& host) {
         return std::string();
     };
 
-    auto result = f(AURORA_DNS_PATTERN);
+    auto result = f(AURORA_CLUSTER_GROUP_DNS_PATTERN);
+    if (!result.empty()) {
+        return result;
+    }
+
+    std::smatch data_group_match;
+    if (std::regex_match(host, data_group_match, AURORA_DATA_GROUP_DNS_PATTERN)) {
+        return data_group_match.str(1);
+    }
+
+    result = f(AURORA_DNS_PATTERN);
     if (!result.empty()) {
         return result;
     }
@@ -198,7 +242,17 @@ std::string RdsUtils::GetRdsInstanceHostPattern(const std::string& host) {
         return std::string();
     };
 
-    auto result = f(AURORA_DNS_PATTERN);
+    auto result = f(AURORA_CLUSTER_GROUP_DNS_PATTERN);
+    if (!result.empty()) {
+        return result;
+    }
+
+    result = f(AURORA_DATA_GROUP_DNS_PATTERN);
+    if (!result.empty()) {
+        return result;
+    }
+
+    result = f(AURORA_DNS_PATTERN);
     if (!result.empty()) {
         return result;
     }
@@ -215,7 +269,17 @@ std::string RdsUtils::GetRdsRegion(const std::string& host) {
         return std::string();
     };
 
-    auto result = f(AURORA_DNS_PATTERN);
+    auto result = f(AURORA_CLUSTER_GROUP_DNS_PATTERN);
+    if (!result.empty()) {
+        return result;
+    }
+
+    result = f(AURORA_DATA_GROUP_DNS_PATTERN);
+    if (!result.empty()) {
+        return result;
+    }
+
+    result = f(AURORA_DNS_PATTERN);
     if (!result.empty()) {
         return result;
     }

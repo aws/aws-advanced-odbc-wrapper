@@ -26,6 +26,10 @@ namespace {
     const std::string US_EAST_REGION_PROXY = "proxy-test-name.proxy-XYZ.us-east-2.rds.amazonaws.com";
     const std::string US_EAST_REGION_CUSTOM_DOMAIN = "custom-test-name.cluster-custom-XYZ.us-east-2.rds.amazonaws.com";
     const std::string US_EAST_LIMITLESS_SHARD_GROUP = "database-test-name.shardgrp-XYZ.us-east-2.rds.amazonaws.com";
+    const std::string US_EAST_REGION_CLUSTER_GROUP_WRITER = "group-test-name.rw-XYZ.db-cluster-group.us-east-2.rds.amazonaws.com";
+    const std::string US_EAST_REGION_CLUSTER_GROUP_READER = "group-test-name.ro-XYZ.db-cluster-group.us-east-2.rds.amazonaws.com";
+    const std::string US_EAST_REGION_DATA_GROUP_WRITER = "database-test-name.XYZ.data-group.us-east-2.rds.amazonaws.com";
+    const std::string US_EAST_REGION_DATA_GROUP_READER = "database-test-name.ro-XYZ.data-group.us-east-2.rds.amazonaws.com";
 
     const std::string CHINA_REGION_CLUSTER = "database-test-name.cluster-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
     const std::string CHINA_REGION_CLUSTER_READ_ONLY = "database-test-name.cluster-ro-XYZ.rds.cn-northwest-1.amazonaws.com.cn";
@@ -155,4 +159,77 @@ TEST_F(RdsUtilsTest, GetRdsInstanceId) {
     EXPECT_EQ("instance-test-name", RdsUtils::GetRdsInstanceId(US_EAST_REGION_INSTANCE));
     EXPECT_EQ(std::string(), RdsUtils::GetRdsInstanceId(US_EAST_REGION_CLUSTER_READ_ONLY));
     EXPECT_EQ(std::string(), RdsUtils::GetRdsInstanceId(US_EAST_REGION_CLUSTER));
+}
+
+TEST_F(RdsUtilsTest, ClusterGroupDns) {
+    EXPECT_TRUE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_CLUSTER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_INSTANCE));
+
+    EXPECT_TRUE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_CLUSTER_READ_ONLY));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_INSTANCE));
+
+    EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsRdsInstance(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsInstance(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsReaderClusterDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+
+    EXPECT_EQ("us-east-2", RdsUtils::GetRdsRegion(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_EQ("us-east-2", RdsUtils::GetRdsRegion(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_EQ("group-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_EQ("group-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsInstanceId(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_EQ("?.XYZ.db-cluster-group.us-east-2.rds.amazonaws.com", RdsUtils::GetRdsInstanceHostPattern(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsClusterHostUrl(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+
+    EXPECT_TRUE(RdsUtils::IsClusterGroupWriterDns("GROUP-TEST-NAME.RW-XYZ.DB-CLUSTER-GROUP.US-EAST-2.RDS.AMAZONAWS.COM"));
+}
+
+TEST_F(RdsUtilsTest, DataGroupDns) {
+    EXPECT_TRUE(RdsUtils::IsDataGroupWriterDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupWriterDns(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupWriterDns(US_EAST_REGION_CLUSTER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupWriterDns(US_EAST_REGION_INSTANCE));
+    EXPECT_FALSE(RdsUtils::IsDataGroupWriterDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+
+    EXPECT_TRUE(RdsUtils::IsDataGroupReaderDns(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupReaderDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupReaderDns(US_EAST_REGION_CLUSTER_READ_ONLY));
+    EXPECT_FALSE(RdsUtils::IsDataGroupReaderDns(US_EAST_REGION_INSTANCE));
+    EXPECT_FALSE(RdsUtils::IsDataGroupReaderDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+
+    EXPECT_FALSE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_TRUE(RdsUtils::IsClusterGroupWriterDns(US_EAST_REGION_CLUSTER_GROUP_WRITER));
+    EXPECT_TRUE(RdsUtils::IsClusterGroupReaderDns(US_EAST_REGION_CLUSTER_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsDataGroupWriterDns("test-instance.XYZ.us-east-2.rds.amazonaws.com"));
+
+    EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_TRUE(RdsUtils::IsRdsDns(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsRdsInstance(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsInstance(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_TRUE(RdsUtils::IsRdsInstance(US_EAST_REGION_INSTANCE));
+    EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsClusterDns(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_FALSE(RdsUtils::IsRdsWriterClusterDns(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_FALSE(RdsUtils::IsRdsReaderClusterDns(US_EAST_REGION_DATA_GROUP_READER));
+
+    EXPECT_EQ("us-east-2", RdsUtils::GetRdsRegion(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_EQ("us-east-2", RdsUtils::GetRdsRegion(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_EQ("database-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_EQ("database-test-name", RdsUtils::GetRdsClusterId(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsInstanceId(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsInstanceId(US_EAST_REGION_DATA_GROUP_READER));
+    EXPECT_EQ("?.XYZ.data-group.us-east-2.rds.amazonaws.com", RdsUtils::GetRdsInstanceHostPattern(US_EAST_REGION_DATA_GROUP_WRITER));
+    EXPECT_EQ(std::string(), RdsUtils::GetRdsClusterHostUrl(US_EAST_REGION_DATA_GROUP_WRITER));
+
+    EXPECT_TRUE(RdsUtils::IsDataGroupWriterDns("DATABASE-TEST-NAME.XYZ.DATA-GROUP.US-EAST-2.RDS.AMAZONAWS.COM"));
+    EXPECT_TRUE(RdsUtils::IsDataGroupReaderDns("DATABASE-TEST-NAME.RO-XYZ.DATA-GROUP.US-EAST-2.RDS.AMAZONAWS.COM"));
 }
