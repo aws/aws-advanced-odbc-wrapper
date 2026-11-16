@@ -63,6 +63,34 @@ These parameters are applicable to any instance of the AWS Advanced ODBC Wrapper
 | `BASE_CONN` / `nil` | `String` | No                                    | A connection string to specify underlying driver specific options and additional settings.                                                                                                                                                                                              | `nil`         |
 | `DSN_ONLY_OUTPUT`   | `Boolean`| No                                    | When enabled (`1`), `SQLDriverConnect` returns only the DSN name (`DSN=<name>`) in the output connection string instead of the expanded connection attributes. The connection is still authenticated and validated internally; this prevents credentials from being exposed in the returned connection string. Requires a `DSN` to be specified. | `0`           |
 
+### Connection String Values Containing Special Characters
+
+Connection string attributes are separated by `;`, so a value that contains a semicolon (for example a password) must be enclosed in curly braces, as described in the [ODBC connection string grammar](https://learn.microsoft.com/en-us/sql/odbc/reference/syntax/sqldriverconnect-function):
+
+```
+DRIVER={AWS Advanced ODBC Wrapper Unicode};SERVER=db.cluster-xyz.us-east-2.rds.amazonaws.com;UID=jane_doe;PWD={pa;ss=word}
+```
+
+Inside a braced value, a literal closing brace is written twice: `PWD={pa}}ssword}` is the password `pa}ssword`. A value that is not enclosed in braces ends at the next `;`. A connection string with an unclosed brace, or with text between a closing brace and the next `;`, is rejected.
+
+The wrapper passes each value to the underlying driver as it is written, braces included, so write a value the way the underlying driver expects it. The same applies to the value of `BASE_CONN`, which is a connection string:
+
+| The password contains                  | psqlODBC                                                                  | MySQL Connector/ODBC                                        |
+|----------------------------------------|---------------------------------------------------------------------------|-------------------------------------------------------------|
+| `+`, or `%` followed by two hex digits | Enclose it in braces (`PWD={a+b}`), otherwise psqlODBC URL-decodes it    | No change needed                                            |
+| `;`, or starts with `{`                | Enclose it in braces, writing each `}` twice                             | Enclose it in braces, writing each `}` twice                |
+| `}}`                                   | No change needed                                                          | 8.0.30 and later: enclose it in braces, writing each `}` twice |
+
+The output connection string returned by `SQLDriverConnect` keeps the braces the application wrote, and encloses other values in braces when they contain `;` or start with `{`.
+
+#### Values Stored in a DSN
+
+A value stored in a DSN is passed to the underlying driver as it is stored, enclosed in braces only when it contains `;` or starts with `{`, so curly braces stored in a DSN are part of the value. psqlODBC URL-decodes such a password like a password that is not enclosed in braces in a connection string, so with psqlODBC write `+` as `%2B` and `%` as `%25` in a stored password.
+
+#### Credentials Supplied by the Wrapper
+
+Authentication tokens (IAM, ADFS, Okta and AWS IAM Identity Center), passwords retrieved from Secrets Manager and the password passed to `SQLConnect` are enclosed in curly braces, so the underlying driver uses them as they are. MySQL Connector/ODBC 8.0.29 and earlier end a braced value at the first `}`, so a Secrets Manager or `SQLConnect` password containing `}` requires MySQL Connector/ODBC 8.0.30 or later.
+
 ## Sample DSN Configuration
 
 There are several ways to configure the DSN when connecting to a PostgreSQL database using the AWS Advanced ODBC Wrapper and the [psqlodbc PostgreSQL ODBC Driver](https://github.com/postgresql-interfaces/psqlodbc), you can use either the BASE_DSN or the BASE_DRIVER

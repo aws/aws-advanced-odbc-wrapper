@@ -107,7 +107,6 @@ std::pair<std::string, bool> AuthProvider::GetToken(
     const std::string &port,
     const std::string &username,
     bool use_cache,
-    bool extra_url_encode,
     std::chrono::milliseconds time_to_expire_ms)
 {
     const std::string cache_key = BuildCacheKey(server, region, port, username);
@@ -133,9 +132,8 @@ std::pair<std::string, bool> AuthProvider::GetToken(
         LOG(ERROR) << "Invalid port \"" << port << "\" for auth token generation";
         return {"", false};
     }
-    const std::string aws_token =
+    token_info.token =
         rds_client_->GenerateConnectAuthToken(server.c_str(), region.c_str(), parsed_port.value(), username.c_str());
-    token_info.token = extra_url_encode ? ExtraUrlEncodeString(aws_token) : aws_token;
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(token_cache_mutex_);
         token_cache_.insert_or_assign(cache_key, token_info);
@@ -150,20 +148,6 @@ void AuthProvider::UpdateAwsCredential(const Aws::Auth::AWSCredentials& credenti
     }
     credentials_resolved_ = !credentials.IsEmpty();
     SetUpRdsClient(credentials, region);
-}
-
-std::string AuthProvider::ExtraUrlEncodeString(const std::string &url_str) {
-    LOG(INFO) << "Original Token Length: " << url_str.length();
-    std::string result = url_str;
-    size_t pos = 0;
-    const std::string replacement = "%25";
-    // Replace all instances of "%" in the url_str with "%25".
-    while ((pos = result.find('%', pos)) != std::string::npos) {
-        result.replace(pos, 1, replacement);
-        pos += replacement.length();
-    }
-    LOG(INFO) << "URL Encoded Token Length: " << result.length();
-    return result;
 }
 
 std::string AuthProvider::GetPort(DBC* dbc) {

@@ -87,7 +87,6 @@ protected:
             ? "SELECT current_user;"
             : "SELECT CURRENT_USER();";
 
-        bool extra_url_encode = test_dialect == "AURORA_POSTGRESQL";
         ConnectionStringBuilder builder(test_dsn, writer_endpoint, test_port);
         builder.withUID(test_uid)
             .withDatabase(test_db)
@@ -96,7 +95,6 @@ protected:
             .withSsoAccountId(sso_account_id)
             .withSsoRoleName(sso_role_name)
             .withSsoRegion(sso_region)
-            .withExtraUrlEncode(extra_url_encode)
             .withEnableClusterFailover(true)
             .withDatabaseDialect(test_dialect)
             .withFailoverMode("STRICT_WRITER")
