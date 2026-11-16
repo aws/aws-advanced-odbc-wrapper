@@ -19,6 +19,7 @@
 #include <new>
 
 #include "logger_wrapper.h"
+#include "rds_lib_loader.h"
 
 CoreService::CoreService()
 {
@@ -75,4 +76,36 @@ void CoreService::OnEnvFreed()
         LOG(INFO) << "Last environment handle freed, releasing monitors";
         monitor_service_.ReleaseResources();
     }
+}
+
+void CoreService::PinBaseDriver(const std::shared_ptr<RdsLibLoader>& lib_loader)
+{
+    if (!lib_loader) {
+        return;
+    }
+    const std::string driver_path = lib_loader->GetDriverPath();
+
+    // Under the lock, so two connects to a new base driver pin it only once
+    const std::lock_guard<std::mutex> lock(pinned_drivers_mutex_);
+    if (pinned_driver_paths_.contains(driver_path)) {
+        return;
+    }
+    SQLHENV pinned_env = SQL_NULL_HENV;
+    const RdsLibResult res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLAllocHandle>(lib_loader, RdsFuncNames::AllocHandle,
+        SQL_HANDLE_ENV, nullptr, &pinned_env
+    );
+    if (!SQL_SUCCEEDED(res.fn_result) || pinned_env == SQL_NULL_HENV) {
+        // Not fatal, the connect works without it. The next connect tries again
+        LOG(WARNING) << "Unable to pin an ENV of base driver: " << driver_path;
+        return;
+    }
+    // pinned_env is never freed, see PinBaseDriver() in the header
+    pinned_driver_paths_.insert(driver_path);
+    LOG(INFO) << "Pinned an ENV of base driver: " << driver_path;
+}
+
+bool CoreService::IsBaseDriverPinned(const std::string& driver_path)
+{
+    const std::lock_guard<std::mutex> lock(pinned_drivers_mutex_);
+    return pinned_driver_paths_.contains(driver_path);
 }
