@@ -1153,7 +1153,7 @@ SQLRETURN RDS_SQLDriverConnect(
 
     // Parse connection string, load input DSN followed by Base DSN
     // Whether the connection string that was finally parsed is well formed
-    const bool well_formed = [&]() {
+    const bool well_formed = [&] {
         const bool parsed = ConnectionStringHelper::ParseConnectionString(conn_str_utf8, dbc->conn_attr);
 #if UNICODE && !defined(_WIN32)
         if (!dbc->conn_attr.contains(KEY_DRIVER) && !dbc->conn_attr.contains(KEY_DSN)) {
