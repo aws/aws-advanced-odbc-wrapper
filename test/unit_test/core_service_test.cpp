@@ -186,6 +186,7 @@ namespace {
     };
 }  // namespace
 
+// Tests PinBaseDriver, which keeps one ENV of each base driver open so it never tears down its global state
 // Pins are process wide and never freed, so every test pins paths of its own
 class CoreServicePinTest : public testing::Test {
 protected:
