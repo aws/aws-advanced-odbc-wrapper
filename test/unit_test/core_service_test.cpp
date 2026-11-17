@@ -14,13 +14,19 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <cstdint>
+#include <memory>
+#include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "../../driver/driver.h"
+#include "../../driver/odbcapi.h"
 #include "../../driver/odbcapi_rds_helper.h"
 #include "../../driver/util/core_service.h"
+#include "../../driver/util/rds_lib_loader.h"
 
 // The count is process wide, so every test measures against the count it started with
 class CoreServiceTest : public testing::Test {
@@ -146,4 +152,105 @@ TEST_F(CoreServiceTest, ConcurrentAllocAndFree) {
     });
     EXPECT_EQ(1u, Counted());
     EXPECT_EQ(SQL_SUCCESS, RDS_FreeEnv(keep_henv));
+}
+
+namespace {
+    // Calls to FakeAllocHandle for an ENV, and whether they fail
+    std::atomic<int> env_alloc_calls{0};
+    std::atomic<bool> env_alloc_fails{false};
+    int fake_env = 0;
+
+    SQLRETURN FakeAllocHandle(SQLSMALLINT handle_type, SQLHANDLE /*input_handle*/, SQLHANDLE* output_handle) {
+        if (handle_type != SQL_HANDLE_ENV) {
+            return SQL_ERROR;
+        }
+        ++env_alloc_calls;
+        if (env_alloc_fails) {
+            return SQL_ERROR;
+        }
+        *output_handle = &fake_env;
+        return SQL_SUCCESS;
+    }
+
+    // Nothing is loaded from the path, only SQLAllocHandle is found
+    class PinMockRdsLibLoader : public RdsLibLoader {
+    public:
+        explicit PinMockRdsLibLoader(std::string driver_path) : RdsLibLoader(std::move(driver_path)) {}
+
+        RdsPlatform::FuncHandle GetFunction(const std::string& function_name) override {
+            if (function_name == RdsFuncNames::AllocHandle) {
+                return reinterpret_cast<RdsPlatform::FuncHandle>(&FakeAllocHandle);
+            }
+            return nullptr;
+        }
+    };
+}  // namespace
+
+// Tests PinBaseDriver, which keeps one ENV of each base driver open so it never tears down its global state
+// Pins are process wide and never freed, so every test pins paths of its own
+class CoreServicePinTest : public testing::Test {
+protected:
+    void SetUp() override {
+        env_alloc_calls = 0;
+        env_alloc_fails = false;
+    }
+
+    [[nodiscard]] static std::string NewDriverPath() {
+        static std::atomic<int> next_id{0};
+        return "/nonexistent/core-service-pin-test-" + std::to_string(next_id++) + ".so";
+    }
+};
+
+TEST_F(CoreServicePinTest, PinsOncePerDriverPath) {
+    const std::string driver_path = NewDriverPath();
+    EXPECT_FALSE(CoreService::Instance().IsBaseDriverPinned(driver_path));
+
+    CoreService::Instance().PinBaseDriver(std::make_shared<PinMockRdsLibLoader>(driver_path));
+    EXPECT_EQ(1, env_alloc_calls);
+    EXPECT_TRUE(CoreService::Instance().IsBaseDriverPinned(driver_path));
+
+    // Every ENV has its own loader, a new one for the same driver is not pinned again
+    CoreService::Instance().PinBaseDriver(std::make_shared<PinMockRdsLibLoader>(driver_path));
+    EXPECT_EQ(1, env_alloc_calls);
+
+    const std::string other_driver_path = NewDriverPath();
+    CoreService::Instance().PinBaseDriver(std::make_shared<PinMockRdsLibLoader>(other_driver_path));
+    EXPECT_EQ(2, env_alloc_calls);
+    EXPECT_TRUE(CoreService::Instance().IsBaseDriverPinned(other_driver_path));
+}
+
+TEST_F(CoreServicePinTest, FailedPinRetried) {
+    const std::string driver_path = NewDriverPath();
+    const auto lib_loader = std::make_shared<PinMockRdsLibLoader>(driver_path);
+
+    env_alloc_fails = true;
+    CoreService::Instance().PinBaseDriver(lib_loader);
+    EXPECT_EQ(1, env_alloc_calls);
+    EXPECT_FALSE(CoreService::Instance().IsBaseDriverPinned(driver_path));
+
+    env_alloc_fails = false;
+    CoreService::Instance().PinBaseDriver(lib_loader);
+    EXPECT_EQ(2, env_alloc_calls);
+    EXPECT_TRUE(CoreService::Instance().IsBaseDriverPinned(driver_path));
+}
+
+TEST_F(CoreServicePinTest, MissingAllocHandleNotPinned) {
+    // The base loader finds no function in a module that did not load
+    const std::string driver_path = NewDriverPath();
+    CoreService::Instance().PinBaseDriver(std::make_shared<RdsLibLoader>(driver_path));
+    EXPECT_FALSE(CoreService::Instance().IsBaseDriverPinned(driver_path));
+}
+
+TEST_F(CoreServicePinTest, NullLoaderIgnored) {
+    CoreService::Instance().PinBaseDriver(nullptr);
+    EXPECT_EQ(0, env_alloc_calls);
+}
+
+TEST_F(CoreServicePinTest, ConcurrentPinsOnce) {
+    const std::string driver_path = NewDriverPath();
+    RunConcurrently([&driver_path] {
+        CoreService::Instance().PinBaseDriver(std::make_shared<PinMockRdsLibLoader>(driver_path));
+    });
+    EXPECT_EQ(1, env_alloc_calls);
+    EXPECT_TRUE(CoreService::Instance().IsBaseDriverPinned(driver_path));
 }

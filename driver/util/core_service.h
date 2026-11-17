@@ -16,10 +16,15 @@
 #define CORE_SERVICE_H_
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
+#include <string>
+#include <unordered_set>
 
 #include "monitoring/monitor_service.h"
 #include "storage/storage_service.h"
+
+class RdsLibLoader;
 
 // Owns the services shared by all connections. One instance per loaded driver library, so the ANSI and the
 // Unicode drivers each have their own.
@@ -31,6 +36,8 @@
 // otherwise the count could never reach 0 while monitors run. The Driver Manager may unload the DLL right after
 // the last ENV is freed, so the monitors are released then. The stored data is kept, and an ENV allocated
 // afterwards reuses the same instance.
+//
+// Also keeps one ENV of each base driver open, see PinBaseDriver().
 class CoreService {
 public:
     [[nodiscard]] static CoreService& Instance();
@@ -43,6 +50,14 @@ public:
     void OnEnvAllocated();
     void OnEnvFreed();
     [[nodiscard]] uint32_t GetEnvCount();
+
+    // Allocates one ENV of the base driver, once per driver path, and never frees it. Some base drivers tear down
+    // their global state when their last ENV is freed, then set it up again on the next connect, and that is not
+    // thread safe. MySQL Connector/ODBC on Unix does this: an app connecting at the same time as one of its monitors
+    // can fail with HY001 "Memory allocation error". The wrapper never unloads a base driver, so keeping it set up
+    // only costs one ENV. Must be called before any monitor of the connection starts. Thread safe
+    void PinBaseDriver(const std::shared_ptr<RdsLibLoader>& lib_loader);
+    [[nodiscard]] bool IsBaseDriverPinned(const std::string& driver_path);
 
     // Never destroyed, see Instance()
     ~CoreService() = delete;
@@ -59,6 +74,10 @@ private:
     std::mutex env_count_mutex_;
     // Counted ENVs, guarded by env_count_mutex_
     uint32_t env_count_ = 0;
+
+    std::mutex pinned_drivers_mutex_;
+    // Paths of the base drivers with a pinned ENV, guarded by pinned_drivers_mutex_
+    std::unordered_set<std::string> pinned_driver_paths_;
 
     // Constructed in this order, as monitors may use the storage
     StorageService storage_service_;
