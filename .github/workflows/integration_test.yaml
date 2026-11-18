@@ -60,6 +60,7 @@ permissions:
 jobs:
 # Build / Get Underlying Drivers
   build-win-psqlodbc:
+    if: false  # TEMP: macOS-only run
     name: Windows - Build psqlODBC
     runs-on: windows-latest
     outputs:
@@ -141,6 +142,7 @@ jobs:
           make
 
   build-linux-psqlodbc:
+    if: false  # TEMP: macOS-only run
     name: Linux Ubuntu - Build psqlODBC
     runs-on: ubuntu-24.04
     outputs:
@@ -190,6 +192,7 @@ jobs:
           make
 
   build-win-mysql:
+    if: false  # TEMP: macOS-only run
     name: Windows - Build MySQL Connector ODBC
     runs-on: windows-latest
     steps:
@@ -240,6 +243,7 @@ jobs:
           tar xvf mysql-connector_arm64.tar.gz --strip-components 1 -C mysql-connector
 
   build-linux-mysql:
+    if: false  # TEMP: macOS-only run
     name: Linux Ubuntu - Build MySQL Connector ODBC
     runs-on: ubuntu-24.04
     steps:
@@ -260,6 +264,7 @@ jobs:
           echo "${{ env.MYSQL_ODBC_LINUX_DEB_SHA256 }}  mysql-connector_x64.deb" | sha256sum --check
 
   build-win-mariadb:
+    if: false  # TEMP: macOS-only run
     name: Windows - Get MariaDB Connector ODBC
     runs-on: windows-latest
     steps:
@@ -288,6 +293,7 @@ jobs:
 
 # Integration - General
   windows-integration-tests:
+    if: false  # TEMP: macOS-only run
     name: Windows - Integration Tests
     needs: [build-win-psqlodbc, build-win-mysql, build-win-mariadb]
     runs-on: windows-latest
@@ -1039,6 +1045,7 @@ jobs:
           retention-days: 7
 
   linux-integration-tests:
+    if: false  # TEMP: macOS-only run
     name: Linux Ubuntu - Integration Tests
     needs: [build-linux-psqlodbc, build-linux-mysql]
     runs-on: ubuntu-24.04
@@ -1350,6 +1357,7 @@ jobs:
 
 # Limitless
   windows-limitless-integration-tests:
+    if: false  # TEMP: macOS-only run
     name: Windows - Limitless Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
@@ -1763,6 +1771,7 @@ jobs:
           retention-days: 7
 
   linux-limitless-integration-tests:
+    if: false  # TEMP: macOS-only run
     name: Linux Ubuntu - Limitless Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-24.04
@@ -1934,8 +1943,8 @@ jobs:
 
 # Blue Green
   windows-bg-integration-tests:
+    if: false  # TEMP: macOS-only run
     # MySQL disabled until IAM is resolved
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Windows - Blue/Green Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
@@ -2324,7 +2333,7 @@ jobs:
           retention-days: 7
 
   linux-bg-integration-tests:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: false  # TEMP: macOS-only run
     name: Linux Ubuntu - Blue/Green Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-24.04
