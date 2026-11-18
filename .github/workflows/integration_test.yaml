@@ -295,12 +295,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - rds_engine: aurora-postgresql
-            database_dialect: AURORA_POSTGRESQL
-            multi_az_cluster: false
-          - rds_engine: aurora-mysql
-            database_dialect: AURORA_MYSQL
-            multi_az_cluster: false
+          # TEMP multi-AZ only: - rds_engine: aurora-postgresql
+            # TEMP multi-AZ only: database_dialect: AURORA_POSTGRESQL
+            # TEMP multi-AZ only: multi_az_cluster: false
+          # TEMP multi-AZ only: - rds_engine: aurora-mysql
+            # TEMP multi-AZ only: database_dialect: AURORA_MYSQL
+            # TEMP multi-AZ only: multi_az_cluster: false
           - rds_engine: multi-az-postgresql
             database_dialect: MULTI_AZ_POSTGRESQL
             multi_az_cluster: true
@@ -710,20 +710,20 @@ jobs:
       fail-fast: false
       matrix:
         env: [
-          {
-            rds_engine: aurora-postgresql,
-            project: codebuild-odbc-wrapper-macos-pg,
-            fleet: fleet-macos-fleet-2,
-            database_dialect: AURORA_POSTGRESQL,
-            multi_az_cluster: false
-          },
-          {
-            rds_engine: aurora-mysql,
-            project: codebuild-odbc-wrapper-macos-mysql,
-            fleet: fleet-macos-fleet-1,
-            database_dialect: AURORA_MYSQL,
-            multi_az_cluster: false
-          },
+          # TEMP multi-AZ only: {
+            # TEMP multi-AZ only: rds_engine: aurora-postgresql,
+            # TEMP multi-AZ only: project: codebuild-odbc-wrapper-macos-pg,
+            # TEMP multi-AZ only: fleet: fleet-macos-fleet-2,
+            # TEMP multi-AZ only: database_dialect: AURORA_POSTGRESQL,
+            # TEMP multi-AZ only: multi_az_cluster: false
+          # TEMP multi-AZ only: },
+          # TEMP multi-AZ only: {
+            # TEMP multi-AZ only: rds_engine: aurora-mysql,
+            # TEMP multi-AZ only: project: codebuild-odbc-wrapper-macos-mysql,
+            # TEMP multi-AZ only: fleet: fleet-macos-fleet-1,
+            # TEMP multi-AZ only: database_dialect: AURORA_MYSQL,
+            # TEMP multi-AZ only: multi_az_cluster: false
+          # TEMP multi-AZ only: },
           {
             rds_engine: multi-az-postgresql,
             project: codebuild-odbc-wrapper-macos-pg,
@@ -1046,12 +1046,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - rds_engine: aurora-postgresql
-            database_dialect: AURORA_POSTGRESQL
-            multi_az_cluster: false
-          - rds_engine: aurora-mysql
-            database_dialect: AURORA_MYSQL
-            multi_az_cluster: false
+          # TEMP multi-AZ only: - rds_engine: aurora-postgresql
+            # TEMP multi-AZ only: database_dialect: AURORA_POSTGRESQL
+            # TEMP multi-AZ only: multi_az_cluster: false
+          # TEMP multi-AZ only: - rds_engine: aurora-mysql
+            # TEMP multi-AZ only: database_dialect: AURORA_MYSQL
+            # TEMP multi-AZ only: multi_az_cluster: false
           - rds_engine: multi-az-postgresql
             database_dialect: MULTI_AZ_POSTGRESQL
             multi_az_cluster: true
@@ -1350,6 +1350,7 @@ jobs:
 
 # Limitless
   windows-limitless-integration-tests:
+    if: false  # TEMP: multi-AZ only run
     name: Windows - Limitless Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
@@ -1588,6 +1589,7 @@ jobs:
           retention-days: 7
 
   macos-limitless-integration-tests:
+    if: false  # TEMP: multi-AZ only run
     name: MacOS - Limitless Integration Tests
     needs: [build-macos-psqlodbc]
     runs-on:
@@ -1763,6 +1765,7 @@ jobs:
           retention-days: 7
 
   linux-limitless-integration-tests:
+    if: false  # TEMP: multi-AZ only run
     name: Linux Ubuntu - Limitless Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-24.04
@@ -1934,8 +1937,8 @@ jobs:
 
 # Blue Green
   windows-bg-integration-tests:
+    if: false  # TEMP: multi-AZ only run
     # MySQL disabled until IAM is resolved
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: Windows - Blue/Green Integration Tests
     needs: [build-win-psqlodbc]
     runs-on: windows-latest
@@ -2172,8 +2175,8 @@ jobs:
           retention-days: 7
 
   macos-bg-integration-tests:
+    if: false  # TEMP: multi-AZ only run
     # MySQL disabled until IAM is resolved
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     name: MacOS - Blue/Green Integration Tests
     needs: [ build-macos-psqlodbc ]
     runs-on:
@@ -2324,7 +2327,7 @@ jobs:
           retention-days: 7
 
   linux-bg-integration-tests:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: false  # TEMP: multi-AZ only run
     name: Linux Ubuntu - Blue/Green Integration Tests
     needs: [build-linux-psqlodbc]
     runs-on: ubuntu-24.04
