@@ -285,7 +285,7 @@ protected:
     }
 
     static void WaitForDbReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                               std::chrono::seconds timeout = std::chrono::minutes(5)) {
+                               std::chrono::seconds timeout = std::chrono::minutes(10)) {
         const auto start = std::chrono::steady_clock::now();
         Aws::String status = GetDbCluster(client, cluster_id).GetStatus();
 
@@ -337,7 +337,7 @@ protected:
     }
 
     static void WaitForAllInstancesReady(const Aws::RDS::RDSClient& client, const Aws::String& cluster_id,
-                                         std::chrono::seconds timeout = std::chrono::minutes(5)) {
+                                         std::chrono::seconds timeout = std::chrono::minutes(10)) {
         // Cache the last confirmed-ready time per cluster and skip the re-probe while fresh (writer still reachable).
         // SetUp() probes every test; re-running the full SDK+TCP probe wastes minutes/test and multiplies the timeout when an instance is down.
         static std::mutex ready_cache_mutex;
