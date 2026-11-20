@@ -952,7 +952,7 @@ SQLRETURN RDS_SQLConnect(
         return SQL_ERROR;
     }
 
-    // Replace with input parameters
+    // Replace with input parameters. An empty user name or password is treated as not given: the DSN's UID and PWD stay.
     if (UserName) {
 #ifdef UNICODE
         current_utf8 = ConvertUserAppToUTF8(use_4_bytes_user_app, UserName, NameLength2);
@@ -960,8 +960,10 @@ SQLRETURN RDS_SQLConnect(
         current_utf8 = reinterpret_cast<const char *>(UserName);
 #endif
         load_len = NameLength2 == SQL_NTS ? current_utf8.length() : NameLength2;
-        dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, current_utf8.substr(0, load_len));
-        conn_str_utf8 += "UID=" + current_utf8 + ";";
+        if (!current_utf8.substr(0, load_len).empty()) {
+            dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, current_utf8.substr(0, load_len));
+            conn_str_utf8 += "UID=" + current_utf8 + ";";
+        }
     }
     if (Authentication) {
 #ifdef UNICODE
@@ -970,8 +972,10 @@ SQLRETURN RDS_SQLConnect(
         current_utf8 = reinterpret_cast<const char *>(Authentication);
 #endif
         load_len = NameLength3 == SQL_NTS ? current_utf8.length() : NameLength3;
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, current_utf8.substr(0, load_len));
-        conn_str_utf8 += "PWD=" + current_utf8 + ";";
+        if (!current_utf8.substr(0, load_len).empty()) {
+            dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, current_utf8.substr(0, load_len));
+            conn_str_utf8 += "PWD=" + current_utf8 + ";";
+        }
     }
 
     dbc->allow_interactive_auth = MapUtils::GetBooleanValue(dbc->conn_attr, KEY_SSO_ALLOW_INTERACTIVE, false);

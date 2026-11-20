@@ -52,6 +52,7 @@ driver/driver_version.h
 odbc.ini
 odbcinst.ini
 !test/unit_test/resources/odbcinst.ini
+!test/unit_test/resources/odbc.ini
 *.log
 
 # Installer Files
