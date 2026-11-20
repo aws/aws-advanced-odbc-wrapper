@@ -15,11 +15,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstdlib>
+#include <string>
+#include <vector>
 
 #include "../../driver/driver.h"
 #include "../../driver/odbcapi_rds_helper.h"
 #include "../../driver/error.h"
 #include "../../driver/util/connection_string_keys.h"
+#include "../../driver/util/rds_strings.h"
 
 class ErrorHandlingTest : public testing::Test {
 protected:
@@ -414,3 +418,47 @@ TEST_F(ErrorHandlingTest, DiagRec_InvalidHandleType) {
 
     EXPECT_EQ(SQL_INVALID_HANDLE, ret);
 }
+
+// On Unix the test DSNs come from resources/odbc.ini through ODBCSYSINI. Windows DSNs live in the registry.
+#ifndef _WIN32
+namespace {
+const bool ODBCSYSINI_SET = [] {
+    setenv("ODBCSYSINI", AWS_PROFILE_TEST_RESOURCES_DIR, 1);
+    return true;
+}();
+
+// Text as the app passes it, with NULs after it: the Unicode SQLConnect also reads the DSN name as 4-byte text, and
+// the padding keeps that read inside the buffer.
+std::vector<SQLTCHAR> AppString(const std::string& text) {
+#ifdef UNICODE
+    const std::vector<uint16_t> utf16 = ConvertUTF8ToUTF16(text);
+    std::vector<SQLTCHAR> out(utf16.begin(), utf16.end());
+#else
+    std::vector<SQLTCHAR> out(text.begin(), text.end());
+#endif
+    out.resize(out.size() + 4, 0);
+    return out;
+}
+} // namespace
+
+// An empty user name or password, or a NameLength of 0, is treated as not given: the DSN's UID and PWD stay. A
+// non-empty one still replaces them.
+TEST_F(ErrorHandlingTest, Connect_EmptyUserAndPassword_KeepTheDsnValues) {
+    std::vector<SQLTCHAR> dsn = AppString("dsn-with-uid");
+    std::vector<SQLTCHAR> empty = AppString("");
+    std::vector<SQLTCHAR> user = AppString("other_user");
+
+    // No base driver to load: the connect fails after reading the arguments.
+    EXPECT_EQ(SQL_ERROR, RDS_SQLConnect(dbc_, dsn.data(), SQL_NTS, empty.data(), SQL_NTS, empty.data(), SQL_NTS));
+    EXPECT_EQ("app_user", dbc_->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("dsn_password", dbc_->conn_attr[KEY_DB_PASSWORD]);
+
+    EXPECT_EQ(SQL_ERROR, RDS_SQLConnect(dbc_, dsn.data(), SQL_NTS, user.data(), 0, user.data(), 0));
+    EXPECT_EQ("app_user", dbc_->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("dsn_password", dbc_->conn_attr[KEY_DB_PASSWORD]);
+
+    EXPECT_EQ(SQL_ERROR, RDS_SQLConnect(dbc_, dsn.data(), SQL_NTS, user.data(), SQL_NTS, user.data(), SQL_NTS));
+    EXPECT_EQ("other_user", dbc_->conn_attr[KEY_DB_USERNAME]);
+    EXPECT_EQ("other_user", dbc_->conn_attr[KEY_DB_PASSWORD]);
+}
+#endif

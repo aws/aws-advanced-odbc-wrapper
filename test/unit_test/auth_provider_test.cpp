@@ -140,3 +140,17 @@ TEST_F(AuthProviderTest, GetToken_Expired) {
 
     EXPECT_NE(token_info_first.first, token_info_second.first);
 }
+
+// An empty token from the SDK must not be cached: the next connect asks the SDK again instead of failing for the
+// token's whole lifetime.
+TEST_F(AuthProviderTest, GetToken_EmptySdkToken_IsNotCached) {
+    std::string server = "host.com", region = "us-west-1", port = "1234", username = "my-user";
+    EXPECT_CALL(*mock_rds_client_, GenerateConnectAuthToken(testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(2))
+        .WillOnce(testing::Return(""))
+        .WillOnce(testing::Return("token"));
+
+    AuthProvider auth_provider(mock_rds_client_);
+    EXPECT_EQ(std::make_pair(std::string(""), false), auth_provider.GetToken(server, region, port, username));
+    EXPECT_EQ(std::make_pair(std::string("token"), false), auth_provider.GetToken(server, region, port, username));
+}
