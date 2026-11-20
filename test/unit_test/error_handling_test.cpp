@@ -159,6 +159,20 @@ TEST_F(ErrorHandlingTest, ClearError_ResetsDesc) {
     EXPECT_EQ(0, desc_->sql_error_called);
 }
 
+TEST_F(ErrorHandlingTest, RdsAllocDbc_ClearsTheEnvRecord) {
+    env_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    SQLHDBC dbc = SQL_NULL_HDBC;
+    ASSERT_EQ(SQL_SUCCESS, RDS_AllocDbc(env_, &dbc));
+    EXPECT_FALSE(env_->err);
+    EXPECT_EQ(SQL_SUCCESS, RDS_FreeConnect(dbc));
+}
+
+TEST_F(ErrorHandlingTest, RdsSetEnvAttr_ClearsTheEnvRecord) {
+    env_->err = std::make_unique<ErrInfo>("test", ERR_GENERAL_ERROR);
+    EXPECT_EQ(SQL_SUCCESS, RDS_SQLSetEnvAttr(env_, SQL_ATTR_OUTPUT_NTS, reinterpret_cast<SQLPOINTER>(SQL_TRUE), 0));
+    EXPECT_FALSE(env_->err);
+}
+
 // NextErrorRecord tests
 
 TEST_F(ErrorHandlingTest, NextErrorRecord_NullReturnsZero) {
