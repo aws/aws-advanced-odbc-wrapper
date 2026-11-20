@@ -363,28 +363,36 @@ SQLRETURN RDS_SQLEndTran(
                 const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
                 ClearError(env);
 
+                // Each connection's transaction ends, even after one fails; the first error is the result. A
+                // connection that was never connected has no transaction to end.
                 for (DBC* dbc : env->dbc_list) {
-                    // TODO - May need enhanced error handling due to multiple DBCs
-                    //   Should error out on the first?
                     const std::lock_guard<std::recursive_mutex> lock_guard(dbc->lock);
                     ClearError(dbc);
 
                     if (!HasWrappedHandle(dbc)) {
-                        return SQL_INVALID_HANDLE;
+                        continue;
                     }
                     res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLEndTran>(env->driver_lib_loader, RdsFuncNames::EndTran,
                         SQL_HANDLE_DBC, dbc->wrapped_dbc, CompletionType
                     );
-                    ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
-                    if (SQL_SUCCEEDED(ret) && dbc) {
+                    const SQLRETURN dbc_ret = RDS_ProcessLibRes(SQL_HANDLE_DBC, dbc, res);
+                    if (SQL_SUCCEEDED(dbc_ret) && dbc) {
                         dbc->transaction_status = TRANSACTION_CLOSED;
+                    }
+                    if (!SQL_SUCCEEDED(dbc_ret) && SQL_SUCCEEDED(ret)) {
+                        ret = dbc_ret;
                     }
                 }
 
-                res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLEndTran>(env->driver_lib_loader, RdsFuncNames::EndTran,
-                    HandleType, env->wrapped_env, CompletionType
-                );
-                ret = RDS_ProcessLibRes(HandleType, env, res);
+                if (env->driver_lib_loader && env->wrapped_env) {
+                    res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLEndTran>(env->driver_lib_loader, RdsFuncNames::EndTran,
+                        HandleType, env->wrapped_env, CompletionType
+                    );
+                    const SQLRETURN env_ret = RDS_ProcessLibRes(HandleType, env, res);
+                    if (SQL_SUCCEEDED(ret)) {
+                        ret = env_ret;
+                    }
+                }
             }
             break;
         default:
