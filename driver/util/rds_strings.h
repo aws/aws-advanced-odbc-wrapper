@@ -242,6 +242,18 @@ inline std::string ConvertUserAppToUTF8(bool user_4_byte, SQLTCHAR* in, SQLINTEG
         const size_t length = GetLenOfSqltcharArray(in, in_length, user_4_byte);
         return Convert4ByteSqlWChar(in, static_cast<SQLINTEGER>(length));
     }
+    if (in_length >= 0) {
+        // An explicit length (in characters) needn't be followed by a NUL, so never read past it.
+        const uint16_t* in_utf16 = reinterpret_cast<const uint16_t*>(in);
+        int32_t length = 0;
+        while (length < in_length && in_utf16[length] != 0) {
+            length++;
+        }
+        const icu::UnicodeString unicode_str(reinterpret_cast<const char16_t*>(in_utf16), length);
+        std::string buffer_utf8;
+        unicode_str.toUTF8String(buffer_utf8);
+        return buffer_utf8;
+    }
     return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(in));
 }
 
