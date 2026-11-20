@@ -208,6 +208,7 @@ SQLRETURN RDS_AllocDbc(
 
     {
         const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+        ClearError(env);
         env->dbc_list.emplace_back(dbc);
     }
 
@@ -302,6 +303,7 @@ SQLRETURN RDS_SQLSetEnvAttr(
     SQLRETURN ret = SQL_SUCCESS;
 
     const std::lock_guard<std::recursive_mutex> lock_guard(env->lock);
+    ClearError(env);
 
     // Track new value
     env->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
