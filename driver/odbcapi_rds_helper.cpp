@@ -682,8 +682,12 @@ SQLRETURN RDS_SQLSetConnectAttr(
     dbc->attr_map.insert_or_assign(Attribute, std::make_pair(ValuePtr, StringLength));
 
     if (SQL_ATTR_AUTOCOMMIT == Attribute) {
+        const bool was_auto_commit = dbc->auto_commit;
         dbc->auto_commit = reinterpret_cast<SQLPOINTER>(SQL_AUTOCOMMIT_ON) == ValuePtr;
-        dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
+        // Autocommit set on while already on changes nothing in psqlODBC, so a transaction opened with BEGIN stays open.
+        if (!was_auto_commit || !dbc->auto_commit) {
+            dbc->transaction_status = dbc->auto_commit ? TRANSACTION_CLOSED : TRANSACTION_OPEN;
+        }
     }
 
     return ret;
