@@ -88,8 +88,13 @@ SQLRETURN DefaultPlugin::Connect(
 #else
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
 #endif
+    // The base driver writes its output connection string into this buffer; RDS_SQLDriverConnect writes the wrapper's
+    // into the application's. 4096 characters is psqlODBC's MAX_CONNECT_STRING, and 2 SQLTCHARs per character leave
+    // room for a base driver with a 4-byte SQLWCHAR.
+    constexpr SQLSMALLINT BASE_OUT_LEN = 4096;
+    std::vector<SQLTCHAR> base_out(static_cast<size_t>(BASE_OUT_LEN) * 2);
     res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
-        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, base_out.data(), BASE_OUT_LEN, nullptr, DriverCompletion
     );
 
     if (res.fn_load_success) {
@@ -117,7 +122,7 @@ SQLRETURN DefaultPlugin::Connect(
                     const std::wstring wide_conn = ConvertUTF8ToWString(conn_in);
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
                     res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
-                        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+                        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, base_out.data(), BASE_OUT_LEN, nullptr, DriverCompletion
                     );
                     ret = res.fn_result;
                 }

@@ -43,6 +43,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/connection_string_helper_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/core_service_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/custom_endpoint_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/default_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/failover_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/highest_weight_host_selector_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/iam_auth_plugin_test.cpp
