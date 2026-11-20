@@ -1167,21 +1167,34 @@ SQLRETURN RDS_SQLDriverConnect(
     // When DSN-only output is enabled, return just the DSN name to avoid exposing credentials in the output connection string.
     conn_out_str_utf8 = ConnectionStringHelper::BuildDsnOnlyConnectionString(dbc->conn_attr, conn_out_str_utf8);
 
-    // Update OutConnectionString with parsed values
-    if (OutConnectionString && StringLength2Ptr) {
-        const SQLULEN len = conn_out_str_utf8.length();
+    // Update OutConnectionString with parsed values, cut to the buffer and terminated
 #ifdef UNICODE
-    const SQLULEN written = CopyUTF8ToUTF16Buffer(reinterpret_cast<uint16_t*>(OutConnectionString), BufferLength, conn_out_str_utf8);
-    if (dbc->plugin_service) {
-        dbc->plugin_service->GetOdbcHelper()->ConvertWrapperOutputToTarget(OutConnectionString, written, BufferLength);
-    }
+    const std::vector<uint16_t> conn_out = ConvertUTF8ToUTF16(conn_out_str_utf8);
+    const size_t len = conn_out.empty() ? 0 : conn_out.size() - 1;
 #else
-        const SQLULEN written = snprintf(AS_CHAR(OutConnectionString), BufferLength, "%s", conn_out_str_utf8.c_str());
+    const size_t len = conn_out_str_utf8.length();
 #endif
-        if (len >= BufferLength && SQL_SUCCEEDED(ret)) {
-            ret = SQL_SUCCESS_WITH_INFO;
-        }
-        *StringLength2Ptr = static_cast<SQLSMALLINT>(written);
+    if (OutConnectionString && BufferLength > 0) {
+        const size_t copied = std::min(len, static_cast<size_t>(BufferLength) - 1);
+#ifdef UNICODE
+        uint16_t* out = reinterpret_cast<uint16_t*>(OutConnectionString);
+        std::copy_n(conn_out.begin(), copied, out);
+        out[copied] = 0;
+        // A 4-byte app's buffer holds BufferLength characters of 2 SQLTCHARs each
+        OdbcHelper::ConvertWrapperOutputToTarget(dbc->env->use_4_bytes_user_app.load(), false, OutConnectionString,
+            copied, static_cast<size_t>(BufferLength) * 2 * sizeof(SQLTCHAR));
+#else
+        std::copy_n(conn_out_str_utf8.begin(), copied, OutConnectionString);
+        OutConnectionString[copied] = 0;
+#endif
+    }
+    // Not over a warning the connect returned: the handle keeps one diagnostic record
+    if (OutConnectionString && static_cast<SQLLEN>(len) >= BufferLength && ret == SQL_SUCCESS) {
+        dbc->err = std::make_unique<ErrInfo>("Output connection string truncated", WARN_STRING_DATA_RIGHT_TRUNCATED);
+        ret = SQL_SUCCESS_WITH_INFO;
+    }
+    if (StringLength2Ptr) {
+        *StringLength2Ptr = static_cast<SQLSMALLINT>(len);
     }
 
     return ret;
