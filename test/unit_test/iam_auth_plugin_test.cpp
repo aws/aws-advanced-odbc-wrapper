@@ -85,7 +85,7 @@ TEST_F(IamAuthPluginTest, Connect_SSO_CredentialFail) {
     IamAuthPlugin plugin(dbc_, mock_base_plugin_, mock_auth_provider_);
     SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
-    EXPECT_EQ(dbc_->err->native_err, ERR_CLIENT_UNABLE_TO_ESTABLISH_CONNECTION);
+    EXPECT_EQ(dbc_->err->native_err, ERR_INVALID_AUTHORIZATION_SPECIFICATION);
     EXPECT_NE(dbc_->err->error_msg.find("aws sso login"), std::string::npos);
 }
 
@@ -239,4 +239,44 @@ TEST_F(IamAuthPluginTest, Connect_Fail_CacheHit_NonAccessError_NoRetry) {
     IamAuthPlugin plugin(dbc_, mock_base_plugin_, mock_auth_provider_, mock_dialect_, mock_odbc_helper_);
     SQLRETURN ret = plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT);
     EXPECT_EQ(SQL_ERROR, ret);
+}
+
+// A failed token generation must fail the connect, not reach the server with an empty password.
+TEST_F(IamAuthPluginTest, Connect_EmptyToken_Fails) {
+    EXPECT_CALL(*mock_auth_provider_, GetToken(testing::_, testing::_, testing::_, testing::_,
+        testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(std::pair<std::string, bool>("", false)));
+    EXPECT_CALL(*mock_base_plugin_, Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(0));
+
+    IamAuthPlugin plugin(dbc_, mock_base_plugin_, mock_auth_provider_);
+    EXPECT_EQ(SQL_ERROR, plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_EQ(dbc_->err->native_err, ERR_INVALID_AUTHORIZATION_SPECIFICATION);
+    EXPECT_EQ("Failed to generate IAM authentication token. See the driver log for the cause.",
+        dbc_->err->error_msg);
+}
+
+// The retry after a cached token's access error must not connect with an empty fresh token either.
+TEST_F(IamAuthPluginTest, Connect_CacheHit_AccessError_EmptyFreshToken_Fails) {
+    EXPECT_CALL(*mock_auth_provider_, GetToken(testing::_, testing::_, testing::_, testing::_,
+        testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(2))
+        .WillOnce(testing::Return(std::pair<std::string, bool>("cached_token", true)))
+        .WillOnce(testing::Return(std::pair<std::string, bool>("", false)));
+    EXPECT_CALL(*mock_base_plugin_, Connect(testing::_, testing::_, testing::_, testing::_, testing::_, testing::_))
+        .Times(testing::Exactly(1))
+        .WillOnce(testing::Return(SQL_ERROR));
+    EXPECT_CALL(*mock_odbc_helper_, GetSqlStateAndLogMessage(testing::An<DBC*>(), testing::_))
+        .WillOnce(testing::Return("28P01"));
+    EXPECT_CALL(*mock_dialect_, IsSqlStateAccessError(testing::_, testing::An<const std::string&>()))
+        .WillOnce(testing::Return(true));
+
+    IamAuthPlugin plugin(dbc_, mock_base_plugin_, mock_auth_provider_, mock_dialect_, mock_odbc_helper_);
+    EXPECT_EQ(SQL_ERROR, plugin.Connect(dbc_, nullptr, nullptr, 0, 0, SQL_DRIVER_NOPROMPT));
+    ASSERT_NE(nullptr, dbc_->err);
+    EXPECT_EQ(dbc_->err->native_err, ERR_INVALID_AUTHORIZATION_SPECIFICATION);
+    EXPECT_EQ("Failed to generate IAM authentication token. See the driver log for the cause.",
+        dbc_->err->error_msg);
 }
