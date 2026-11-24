@@ -138,6 +138,7 @@ void BlueGreenStatusProvider::PrepareStatus(BlueGreenRole role, BlueGreenInterim
 
     this->UpdatePhase(role, interim_status);
     this->interim_statuses_[role.GetRole()] = interim_status;
+    this->interim_status_received_[role.GetRole()] = true;
     this->interim_status_hashes_[role.GetRole()] = status_hash;
     this->last_context_hash_ = context_hash;
 
@@ -196,11 +197,16 @@ void BlueGreenStatusProvider::UpdateStatusCache() {
 void BlueGreenStatusProvider::UpdateCorrespondingNodes() {
     this->corresponding_nodes_->Clear();
 
+    // Check that each role has reported, not that its phase is known: a monitor reports phase UNKNOWN when its
+    // connection drops mid-switchover, but the start topology it reports still maps blue nodes to green nodes.
+    // Dropping the mapping then would leave POST without substitute routes, sending connections to the old blue.
     const BlueGreenInterimStatus source_interim_status = this->interim_statuses_[BlueGreenRole::SOURCE];
     const BlueGreenInterimStatus target_interim_status = this->interim_statuses_[BlueGreenRole::TARGET];
-    if (source_interim_status.phase_ != BlueGreenPhase::UNKNOWN
+    const bool has_source_status = this->HasInterimStatus(BlueGreenRole::SOURCE);
+    const bool has_target_status = this->HasInterimStatus(BlueGreenRole::TARGET);
+    if (has_source_status
         && !source_interim_status.initial_topology_.empty()
-        && target_interim_status.phase_ != BlueGreenPhase::UNKNOWN
+        && has_target_status
         && !target_interim_status.initial_topology_.empty())
     {
         const HostInfo blue_writer_host = GetWriterHost(BlueGreenRole::SOURCE);
@@ -230,9 +236,9 @@ void BlueGreenStatusProvider::UpdateCorrespondingNodes() {
         }
     }
 
-    if (source_interim_status.phase_ != BlueGreenPhase::UNKNOWN
+    if (has_source_status
         && !source_interim_status.host_names_.empty()
-        && target_interim_status.phase_ != BlueGreenPhase::UNKNOWN
+        && has_target_status
         && !target_interim_status.host_names_.empty())
     {
         const std::set<std::string> blue_hosts = source_interim_status.host_names_;
@@ -275,11 +281,15 @@ void BlueGreenStatusProvider::UpdateCorrespondingNodes() {
     }
 }
 
+bool BlueGreenStatusProvider::HasInterimStatus(BlueGreenRole role) const {
+    return this->interim_status_received_[role.GetRole()];
+}
+
 HostInfo BlueGreenStatusProvider::GetWriterHost(BlueGreenRole role) {
-    const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
-    if (interim_status.phase_ == BlueGreenPhase::UNKNOWN) {
+    if (!this->HasInterimStatus(role)) {
         return {};
     }
+    const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
 
     const std::vector<HostInfo> host_list = interim_status.initial_topology_;
     const auto itr = std::find_if(host_list.begin(), host_list.end(), [](const HostInfo& info) { return info.GetHostRole() == HOST_ROLE::WRITER; });
@@ -292,10 +302,10 @@ HostInfo BlueGreenStatusProvider::GetWriterHost(BlueGreenRole role) {
 }
 
 std::vector<HostInfo> BlueGreenStatusProvider::GetReaderHosts(BlueGreenRole role) {
-    const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
-    if (interim_status.phase_ == BlueGreenPhase::UNKNOWN) {
+    if (!this->HasInterimStatus(role)) {
         return {};
     }
+    const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
 
     const std::vector<HostInfo> host_list = interim_status.initial_topology_;
     std::vector<HostInfo> readers_host_list;
@@ -462,10 +472,10 @@ std::vector<std::shared_ptr<BaseConnectRouting>> BlueGreenStatusProvider::AddSub
         blue_ip_hosts.push_back(blue_host);
         connect_routes.push_back(std::make_shared<SubstituteConnectRouting>(host, role, blue_ip_host, blue_ip_hosts));
 
-        const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
-        if (interim_status.phase_ == BlueGreenPhase::UNKNOWN) {
+        if (!this->HasInterimStatus(role)) {
             continue;
         }
+        const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
 
         std::vector<HostInfo> blue_interim_hosts;
         blue_interim_hosts.push_back(blue_host);
@@ -528,7 +538,7 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfInProgress() {  // NOLINT(mi
     for (const auto& [key, value] : host_to_ip_map) {
         // Try to confirm ip for blue nodes
         BlueGreenInterimStatus status = this->interim_statuses_[BlueGreenRole::SOURCE];
-        if (status.phase_ != BlueGreenPhase::UNKNOWN) {
+        if (this->HasInterimStatus(BlueGreenRole::SOURCE)) {
             const std::map<std::string, std::optional<std::string>> ip_to_host_map = status.initial_ip_host_map_;
             const auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::optional<std::string>>& pair) {
                 return !pair.first.empty() && value == pair.first;
@@ -545,7 +555,7 @@ BlueGreenStatus BlueGreenStatusProvider::GetStatusOfInProgress() {  // NOLINT(mi
         }
         // Try to confirm ip for green nodes
         status = this->interim_statuses_[BlueGreenRole::TARGET];
-        if (status.phase_ != BlueGreenPhase::UNKNOWN) {
+        if (this->HasInterimStatus(BlueGreenRole::TARGET)) {
             const std::map<std::string, std::optional<std::string>> ip_to_host_map = status.initial_ip_host_map_;
             const auto itr = std::find_if(ip_to_host_map.begin(), ip_to_host_map.end(), [value](const std::pair<const std::string, std::optional<std::string>>& pair) {
                 return !pair.first.empty() && value == pair.first;
@@ -603,7 +613,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
             if (green_host_info.GetHost().empty()) {
                 connect_routing.push_back(std::make_shared<SuspendUntilNodeFoundConnectRouting>(blue_host, role, this->blue_green_id_));
                 const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
-                if (interim_status.phase_ != BlueGreenPhase::UNKNOWN) {
+                if (this->HasInterimStatus(role)) {
                     connect_routing.push_back(std::make_shared<SuspendUntilNodeFoundConnectRouting>(
                         BlueGreenStatusProvider::GetHostPort(blue_host, interim_status.port_), role, this->blue_green_id_));
                 }
@@ -632,7 +642,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
                         : nullptr));
 
                 const BlueGreenInterimStatus interim_status = this->interim_statuses_[role.GetRole()];
-                if (interim_status.phase_ != BlueGreenPhase::UNKNOWN) {
+                if (this->HasInterimStatus(role)) {
                     connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                         BlueGreenStatusProvider::GetHostPort(blue_host, interim_status.port_), role, green_ip_host_info, iam_hosts,
                         is_blue_host_instance ? std::function<void(const std::string&)>(
@@ -672,7 +682,7 @@ void BlueGreenStatusProvider::CreatePostRouting(std::vector<std::shared_ptr<Base
                     ? std::function<void(const std::string&)>([this, green_host](const std::string& iam_host) { try { this->RegisterIamHost(green_host, iam_host); } catch (const std::exception& ex) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: " << ex.what(); } catch (...) { LOG(ERROR) << "[Connect Routing] Register IAM Host Error: unknown exception"; } })
                     : nullptr));
 
-            if (interim_status.phase_ != BlueGreenPhase::UNKNOWN) {
+            if (this->HasInterimStatus(role)) {
                 connect_routing.push_back(std::make_shared<SubstituteConnectRouting>(
                     BlueGreenStatusProvider::GetHostPort(green_host, interim_status.port_), role, green_ip_host_info, iam_hosts,
                     is_green_host_instance
@@ -925,6 +935,8 @@ void BlueGreenStatusProvider::ResetContext() {
     this->last_context_hash_ = 0;
     this->interim_statuses_[BlueGreenRole::SOURCE] = BlueGreenInterimStatus();
     this->interim_statuses_[BlueGreenRole::TARGET] = BlueGreenInterimStatus();
+    this->interim_status_received_[BlueGreenRole::SOURCE] = false;
+    this->interim_status_received_[BlueGreenRole::TARGET] = false;
     this->host_ip_map_->Clear();
     this->corresponding_nodes_->Clear();
     this->role_by_host_map_->Clear();
