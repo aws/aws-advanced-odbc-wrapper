@@ -75,6 +75,8 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
                 break;
             }
         }
+        LOG(WARNING) << "[DEBUG-MULTIAZ] REPLICA STATUS returned a row (connected to reader). col_count=" << col_count
+                     << " target_col='" << target_col << "' writer_col=" << writer_col;
         if (writer_col != 0) {
             RdsLibLoader::CallFunctionChecked<RDS_FP_SQLGetData>(dbc->env->driver_lib_loader, RdsFuncNames::GetData,
                 stmt, writer_col, SQL_C_TCHAR, writer_id_buf, BUFFER_SIZE, &writer_id_len
@@ -84,7 +86,9 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
         Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), writer_id_buf, nullptr, BUFFER_SIZE);
 #endif
         writer_id = AS_UTF8_CSTR(writer_id_buf);
+        LOG(WARNING) << "[DEBUG-MULTIAZ] writer_id from REPLICA STATUS='" << writer_id << "' len=" << writer_id_len;
     } else {
+        LOG(WARNING) << "[DEBUG-MULTIAZ] REPLICA STATUS returned no row (treating as writer). fetch rc=" << fetch_res.fn_result;
         // Returned nothing -> connected to the writer.
         // Close the current statement and run the node ID query instead.
         this->odbc_helper_->BaseFreeStmt(&stmt);
@@ -105,7 +109,12 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
                 Convert4To2ByteString(this->odbc_helper_->GetUse4BytesBaseDriver(), id_buf, nullptr, BUFFER_SIZE);
 #endif
                 writer_id = AS_UTF8_CSTR(id_buf);
+                LOG(WARNING) << "[DEBUG-MULTIAZ] writer_id from node id query='" << writer_id << "'";
+            } else {
+                LOG(WARNING) << "[DEBUG-MULTIAZ] node id query fetch failed rc=" << fetch_res2.fn_result;
             }
+        } else {
+            LOG(WARNING) << "[DEBUG-MULTIAZ] node id query failed rc=" << res.fn_result;
         }
     }
     this->odbc_helper_->BaseFreeStmt(&stmt);
@@ -119,15 +128,18 @@ std::vector<HostInfo> MultiAzTopologyUtil::GetHosts(SQLHDBC hdbc, const HostInfo
     }
 
     const std::string writer_id = GetWriterId(hdbc);
+    LOG(WARNING) << "[DEBUG-MULTIAZ] GetHosts writer_id='" << writer_id << "'";
 
     SQLHSTMT stmt = SQL_NULL_HANDLE;
     RdsLibResult res = this->odbc_helper_->BaseAllocStmt(&dbc->wrapped_dbc, &stmt);
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(WARNING) << "[DEBUG-MULTIAZ] GetHosts failed to allocate statement";
         return {};
     }
 
     res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetTopologyQuery());
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        LOG(WARNING) << "[DEBUG-MULTIAZ] topology query failed rc=" << res.fn_result;
         this->odbc_helper_->BaseFreeStmt(&stmt);
         return {};
     }
@@ -149,6 +161,8 @@ std::vector<HostInfo> MultiAzTopologyUtil::GetHosts(SQLHDBC hdbc, const HostInfo
 #endif
         const std::string current_node_id = AS_UTF8_CSTR(node_id);
         const HOST_ROLE role = (current_node_id == writer_id) ? WRITER : READER;
+        LOG(WARNING) << "[DEBUG-MULTIAZ] topology row node_id='" << current_node_id << "' endpoint='" << AS_UTF8_CSTR(instance_id)
+                     << "' role=" << (role == WRITER ? "WRITER" : "READER");
         const HostInfo new_host = CreateHost(instance_id, role, host_template);
         hosts.push_back(new_host);
         res = this->odbc_helper_->Fetch(&stmt);
