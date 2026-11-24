@@ -124,12 +124,13 @@ namespace {
             }
             return host_id_match.size() > 1 ? host_id_match[1].str() : host;
         }
-        std::string prefix = match.size() > 1 ? match[1].str() : "";
+        const std::string prefix = match.size() > 1 ? match[1].str() : "";
         std::string converted_host = host;
         if (!prefix.empty()) {
-            size_t begin_idx = host.find(prefix);
+            const std::string search = prefix + ".";
+            const size_t begin_idx = host.find(search);
             if (begin_idx != std::string::npos) {
-                converted_host = converted_host.replace(begin_idx, begin_idx + prefix.length(), ".");
+                converted_host = converted_host.replace(begin_idx, search.length(), ".");
             }
         }
         return converted_host;
@@ -1544,7 +1545,8 @@ protected:
         std::deque<TimeHolder>& result_queue, const std::string& iam_host, const std::string& thread_prefix,
         bool notify_on_first_error, bool exit_on_first_success)
     {
-        return std::thread([&](const std::string& host_id, const std::string& host, const std::string& iam_host, const std::string& thread_prefix) {
+        // The flags are by-value parameters, so capture them by value: this function returns before the thread reads them.
+        return std::thread([&, notify_on_first_error, exit_on_first_success](const std::string& host_id, const std::string& host, const std::string& iam_host, const std::string& thread_prefix) {
             // Setup
             const std::string green_node_connect_ip = TEST_UTILS::HostToIp(host);
             ThreadSynchronization::Print("[GreenIamConnectivityMonitoringThread_" + thread_prefix + ": " + host_id + "] resolved IP: " + green_node_connect_ip + " for host: " + host);
@@ -1701,11 +1703,8 @@ TEST_F(BlueGreenIntegrationTest, SwitchoverTest) {
             threads.push_back(CreateWrapperGreenConnectivityMonitoringThread(host_id, host, result.green_wrapper_execute_times, result.wrapper_green_lost_connection_time));
             threads.push_back(CreateGreenDnsMonitoringThread(host_id, host, result.dns_green_removed_time));
 
-            size_t cluster_pos = host.find(".cluster");
-            std::string blue_iam_host = host;
-            if (green_pos != std::string::npos && cluster_pos != std::string::npos) {
-                blue_iam_host = host.substr(0, green_pos) + host.substr(cluster_pos);
-            }
+            // The name this green node takes over after switchover, e.g. "db-1-green-abc123.xyz.rds..." -> "db-1.xyz.rds...".
+            const std::string blue_iam_host = RemoveGreenInstancePrefix(host);
 
             threads.push_back(CreateGreenIamConnectivityMonitoringThread(
                 host_id, host, result.green_node_changed_name_time_first_success, result.green_direct_iam_ip_with_blue_node_connect_times,

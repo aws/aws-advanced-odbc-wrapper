@@ -61,6 +61,7 @@ protected:
     void UpdateCorrespondingNodes();
     HostInfo GetWriterHost(BlueGreenRole role);
     std::vector<HostInfo> GetReaderHosts(BlueGreenRole role);
+    bool HasInterimStatus(BlueGreenRole role) const;
     void UpdateSummaryStatus(BlueGreenRole role, BlueGreenInterimStatus interim_status);
     void UpdateMonitors();
     void UpdateDnsFlags(BlueGreenRole role, BlueGreenInterimStatus interim_status);
@@ -117,6 +118,9 @@ private:
     int32_t interim_status_hashes_[2] = {0, 0};
     int32_t last_context_hash_;
     BlueGreenInterimStatus interim_statuses_[2];
+    // Whether a monitor has reported for the role since the last reset. A received status can still have phase UNKNOWN
+    // (its monitor lost the connection mid-switchover) while its start topology and host names stay valid.
+    bool interim_status_received_[2] = {false, false};
 
     std::atomic<bool> pending_restart_ = false;
     std::shared_ptr<std::thread> reset_monitoring_thread_ = nullptr;

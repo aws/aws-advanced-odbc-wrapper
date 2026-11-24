@@ -37,6 +37,7 @@ set(TEST_SUITE
     ${CMAKE_CURRENT_SOURCE_DIR}/auth_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/aws_sso_auth_plugin_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/base_plugin_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/blue_green_status_provider_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/browser_auth_flow_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concurrent_stack_test.cpp
