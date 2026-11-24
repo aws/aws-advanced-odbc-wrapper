@@ -15,6 +15,7 @@
 #ifndef RDS_LIB_LOADER_H
 #define RDS_LIB_LOADER_H
 
+#include <atomic>
 #include <memory>
 #include <shared_mutex>
 #include <string>
@@ -100,9 +101,15 @@ public:
     [[nodiscard]] bool IsLoaded() const;
     std::string GetLoadError();
 
+    // Character width is a property of the loaded base driver, so it is kept here where every
+    // OdbcHelper and PluginService sharing this loader (main, monitor) sees the same value.
+    [[nodiscard]] bool GetUse4BytesBaseDriver() const { return use_4_bytes_base_driver_.load(); }
+    void SetUse4BytesBaseDriver(const bool use_4_bytes) { use_4_bytes_base_driver_.store(use_4_bytes); }
+
 protected:
 private:
     std::string driver_path_;
+    std::atomic<bool> use_4_bytes_base_driver_{false};
     std::string load_error_;
 
     RdsPlatform::ModuleHandle driver_handle_ = nullptr;

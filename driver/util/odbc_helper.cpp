@@ -211,7 +211,8 @@ std::shared_ptr<RdsLibLoader> OdbcHelper::GetLibLoader() {
 }
 
 bool OdbcHelper::GetUse4BytesBaseDriver() const {
-    return this->use_4_bytes_base_driver_;
+    // Prefer the loader's value: monitor helpers share it with the main connection's helper.
+    return this->lib_loader_ ? this->lib_loader_->GetUse4BytesBaseDriver() : this->use_4_bytes_base_driver_;
 }
 
 bool OdbcHelper::GetUse4BytesUserApp() const {
@@ -220,6 +221,9 @@ bool OdbcHelper::GetUse4BytesUserApp() const {
 
 void OdbcHelper::SetUse4BytesBaseDriver(const bool use_4_bytes) {
     this->use_4_bytes_base_driver_ = use_4_bytes;
+    if (this->lib_loader_) {
+        this->lib_loader_->SetUse4BytesBaseDriver(use_4_bytes);
+    }
 }
 
 // codechecker_suppress [readability-convert-member-functions-to-static]
@@ -232,7 +236,7 @@ ConvertedSqltchar OdbcHelper::ConvertInput(SQLTCHAR* in, SQLINTEGER in_length) c
     }
     result.data = ConvertUserAppInputToBaseDriver(
         GetUse4BytesUserApp(),
-        use_4_bytes_base_driver_,
+        GetUse4BytesBaseDriver(),
         in,
         in_length);
     result.tchar_ptr = result.data.data();
@@ -277,6 +281,9 @@ std::string OdbcHelper::GetStmtErrorMessage(SQLHSTMT stmt) {
         SQL_HANDLE_STMT, stmt, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length);
     if (SQL_SUCCEEDED(res.fn_result)) {
 #if UNICODE
+        // The base driver writes the message in its own width. Narrow it to 2-byte
+        // characters first, otherwise a 4-byte driver's text stops after the first character.
+        Convert4To2ByteString(GetUse4BytesBaseDriver(), message, nullptr, MAX_MSG_LEN);
         return ConvertUTF16ToUTF8(reinterpret_cast<uint16_t*>(message));
 #else
         return {reinterpret_cast<const char*>(message)};
@@ -308,14 +315,14 @@ void OdbcHelper::ConvertDriverOutputToTarget(
     }
 #if UNICODE
     const bool user_4_byte = !wrapper_call && GetUse4BytesUserApp();
-    const size_t src_char_count = use_4_bytes_base_driver_
+    const size_t src_char_count = GetUse4BytesBaseDriver()
         ? src_byte_count / sizeof(SQLTCHAR) / 2
         : src_byte_count / sizeof(SQLTCHAR);
     const size_t dst_char_count = user_4_byte
         ? dst_byte_count / sizeof(SQLTCHAR) / 2
         : dst_byte_count / sizeof(SQLTCHAR);
 
-    if (user_4_byte == use_4_bytes_base_driver_) {
+    if (user_4_byte == GetUse4BytesBaseDriver()) {
         // Both the client application and the base driver use 4-byte data.
         // Copy the data as-is.
         const size_t max_copy = src_byte_count > dst_byte_count
@@ -328,7 +335,7 @@ void OdbcHelper::ConvertDriverOutputToTarget(
     } else {
         // Narrow driver output from 4-byte to 2-byte for the client application.
         // Or copy as-is if both are 2-byte.
-        Convert4To2ByteString(use_4_bytes_base_driver_, const_cast<SQLTCHAR*>(src), dst, dst_char_count);
+        Convert4To2ByteString(GetUse4BytesBaseDriver(), const_cast<SQLTCHAR*>(src), dst, dst_char_count);
     }
 #else
     const size_t max_copy = src_byte_count > dst_byte_count
@@ -375,7 +382,7 @@ void OdbcHelper::ConvertWrapperOutputToTarget(
 // codechecker_suppress [readability-convert-member-functions-to-static]
 bool OdbcHelper::NeedsConversion() const {
 #if UNICODE
-    return GetUse4BytesUserApp() != use_4_bytes_base_driver_;
+    return GetUse4BytesUserApp() != GetUse4BytesBaseDriver();
 #else
     return false;
 #endif
@@ -383,7 +390,7 @@ bool OdbcHelper::NeedsConversion() const {
 
 std::vector<SQLTCHAR> OdbcHelper::AllocateConversionBuffer(const size_t byte_count) const {
     const size_t char_count = byte_count / sizeof(SQLTCHAR);
-    const size_t local_buf_size = use_4_bytes_base_driver_
+    const size_t local_buf_size = GetUse4BytesBaseDriver()
         ? char_count * 2
         : char_count;
     std::vector<SQLTCHAR> buffer(local_buf_size, 0);
@@ -445,11 +452,11 @@ void OdbcHelper::AdjustByteLength(SQLSMALLINT* length_ptr) const {
     if (length_ptr && *length_ptr > 0) {
         const bool user_4_byte = GetUse4BytesUserApp();
         // Expanded, driver 2-byte -> user 4-byte
-        if (user_4_byte && !use_4_bytes_base_driver_) {
+        if (user_4_byte && !GetUse4BytesBaseDriver()) {
             *length_ptr *= 2;
         }
         // Shrunk, driver 4-byte -> user 2-byte
-        if (!user_4_byte && use_4_bytes_base_driver_) {
+        if (!user_4_byte && GetUse4BytesBaseDriver()) {
             *length_ptr /= 2;
         }
     }
@@ -461,11 +468,11 @@ void OdbcHelper::AdjustByteLength(SQLINTEGER* length_ptr) const {
         if (length_ptr && *length_ptr > 0) {
             const bool user_4_byte = GetUse4BytesUserApp();
             // Expanded, driver 2-byte -> user 4-byte
-            if (user_4_byte && !use_4_bytes_base_driver_) {
+            if (user_4_byte && !GetUse4BytesBaseDriver()) {
                 *length_ptr *= 2;
             }
             // Shrunk, driver 4-byte -> user 2-byte
-            if (!user_4_byte && use_4_bytes_base_driver_) {
+            if (!user_4_byte && GetUse4BytesBaseDriver()) {
                 *length_ptr /= 2;
             }
         }

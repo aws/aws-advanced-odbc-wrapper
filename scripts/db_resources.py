@@ -578,6 +578,8 @@ def setup_mysql_iam_user(endpoint, database, username, password, iam_user,
                 cur.execute(f"CREATE USER '{username}' IDENTIFIED WITH caching_sha2_password BY '{extra_password}'")
                 cur.execute(f"GRANT ALL ON {database}.* TO '{username}'@'%'")
                 cur.execute(f"GRANT SELECT ON mysql.rds_topology TO '{username}'@'%'")
+                # Multi-AZ writer detection runs SHOW REPLICA STATUS, which needs this global privilege.
+                cur.execute(f"GRANT REPLICATION CLIENT ON *.* TO '{username}'@'%'")
                 cur.execute("FLUSH PRIVILEGES")
 
             cur.close()
