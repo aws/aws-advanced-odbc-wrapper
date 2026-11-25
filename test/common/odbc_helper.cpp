@@ -37,7 +37,8 @@ SQLRETURN ODBC_HELPER::DriverConnect(SQLHDBC hdbc, std::string conn_str) {
 
     SQLRETURN ret = SQLDriverConnect(hdbc, nullptr, conn_str_in, SQL_NTS, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
 
-    if (!SQL_SUCCEEDED(ret)) {
+    // Warnings too: SQL_SUCCESS_WITH_INFO also comes with diagnostic records
+    if (ret != SQL_SUCCESS) {
         PrintHandleError(hdbc, SQL_HANDLE_DBC);
     }
     return ret;
@@ -56,7 +57,8 @@ SQLRETURN ODBC_HELPER::DsnConnect(SQLHDBC hdbc, std::string dsn, std::string uid
         uid_in, SQL_NTS,
         pwd_in, SQL_NTS);
 
-    if (!SQL_SUCCEEDED(ret)) {
+    // Warnings too: SQL_SUCCESS_WITH_INFO also comes with diagnostic records
+    if (ret != SQL_SUCCESS) {
         PrintHandleError(hdbc, SQL_HANDLE_DBC);
     }
     return ret;
