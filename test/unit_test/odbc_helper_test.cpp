@@ -108,10 +108,10 @@ TEST(OdbcHelperTest, Flag_NotSharedBetweenLoadersWithoutDriverPath) {
     EXPECT_FALSE(helper_b.GetUse4BytesBaseDriver());
 }
 
-TEST(OdbcHelperTest, Flag_WorksWithoutLoader) {
+TEST(OdbcHelperTest, Flag_WithoutLoaderIsAlways2Byte) {
     OdbcHelper helper(nullptr, nullptr);
 
     helper.SetUse4BytesBaseDriver(true);
 
-    EXPECT_TRUE(helper.GetUse4BytesBaseDriver());
+    EXPECT_FALSE(helper.GetUse4BytesBaseDriver());
 }

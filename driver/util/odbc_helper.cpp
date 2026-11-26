@@ -211,8 +211,8 @@ std::shared_ptr<RdsLibLoader> OdbcHelper::GetLibLoader() {
 }
 
 bool OdbcHelper::GetUse4BytesBaseDriver() const {
-    // Prefer the loader's value: monitor helpers share it with the main connection's helper.
-    return this->lib_loader_ ? this->lib_loader_->GetUse4BytesBaseDriver() : this->use_4_bytes_base_driver_;
+    // The width is kept on the loader, shared by every helper using the same base driver.
+    return this->lib_loader_ && this->lib_loader_->GetUse4BytesBaseDriver();
 }
 
 bool OdbcHelper::GetUse4BytesUserApp() const {
@@ -220,7 +220,6 @@ bool OdbcHelper::GetUse4BytesUserApp() const {
 }
 
 void OdbcHelper::SetUse4BytesBaseDriver(const bool use_4_bytes) {
-    this->use_4_bytes_base_driver_ = use_4_bytes;
     if (this->lib_loader_) {
         this->lib_loader_->SetUse4BytesBaseDriver(use_4_bytes);
     }
