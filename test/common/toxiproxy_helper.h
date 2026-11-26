@@ -38,6 +38,7 @@ public:
         http_client_->delete_path(ProxyPath());
 
         // The client returns an empty string value instead of throwing when the server cannot be reached.
+        // Posting to /proxies instead of using client->create_proxy() due to bug in library which is using /proxies/ instead.
         const auto created = http_client_->post("/proxies", nlohmann::json{
             {"name", PROXY_NAME},
             {"listen", "127.0.0.1:" + std::to_string(listen_port_)},
@@ -52,26 +53,32 @@ public:
         proxy_ = api_client_->get_proxy(PROXY_NAME);
     }
 
-    // Reset every connection through the proxy, in both directions, including new ones, as a network failure would.
+    // Set bandwidth toxics to 1 to simulate a network outage. With toxiproxy 2.13.0, the lowest bandwidth is 1.
     void DisableConnectivity() const {
         const auto toxics = proxy_->get_toxics();
-        const std::unique_ptr<TOXIPROXY::RESET_PEER> downstream(
-            toxics->reset_peer(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 0));
-        const std::unique_ptr<TOXIPROXY::RESET_PEER> upstream(
-            toxics->reset_peer(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 0));
+        if (toxics) {
+            toxics->bandwidth(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 1);
+            toxics->bandwidth(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 1);
+        }
     }
 
     void EnableConnectivity() const {
         const auto toxics = proxy_->get_toxics();
-        for (const char* name : {DOWNSTREAM_TOXIC, UPSTREAM_TOXIC}) {
-            const std::unique_ptr<TOXIPROXY::TOXIC> toxic(toxics->get(name));
-            if (toxic) {
-                toxic->remove();
+
+        if (toxics) {
+            TOXIPROXY::TOXIC* downstream = toxics->get(DOWNSTREAM_TOXIC);
+            TOXIPROXY::TOXIC* upstream = toxics->get(UPSTREAM_TOXIC);
+
+            if (downstream) {
+                downstream->remove();
+            }
+            if (upstream) {
+                upstream->remove();
             }
         }
     }
 
-    // Deleting the proxy also removes its toxics. Safe to call when no proxy was created. Never throws.
+    // Deleting the proxy also removes its toxics.
     void DeleteProxy() noexcept {
         try {
             if (http_client_ && proxy_created_) {
