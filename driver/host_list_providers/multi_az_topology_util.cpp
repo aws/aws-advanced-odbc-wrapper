@@ -37,8 +37,13 @@ std::string MultiAzTopologyUtil::GetWriterId(SQLHDBC hdbc) {
     res = this->odbc_helper_->ExecDirect(&stmt, dialect_->GetReplicaSourceQuery());
 
     if (!SQL_SUCCEEDED(res.fn_result)) {
+        // Read the diagnostic before the statement handle is freed.
+        const std::string error_msg = this->odbc_helper_->GetStmtErrorMessage(stmt);
         this->odbc_helper_->BaseFreeStmt(&stmt);
-        LOG(ERROR) << "Failed to query writer ID";
+        LOG(ERROR) << "Failed to query writer ID with '" << dialect_->GetReplicaSourceQuery()
+                   << "'. Return code: " << res.fn_result
+                   << ", function loaded: " << (res.fn_load_success ? "true" : "false")
+                   << ", Message: " << (error_msg.empty() ? "<none>" : error_msg);
         return "";
     }
 
