@@ -77,10 +77,8 @@ public:
         const std::string &port,
         const std::string &username,
         bool use_cache = true,
-        bool extra_url_encode = false,
         std::chrono::milliseconds time_to_expire_ms = DEFAULT_EXPIRATION_MS);
     virtual void UpdateAwsCredential(const Aws::Auth::AWSCredentials& credentials, const std::string &region = "");
-    static std::string ExtraUrlEncodeString(const std::string &url_str);
 
     static std::string GetPort(DBC* dbc);
     static std::string GetRegionForProfile(const std::string &profile);

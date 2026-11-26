@@ -23,6 +23,7 @@
 
 #include "../../util/auth_provider.h"
 #include "../../util/aws_sdk_helper.h"
+#include "../../util/connection_string_helper.h"
 #include "../../util/connection_string_keys.h"
 #include "../../util/map_utils.h"
 
@@ -134,7 +135,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
             const Secret cached_secret = secrets_cache_.at(secret_key_);
             if (curr_time < cached_secret.expiration_point) {
                 dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, cached_secret.username);
-                dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, cached_secret.password);
+                ConnectionStringHelper::SetGeneratedPassword(dbc->conn_attr, cached_secret.password);
                 ret = ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
             } else {
                 LOG(INFO) << "Existing secrets are expired";
@@ -164,7 +165,7 @@ SQLRETURN SecretsManagerPlugin::Connect(
         }
 
         dbc->conn_attr.insert_or_assign(KEY_DB_USERNAME, secret.username);
-        dbc->conn_attr.insert_or_assign(KEY_DB_PASSWORD, secret.password);
+        ConnectionStringHelper::SetGeneratedPassword(dbc->conn_attr, secret.password);
         return ConnectNext(ConnectionHandle, WindowHandle, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion);
     }
     LOG(ERROR) << "Failed to get secrets from Secrets Manager.";
