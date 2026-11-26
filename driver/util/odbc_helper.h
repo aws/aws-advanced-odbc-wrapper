@@ -98,7 +98,6 @@ public:
 private:
     std::shared_ptr<RdsLibLoader> lib_loader_;
     const ENV *env_ = nullptr;
-    bool use_4_bytes_base_driver_ = false;
 };
 
 #endif //ODBC_HELPER_H

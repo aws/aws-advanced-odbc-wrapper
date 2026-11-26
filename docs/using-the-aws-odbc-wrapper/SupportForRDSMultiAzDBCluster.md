@@ -42,12 +42,13 @@ DRIVER={AWS Advanced ODBC Wrapper Ansi};SERVER=cluster-writer-endpoint;PORT=5432
 
 ### MySQL
 
-For RDS for MySQL Multi-AZ DB Clusters, topology information is exposed through the `mysql.rds_topology` table. Extra permissions must be granted to all non-administrative users who need database access. Without proper access, these users cannot use many of the wrapper's advanced features, including failover support.
+For RDS for MySQL Multi-AZ DB Clusters, topology information is exposed through the `mysql.rds_topology` table, and the wrapper identifies the writer with `SHOW REPLICA STATUS`. Extra permissions must be granted to all non-administrative users who need database access. Without proper access, these users cannot use many of the wrapper's advanced features, including failover support and read/write splitting. If `SHOW REPLICA STATUS` is denied, the wrapper cannot resolve the topology and the host list stays empty.
 
 Grant the necessary permissions with:
 
 ```sql
 GRANT SELECT ON mysql.rds_topology TO 'non-admin-username'@'%';
+GRANT REPLICATION CLIENT ON *.* TO 'non-admin-username'@'%';
 ```
 
 Sample connection string (using a base driver):

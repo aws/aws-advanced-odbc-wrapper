@@ -106,10 +106,15 @@ SQLRETURN DefaultPlugin::Connect(
                     SQL_HANDLE_DBC, dbc->wrapped_dbc, 1, state, &native_error, text, MAX_MSG_LEN, &len
                 );
 
+                const bool was_4_byte = this->odbc_helper_->GetUse4BytesBaseDriver();
                 for (int i = MAX_SQL_STATE_LEN; i < MAX_SQL_STATE_LEN * 2; i++) {
                     if (state[i] != '\0') {
                         this->odbc_helper_->SetUse4BytesBaseDriver(true);
                     }
+                }
+                if (!was_4_byte && this->odbc_helper_->GetUse4BytesBaseDriver()) {
+                    // Shared by every helper on this driver, including the topology monitor's.
+                    LOG(INFO) << "Detected a 4-byte base driver, retrying the connection with 4-byte strings";
                 }
 
                 if (this->odbc_helper_->GetUse4BytesBaseDriver()) {
