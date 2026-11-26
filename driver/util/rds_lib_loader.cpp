@@ -40,9 +40,26 @@ std::string GetLastModuleLoadError()
 }
 } // namespace
 
+std::shared_ptr<std::atomic<bool>> RdsLibLoader::GetSharedWidthFlag(const std::string& driver_path)
+{
+    // One entry per distinct driver path for the life of the process.
+    static std::mutex registry_mutex;
+    static std::unordered_map<std::string, std::shared_ptr<std::atomic<bool>>> registry;
+
+    const std::lock_guard<std::mutex> lock(registry_mutex);
+    auto& flag = registry[driver_path];
+    if (!flag) {
+        flag = std::make_shared<std::atomic<bool>>(false);
+    }
+    return flag;
+}
+
 RdsLibLoader::RdsLibLoader(std::string library_path)
 {
     driver_path_ = std::move(library_path);
+    if (!driver_path_.empty()) {
+        use_4_bytes_base_driver_ = GetSharedWidthFlag(driver_path_);
+    }
     driver_handle_ = RdsPlatform::OpenLibrary(driver_path_);
     if (!driver_handle_) {
         load_error_ = GetLastModuleLoadError();

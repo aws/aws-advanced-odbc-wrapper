@@ -101,15 +101,19 @@ public:
     [[nodiscard]] bool IsLoaded() const;
     std::string GetLoadError();
 
-    // Character width is a property of the loaded base driver, so it is kept here where every
-    // OdbcHelper and PluginService sharing this loader (main, monitor) sees the same value.
-    [[nodiscard]] bool GetUse4BytesBaseDriver() const { return use_4_bytes_base_driver_.load(); }
-    void SetUse4BytesBaseDriver(const bool use_4_bytes) { use_4_bytes_base_driver_.store(use_4_bytes); }
+    // Character width is a property of the base driver library, not of one ENV. Every loader for the
+    // same driver path shares one flag, so a topology monitor joined by a connection from a different
+    // ENV (which has its own loader) still sees the width an earlier connection detected.
+    // A loader without a path (nothing loaded) keeps a flag of its own.
+    [[nodiscard]] bool GetUse4BytesBaseDriver() const { return use_4_bytes_base_driver_->load(); }
+    void SetUse4BytesBaseDriver(const bool use_4_bytes) { use_4_bytes_base_driver_->store(use_4_bytes); }
 
 protected:
 private:
+    static std::shared_ptr<std::atomic<bool>> GetSharedWidthFlag(const std::string& driver_path);
+
     std::string driver_path_;
-    std::atomic<bool> use_4_bytes_base_driver_{false};
+    std::shared_ptr<std::atomic<bool>> use_4_bytes_base_driver_ = std::make_shared<std::atomic<bool>>(false);
     std::string load_error_;
 
     RdsPlatform::ModuleHandle driver_handle_ = nullptr;
