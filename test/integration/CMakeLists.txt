@@ -80,6 +80,16 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 list(APPEND EXTERNAL_LIBRARIES gtest_main)
 
+# -- Toxiproxy C++ client --
+FetchContent_Declare(
+    toxiproxy
+    GIT_REPOSITORY https://github.com/Bit-Quill/toxiproxy-cpp
+    GIT_TAG main
+)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+FetchContent_MakeAvailable(toxiproxy)
+list(APPEND EXTERNAL_LIBRARIES toxiproxy)
+
 # -- ODBC --
 if(APPLE)
     # Use UnixODBC instead of iODBC

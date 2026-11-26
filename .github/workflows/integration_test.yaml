@@ -762,6 +762,14 @@ jobs:
         run: |
           export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           ./scripts/compile_aws_sdk_unix.sh ${{env.BUILD_CONFIG}}
+      - name: Install toxiproxy
+        shell: bash
+        run: |
+          brew install toxiproxy
+      - name: Run toxiproxy server
+        shell: bash
+        run: |
+          toxiproxy-server &
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}
@@ -1030,6 +1038,11 @@ jobs:
             --region "${{ secrets.AWS_DEFAULT_REGION }}" \
             --secrets-arn "${{ env.AURORA_CLUSTER_SECRETS_ARN }}" \
             $EXTRA_ARGS
+      - name: Close toxiproxy server
+        if: always()
+        shell: bash
+        run: |
+          pkill toxiproxy-server
       - name: Archive log results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

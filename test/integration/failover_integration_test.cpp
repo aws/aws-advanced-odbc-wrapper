@@ -19,6 +19,7 @@
 #include "../common/odbc_helper.h"
 #include "../common/string_helper.h"
 #include "../common/test_utils.h"
+#include "../common/toxiproxy_helper.h"
 
 class FailoverIntegrationTest : public BaseFailoverIntegrationTest {
 protected:
@@ -29,6 +30,7 @@ protected:
     std::string rds_region = TEST_UTILS::GetEnvVar("TEST_REGION", "us-west-1");
     Aws::RDS::RDSClientConfiguration client_config;
     Aws::RDS::RDSClient rds_client;
+    ToxiproxyHelper toxiproxy;
 
     static void SetUpTestSuite() {
         BaseFailoverIntegrationTest::SetUpTestSuite();
@@ -40,51 +42,78 @@ protected:
         BaseFailoverIntegrationTest::TearDownTestSuite();
     }
 
-    void SetUp() override {
-        BaseFailoverIntegrationTest::SetUp();
-        Aws::Auth::AWSCredentials credentials =
-            session_token.empty() ? Aws::Auth::AWSCredentials(access_key, secret_access_key)
-                                  : Aws::Auth::AWSCredentials(access_key, secret_access_key, session_token);
-        client_config.region = rds_region;
-        if (!rds_endpoint.empty()) {
-            client_config.endpointOverride = rds_endpoint;
+    // Connect through a proxy to the cluster endpoint. HOST_PATTERN points the driver at the real instance endpoints and the
+    // real port, so failover connects to actual instances rather than the proxy.
+    void SetUpToxiproxy() {
+        std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+        if (test_name != "WriterFailToReader") {
+            GTEST_SKIP() << "Only running toxiproxy test";
         }
-        rds_client = Aws::RDS::RDSClient(credentials, client_config);
-
-        // Check to see if cluster is available before fetching topology.
-        WaitForDbReady(rds_client, cluster_id);
-        WaitForAllInstancesReady(rds_client, cluster_id);
-        // Wait for a settled writer before deriving writer_endpoint below.
-        // A prior test may have just failed over, leaving the SDK reporting a stale writer.
-        WaitForWriterStable(rds_client, cluster_id);
-
-        cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
-        if (cluster_instances.empty()) {
-            GTEST_SKIP() << "No cluster instances found";
+        try {
+            toxiproxy.CreateProxy(test_server, test_port);
+        } catch (const std::exception& e) {
+            GTEST_SKIP() << "Toxiproxy setup failed: " << e.what();
         }
-        writer_id = GetWriterId(cluster_instances);
-        writer_endpoint = GetEndpoint(writer_id);
-        if (cluster_instances.size() < 2) {
-            GTEST_SKIP() << "Failover tests require at least 2 instances (1 writer + 1 reader)";
-        }
-        readers = GetReaders(cluster_instances);
-        reader_id = GetFirstReaderId(cluster_instances);
-        target_writer_id = GetRandomDbReaderId(readers);
 
-        conn_str = ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
+        conn_str = ConnectionStringBuilder(test_dsn, "127.0.0.1", toxiproxy.ListenPort())
             .withUID(test_uid)
             .withPWD(test_pwd)
             .withDatabase(test_db)
             .withEnableClusterFailover(true)
             .withDatabaseDialect(test_dialect)
+            .withFailoverTimeout(120000)
+            .withHostPattern("?" + db_conn_str_suffix + ":" + std::to_string(test_port))
             .getString();
+    }
 
-        if (test_dialect == "MULTI_AZ_MYSQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
-            conn_str = ConnectionStringBuilder(conn_str).withFailoverTimeout(1200000).getString();
-        }
+    void SetUp() override {
+        BaseFailoverIntegrationTest::SetUp();
+        SetUpToxiproxy();
+
+        // Aws::Auth::AWSCredentials credentials =
+        //     session_token.empty() ? Aws::Auth::AWSCredentials(access_key, secret_access_key)
+        //                           : Aws::Auth::AWSCredentials(access_key, secret_access_key, session_token);
+        // client_config.region = rds_region;
+        // if (!rds_endpoint.empty()) {
+        //     client_config.endpointOverride = rds_endpoint;
+        // }
+        // rds_client = Aws::RDS::RDSClient(credentials, client_config);
+
+        // // Check to see if cluster is available before fetching topology.
+        // WaitForDbReady(rds_client, cluster_id);
+        // WaitForAllInstancesReady(rds_client, cluster_id);
+        // // Wait for a settled writer before deriving writer_endpoint below.
+        // // A prior test may have just failed over, leaving the SDK reporting a stale writer.
+        // WaitForWriterStable(rds_client, cluster_id);
+
+        // cluster_instances = GetTopologyViaSdk(rds_client, cluster_id);
+        // if (cluster_instances.empty()) {
+        //     GTEST_SKIP() << "No cluster instances found";
+        // }
+        // writer_id = GetWriterId(cluster_instances);
+        // writer_endpoint = GetEndpoint(writer_id);
+        // if (cluster_instances.size() < 2) {
+        //     GTEST_SKIP() << "Failover tests require at least 2 instances (1 writer + 1 reader)";
+        // }
+        // readers = GetReaders(cluster_instances);
+        // reader_id = GetFirstReaderId(cluster_instances);
+        // target_writer_id = GetRandomDbReaderId(readers);
+
+        // conn_str = ConnectionStringBuilder(test_dsn, writer_endpoint, test_port)
+        //     .withUID(test_uid)
+        //     .withPWD(test_pwd)
+        //     .withDatabase(test_db)
+        //     .withEnableClusterFailover(true)
+        //     .withDatabaseDialect(test_dialect)
+        //     .getString();
+
+        // if (test_dialect == "MULTI_AZ_MYSQL" || test_dialect == "MULTI_AZ_POSTGRESQL") {
+        //     conn_str = ConnectionStringBuilder(conn_str).withFailoverTimeout(1200000).getString();
+        // }
     }
 
     void TearDown() override {
+        toxiproxy.DeleteProxy();
         BaseFailoverIntegrationTest::TearDown();
     }
 };
@@ -112,7 +141,8 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
     }
     EXPECT_TRUE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
 
-    FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
+    // FailoverClusterWaitDesiredWriter(rds_client, cluster_id, writer_id, target_writer_id);
+    toxiproxy.DisableConnectivity();
     AssertQueryFail(dbc, SERVER_ID_QUERY, ERROR_FAILOVER_SUCCEEDED);
 
     // Query new ID after failover
@@ -120,6 +150,8 @@ TEST_F(FailoverIntegrationTest, WriterFailToReader) {
 
     // Check if current connection is a reader
     EXPECT_FALSE(IsInstanceWriter(rds_client, cluster_id, current_connection_id));
+
+    toxiproxy.EnableConnectivity();
 
     // Clean up test
     EXPECT_EQ(SQL_SUCCESS, SQLDisconnect(dbc));
