@@ -751,11 +751,14 @@ jobs:
       - name: Install toxiproxy
         shell: bash
         run: |
-          brew install toxiproxy
+          TOXIPROXY_VERSION=2.13.0
+          ARCH=$([ "$(uname -m)" = "arm64" ] && echo arm64 || echo amd64)
+          curl --fail -L -o toxiproxy-server "https://github.com/Shopify/toxiproxy/releases/download/v${TOXIPROXY_VERSION}/toxiproxy-server-darwin-${ARCH}"
+          chmod +x toxiproxy-server
       - name: Run toxiproxy server
         shell: bash
         run: |
-          toxiproxy-server &
+          ./toxiproxy-server &
       - name: Build aws-advanced-odbc-wrapper
         run: |
           cmake -S . -B build -DBUILD_UNICODE=ON -DBUILD_ANSI=ON -DBUILD_UNIT_TEST=OFF -DCMAKE_BUILD_TYPE=${{env.BUILD_CONFIG}}

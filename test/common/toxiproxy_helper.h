@@ -53,12 +53,13 @@ public:
         proxy_ = api_client_->get_proxy(PROXY_NAME);
     }
 
-    // Set bandwidth toxics to 1 to simulate a network outage. With toxiproxy 2.13.0, the lowest bandwidth is 1.
+    // Set timeout toxics to 0 to simulate a network outage.
+    // Bandwidth toxic no longer works with value of 0 on latest toxiproxy.
     void DisableConnectivity() const {
         const auto toxics = proxy_->get_toxics();
         if (toxics) {
-            toxics->bandwidth(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 1);
-            toxics->bandwidth(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 1);
+            toxics->timeout(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 0);
+            toxics->timeout(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 0);
         }
     }
 
