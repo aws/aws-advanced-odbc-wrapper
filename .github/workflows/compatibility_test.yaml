@@ -2,6 +2,12 @@ name: Compatibility Test - PostgreSQL & MySQL
 
 on:
   workflow_dispatch:
+    inputs:
+      psqlodbc_version:
+        description: 'psqlODBC release tag to test (e.g. REL-18_00_0006). Leave empty for the latest release.'
+        required: false
+        default: ''
+        type: string
   push:
     branches:
       - '**'
@@ -29,6 +35,13 @@ env:
   LOCAL_DB_PWD: 'test_password'
   LOCAL_DB_NAME: 'test_database'
 
+  # PostgreSQL major for the local test server on every platform. On macOS it
+  # also selects the Homebrew libpq that psqlODBC builds against, so client and
+  # server come from the same formula. Must be a version
+  # ikalnytskyi/action-setup-postgres accepts; bump deliberately rather than
+  # tracking Homebrew's unversioned `postgresql` alias.
+  PG_MAJOR_VERSION: '18'
+
   # SHA-256 checksums for pinned third-party downloads. If a download stops
   # matching, someone changed the artifact upstream - investigate before bumping.
   UNIXODBC_VERSION: '2.3.12'
@@ -43,37 +56,60 @@ permissions:
 
 jobs:
 # Build / Get Underlying Drivers
-  build-win-psqlodbc:
-    name: Windows - Build psqlODBC
-    runs-on: windows-latest
+  resolve-psqlodbc-version:
+    name: Resolve psqlODBC version
+    runs-on: ubuntu-24.04
     outputs:
-      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
+      version: ${{ steps.psqlodbc-version.outputs.version }}
     steps:
-      - name: Get psqlODBC latest release version
+      # Resolve once so every platform tests the same release, even if psqlODBC
+      # publishes a new one mid-run.
+      - name: Resolve psqlODBC release tag
         id: psqlodbc-version
         run: |
-          $VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
-          echo "version=$VERSION" >> $env:GITHUB_OUTPUT
+          if [ -n "$REQUESTED_VERSION" ]; then
+            if [[ ! "$REQUESTED_VERSION" =~ ^REL-[0-9]+_[0-9]+_[0-9]+(-[a-z0-9]+)?$ ]]; then
+              echo "::error::psqlodbc_version must be a psqlODBC release tag like REL-18_00_0006, got '$REQUESTED_VERSION'"
+              exit 1
+            fi
+            VERSION=$(gh api "repos/postgresql-interfaces/psqlodbc/releases/tags/$REQUESTED_VERSION" --jq '.tag_name')
+          else
+            VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "psqlODBC version: $VERSION"
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.psqlodbc_version }}
+
+  build-win-psqlodbc:
+    name: Windows - Build psqlODBC
+    needs: resolve-psqlodbc-version
+    runs-on: windows-latest
+    outputs:
+      psqlodbc-version: ${{ needs.resolve-psqlodbc-version.outputs.version }}
+    steps:
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc
-          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
-          restore-keys: |
-            ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}-
+          # No restore-keys: a "<tag>-" prefix would match the -mimalloc variant of
+          # the same release and install the wrong MSI.
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.resolve-psqlodbc-version.outputs.version }}
       - name: Download psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
           if (-not (Test-Path psqlodbc)) { mkdir psqlodbc }
           if (-not (Test-Path psqlodbc/psqlodbc_x64.msi)) {
             cd psqlodbc
-            # Use releases/latest to match the cache key resolved above, and verify the
-            # download against the SHA-256 digest GitHub records for the release asset.
-            $ASSET=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url + " " + .digest') -split ' '
+            # Download the release the cache key names, and verify it against the
+            # SHA-256 digest GitHub records for the release asset.
+            $ASSET=$(gh api "repos/postgresql-interfaces/psqlodbc/releases/tags/$env:PSQLODBC_VERSION" --jq '.assets.[] | select(.name=="psqlodbc_x64.msi") | .browser_download_url + " " + .digest') -split ' '
+            if (-not $ASSET[0] -or -not $ASSET[1]) {
+              Write-Error "psqlODBC $env:PSQLODBC_VERSION has no psqlodbc_x64.msi asset with a SHA-256 digest, so it cannot be downloaded and verified"
+              exit 1
+            }
             curl.exe --fail -L $ASSET[0] --output psqlodbc_x64.msi
             $EXPECTED=$ASSET[1] -replace '^sha256:', ''
             $ACTUAL=(Get-FileHash psqlodbc_x64.msi -Algorithm SHA256).Hash.ToLower()
@@ -85,82 +121,66 @@ jobs:
           }
         env:
           GH_TOKEN: ${{ github.token }}
+          PSQLODBC_VERSION: ${{ needs.resolve-psqlodbc-version.outputs.version }}
 
   build-macos-psqlodbc:
     name: MacOS - Build psqlODBC
+    needs: resolve-psqlodbc-version
     runs-on: macos-15
     outputs:
-      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
-      pg-major-version: ${{ steps.pg-version.outputs.pg_major }}
+      psqlodbc-version: ${{ needs.resolve-psqlodbc-version.outputs.version }}
     steps:
-      - name: Get psqlODBC latest release version
-        id: psqlodbc-version
-        run: |
-          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "psqlODBC version: $VERSION"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Detect installed PostgreSQL major version
-        id: pg-version
-        run: |
-          PG_MAJOR=$(brew info --json=v2 --formula postgresql | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['formulae'][0]['versions']['stable'].split('.')[0])")
-          echo "pg_major=$PG_MAJOR" >> "$GITHUB_OUTPUT"
-          echo "Detected PostgreSQL major version: $PG_MAJOR"
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-pg${{ steps.pg-version.outputs.pg_major }}-${{ steps.psqlodbc-version.outputs.version }}
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ env.PG_MAJOR_VERSION }}-${{ needs.resolve-psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: postgresql-interfaces/psqlodbc
           # Build the sources of the release the cache key names, not default-branch HEAD.
-          ref: ${{ steps.psqlodbc-version.outputs.version }}
+          ref: ${{ needs.resolve-psqlodbc-version.outputs.version }}
           path: psqlodbc
       - name: Install Dependencies
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install gcc autoconf automake unixodbc libtool postgresql icu4c
+          brew install gcc autoconf automake unixodbc libtool postgresql@${PG_MAJOR_VERSION} icu4c
       - name: Build psqlodbc
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         working-directory: psqlodbc
         run: |
+          # Versioned postgresql formulae are keg-only, so put the pinned
+          # pg_config first on PATH for configure to find.
+          export PATH="$(brew --prefix postgresql@${PG_MAJOR_VERSION})/bin:$PATH"
+          pg_config --version
           ./bootstrap
           ./configure
           make
 
   build-linux-psqlodbc:
     name: Linux Ubuntu - Build psqlODBC
+    needs: resolve-psqlodbc-version
     runs-on: ubuntu-24.04
     outputs:
-      psqlodbc-version: ${{ steps.psqlodbc-version.outputs.version }}
+      psqlodbc-version: ${{ needs.resolve-psqlodbc-version.outputs.version }}
     steps:
-      - name: Get psqlODBC latest release version
-        id: psqlodbc-version
-        run: |
-          VERSION=$(gh api repos/postgresql-interfaces/psqlodbc/releases/latest --jq '.tag_name')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "psqlODBC version: $VERSION"
-        env:
-          GH_TOKEN: ${{ github.token }}
       - name: Retrieve psqlODBC Cache
         id: cache-psqlodbc
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-${{ steps.psqlodbc-version.outputs.version }}
+          key: ${{ runner.os }}-psqlodbc-driver-${{ needs.resolve-psqlodbc-version.outputs.version }}
       - name: Checkout psqlODBC
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: postgresql-interfaces/psqlodbc
           # Build the sources of the release the cache key names, not default-branch HEAD.
-          ref: ${{ steps.psqlodbc-version.outputs.version }}
+          ref: ${{ needs.resolve-psqlodbc-version.outputs.version }}
           path: psqlodbc
       - name: Install Dependencies
         if: ${{steps.cache-psqlodbc.outputs.cache-hit != 'true'}}
@@ -316,7 +336,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
@@ -459,7 +479,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl@3 zlib icu4c
+          brew install cmake unixodbc postgresql@${PG_MAJOR_VERSION} curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
@@ -485,7 +505,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-pg${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ env.PG_MAJOR_VERSION }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Detect psqlODBC driver path
         id: psqlodbc-path
@@ -515,7 +535,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: ${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
@@ -673,7 +693,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
@@ -830,7 +850,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
@@ -960,7 +980,7 @@ jobs:
       - name: Install Build Dependencies
         run: |
           brew update && brew upgrade && brew cleanup
-          brew install cmake unixodbc postgresql curl openssl@3 zlib icu4c
+          brew install cmake unixodbc postgresql@${PG_MAJOR_VERSION} curl openssl@3 zlib icu4c
       - name: Resolve AWS SDK version
         id: aws-sdk-version
         shell: bash
@@ -986,7 +1006,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: psqlodbc/.libs/
-          key: ${{ runner.os }}-psqlodbc-driver-pg${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
+          key: ${{ runner.os }}-psqlodbc-driver-pg${{ env.PG_MAJOR_VERSION }}-${{ needs.build-macos-psqlodbc.outputs.psqlodbc-version }}
           fail-on-cache-miss: true
       - name: Detect psqlODBC Unicode driver path
         id: psqlodbc-path
@@ -1008,7 +1028,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: ${{ needs.build-macos-psqlodbc.outputs.pg-major-version }}
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
@@ -1178,7 +1198,7 @@ jobs:
           password: ${{env.LOCAL_DB_PWD}}
           database: ${{env.LOCAL_DB_NAME}}
           port: 5432
-          postgres-version: 17
+          postgres-version: ${{ env.PG_MAJOR_VERSION }}
           ssl: true
       # Setup MySQL
       - name: Retrieve MySQL Cache
