@@ -89,7 +89,7 @@ SQLRETURN DefaultPlugin::Connect(
     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(conn_in.c_str()));
 #endif
     res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
-        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, nullptr, 0, nullptr, DriverCompletion
     );
 
     if (res.fn_load_success) {
@@ -122,7 +122,7 @@ SQLRETURN DefaultPlugin::Connect(
                     const std::wstring wide_conn = ConvertUTF8ToWString(conn_in);
                     conn_in_sqltchar = const_cast<SQLTCHAR *>(reinterpret_cast<const SQLTCHAR *>(wide_conn.c_str()));
                     res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLDriverConnect>(env->driver_lib_loader, RdsFuncNames::DriverConnect,
-                        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, OutConnectionString, BufferLength, StringLengthPtr, DriverCompletion
+                        dbc->wrapped_dbc, WindowHandle, conn_in_sqltchar, SQL_NTS, nullptr, 0, nullptr, DriverCompletion
                     );
                     ret = res.fn_result;
                 }
