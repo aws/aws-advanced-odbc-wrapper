@@ -53,13 +53,12 @@ public:
         proxy_ = api_client_->get_proxy(PROXY_NAME);
     }
 
-    // Set timeout toxics to 0 to simulate a network outage.
-    // Bandwidth toxic no longer works with value of 0 on latest toxiproxy.
+    // Disables connectivity by adding a toxic that resets the connection.
     void DisableConnectivity() const {
         const auto toxics = proxy_->get_toxics();
         if (toxics) {
-            toxics->timeout(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 0);
-            toxics->timeout(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 0);
+            toxics->reset_peer(DOWNSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::DOWNSTREAM, 0);
+            toxics->reset_peer(UPSTREAM_TOXIC, TOXIPROXY::TOXIC_DIRECTION::UPSTREAM, 0);
         }
     }
 
