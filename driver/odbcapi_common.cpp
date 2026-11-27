@@ -15,6 +15,7 @@
 #include "error.h"
 #include "odbcapi_rds_helper.h"
 #include "plugin/base_plugin.h"
+#include "util/plugin_manager.h"
 #include "util/plugin_service.h"
 #include "util/rds_lib_loader.h"
 
@@ -27,8 +28,8 @@ void ConvertBoundColBuffersAfterFetch(STMT* stmt) {
         return;
     }
 
-    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool use_4_base = stmt->dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = stmt->dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
     for (BoundColBuffer& buffer : buffers) {
         if (*buffer.local_str_len == SQL_NULL_DATA || *buffer.local_str_len < 0) {
@@ -83,8 +84,8 @@ void ConvertBoundParamBuffersBeforeExecute(STMT* stmt) {
         return;
     }
 
-    const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-    const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
     for (BoundParamBuffer& buffer : bindings) {
         if (buffer.input_output_type == SQL_PARAM_OUTPUT) {
@@ -159,8 +160,8 @@ void ConvertBoundParamBuffersAfterExecute(STMT* stmt) {
         return;
     }
 
-    const bool use_4_base = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-    const bool use_4_app = stmt->dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool use_4_base = stmt->dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = stmt->dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
     for (BoundParamBuffer& param : bindings) {
         if (param.input_output_type == SQL_PARAM_INPUT) {
@@ -281,8 +282,8 @@ SQLRETURN SQL_API SQLBindCol(
 
     #if UNICODE && !defined(_WIN32)
     {
-        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+        const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
         std::vector<BoundColBuffer>& bindings = stmt->bound_col_buffers;
         if (TargetValuePtr == nullptr) {
@@ -353,8 +354,8 @@ SQLRETURN SQL_API SQLBindParameter(
 
     #if UNICODE && !defined(_WIN32)
     {
-        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+        const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
         std::vector<BoundParamBuffer>& bindings = stmt->bound_param_buffers;
         if ((use_4_base || use_4_app) && ValueType == SQL_C_TCHAR) {
@@ -722,14 +723,14 @@ SQLRETURN SQL_API SQLDisconnect(
     dbc->stmt_list.clear();
 
     // Clean up plugin internal connections before disconnecting main handle
-    if (dbc->plugin_head) {
-        dbc->plugin_head->ReleaseResources();
+    if (const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager()) {
+        plugin_manager->ReleaseResources();
     }
 
     // Break circular reference: PluginService -> HostListProvider -> Monitor -> PluginService
     // This ensures the topology monitor is stopped and cleaned up before the DBC is freed.
-    if (dbc->plugin_service) {
-        dbc->plugin_service->ReleaseHostListProvider();
+    if (const std::shared_ptr<PluginService> plugin_service = dbc->service_container->GetPluginService()) {
+        plugin_service->ReleaseHostListProvider();
     }
 
     if (!HasWrappedHandle(dbc)) {
@@ -770,11 +771,11 @@ SQLRETURN SQL_API SQLExecute(
     ClearError(stmt);
 
     SQLRETURN rc = SQL_ERROR;
-    if (dbc->plugin_head) {
+    if (const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager()) {
         #if UNICODE && !defined(_WIN32)
             ConvertBoundParamBuffersBeforeExecute(stmt);
         #endif
-        rc = dbc->plugin_head->Execute(StatementHandle);
+        rc = plugin_manager->Execute(StatementHandle);
     } else {
         LOG(ERROR) << "Cannot execute without an open connection";
         stmt->err = std::make_unique<ErrInfo>("SQLExecute - Connection not open", ERR_CONNECTION_NOT_OPEN);
@@ -957,8 +958,8 @@ SQLRETURN SQL_API SQLGetData(
 
 #if UNICODE
     RdsLibResult res;
-    const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
-    const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
+    const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
+    const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
 
     if ((use_4_app || use_4_base) && TargetType == SQL_C_TCHAR) {
         std::vector<SQLTCHAR> buffer(static_cast<size_t>(BufferLength) * 2, 0);
@@ -1191,8 +1192,8 @@ SQLRETURN SQL_API SQLParamData(
 #if UNICODE && !defined(_WIN32)
     stmt->put_data_char_conversion = false;
     if (res.fn_result == SQL_NEED_DATA && ValuePtrPtr && *ValuePtrPtr) {
-        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+        const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
         if (use_4_base || use_4_app) {
             // Check if this parameter was bound as SQL_C_TCHAR
@@ -1254,8 +1255,8 @@ SQLRETURN SQL_API SQLPutData(
 
 #if UNICODE && !defined(_WIN32)
     if (stmt->put_data_char_conversion && DataPtr != nullptr && StrLen_or_Ind != SQL_NULL_DATA && StrLen_or_Ind != 0) {
-        const bool use_4_base = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesBaseDriver();
-        const bool use_4_app = dbc->plugin_service->GetOdbcHelper()->GetUse4BytesUserApp();
+        const bool use_4_base = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesBaseDriver();
+        const bool use_4_app = dbc->service_container->GetPluginService()->GetOdbcHelper()->GetUse4BytesUserApp();
 
         const SQLTCHAR* app_data = static_cast<const SQLTCHAR*>(DataPtr);
 

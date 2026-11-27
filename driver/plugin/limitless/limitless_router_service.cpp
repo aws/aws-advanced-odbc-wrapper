@@ -18,10 +18,12 @@
 #include <memory>
 
 #include "../../driver.h"
+#include "../../plugin/base_plugin.h"
 #include "../../util/auth_provider.h"
+#include "../../util/full_service_container.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
-#include "../../util/plugin_chain_builder.h"
+#include "../../util/plugin_manager.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
@@ -70,11 +72,8 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     delete monitor_dbc_;
     monitor_dbc_ = new DBC();
     monitor_dbc_->conn_attr = conn_attr;
-    const std::shared_ptr<PluginService> monitor_plugin_service =
-        std::make_shared<PluginService>(dbc->env->driver_lib_loader, dbc->env, conn_attr);
-    const std::shared_ptr<BasePlugin> monitoring_plugin_head =
-        PluginChainBuilder::MonitoringBuild(monitor_dbc_, monitor_plugin_service);
-    monitor_plugin_service->SetPluginChain(monitoring_plugin_head);
+    FullServiceContainer::InitMonitoringServices(monitor_dbc_, dbc->env->driver_lib_loader, dbc->env);
+    const std::shared_ptr<BasePlugin> monitoring_plugin_head = monitor_dbc_->service_container->GetPluginManager()->GetPluginChain();
 
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(monitoring_plugin_head, dialect, odbc_helper_, limitless_query_helper_);
 

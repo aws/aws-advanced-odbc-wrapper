@@ -25,6 +25,7 @@
 #include "../../util/connection_string_keys.h"
 #include "../../util/logger_wrapper.h"
 #include "../../util/map_utils.h"
+#include "../../util/plugin_manager.h"
 #include "../../util/plugin_service.h"
 #include "../../util/rds_lib_loader.h"
 #include "../../util/rds_utils.h"
@@ -36,11 +37,11 @@ FailoverPlugin::FailoverPlugin(
     std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin)
 {
     this->plugin_name_ = "FAILOVER";
-    this->plugin_service_ = dbc->plugin_service;
-    this->cluster_id_ = dbc->plugin_service->GetClusterId();
-    this->dialect_ = dbc->plugin_service->GetDialect();
-    this->host_selector_ = dbc->plugin_service->GetHostSelector();
-    this->odbc_helper_ = dbc->plugin_service->GetOdbcHelper();
+    this->plugin_service_ = dbc->service_container->GetPluginService();
+    this->cluster_id_ = dbc->service_container->GetPluginService()->GetClusterId();
+    this->dialect_ = dbc->service_container->GetPluginService()->GetDialect();
+    this->host_selector_ = dbc->service_container->GetPluginService()->GetHostSelector();
+    this->odbc_helper_ = dbc->service_container->GetPluginService()->GetOdbcHelper();
 
     std::map<std::string, std::string> &conn_info = dbc->conn_attr;
     this->failover_timeout_ms_ = MapUtils::GetMillisecondsValue(conn_info, KEY_FAILOVER_TIMEOUT, DEFAULT_FAILOVER_TIMEOUT_MS);
@@ -335,14 +336,14 @@ bool FailoverPlugin::ConnectToHost(DBC* dbc, const std::string& host_string, con
     dbc->conn_attr.insert_or_assign(KEY_SERVER, host_string);
 
     // Update port from the template host if available
-    if (const std::shared_ptr<PluginService> service = dbc->plugin_service) {
+    if (const std::shared_ptr<PluginService> service = dbc->service_container->GetPluginService()) {
         const int port = service->GetTemplateHostInfo().GetPort();
         if (port != HostInfo::NO_PORT) {
             dbc->conn_attr.insert_or_assign(KEY_PORT, std::to_string(port));
         }
     }
 
-    return SQL_SUCCEEDED(dbc->plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
+    return SQL_SUCCEEDED(dbc->service_container->GetPluginManager()->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT));
 }
 
 FailoverMode FailoverPlugin::InitFailoverMode(std::map<std::string, std::string>& conn_info)

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "../host_info.h"
+#include "../util/full_service_container.h"
 #include "../util/plugin_service.h"
 #include "../util/sliding_cache_map.h"
 #include "cluster_topology_monitor.h"
@@ -28,10 +29,10 @@
 
 class RdsHostListProvider : public HostListProvider {
 public:
-    RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<PluginService>& plugin_service);
+    RdsHostListProvider(const std::shared_ptr<TopologyUtil>& topology_util, const std::shared_ptr<FullServiceContainer>& service_container);
     RdsHostListProvider(
         const std::shared_ptr<TopologyUtil>& topology_util,
-        const std::shared_ptr<PluginService>& plugin_service,
+        const std::shared_ptr<FullServiceContainer>& service_container,
         std::map<std::string, std::string> conn_attr,
         std::string cluster_id);
     ~RdsHostListProvider();
@@ -49,7 +50,7 @@ private:
 
     std::shared_ptr<ClusterTopologyMonitor> monitor_;
     std::shared_ptr<TopologyUtil> topology_util_;
-    std::shared_ptr<PluginService> plugin_service_;
+    std::shared_ptr<FullServiceContainer> service_container_;
     std::map<std::string, std::string> conn_attr_;
     HostInfo initial_host_info_;
     HostInfo template_host_info_;

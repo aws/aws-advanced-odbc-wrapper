@@ -19,6 +19,7 @@
 
 #include "../../odbcapi_rds_helper.h"
 #include "../../util/map_utils.h"
+#include "../../util/plugin_manager.h"
 #include "../../util/plugin_service.h"
 #include "../../util/sql_query_analyzer.h"
 
@@ -30,7 +31,7 @@ AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc) : A
 
 AbstractReadWriteSplittingPlugin::AbstractReadWriteSplittingPlugin(DBC *dbc, std::shared_ptr<BasePlugin> next_plugin) : BasePlugin(dbc, next_plugin) {
     this->plugin_name_ = "ABSTRACT_READ_WRITE_SPLITTING";
-    this->plugin_service_ = dbc->plugin_service;
+    this->plugin_service_ = dbc->service_container->GetPluginService();
     if (const std::shared_ptr<PluginService> service = plugin_service_.lock()) {
         this->odbc_helper_ = service->GetOdbcHelper();
         this->connection_attributes_ = service->GetOriginalConnAttr();
@@ -109,7 +110,9 @@ SQLRETURN AbstractReadWriteSplittingPlugin::Execute(SQLHSTMT StatementHandle, SQ
     const DBC* dbc = stmt->dbc;
 
     if (!this->plugin_head_) {
-        this->plugin_head_ = dbc->plugin_head;
+        if (const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager()) {
+            this->plugin_head_ = plugin_manager->GetPluginChain().get();
+        }
     }
     this->current_connection_ = dbc->wrapped_dbc;
 

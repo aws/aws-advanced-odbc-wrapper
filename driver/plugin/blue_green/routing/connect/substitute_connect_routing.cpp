@@ -18,6 +18,7 @@
 
 #include "../../../../util/connection_string_keys.h"
 #include "../../../../util/logger_wrapper.h"
+#include "../../../../util/plugin_manager.h"
 #include "../../../../util/plugin_service.h"
 #include "../../../../util/rds_utils.h"
 #include "../../../base_plugin.h"
@@ -28,7 +29,7 @@ SQLRETURN SubstituteConnectRouting::Connect(
     std::shared_ptr<OdbcHelper> odbc_helper,
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache)
 {
-    const std::shared_ptr<BasePlugin> plugin_head = dbc->plugin_service->GetPluginChain();
+    const std::shared_ptr<PluginManager> plugin_manager = dbc->service_container->GetPluginManager();
     odbc_helper->Disconnect(dbc);
 
     std::string substitute_host = this->substitute_info_.GetHost();
@@ -43,9 +44,9 @@ SQLRETURN SubstituteConnectRouting::Connect(
 
     // Connect as usual if not using IAM
     if (!using_ip_host || !using_iam) {
-        SQLRETURN const rt = plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        SQLRETURN const rt = plugin_manager->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         if (!SQL_SUCCEEDED(rt)) {
-            const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
+            const std::shared_ptr<Dialect> dialect = dbc->service_container->GetPluginService()->GetDialect();
             std::string error_message;
             const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, error_message);
             if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {
@@ -68,9 +69,9 @@ SQLRETURN SubstituteConnectRouting::Connect(
             dbc->conn_attr.insert_or_assign(KEY_IAM_PORT, std::to_string(iam_info.GetPort()));
         };
         dbc->conn_attr.insert_or_assign(KEY_MONITORING_CONN_UUID, VALUE_BOOL_TRUE);
-        const SQLRETURN rt = plugin_head->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
+        const SQLRETURN rt = plugin_manager->Connect(dbc, nullptr, nullptr, 0, nullptr, SQL_DRIVER_NOPROMPT);
         dbc->conn_attr.erase(KEY_MONITORING_CONN_UUID);
-        const std::shared_ptr<Dialect> dialect = dbc->plugin_service->GetDialect();
+        const std::shared_ptr<Dialect> dialect = dbc->service_container->GetPluginService()->GetDialect();
         std::string error_message;
         const std::string sql_state = odbc_helper->GetSqlStateAndLogMessage(dbc, error_message);
         if (dialect && dialect->IsSqlStateAccessError(sql_state.c_str(), error_message)) {

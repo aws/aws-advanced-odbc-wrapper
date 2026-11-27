@@ -41,11 +41,11 @@ static constexpr int DIVIDER_BASE_WIDTH = 52;
 std::hash<std::string> BlueGreenStatusProvider::hasher_;
 
 BlueGreenStatusProvider::BlueGreenStatusProvider(
-    std::shared_ptr<PluginService> plugin_service,
+    std::shared_ptr<FullServiceContainer> service_container,
     std::map<std::string, std::string> conn_attr,
     std::shared_ptr<ConcurrentMap<std::string, BlueGreenStatus>> status_cache,
     std::string blue_green_id, std::string cluster_id)
-    : plugin_service_{ plugin_service },
+    : service_container_{ service_container },
     conn_attr_{ conn_attr },
     status_cache_{ status_cache },
     blue_green_id_{ blue_green_id },
@@ -95,10 +95,10 @@ void BlueGreenStatusProvider::InitMonitoring() {
     pending_restart_ = false;
 
     const std::shared_ptr<BlueGreenMonitor> source_monitor = std::make_shared<BlueGreenMonitor>(
-        this->plugin_service_,
+        this->service_container_,
         BlueGreenRole::SOURCE,
         blue_green_id_,
-        this->plugin_service_->GetCurrentHostInfo(),
+        this->service_container_->GetPluginService()->GetCurrentHostInfo(),
         GetMonitoringProperties(),
         check_interval_map_,
         [this](BlueGreenRole role, BlueGreenInterimStatus interim_status) { this->PrepareStatus(role, interim_status); });
@@ -106,10 +106,10 @@ void BlueGreenStatusProvider::InitMonitoring() {
     monitors_[BlueGreenRole::SOURCE] = source_monitor;
 
     const std::shared_ptr<BlueGreenMonitor> target_monitor = std::make_shared<BlueGreenMonitor>(
-        this->plugin_service_,
+        this->service_container_,
         BlueGreenRole::TARGET,
         blue_green_id_,
-        this->plugin_service_->GetCurrentHostInfo(),
+        this->service_container_->GetPluginService()->GetCurrentHostInfo(),
         GetMonitoringProperties(),
         check_interval_map_,
         [this](BlueGreenRole role, BlueGreenInterimStatus interim_status) { this->PrepareStatus(role, interim_status); });

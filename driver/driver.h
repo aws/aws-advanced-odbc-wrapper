@@ -63,6 +63,7 @@
 #include <vector>
 
 #include "error.h"
+#include "util/full_service_container.h"
 
 /* Forward Declarations */
 struct ENV;
@@ -130,8 +131,8 @@ struct DBC {
     // Connection Information, i.e. Server, Port, UID, Pass, Plugin Info, etc
     std::map<std::string, std::string> conn_attr;  // Key, Value
     bool allow_interactive_auth = false;
-    BasePlugin* plugin_head = nullptr;
-    std::shared_ptr<PluginService> plugin_service;
+    // The services this connection uses, including its PluginService and PluginManager
+    std::shared_ptr<FullServiceContainer> service_container = std::make_shared<FullServiceContainer>();
     std::unique_ptr<ErrInfo> err;
     char sql_error_called = 0;
 
