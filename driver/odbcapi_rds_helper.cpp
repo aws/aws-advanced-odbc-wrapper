@@ -1263,6 +1263,12 @@ SQLRETURN RDS_SQLExecDirect(
     const std::lock_guard<std::recursive_mutex> lock_guard(stmt->lock);
     ClearError(stmt);
 
+    // ODBC: HY090; an empty text would run the statement prepared on the handle.
+    if (TextLength != SQL_NTS && TextLength <= 0) {
+        stmt->err = std::make_unique<ErrInfo>("SQLExecDirect - Invalid string or buffer length", ERR_INVALID_STRING_OR_BUFFER_LENGTH);
+        return SQL_ERROR;
+    }
+
     SQLTCHAR* stmt_text = StatementText;
 #if UNICODE
     const auto odbc_helper = dbc->plugin_service->GetOdbcHelper();

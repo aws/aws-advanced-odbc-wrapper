@@ -19,7 +19,9 @@
 #include "../../driver/driver.h"
 #include "../../driver/odbcapi_rds_helper.h"
 #include "../../driver/error.h"
+#include "../../driver/plugin/base_plugin.h"
 #include "../../driver/util/connection_string_keys.h"
+#include "../../driver/util/plugin_service.h"
 
 class ErrorHandlingTest : public testing::Test {
 protected:
@@ -413,4 +415,31 @@ TEST_F(ErrorHandlingTest, DiagRec_InvalidHandleType) {
     SQLRETURN ret = RDS_SQLGetDiagRec(invalid_handle_type, dbc_, 1, sql_state, &native_error, message, MAX_MSG_LEN, &text_length, false);
 
     EXPECT_EQ(SQL_INVALID_HANDLE, ret);
+}
+
+namespace {
+
+class ExecuteRecordingPlugin : public BasePlugin {
+public:
+    bool executed = false;
+
+    SQLRETURN Execute(SQLHSTMT, SQLTCHAR*, SQLINTEGER) override {
+        executed = true;
+        return SQL_SUCCESS;
+    }
+};
+
+}  // namespace
+
+TEST_F(ErrorHandlingTest, ExecDirect_ZeroTextLengthReturnsInvalidLength) {
+    ExecuteRecordingPlugin plugin;
+    dbc_->plugin_service = std::make_shared<PluginService>(nullptr, env_, std::map<std::string, std::string>{}, "");
+    dbc_->plugin_head = &plugin;
+    SQLTCHAR text[] = {'S', 'E', 'L', 'E', 'C', 'T', ' ', '1', 0};
+
+    EXPECT_EQ(SQL_ERROR, RDS_SQLExecDirect(stmt_, text, 0));
+
+    ASSERT_TRUE(stmt_->err);
+    EXPECT_EQ("HY090", stmt_->err->sqlstate);
+    EXPECT_FALSE(plugin.executed);
 }

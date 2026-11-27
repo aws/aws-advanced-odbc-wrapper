@@ -184,4 +184,16 @@ TEST_F(RdsStringsTest, GetLenOfSqltcharArray_4Byte_NTS_MultipleHighByteZero) {
     EXPECT_EQ(len, 4u);
 }
 
+// ODBC W functions take a length in characters, and the text needn't be NUL-terminated. pyodbc, for example, passes
+// a UTF-16 buffer that ends in a single NUL byte, so reading to a 16-bit NUL picks up whatever follows.
+TEST_F(RdsStringsTest, ConvertUserAppToUTF8_2Byte_ExplicitLength_StopsAtLength) {
+    SQLTCHAR in[] = {'S', 'E', 'L', 'E', 'C', 'T', ' ', '1', 0x0400, 0};
+    EXPECT_EQ("SELECT 1", ConvertUserAppToUTF8(false, in, 8));
+}
+
+TEST_F(RdsStringsTest, ConvertUserAppToUTF8_2Byte_ZeroLength_Empty) {
+    SQLTCHAR in[] = {'a', 'b', 0};
+    EXPECT_EQ("", ConvertUserAppToUTF8(false, in, 0));
+}
+
 #endif // UNICODE
