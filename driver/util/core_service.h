@@ -55,7 +55,7 @@ public:
     // their global state when their last ENV is freed, then set it up again on the next connect, and that is not
     // thread safe. MySQL Connector/ODBC on Unix does this: an app connecting at the same time as one of its monitors
     // can fail with HY001 "Memory allocation error". The wrapper never unloads a base driver, so keeping it set up
-    // only costs one ENV. Must be called before any monitor of the connection starts. Thread safe
+    // only costs one ENV. Call it on every connect, before the connect can fail. Thread safe
     void PinBaseDriver(const std::shared_ptr<RdsLibLoader>& lib_loader);
     [[nodiscard]] bool IsBaseDriverPinned(const std::string& driver_path);
 

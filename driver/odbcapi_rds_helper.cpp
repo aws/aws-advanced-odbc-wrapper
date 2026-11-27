@@ -2919,8 +2919,6 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                 dbc->err = std::make_unique<ErrInfo>("Unable to allocate underlying ENV", ERR_SQLALLOCHANDLE_ON_SQL_HANDLE_ENV_FAILED);
                 return SQL_ERROR;
             }
-            // Before the plugins below start any monitor
-            CoreService::Instance().PinBaseDriver(env->driver_lib_loader);
             // Apply Tracked Environment Attributes
             for (auto const& [key, val] : env->attr_map) {
                 res = RdsLibLoader::CallFunctionChecked<RDS_FP_SQLSetEnvAttr>(env->driver_lib_loader, RdsFuncNames::SetEnvAttr,
@@ -2930,6 +2928,9 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                     ? ret : static_cast<SQLRETURN>(SQL_SUCCESS_WITH_INFO);
             }
         }
+        // Before anything below can return, as even a failed connect sets up the base driver. On every connect,
+        // so a failed pin is retried
+        CoreService::Instance().PinBaseDriver(env->driver_lib_loader);
     }
 
     // Initialize Plugins
