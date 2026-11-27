@@ -2928,6 +2928,9 @@ SQLRETURN RDS_InitializeConnection(DBC* dbc, const std::string& conn_str)
                     ? ret : static_cast<SQLRETURN>(SQL_SUCCESS_WITH_INFO);
             }
         }
+        // Before anything below can return, as even a failed connect sets up the base driver. On every connect,
+        // so a failed pin is retried
+        CoreService::Instance().PinBaseDriver(env->driver_lib_loader);
     }
 
     // Initialize Plugins
