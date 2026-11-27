@@ -31,15 +31,13 @@
 SlidingCacheMap<std::string, HostFilter> CustomEndpointMonitor::endpoint_cache_;
 
 CustomEndpointMonitor::CustomEndpointMonitor(
-    const std::weak_ptr<PluginService>& plugin_service,
     const std::string& endpoint,
     std::string region,
     std::string profile,
     std::chrono::milliseconds refresh_rate_ms,
     std::chrono::milliseconds max_refresh_rate_ms,
     int exponential_backoff_rate)
-    : plugin_service_{ plugin_service },
-      endpoint_{ endpoint },
+    : endpoint_{ endpoint },
       endpoint_identifier_{ RdsUtils::GetRdsClusterId(endpoint) },
       region_{ std::move(region) },
       profile_{ std::move(profile) },
@@ -115,13 +113,14 @@ void CustomEndpointMonitor::Run() {
                 }
                 filter.endpoint_type = endpoint_info.GetEndpointType();
 
-                const std::optional<HostFilter> cached_filter = endpoint_cache_.Get(endpoint_identifier_);
+                // Keyed by the full endpoint, the identifier alone is only unique within a cluster
+                const std::optional<HostFilter> cached_filter = endpoint_cache_.Get(endpoint_);
                 if (cached_filter != filter) {
-                    LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_identifier_;
-                    if (const std::shared_ptr<PluginService> service = this->plugin_service_.lock()) {
-                        service->SetHostFilter(filter);
-                    }
-                    endpoint_cache_.Put(this->endpoint_identifier_, filter);
+                    LOG(INFO) << "Detected change in custom endpoint info for " << endpoint_;
+                    // Published under the endpoint, so connections opened later or after
+                    // the one that created this monitor closes still receive updates
+                    PluginService::SetEndpointHostFilter(endpoint_, filter);
+                    endpoint_cache_.Put(endpoint_, filter);
                     DecreaseDelay();
                 }
             } else {
@@ -149,7 +148,7 @@ void CustomEndpointMonitor::Run() {
 }
 
 bool CustomEndpointMonitor::HasInfo() {
-    return endpoint_cache_.Get(endpoint_identifier_).has_value();
+    return endpoint_cache_.Get(endpoint_).has_value();
 }
 
 void CustomEndpointMonitor::IncreaseDelay() {

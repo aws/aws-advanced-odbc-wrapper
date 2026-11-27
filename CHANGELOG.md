@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** The cluster ID is no longer derived from the host when `CLUSTER_ID` is not set, it defaults to `1`. Applications that connect to a single cluster need no changes. Applications that connect to more than one cluster, including through several DSNs in one process, must set a distinct `CLUSTER_ID` for each cluster, otherwise the clusters share one topology cache and failover can connect to an instance of the wrong cluster. The Limitless Plugin now also shares router monitors by `CLUSTER_ID` instead of by host. See [Understanding the CLUSTER_ID Parameter](https://github.com/aws/aws-advanced-odbc-wrapper/blob/main/docs/using-the-aws-odbc-wrapper/cluster-id.md)
+
 ### Fixed
 
+- Custom endpoint member lists are now tracked per custom endpoint instead of per cluster ID. Connections with the same `CLUSTER_ID` through different custom endpoints, or through a custom endpoint and another endpoint of the cluster, no longer restrict failover to each other's instances, and member list changes keep reaching open connections after the connection that started monitoring the endpoint closes
 - Debug builds no longer log the generated IAM authentication token [(PR #167)](https://github.com/aws/aws-advanced-odbc-wrapper/pull/167)
 - `SQLGetInfo(SQL_DRIVER_VER)` now reports the real wrapper version instead of a hardcoded `1.0.0`
 - Discovery of the `odbcinst`/`iodbcinst` library on macOS and Linux, which ignored the configured `ODBC_ROOT`

@@ -61,7 +61,6 @@ private:
 
     std::weak_ptr<PluginService> plugin_service_;
 
-    std::string cluster_id_;
     std::string region_;
     std::string host_;
     std::string profile_;

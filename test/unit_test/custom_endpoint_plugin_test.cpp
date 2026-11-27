@@ -142,3 +142,10 @@ TEST_F(CustomEndpointPluginTest, Connect_NonRdsDsn_NoRegion) {
         }
     }, std::runtime_error);
 }
+
+TEST_F(CustomEndpointPluginTest, Construct_WithoutClusterId) {
+    // Monitors are keyed by the custom endpoint, so the plugin does not need a cluster ID
+    dbc_->conn_attr.erase(KEY_CLUSTER_ID);
+
+    EXPECT_NO_THROW(CustomEndpointPlugin(dbc_, mock_base_plugin_, nullptr, mock_custom_endpoint_monitor_));
+}

@@ -129,6 +129,8 @@
 #define KEY_REFRESH_RATE "TOPOLOGY_REFRESH_RATE_MS"
 #define KEY_FAILOVER_TIMEOUT "FAILOVER_TIMEOUT_MS"
 #define KEY_CLUSTER_ID "CLUSTER_ID"
+// Connections that do not set CLUSTER_ID share this ID, so they share one topology cache and monitor
+#define DEFAULT_CLUSTER_ID "1"
 
 /* Limitless */
 #define KEY_ENABLE_LIMITLESS "ENABLE_LIMITLESS"

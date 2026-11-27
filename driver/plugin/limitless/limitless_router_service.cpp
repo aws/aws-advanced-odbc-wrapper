@@ -23,7 +23,6 @@
 #include "../../util/map_utils.h"
 #include "../../util/plugin_chain_builder.h"
 #include "../../util/plugin_service.h"
-#include "../../util/rds_utils.h"
 #include "../../util/sliding_cache_map.h"
 #include "limitless_query_helper.h"
 #include "limitless_router_monitor.h"
@@ -77,14 +76,6 @@ std::shared_ptr<LimitlessRouterMonitor> LimitlessRouterService::CreateMonitor(
     monitor_plugin_service->SetPluginChain(monitoring_plugin_head);
 
     std::shared_ptr<LimitlessRouterMonitor> monitor = std::make_shared<LimitlessRouterMonitor>(monitoring_plugin_head, dialect, odbc_helper_, limitless_query_helper_);
-
-    const std::string host = MapUtils::GetStringValue(conn_attr, KEY_SERVER, "");
-    std::string service_id = RdsUtils::GetRdsClusterId(host);
-
-    if (service_id.empty()) {
-        service_id = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
-        LOG(INFO) << "No service ID provided and could not parse service ID from host: " << host << ". Generated random service ID: " << service_id;
-    }
 
     bool block_and_query_immediately = true;
     const std::string limitless_mode = MapUtils::GetStringValue(conn_attr, KEY_LIMITLESS_MODE, VALUE_LIMITLESS_MODE_IMMEDIATE);
@@ -241,10 +232,10 @@ SQLRETURN LimitlessRouterService::EstablishConnection(std::shared_ptr<BasePlugin
 void LimitlessRouterService::StartMonitoring(DBC* dbc, const std::shared_ptr<DialectLimitless> &dialect)
 {
     const std::map<std::string, std::string> conn_attr = dbc->conn_attr;
-    const std::string& host = conn_attr.at(KEY_SERVER);
-    router_monitor_key_ = host;
-    if (RdsUtils::IsRdsDns(host)) {
-        router_monitor_key_ = RdsUtils::GetRdsClusterId(host);
+    // Routers belong to the cluster, so connections sharing a cluster ID share one monitor
+    router_monitor_key_ = MapUtils::GetStringValue(conn_attr, KEY_CLUSTER_ID, "");
+    if (router_monitor_key_.empty()) {
+        router_monitor_key_ = DEFAULT_CLUSTER_ID;
     }
     LOG(INFO) << "Limitless Router Key: " << router_monitor_key_;
 
